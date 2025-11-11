@@ -1,4 +1,4 @@
-# Rosalind: Accessible genomics for every device.
+# Rosalind: Accessible genomics for every devices.
 
 ## Rosalind is a Rust engine that performs genome alignment, streaming variant calling, and custom bioinformatics workloads using **O(√t)** working memory, letting you run billion-step analyses on laptops, tablets, and edge devices without sacrificing deterministic accuracy.
 
