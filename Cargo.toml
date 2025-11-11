@@ -1,0 +1,54 @@
+[package]
+name = "sqrt-space-sim"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Name <your.email@example.com>"]
+description = "O(√t) space simulation of time-bounded Turing machines via height compression"
+repository = "https://github.com/yourusername/sqrt-space-sim"
+license = "MIT OR Apache-2.0"
+keywords = ["complexity-theory", "turing-machines", "space-complexity", "algorithms"]
+categories = ["algorithms", "science"]
+
+[dependencies]
+# Finite field arithmetic - for constant-size field 𝔽_{2^c}
+ff = "0.13"
+# Polynomial operations - for low-degree extensions
+ark-poly = "0.4"
+# Fast hashing for advisory fingerprints
+blake3 = "1.5"
+# Bit manipulation - for compact ledger representation
+bitvec = "1.0"
+# Error handling
+thiserror = "1.0"
+anyhow = "1.0"
+# Logging and tracing
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+# CLI
+clap = { version = "4.5", features = ["derive"] }
+# Serialization (optional, for debugging/visualization)
+serde = { version = "1.0", features = ["derive"], optional = true }
+# Python bindings
+pyo3 = { version = "0.23.2", features = ["extension-module"] }
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+proptest = "1.4"
+test-case = "3.3"
+
+[features]
+default = []
+visualize = ["serde"]
+profiling = []
+
+[[bench]]
+name = "simulation_bench"
+harness = false
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+
+[profile.bench]
+inherits = "release"

@@ -1,0 +1,33 @@
+   Compiling sqrt-space-sim v0.1.0 (/Users/logannye/space-time-sim)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.69s
+     Running `target/debug/examples/scale_performance_test`
+Scale Performance Test: O(√t) Space Complexity Verification
+==========================================================
+
+Running scale tests...
+Note: Large time bounds (t > 1,000,000) may take several minutes to complete.
+
+Time Bound      | Block Size |     Blocks |   Space Used |     √t Bound |    Space/t |    Time(s) |    Scaling
+------------------------------------------------------------------------------------------------------------------------
+100             |         10 |         10 |           17 |           20 | 0.17000000 |      0.002 |          -
+400             |         20 |         20 |           31 |           40 | 0.07750000 |      0.004 |      1.82x
+1,600           |         40 |         40 |           57 |           80 | 0.03562500 |      0.012 |      1.84x
+6,400           |         80 |         80 |          108 |          160 | 0.01687500 |      0.029 |      1.89x
+25,600          |        160 |        160 |          209 |          320 | 0.00816406 |      0.072 |      1.94x
+100,000         |        317 |        316 |          406 |          634 | 0.00406000 |      0.241 |      1.94x
+400,000         |        633 |        632 |          802 |        1,266 | 0.00200500 |      0.937 |      1.98x
+Running test for t=1600000 (this may take a while)...
+1,600,000       |       1265 |      1,265 |        1,593 |        2,530 |  9.9562e-4 |      3.675 |      1.99x
+Running test for t=6400000 (this may take a while)...
+6,400,000       |       2530 |      2,530 |        3,175 |        5,060 |  4.9609e-4 |     14.945 |      1.99x
+Running test for t=25600000 (this may take a while)...
+25,600,000      |       5060 |      5,060 |        6,339 |       10,120 |  2.4762e-4 |     60.019 |      2.00x
+Running test for t=100000000 (this may take a while)...
+100,000,000     |      10000 |     10,000 |       12,515 |       20,000 |  1.2515e-4 |    241.073 |      1.97x
+Running test for t=400000000 (this may take a while)...
+400,000,000     |      20000 |     20,000 |       25,016 |       40,000 |  6.2540e-5 |    966.826 |      2.00x
+Running test for t=1600000000 (this may take a while)...
+1,600,000,000   |      40000 |     40,000 |       50,017 |       80,000 |  3.1261e-5 |   3817.216 |      2.00x
+Running test for t=6400000000 (this may take a while)...
+6,400,000,000   |      80000 |     80,000 |      100,018 |      160,000 |  1.5628e-5 |  15577.326 |      2.00x
+Running test for t=25600000000 (this may take a while)...
