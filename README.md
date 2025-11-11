@@ -6,7 +6,7 @@
 
 ## Why Rosalind Matters
 
-- **Democratized genomics** – Align a human genome or call variants from a full sequencing run in under 100 MB of RAM, keeping the entire pipeline within L1/L2 cache on commodity CPUs.
+- **Democratized genomics** – Align a human genome or call variants from a full sequencing run in minimal RAM, keeping the entire pipeline within L1/L2 cache on commodity CPUs.
 - **Edge-first architecture** – Run clinical diagnostics, infectious-disease surveillance, and population-scale screening on field hardware with limited memory or sporadic connectivity.
 - **Composable analytics** – Extend Rosalind with bespoke pipelines (e.g., RNA expression, quality control, phylogenetics) by implementing a single trait or loading from Python.
 
@@ -15,7 +15,7 @@
 ## Core Capabilities
 
 - **FM-index Alignment**  
-  A space-efficient Burrows–Wheeler/FM-index implementation partitions references into √t blocks, keeps per-block rank/select structures, and runs backward search while storing only O(√t) state. Billion-base references can be aligned using tens of kilobytes.
+  A space-efficient Burrows–Wheeler/FM-index implementation partitions references into √t blocks, keeps per-block rank/select structures, and runs backward search while storing only O(√t) state. Billion-base references can be aligned using minimal memory.
 
 - **Streaming Variant Calling**  
   Rosalind constructs pileups on-the-fly, performs Bayesian scoring using O(√t) working space, and emits variant calls as data arrives. Streaming lets you watch coverage, allele fractions, and quality metrics in real time on the edge.
