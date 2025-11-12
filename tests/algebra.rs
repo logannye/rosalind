@@ -2,12 +2,12 @@
 //!
 //! Verifies polynomial encoding extraction and combiner correctness
 
-use sqrt_space_sim::*;
+use rosalind::*;
 
 #[test]
 fn test_polynomial_encoding_extraction() {
-    use sqrt_space_sim::algebra::{Combiner, EvaluationGrid, FiniteField};
-    use sqrt_space_sim::blocking::{BlockSummary, MovementLog};
+    use rosalind::algebra::{Combiner, EvaluationGrid, FiniteField};
+    use rosalind::blocking::{BlockSummary, MovementLog};
 
     let field = FiniteField::new(8); // GF(2^8)
     let grid = EvaluationGrid::new(&field);
@@ -43,9 +43,9 @@ fn test_polynomial_encoding_extraction() {
 
 #[test]
 fn test_combiner_merge() {
-    use sqrt_space_sim::algebra::{Combiner, EvaluationGrid, FiniteField};
-    use sqrt_space_sim::blocking::{BlockSummary, MovementLog};
-    use sqrt_space_sim::machine::Move;
+    use rosalind::algebra::{Combiner, EvaluationGrid, FiniteField};
+    use rosalind::blocking::{BlockSummary, MovementLog};
+    use rosalind::machine::Move;
 
     let field = FiniteField::new(8);
     let grid = EvaluationGrid::new(&field);
@@ -104,9 +104,9 @@ fn test_combiner_merge() {
 
 #[test]
 fn test_combiner_merge_uses_encodings() {
-    use sqrt_space_sim::algebra::{Combiner, EvaluationGrid, FiniteField};
-    use sqrt_space_sim::blocking::{BlockSummary, MovementLog};
-    use sqrt_space_sim::machine::Move;
+    use rosalind::algebra::{Combiner, EvaluationGrid, FiniteField};
+    use rosalind::blocking::{BlockSummary, MovementLog};
+    use rosalind::machine::Move;
 
     let field = FiniteField::new(8);
     let grid = EvaluationGrid::new(&field);
@@ -163,9 +163,9 @@ fn test_combiner_merge_uses_encodings() {
 
 #[test]
 fn test_algebraic_correctness() {
-    use sqrt_space_sim::algebra::{Combiner, EvaluationGrid, FiniteField};
-    use sqrt_space_sim::blocking::{BlockSummary, MovementLog};
-    use sqrt_space_sim::machine::Move;
+    use rosalind::algebra::{Combiner, EvaluationGrid, FiniteField};
+    use rosalind::blocking::{BlockSummary, MovementLog};
+    use rosalind::machine::Move;
 
     let field = FiniteField::new(8);
     let grid = EvaluationGrid::new(&field);

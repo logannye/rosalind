@@ -137,6 +137,7 @@ mod tests {
             AlignedRead::new(
                 Arc::clone(&chrom),
                 0,
+                60,
                 vec![CigarOp::new(CigarOpKind::Match, 4)],
                 b"ACGT".to_vec(),
                 vec![30; 4],
@@ -145,6 +146,7 @@ mod tests {
             AlignedRead::new(
                 Arc::clone(&chrom),
                 2,
+                55,
                 vec![CigarOp::new(CigarOpKind::Match, 4)],
                 b"GTAA".to_vec(),
                 vec![25; 4],

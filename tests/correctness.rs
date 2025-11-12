@@ -1,6 +1,6 @@
 //! Correctness tests: verify simulation matches direct execution
 
-use sqrt_space_sim::*;
+use rosalind::*;
 mod test_helpers;
 use test_helpers::*;
 
@@ -27,8 +27,8 @@ fn test_simple_machine_correctness() {
 
 #[test]
 fn test_block_summary_composition() {
-    use sqrt_space_sim::blocking::simulate_block;
-    use sqrt_space_sim::machine::Configuration;
+    use rosalind::blocking::simulate_block;
+    use rosalind::machine::Configuration;
 
     let machine = create_right_move_machine();
     let input = vec!['1', '1', '0'];
@@ -63,8 +63,8 @@ fn test_block_summary_composition() {
 
 #[test]
 fn test_interface_checking() {
-    use sqrt_space_sim::blocking::{BlockSummary, InterfaceChecker, MovementLog};
-    use sqrt_space_sim::machine::Move;
+    use rosalind::blocking::{BlockSummary, InterfaceChecker, MovementLog};
+    use rosalind::machine::Move;
 
     // Create two adjacent blocks with matching interface
     let mut left_log = MovementLog::new();
@@ -122,8 +122,8 @@ fn test_interface_checking() {
 
 #[test]
 fn test_boundary_reconstruction() {
-    use sqrt_space_sim::blocking::simulate_block;
-    use sqrt_space_sim::machine::Configuration;
+    use rosalind::blocking::simulate_block;
+    use rosalind::machine::Configuration;
 
     let machine = create_right_move_machine();
     let input = vec!['1', '1', '1'];
@@ -166,7 +166,7 @@ fn test_boundary_reconstruction() {
     );
 
     // Verify interface checker passes
-    use sqrt_space_sim::blocking::InterfaceChecker;
+    use rosalind::blocking::InterfaceChecker;
     assert!(
         InterfaceChecker::check(&summary1, &summary2).unwrap(),
         "Interface check should pass for correctly reconstructed blocks"

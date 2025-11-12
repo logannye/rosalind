@@ -16,8 +16,8 @@
 //!
 //! ## Usage Example
 //!
-//! ```ignore
-//! use sqrt_space_sim::{TuringMachine, Simulator, SimulationConfig};
+//! ```text
+//! use rosalind::{TuringMachine, Simulator, SimulationConfig};
 //!
 //! let config = SimulationConfig::optimal_for_time(10_000);
 //! let mut sim = Simulator::new(machine, config);

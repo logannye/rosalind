@@ -3,7 +3,7 @@
 //! These machines are designed to run for many steps without halting early,
 //! allowing proper testing of O(√t) space complexity at scale.
 
-use sqrt_space_sim::{Move, TuringMachine};
+use rosalind::{Move, TuringMachine};
 
 /// Create a counter machine that counts from 0 to approximately t
 ///

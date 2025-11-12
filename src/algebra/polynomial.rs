@@ -15,8 +15,8 @@ use std::collections::HashMap;
 #[derive(Debug, Clone)]
 pub struct PolynomialEncoding {
     /// Evaluation table: grid_point → field_element^q
-    /// Grid point is Vec<u8> of length m
-    /// Values are Vec<u8> of length q (output dimension)
+    /// Grid point is `Vec<u8>` of length m
+    /// Values are `Vec<u8>` of length q (output dimension)
     evaluations: HashMap<Vec<u8>, Vec<u8>>,
 
     /// Output dimension q (constant)

@@ -80,6 +80,7 @@ fn build_workload(
         aligned_reads.push(AlignedRead::new(
             Arc::from("chr1"),
             pos,
+            60,
             vec![CigarOp::new(CigarOpKind::Match, seq_bytes.len() as u32)],
             seq_bytes,
             vec![30u8; sequence.len()],

@@ -1,0 +1,5 @@
+##fileformat=VCFv4.3
+##source=Rosalind
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+chr1	4	.	T	A	42.00	PASS	DP=12;AF=0.750
+chr2	10	.	G	C	18.50	PASS	DP=8;AF=0.625

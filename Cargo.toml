@@ -1,13 +1,16 @@
 [package]
-name = "sqrt-space-sim"
+name = "rosalind"
 version = "0.1.0"
 edition = "2021"
-authors = ["Your Name <your.email@example.com>"]
-description = "O(√t) space simulation of time-bounded Turing machines via height compression"
-repository = "https://github.com/yourusername/sqrt-space-sim"
+authors = ["Logan Nye <logannye@users.noreply.github.com>"]
+description = "Accessible genomics engine with O(√t) space complexity for genome alignment and variant calling"
+repository = "https://github.com/logannye/rosalind"
 license = "MIT OR Apache-2.0"
-keywords = ["complexity-theory", "turing-machines", "space-complexity", "algorithms"]
-categories = ["algorithms", "science"]
+keywords = ["genomics", "alignment", "variant-calling", "bioinformatics", "bwt", "fm-index"]
+categories = ["science::bioinformatics", "algorithms"]
+
+[lib]
+crate-type = ["rlib", "cdylib"]
 
 [dependencies]
 # Finite field arithmetic - for constant-size field 𝔽_{2^c}
@@ -29,7 +32,9 @@ clap = { version = "4.5", features = ["derive"] }
 # Serialization (optional, for debugging/visualization)
 serde = { version = "1.0", features = ["derive"], optional = true }
 # Python bindings
-pyo3 = { version = "0.23.2", features = ["extension-module"] }
+pyo3 = { version = "0.23.2", features = ["extension-module", "abi3-py39"] }
+# BAM/VCF output
+rust-htslib = { version = "0.44", default-features = false, features = ["bzip2", "lzma"] }
 
 [dev-dependencies]
 criterion = { version = "0.5", features = ["html_reports"] }

@@ -1,6 +1,6 @@
 //! Full integration tests
 
-use sqrt_space_sim::*;
+use rosalind::*;
 mod test_helpers;
 use test_helpers::*;
 

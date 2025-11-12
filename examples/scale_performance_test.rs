@@ -5,7 +5,7 @@
 //! that the implementation achieves the claimed O(√t) space complexity.
 #![allow(dead_code)]
 #![allow(unused_variables)]
-use sqrt_space_sim::{SimulationConfig, Simulator};
+use rosalind::{SimulationConfig, Simulator};
 use std::time::Instant;
 
 /// Format number with commas for readability

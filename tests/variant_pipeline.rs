@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use sqrt_space_sim::genomics::{AlignedRead, CigarOp, CigarOpKind, StreamingVariantCaller};
+use rosalind::genomics::{AlignedRead, CigarOp, CigarOpKind, StreamingVariantCaller};
 
 #[test]
 fn streaming_variant_caller_detects_simple_variant() {
@@ -11,6 +11,7 @@ fn streaming_variant_caller_detects_simple_variant() {
         AlignedRead::new(
             Arc::clone(&chrom),
             0,
+            60,
             vec![CigarOp::new(CigarOpKind::Match, 4)],
             b"ACGT".to_vec(),
             vec![30; 4],
@@ -19,6 +20,7 @@ fn streaming_variant_caller_detects_simple_variant() {
         AlignedRead::new(
             Arc::clone(&chrom),
             3,
+            55,
             vec![CigarOp::new(CigarOpKind::Match, 4)],
             b"TAAA".to_vec(),
             vec![35; 4],

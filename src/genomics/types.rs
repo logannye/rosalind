@@ -38,6 +38,8 @@ pub struct AlignedRead {
     pub chrom: Arc<str>,
     /// 0-based leftmost reference coordinate.
     pub pos: u32,
+    /// Mapping quality (Phred-scaled).
+    pub mapq: u8,
     /// CIGAR describing the alignment.
     pub cigar: Vec<CigarOp>,
     /// Read sequence stored as uppercase ASCII.
@@ -53,6 +55,7 @@ impl AlignedRead {
     pub fn new(
         chrom: impl Into<Arc<str>>,
         pos: u32,
+        mapq: u8,
         cigar: Vec<CigarOp>,
         sequence: impl Into<Arc<[u8]>>,
         qualities: impl Into<Arc<[u8]>>,
@@ -61,6 +64,7 @@ impl AlignedRead {
         Self {
             chrom: chrom.into(),
             pos,
+            mapq,
             cigar,
             sequence: sequence.into(),
             qualities: qualities.into(),
@@ -86,5 +90,10 @@ impl AlignedRead {
     /// Quality score at the provided read offset.
     pub fn quality_at(&self, offset: usize) -> Option<u8> {
         self.qualities.get(offset).copied()
+    }
+
+    /// Mapping quality associated with the alignment.
+    pub fn mapq(&self) -> u8 {
+        self.mapq
     }
 }

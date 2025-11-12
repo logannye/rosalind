@@ -1,7 +1,7 @@
 //! Performance benchmarks
 
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use sqrt_space_sim::*;
+use rosalind::*;
 
 fn benchmark_simulation(c: &mut Criterion) {
     // TODO: Setup benchmark machine

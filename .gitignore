@@ -21,6 +21,12 @@ Thumbs.db
 # Profiling
 *.profdata
 *.profraw
+
+# Python virtual environments
+.venv/
+
+# Generated demo datasets
+examples/data/illumina_toy/
 ```
 
 ### **LICENSE**

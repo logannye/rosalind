@@ -2,7 +2,7 @@
 
 #![allow(dead_code)]
 #![allow(dead_code)]
-use sqrt_space_sim::{Move, TuringMachine};
+use rosalind::{Move, TuringMachine};
 
 /// Create a simple accepting machine
 /// Reads '1' and accepts, otherwise rejects

@@ -1,36 +1,31 @@
-//! Basic end-to-end simulation example
+//! Basic genomics example demonstrating the BWT aligner.
 
-use sqrt_space_sim::{SimulationConfig, Simulator, TuringMachine};
+use rosalind::genomics::BWTAligner;
 
 fn main() -> anyhow::Result<()> {
-    // Define a simple binary increment machine
-    // Input: binary number (LSB first)
-    // Output: incremented binary number
+    // Minimal reference contig (re-used in README quick start).
+    let reference = include_bytes!("data/ref.fa")
+        .split(|&b| b == b'\n')
+        .filter(|line| !line.starts_with(&[b'>']))
+        .flatten()
+        .copied()
+        .collect::<Vec<u8>>();
 
-    let machine = TuringMachine::builder()
-        .num_tapes(1)
-        .alphabet(vec!['_', '0', '1'])
-        // TODO: Add transition rules for binary increment
-        .build()?;
+    // Reads that match positions in the reference sequence.
+    let reads = ["ACGTACGT", "TTTACGT", "ACGTACGTACGT", "GGGACGT"];
 
-    let input = vec!['1', '1', '0', '1']; // 1011 = 13
-    let time_bound = 100;
+    let mut aligner = BWTAligner::new(&reference)?;
 
-    let config = SimulationConfig::optimal_for_time(time_bound);
-    println!("Block size b = {}", config.block_size);
-    println!("Number of blocks T = {}", config.num_blocks);
-    println!("Expected space ≤ O(√t) = O({})", config.sqrt_t_bound());
-
-    let mut simulator = Simulator::new(machine, config.clone());
-    let result = simulator.run(&input)?;
-
-    println!(
-        "\nResult: {}",
-        if result.accepted { "ACCEPT" } else { "REJECT" }
-    );
-    println!("Space used: {} cells", result.space_used);
-    println!("Space bound: {} cells", config.sqrt_t_bound());
-    println!("Bound satisfied: {}", result.satisfies_bound(&config));
+    for (idx, read) in reads.iter().enumerate() {
+        let result = aligner.align_read(read.as_bytes())?;
+        println!(
+            "read {idx}: interval=[{}, {}) width={} mismatches={}",
+            result.interval.lower,
+            result.interval.upper,
+            result.interval.width(),
+            result.mismatches
+        );
+    }
 
     Ok(())
 }

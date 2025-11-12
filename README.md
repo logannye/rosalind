@@ -51,19 +51,37 @@
 - `src/plugin/` – Plugin trait, executor, registry, and example RNA-seq quantification plugin.
 - `src/python_bindings/` – PyO3 bridge exposing Rosalind to Python.
 - `src/main.rs` – Command-line interface (align/variants subcommands).
-- `tests/` – Unit and integration tests (alignment, variant calling, space bounds).
-- `examples/` – CLI examples and the scale performance benchmark; includes small synthetic datasets for experimentation.
+- `examples/` – CLI examples (including `verify_installation.rs`) and the scale performance benchmark; includes small synthetic datasets for experimentation.
+- `scripts/` – Utility scripts (toy dataset generation, SAM vs BAM benchmarking).
+- `tests/` – Unit, property, and integration tests (alignment, variant calling, space bounds).
+- `tests/common/`, `tests/snapshots/` – Snapshot harness and golden fixtures used by CLI/VCF tests.
 
 ---
 
 ## Install & Build
-Requires Rust 1.72+.
+### Prerequisites
+- Rust 1.72+ (`rustup` recommended)
+- Python 3.9+ (for PyO3 bindings; set `PYO3_PYTHON=/path/to/python` if the default interpreter is unsuitable)
+- Native compression headers for BAM output (`libbz2-dev` & `liblzma-dev` on Debian/Ubuntu, `brew install bzip2 xz` on macOS)
 
+### Build
 ```bash
 git clone https://github.com/logannye/rosalind.git
 cd rosalind
 cargo test           # run the full suite
 cargo build --release
+```
+
+Verify the CLI is available:
+
+```bash
+cargo run --release -- --help
+```
+
+Optional: run the smoke test example to confirm the full pipeline:
+
+```bash
+cargo run --example verify_installation
 ```
 
 To use Rosalind in another crate:
@@ -74,6 +92,15 @@ rosalind = { path = "./rosalind" }
 ```
 
 Sample data: `examples/data/` contains small FASTA/FASTQ snippets and alignment inputs mirroring the “Quick Start” commands, so you can reproduce the workflows without hunting for external datasets.
+
+Need something bigger? Generate a deterministic ~10× toy genome with:
+
+```bash
+python scripts/generate_toy_data.py examples/data/illumina_toy
+cat examples/data/illumina_toy/SHA256SUMS
+```
+
+The script emits `reference.fa`, paired `reads_R1.fastq`/`reads_R2.fastq`, and reproducible SHA256 checksums so larger demos can be cached or shared safely.
 
 ---
 
@@ -106,15 +133,52 @@ Each `Variant` reports position, reference/alternate alleles, allele fraction, a
 ### 3. Command line
 Perfect for pilots, demos, or quick analyses with sample data.
 ```bash
-# Align a FASTA reference and read list (one sequence per line)
-cargo run --release -- align --reference examples/data/ref.fa --reads examples/data/reads.txt
-# Call variants from an alignments file (tab-separated position and sequence)
-cargo run --release -- variants --reference examples/data/ref.fa --alignments examples/data/aln.tsv --chrom chr7
+# Align FASTQ reads against the bundled reference and capture SAM output
+cargo run --release -- align \
+  --reference examples/data/ref.fa \
+  --reads examples/data/reads.fastq \
+  --format sam \
+  --max-mismatches 2 \
+  --reference-offset 0 > examples/data/alignments.sam
+
+# Emit coordinate-sorted BAM directly to disk (recommended for downstream tooling)
+cargo run --release -- align \
+  --reference examples/data/ref.fa \
+  --reads examples/data/reads.fastq \
+  --format bam \
+  --output examples/data/alignments.bam
+
+# Call variants from the SAM/BAM alignments (VCF to stdout by default)
+cargo run --release -- variants \
+  --reference examples/data/ref.fa \
+  --alignments examples/data/alignments.sam \
+  --mapq-threshold 10 \
+  --region-start 0
+
+# Or write the VCF to disk
+cargo run --release -- variants \
+  --reference examples/data/ref.fa \
+  --alignments examples/data/alignments.sam \
+  --output examples/data/variants.vcf
 ```
-Results are printed to stdout in simple text formats that can be redirected into downstream tools or notebooks.
+
+Key knobs:
+- `--max-mismatches` bounds per-read Hamming distance during seeding.
+- `--format {sam|bam}` toggles between plain-text SAM and BGZF-compressed BAM (requires `--output` for BAM).
+- `--mapq-threshold` filters low-confidence alignments before variant calling.
+- `--region-start` allows offsetting reported genomic coordinates for tiled analyses.
+- `--output/-o` writes results to disk instead of stdout for both subcommands.
 
 ### 4. Python bindings
 Great for exploratory analysis, rapid prototyping, or teaching.
+
+Install the bindings with [maturin](python/README.md):
+
+```bash
+pip install maturin
+maturin develop --release
+```
+
 ```python
 from rosalind_py import PyGenomicEngine
 engine = PyGenomicEngine()
@@ -142,6 +206,10 @@ The example plugin emits per-base coverage suitable for expression quantificatio
 
 Optional: enable an RSS regression check with `--features rss` if you want to monitor process RSS in addition to logical counters.
 
+### Benchmarks & Snapshots
+- `python scripts/benchmark_formats.py --release` – compare SAM vs BAM throughput using the bundled toy dataset (it will be generated on first run).
+- Refresh golden outputs with `ROSALIND_UPDATE_SNAPSHOTS=1 cargo test`.
+
 ---
 
 ## Extend Rosalind
@@ -149,6 +217,15 @@ Optional: enable an RSS regression check with `--features rss` if you want to mo
 - **CLI extensions**: add subcommands in `src/main.rs` to orchestrate new workflows, such as `rosalind coverage` or `rosalind qc`.
 - **Python orchestration**: use `rosalind_py.PyGenomicEngine` to blend Rosalind with pandas, scikit-learn, or visualization libraries.
 - **Sample datasets**: the `examples/data/` directory shows how to package synthetic or anonymized data for reproducible demos.
+
+---
+
+## Troubleshooting
+- `cargo run` fails with “bin not found” → rerun `cargo build --release` and ensure you invoke `cargo run --release -- …`.
+- CLI complains about missing files → verify the sample data exists in `examples/data/` or provide your own reference/reads.
+- `ImportError: rosalind_py` → run `maturin develop --release` (see [python/README.md](python/README.md)) or export `PYO3_PYTHON=/path/to/python3.9+`.
+- Build errors on install → confirm `rustc --version` ≥ 1.72 and `cargo clean` before rebuilding.
+- Writing BAM without `--output` → specify a filename via `-o`/`--output`; BAM is binary and cannot be streamed to stdout.
 
 ---
 

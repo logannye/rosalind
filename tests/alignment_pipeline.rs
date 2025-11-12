@@ -1,4 +1,4 @@
-use sqrt_space_sim::genomics::BWTAligner;
+use rosalind::genomics::BWTAligner;
 
 #[test]
 fn align_batch_produces_results() {

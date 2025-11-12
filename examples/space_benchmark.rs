@@ -1,6 +1,6 @@
 //! Benchmark space usage for various time bounds
 
-use sqrt_space_sim::{SimulationConfig, Simulator, TuringMachine};
+use rosalind::{SimulationConfig, Simulator, TuringMachine};
 
 fn main() -> anyhow::Result<()> {
     println!("Space Benchmark: O(√t) Verification");

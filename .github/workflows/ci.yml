@@ -1,0 +1,128 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      - name: Cargo fmt
+        run: cargo fmt --all -- --check
+      - name: Cargo test
+        run: cargo test
+      - name: Build examples
+        run: cargo build --examples
+      - name: Build docs
+        run: cargo doc --no-deps
+
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install maturin
+        run: pip install maturin
+      - name: Build python bindings
+        run: maturin build
+
+  cli-e2e:
+    runs-on: ubuntu-latest
+    env:
+      PYO3_PYTHON: python3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      - name: Generate toy dataset
+        run: python3 scripts/generate_toy_data.py examples/data/illumina_toy
+      - name: Verify checksums
+        run: sha256sum --check SHA256SUMS
+        working-directory: examples/data/illumina_toy
+      - name: Align to SAM
+        run: |
+          cargo run --release -- align \
+            --reference examples/data/illumina_toy/reference.fa \
+            --reads examples/data/illumina_toy/reads_R1.fastq \
+            --format sam \
+            --output examples/data/illumina_toy/alignments.sam
+      - name: Align to BAM
+        run: |
+          cargo run --release -- align \
+            --reference examples/data/illumina_toy/reference.fa \
+            --reads examples/data/illumina_toy/reads_R1.fastq \
+            --format bam \
+            --output examples/data/illumina_toy/alignments.bam
+      - name: Call variants
+        run: |
+          cargo run --release -- variants \
+            --reference examples/data/illumina_toy/reference.fa \
+            --alignments examples/data/illumina_toy/alignments.sam \
+            --mapq-threshold 5 \
+            --output examples/data/illumina_toy/variants.vcf
+      - name: Sanity-check outputs
+        run: |
+          test -s examples/data/illumina_toy/alignments.sam
+          test -s examples/data/illumina_toy/alignments.bam
+          grep -q '^#CHROM' examples/data/illumina_toy/variants.vcf
+          grep -q -v '^#' examples/data/illumina_toy/variants.vcf || echo \"warning: no variant lines emitted\"

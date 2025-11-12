@@ -4,8 +4,8 @@
 
 #[test]
 fn test_ledger_all_merges_complete() {
-    use sqrt_space_sim::ledger::StreamingLedger;
-    use sqrt_space_sim::tree::TreeNode;
+    use rosalind::ledger::StreamingLedger;
+    use rosalind::tree::TreeNode;
 
     // Create ledger for 4 blocks (should have 3 internal nodes)
     let ledger = StreamingLedger::new(4);
@@ -50,8 +50,8 @@ fn test_ledger_all_merges_complete() {
 
 #[test]
 fn test_ledger_completion_stats() {
-    use sqrt_space_sim::ledger::StreamingLedger;
-    use sqrt_space_sim::tree::TreeNode;
+    use rosalind::ledger::StreamingLedger;
+    use rosalind::tree::TreeNode;
 
     let mut ledger = StreamingLedger::new(3);
 
@@ -72,8 +72,8 @@ fn test_ledger_completion_stats() {
 
 #[test]
 fn test_ledger_is_merge_ready() {
-    use sqrt_space_sim::ledger::StreamingLedger;
-    use sqrt_space_sim::tree::TreeNode;
+    use rosalind::ledger::StreamingLedger;
+    use rosalind::tree::TreeNode;
 
     let mut ledger = StreamingLedger::new(4);
     let root = TreeNode::root(1, 4);

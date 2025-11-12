@@ -200,6 +200,15 @@ impl PileupProcessor {
             nodes,
         }
     }
+
+    #[cfg(test)]
+    pub(crate) fn build_summary_for_tests(
+        &self,
+        reads: &[AlignedRead],
+        region: &Range<u32>,
+    ) -> PileupSummary {
+        self.build_summary(reads, region)
+    }
 }
 
 impl BlockProcessor for PileupProcessor {
@@ -246,6 +255,7 @@ impl BlockProcessor for PileupProcessor {
 mod tests {
     use super::*;
     use crate::genomics::{CigarOp, CigarOpKind};
+    use proptest::prelude::*;
 
     #[test]
     fn pileup_processor_aggregates_counts() {
@@ -253,6 +263,7 @@ mod tests {
             AlignedRead::new(
                 "chr1",
                 100,
+                60,
                 vec![CigarOp::new(CigarOpKind::Match, 4)],
                 b"ACGT".to_vec(),
                 vec![30; 4],
@@ -261,6 +272,7 @@ mod tests {
             AlignedRead::new(
                 "chr1",
                 101,
+                50,
                 vec![CigarOp::new(CigarOpKind::Match, 4)],
                 b"CGTA".to_vec(),
                 vec![25; 4],
@@ -283,6 +295,54 @@ mod tests {
         assert!(!summary.nodes.is_empty());
         let first = &summary.nodes[0];
         assert_eq!(first.position, 100);
-        assert_eq!(first.depth, 1);
+        assert_eq!(first.depth, first.base_counts.iter().sum());
+    }
+
+    fn read_strategy(window_len: u32) -> impl Strategy<Value = AlignedRead> {
+        (1..=window_len.min(8)).prop_flat_map(move |len| {
+            let max_start = window_len - len;
+            (
+                0..=max_start,
+                proptest::collection::vec(
+                    prop_oneof![Just(b'A'), Just(b'C'), Just(b'G'), Just(b'T')],
+                    len as usize,
+                ),
+            )
+                .prop_map(move |(start, seq)| {
+                    let qualities = vec![30u8; len as usize];
+                    AlignedRead::new(
+                        "chrProp",
+                        start,
+                        60,
+                        vec![CigarOp::new(CigarOpKind::Match, len)],
+                        seq,
+                        qualities,
+                        false,
+                    )
+                })
+        })
+    }
+
+    proptest! {
+        #[test]
+        fn depth_matches_base_counts(
+            (window_len, reads) in (1u32..32).prop_flat_map(|window_len| {
+                let reads = proptest::collection::vec(read_strategy(window_len), 0..12);
+                (Just(window_len), reads)
+            })
+        ) {
+            let processor = PileupProcessor::new();
+            let region = 0..window_len;
+
+            let summary = processor.build_summary_for_tests(&reads, &region);
+
+            for node in summary.nodes {
+                let count_sum: u32 = node.base_counts.iter().copied().sum();
+                prop_assert_eq!(node.depth, count_sum, "depth should equal the sum of base counts");
+                for (count, quality_sum) in node.base_counts.iter().zip(node.quality_sums.iter()) {
+                    prop_assert!(*quality_sum <= *count as f32 + f32::EPSILON, "quality sum should not exceed count");
+                }
+            }
+        }
     }
 }
