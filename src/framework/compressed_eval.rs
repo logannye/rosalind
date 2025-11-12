@@ -81,10 +81,7 @@ impl EvaluatorConfig {
     }
 
     /// Construct configuration with explicit block size.
-    pub fn with_block_size(
-        total_units: usize,
-        block_size: usize,
-    ) -> Result<Self, FrameworkError> {
+    pub fn with_block_size(total_units: usize, block_size: usize) -> Result<Self, FrameworkError> {
         if block_size == 0 {
             return Err(FrameworkError::InvalidConfiguration(
                 "block size must be > 0".to_string(),
@@ -318,17 +315,14 @@ impl<P: BlockProcessor> CompressedEvaluator<P> {
             let context = self.config.block_context(leaf_block_id)?;
 
             tracker.allocate_leaf_buffer(self.config.workspace_bytes);
-            let block_result = self
-                .processor
-                .process_block(input, &context, workspace);
+            let block_result = self.processor.process_block(input, &context, workspace);
             tracker.free_leaf_buffer(self.config.workspace_bytes);
 
             block_result
         } else {
             let (left_child, right_child) = node.children();
 
-            let left_summary =
-                self.evaluate_dfs(left_child, input, tracker, ledger, workspace)?;
+            let left_summary = self.evaluate_dfs(left_child, input, tracker, ledger, workspace)?;
             ledger.mark_left_complete(node);
 
             let right_summary =
@@ -342,4 +336,3 @@ impl<P: BlockProcessor> CompressedEvaluator<P> {
         result
     }
 }
-

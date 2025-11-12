@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use sqrt_space_sim::genomics::{
-    AlignedRead, CigarOp, CigarOpKind, StreamingVariantCaller,
-};
+use sqrt_space_sim::genomics::{AlignedRead, CigarOp, CigarOpKind, StreamingVariantCaller};
 
 #[test]
 fn streaming_variant_caller_detects_simple_variant() {
@@ -28,15 +26,9 @@ fn streaming_variant_caller_detects_simple_variant() {
         ),
     ];
 
-    let mut caller = StreamingVariantCaller::new(
-        Arc::clone(&chrom),
-        Arc::clone(&reference),
-        0,
-        4,
-        5.0,
-        1e-6,
-    )
-    .unwrap();
+    let mut caller =
+        StreamingVariantCaller::new(Arc::clone(&chrom), Arc::clone(&reference), 0, 4, 5.0, 1e-6)
+            .unwrap();
 
     let variants = caller.call_variants(reads).unwrap();
     assert!(!variants.is_empty());
@@ -45,4 +37,3 @@ fn streaming_variant_caller_detects_simple_variant() {
     assert!(alt.allele_fraction > 0.0);
     assert!(alt.quality >= 5.0);
 }
-

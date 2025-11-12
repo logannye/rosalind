@@ -5,7 +5,7 @@ use sqrt_space_sim::*;
 
 fn benchmark_simulation(c: &mut Criterion) {
     // TODO: Setup benchmark machine
-    
+
     c.bench_function("simulate_t=10000", |b| {
         b.iter(|| {
             // TODO: Run simulation

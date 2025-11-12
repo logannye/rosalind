@@ -80,11 +80,8 @@ impl CompressedDNA {
         let mut ambiguity = AmbiguityMask::new(len);
 
         for (idx, &base) in sequence.iter().enumerate() {
-            let (code, is_ambiguous) =
-                encode_base(base).ok_or_else(|| CompressedDNAError::UnsupportedBase(
-                    base as char,
-                    idx,
-                ))?;
+            let (code, is_ambiguous) = encode_base(base)
+                .ok_or_else(|| CompressedDNAError::UnsupportedBase(base as char, idx))?;
 
             if is_ambiguous {
                 ambiguity.set(idx);
@@ -94,7 +91,11 @@ impl CompressedDNA {
             data[word_idx] |= (code as u64) << bit_shift;
         }
 
-        Ok(Self { data, len, ambiguity })
+        Ok(Self {
+            data,
+            len,
+            ambiguity,
+        })
     }
 
     /// Create an owned compressed DNA sequence from a vector of packed words.
@@ -110,7 +111,11 @@ impl CompressedDNA {
             capacity,
             data.len()
         );
-        Self { data, len, ambiguity }
+        Self {
+            data,
+            len,
+            ambiguity,
+        }
     }
 
     /// Number of bases in the sequence.
@@ -177,11 +182,8 @@ impl CompressedDNA {
     /// Append a single base to the compressed sequence.
     pub fn push(&mut self, base: u8) -> Result<(), CompressedDNAError> {
         let idx = self.len;
-        let (code, is_ambiguous) =
-            encode_base(base).ok_or_else(|| CompressedDNAError::UnsupportedBase(
-                base as char,
-                idx,
-            ))?;
+        let (code, is_ambiguous) = encode_base(base)
+            .ok_or_else(|| CompressedDNAError::UnsupportedBase(base as char, idx))?;
 
         let (word_idx, bit_shift) = word_position(idx);
         if word_idx >= self.data.len() {
@@ -305,8 +307,7 @@ mod tests {
 
     #[test]
     fn push_and_extend() {
-        let mut dna =
-            CompressedDNA::compress(b"ACG").expect("initial compression should succeed");
+        let mut dna = CompressedDNA::compress(b"ACG").expect("initial compression should succeed");
         dna.push(b'T').unwrap();
         dna.extend_from_slice(b"NN").unwrap();
         assert_eq!(dna.to_vec(), b"ACGTNN");
@@ -329,4 +330,3 @@ mod tests {
         ));
     }
 }
-

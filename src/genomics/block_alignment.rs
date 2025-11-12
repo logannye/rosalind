@@ -215,11 +215,13 @@ mod tests {
         let right = align_within_block(b"GT", &index, 1, &mut workspace).unwrap();
 
         let merged = left.merge_with(&right);
-        assert_eq!(merged.processed_bases, left.processed_bases + right.processed_bases);
+        assert_eq!(
+            merged.processed_bases,
+            left.processed_bases + right.processed_bases
+        );
         assert_eq!(merged.mismatches, left.mismatches + right.mismatches);
         assert_eq!(merged.span.0, left.span.0);
         assert_eq!(merged.span.1, right.span.1);
         assert_eq!(merged.interval, right.interval);
     }
 }
-

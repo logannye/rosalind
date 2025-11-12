@@ -166,4 +166,3 @@ mod tests {
         assert!(!variants.is_empty());
     }
 }
-

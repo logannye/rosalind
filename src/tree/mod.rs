@@ -1,6 +1,6 @@
 //! Height-compressed evaluation tree
 //!
-//! Key innovation: Transform canonical tree (height Θ(T)) 
+//! Key innovation: Transform canonical tree (height Θ(T))
 //! into compressed tree (height O(log T)) via midpoint recursion
 //!
 //! Implicit representation: No explicit tree stored!
@@ -10,7 +10,7 @@ mod node;
 mod traversal;
 
 pub use node::TreeNode;
-pub use traversal::{PointerlessTraversal, PathToken};
+pub use traversal::{PathToken, PointerlessTraversal};
 
 /// Compressed evaluation tree (implicit)
 ///
@@ -19,7 +19,7 @@ pub use traversal::{PointerlessTraversal, PathToken};
 pub struct CompressedTree {
     /// Total number of leaf blocks
     num_blocks: usize,
-    
+
     /// Root node (just endpoints, no structure)
     root: TreeNode,
 }
@@ -32,12 +32,12 @@ impl CompressedTree {
             root: TreeNode::root(1, num_blocks),
         }
     }
-    
+
     /// Get root node
     pub fn root(&self) -> &TreeNode {
         &self.root
     }
-    
+
     /// Theoretical height: O(log T)
     pub fn height_bound(&self) -> usize {
         (self.num_blocks as f64).log2().ceil() as usize
@@ -47,7 +47,7 @@ impl CompressedTree {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_height_logarithmic() {
         // Verify O(log T) height for various T

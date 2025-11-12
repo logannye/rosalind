@@ -14,7 +14,7 @@ use super::TreeNode;
 pub struct PathToken {
     /// Node type (1 bit)
     pub node_type: NodeType,
-    
+
     /// Which child we're in (1 bit)
     pub direction: Direction,
 }
@@ -23,7 +23,7 @@ pub struct PathToken {
 pub enum NodeType {
     /// Split node (midpoint recursion)
     Split,
-    
+
     /// Combiner node (merge operation)
     Combiner,
 }
@@ -32,7 +32,7 @@ pub enum NodeType {
 pub enum Direction {
     /// Currently processing left child
     Left,
-    
+
     /// Currently processing right child
     Right,
 }
@@ -46,7 +46,7 @@ pub enum Direction {
 pub struct PointerlessTraversal {
     /// Stack of path tokens
     path_stack: Vec<PathToken>,
-    
+
     /// Current node (recomputed, not stored long-term)
     #[allow(dead_code)]
     current: Option<TreeNode>,
@@ -60,7 +60,7 @@ impl PointerlessTraversal {
             current: None,
         }
     }
-    
+
     /// Push level onto stack (O(1) bits)
     pub fn push_level(&mut self, node_type: NodeType, direction: Direction) {
         self.path_stack.push(PathToken {
@@ -68,12 +68,12 @@ impl PointerlessTraversal {
             direction,
         });
     }
-    
+
     /// Pop level from stack
     pub fn pop_level(&mut self) -> Option<PathToken> {
         self.path_stack.pop()
     }
-    
+
     /// Recompute current node endpoints from path
     ///
     /// Space: O(log T) scratch (additive, not per-level!)
@@ -83,15 +83,15 @@ impl PointerlessTraversal {
     pub fn recompute_endpoints(&self, root: TreeNode) -> TreeNode {
         // Start with root endpoints
         let mut node = root;
-        
+
         // For each token in path_stack, navigate down the tree
         for token in &self.path_stack {
             if node.is_leaf() {
                 break; // Can't go deeper
             }
-            
+
             let (left_child, right_child) = node.children();
-            
+
             // Select left or right child based on direction
             match token.direction {
                 Direction::Left => {
@@ -102,15 +102,15 @@ impl PointerlessTraversal {
                 }
             }
         }
-        
+
         node
     }
-    
+
     /// Stack depth (number of active levels)
     pub fn depth(&self) -> usize {
         self.path_stack.len()
     }
-    
+
     /// Space usage: O(1) per level × depth
     pub fn space_usage(&self) -> usize {
         // Each token = 2 bits, but we count in cells
@@ -122,18 +122,18 @@ impl PointerlessTraversal {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_recompute_endpoints() {
         let root = TreeNode::root(1, 100);
         let mut traversal = PointerlessTraversal::new(root);
-        
+
         // Push left direction
         traversal.push_level(NodeType::Split, Direction::Left);
         let node = traversal.recompute_endpoints(root);
         assert_eq!(node.left, 1);
         assert_eq!(node.right, 50); // Midpoint split
-        
+
         // Push left again (going deeper into left subtree)
         traversal.push_level(NodeType::Split, Direction::Left);
         let node = traversal.recompute_endpoints(root);
@@ -141,7 +141,7 @@ mod tests {
         let (expected_left_left, _) = expected_left.children();
         assert_eq!(node.left, expected_left_left.left);
         assert_eq!(node.right, expected_left_left.right);
-        
+
         // Now test right direction
         let mut traversal2 = PointerlessTraversal::new(root);
         traversal2.push_level(NodeType::Split, Direction::Right);

@@ -27,7 +27,7 @@ impl<'a, T> IndexFreeIterator<'a, T> {
             current_item: 0,
         }
     }
-    
+
     /// Get next item (rescans from marker)
     ///
     /// Key idea: Don't store counter, reconstruct position by scanning
@@ -37,7 +37,7 @@ impl<'a, T> IndexFreeIterator<'a, T> {
         // 2. Skip current_item delimiters via constant-state recognition
         // 3. Return item
         // 4. Increment current_item (in O(1) state)
-        
+
         // No O(log m) counter stored!
         unimplemented!()
     }

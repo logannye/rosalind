@@ -16,9 +16,10 @@ fn align_batch_produces_results() {
 fn alignment_interval_is_within_bounds() {
     let reference = b"TTTACGTAAA";
     let mut aligner = BWTAligner::new(reference).expect("aligner should initialize");
-    let result = aligner.align_read(b"ACGT").expect("alignment should succeed");
+    let result = aligner
+        .align_read(b"ACGT")
+        .expect("alignment should succeed");
     assert!(!result.interval.is_empty());
     assert!(result.interval.lower < result.interval.upper);
     assert!(result.score > 0.0);
 }
-

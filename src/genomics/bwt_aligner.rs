@@ -1,12 +1,10 @@
-use std::sync::Arc;
 use std::ops::Range;
+use std::sync::Arc;
 
 use crate::framework::{
     BlockContext, BlockProcessor, CompressedEvaluator, EvaluatorConfig, FrameworkError,
 };
-use crate::genomics::{
-    align_within_block, BlockAlignmentSummary, BlockedFMIndex, FMInterval,
-};
+use crate::genomics::{align_within_block, BlockAlignmentSummary, BlockedFMIndex, FMInterval};
 use thiserror::Error;
 
 /// Result of aligning a single read.
@@ -71,21 +69,20 @@ pub struct BWTAligner {
 impl BWTAligner {
     /// Construct a new aligner from the reference genome.
     pub fn new(reference: &[u8]) -> Result<Self, AlignerError> {
-        let suggested_block_size =
-            ((reference.len() as f64).sqrt().ceil() as usize).max(64);
+        let suggested_block_size = ((reference.len() as f64).sqrt().ceil() as usize).max(64);
         let fm_index = Arc::new(BlockedFMIndex::build(reference, suggested_block_size)?);
 
-        let config = EvaluatorConfig::with_block_size(
-            fm_index.len(),
-            fm_index.block_size(),
-        )?
-        .with_workspace_bytes(fm_index.block_size())
-        .with_space_profiling(false);
+        let config = EvaluatorConfig::with_block_size(fm_index.len(), fm_index.block_size())?
+            .with_workspace_bytes(fm_index.block_size())
+            .with_space_profiling(false);
 
         let processor = BWTAlignmentProcessor::new(Arc::clone(&fm_index));
         let evaluator = CompressedEvaluator::new(processor, config);
 
-        Ok(Self { fm_index, evaluator })
+        Ok(Self {
+            fm_index,
+            evaluator,
+        })
     }
 
     /// Align a read and return its FM-interval summary.
@@ -195,9 +192,10 @@ mod tests {
     fn aligner_returns_interval_for_read() {
         let reference = b"ACGTCGTAACGT";
         let mut aligner = BWTAligner::new(reference).expect("builder should succeed");
-        let result = aligner.align_read(b"CGTA").expect("alignment should succeed");
+        let result = aligner
+            .align_read(b"CGTA")
+            .expect("alignment should succeed");
         assert!(result.has_candidates());
         assert!(result.processed_bases > 0);
     }
 }
-

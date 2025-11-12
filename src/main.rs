@@ -63,12 +63,12 @@ fn main() -> Result<()> {
 fn run_align(reference_path: PathBuf, reads_path: PathBuf) -> Result<()> {
     let reference = read_sequence_file(&reference_path)
         .with_context(|| format!("failed to read reference from {}", reference_path.display()))?;
-    let mut aligner =
-        BWTAligner::new(&reference).context("failed to initialize BWT aligner")?;
+    let mut aligner = BWTAligner::new(&reference).context("failed to initialize BWT aligner")?;
 
-    let reader = BufReader::new(File::open(&reads_path).with_context(|| {
-        format!("failed to open reads file {}", reads_path.display())
-    })?);
+    let reader = BufReader::new(
+        File::open(&reads_path)
+            .with_context(|| format!("failed to open reads file {}", reads_path.display()))?,
+    );
 
     for (idx, line) in reader.lines().enumerate() {
         let read = line?.trim().to_string();
@@ -100,12 +100,8 @@ fn run_variants(
     block_size: usize,
     quality_threshold: f32,
 ) -> Result<()> {
-    let reference_vec = read_sequence_file(&reference_path).with_context(|| {
-        format!(
-            "failed to read reference from {}",
-            reference_path.display()
-        )
-    })?;
+    let reference_vec = read_sequence_file(&reference_path)
+        .with_context(|| format!("failed to read reference from {}", reference_path.display()))?;
     let reference = Arc::from(reference_vec.into_boxed_slice());
     let region_start = 0u32;
 
@@ -166,13 +162,9 @@ fn read_alignment_file(path: &PathBuf, chrom: &Arc<str>) -> Result<Vec<AlignedRe
             .next()
             .ok_or_else(|| anyhow::anyhow!("missing sequence on line {}", line_no + 1))?;
 
-        let pos: u32 = pos_str.parse().with_context(|| {
-            format!(
-                "invalid position '{}' on line {}",
-                pos_str,
-                line_no + 1
-            )
-        })?;
+        let pos: u32 = pos_str
+            .parse()
+            .with_context(|| format!("invalid position '{}' on line {}", pos_str, line_no + 1))?;
 
         let sequence = seq.to_ascii_uppercase().into_bytes();
         let qualities = vec![30u8; sequence.len()];
@@ -202,4 +194,3 @@ fn print_variant(variant: &Variant) {
         variant.quality
     );
 }
-

@@ -113,7 +113,6 @@ impl BWTBlock {
             }
         }
     }
-
 }
 
 /// Symbol used in FM-index queries (includes sentinel).
@@ -190,8 +189,8 @@ impl BlockedFMIndex {
                     sanitized.push(b'N');
                     continue;
                 }
-                let _code = BaseCode::from_ascii(ch)
-                    .ok_or_else(|| FMIndexError::UnsupportedCharacter {
+                let _code =
+                    BaseCode::from_ascii(ch).ok_or_else(|| FMIndexError::UnsupportedCharacter {
                         ch: ch as char,
                         position: start + offset,
                     })?;
@@ -419,10 +418,6 @@ mod tests {
         // Build BWT naively for validation.
         let (bwt, _) = build_bwt(&sanitize_reference(reference).unwrap());
         let bounded = position.min(bwt.len());
-        bwt[..bounded]
-            .iter()
-            .filter(|&&ch| ch == base)
-            .count() as u32
+        bwt[..bounded].iter().filter(|&&ch| ch == base).count() as u32
     }
 }
-

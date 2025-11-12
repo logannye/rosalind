@@ -3,7 +3,7 @@
 //! These machines are designed to run for many steps without halting early,
 //! allowing proper testing of O(√t) space complexity at scale.
 
-use sqrt_space_sim::{TuringMachine, Move};
+use sqrt_space_sim::{Move, TuringMachine};
 
 /// Create a counter machine that counts from 0 to approximately t
 ///
@@ -25,10 +25,10 @@ pub fn create_counter_machine() -> TuringMachine {
         // Counter logic: move right, write '1' to count
         // This transition can be used repeatedly
         .add_transition(
-            0, // counting state
-            vec!['_', '_'], // read: input='_', work='_'
-            0, // stay in counting state
-            vec!['1'], // write '1' to work tape
+            0,                             // counting state
+            vec!['_', '_'],                // read: input='_', work='_'
+            0,                             // stay in counting state
+            vec!['1'],                     // write '1' to work tape
             vec![Move::Stay, Move::Right], // input stays, work moves right
         )
         // If we see '0' on work tape, change it to '1' (increment)
@@ -71,16 +71,16 @@ pub fn create_scanning_machine() -> TuringMachine {
         // State 0: Moving right, writing markers
         .add_transition(
             0,
-            vec!['_', '_'], // read blank
-            0, // stay in scanning state
-            vec!['X'], // write marker
+            vec!['_', '_'],                // read blank
+            0,                             // stay in scanning state
+            vec!['X'],                     // write marker
             vec![Move::Stay, Move::Right], // move work head right
         )
         .add_transition(
             0,
             vec!['_', 'X'], // hit marker, turn around
             0,
-            vec!['_'], // erase marker
+            vec!['_'],                    // erase marker
             vec![Move::Stay, Move::Left], // move left
         )
         .add_transition(
@@ -116,9 +116,9 @@ pub fn create_computation_machine() -> TuringMachine {
         // State 0: alternating pattern '1', '0', '1', '0', ...
         .add_transition(
             0,
-            vec!['_', '_'], // start with blank
-            0, // stay in computation state
-            vec!['1'], // write '1'
+            vec!['_', '_'],                // start with blank
+            0,                             // stay in computation state
+            vec!['1'],                     // write '1'
             vec![Move::Stay, Move::Right], // move right
         )
         .add_transition(
@@ -155,9 +155,9 @@ pub fn create_non_halting_machine() -> TuringMachine {
         // This will never halt (until time bound is reached)
         .add_transition(
             0,
-            vec!['_', '_'], // any input, blank work
-            0, // stay in state 0 (never reach accept/reject)
-            vec!['1'], // write '1'
+            vec!['_', '_'],                // any input, blank work
+            0,                             // stay in state 0 (never reach accept/reject)
+            vec!['1'],                     // write '1'
             vec![Move::Stay, Move::Right], // move right
         )
         .add_transition(
@@ -177,5 +177,3 @@ pub fn create_non_halting_machine() -> TuringMachine {
         .build()
         .unwrap()
 }
-
-

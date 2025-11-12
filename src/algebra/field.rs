@@ -23,23 +23,23 @@ impl FiniteField {
             8 => 0x11D, // Common choice for GF(256)
             _ => 0x11D, // Default to GF(256)
         };
-        
+
         Self {
             characteristic,
             primitive_poly,
         }
     }
-    
+
     /// Field size
     pub fn size(&self) -> usize {
         1 << self.characteristic
     }
-    
+
     /// Add two field elements (XOR for characteristic 2)
     pub fn add(&self, a: u8, b: u8) -> u8 {
         a ^ b
     }
-    
+
     /// Multiply two field elements in GF(2^8)
     ///
     /// Uses Russian peasant algorithm with reduction by primitive polynomial
@@ -47,12 +47,12 @@ impl FiniteField {
         if a == 0 || b == 0 {
             return 0;
         }
-        
+
         let mut result = 0u16;
         let mut a_val = a as u16;
         let mut b_val = b as u16;
         let poly = self.primitive_poly;
-        
+
         // Russian peasant algorithm
         while b_val > 0 {
             if b_val & 1 != 0 {
@@ -64,22 +64,22 @@ impl FiniteField {
             }
             b_val >>= 1;
         }
-        
+
         result as u8
     }
-    
+
     /// Evaluate polynomial at point using Horner's method
     pub fn eval_poly(&self, coeffs: &[u8], point: u8) -> u8 {
         if coeffs.is_empty() {
             return 0;
         }
-        
+
         let mut result = coeffs[coeffs.len() - 1];
         for i in (0..coeffs.len() - 1).rev() {
             result = self.mul(result, point);
             result = self.add(result, coeffs[i]);
         }
-        
+
         result
     }
 }
@@ -87,12 +87,12 @@ impl FiniteField {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_constant_size() {
         let field = FiniteField::new(8);
         assert_eq!(field.size(), 256); // Constant!
-        
+
         // Verify size doesn't grow with t or b
         // This is critical for O(1) internal node space
     }

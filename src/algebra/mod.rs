@@ -5,24 +5,22 @@
 //! - Low-degree polynomial extensions
 //! - Constant evaluation grid
 
+mod combiner;
 mod field;
 mod polynomial;
-mod combiner;
 
-pub use field::FiniteField;
-pub use polynomial::{PolynomialEncoding, EvaluationGrid};
 pub use combiner::Combiner;
+pub use field::FiniteField;
+pub use polynomial::{EvaluationGrid, PolynomialEncoding};
 
 use crate::{
-    blocking::{BlockSummary, simulate_block, BlockId},
-    tree::TreeNode,
+    blocking::{simulate_block, BlockSummary},
     ledger::StreamingLedger,
+    machine::{Configuration, Symbol, TuringMachine},
     space::SpaceTracker,
-    machine::{Symbol, TuringMachine, Configuration},
+    tree::TreeNode,
     SimulationConfig, SimulationError,
 };
-use std::collections::HashMap;
-
 /// Algebraic Replay Engine
 ///
 /// Core evaluation with space tracking
@@ -35,9 +33,10 @@ pub struct AlgebraicEngine {
     ledger: StreamingLedger,
     combiner: Combiner,
     machine: TuringMachine,
-    /// Cache of block summaries for boundary reconstruction
-    /// Maps block_id -> BlockSummary
-    boundary_cache: HashMap<BlockId, BlockSummary>,
+    /// Rolling boundary summary (only previous block retained)
+    prev_boundary: Option<BlockSummary>,
+    #[cfg(debug_assertions)]
+    last_leaf_id: Option<usize>,
 }
 
 impl AlgebraicEngine {
@@ -47,7 +46,7 @@ impl AlgebraicEngine {
         let grid = EvaluationGrid::new(&field);
         let ledger = StreamingLedger::new(config.num_blocks);
         let combiner = Combiner::new(&field);
-        
+
         Self {
             config: config.clone(),
             field,
@@ -55,15 +54,17 @@ impl AlgebraicEngine {
             ledger,
             combiner,
             machine: machine.clone(),
-            boundary_cache: HashMap::new(),
+            prev_boundary: None,
+            #[cfg(debug_assertions)]
+            last_leaf_id: None,
         }
     }
-    
+
     /// Get reference to ledger for verification
     pub fn ledger(&self) -> &StreamingLedger {
         &self.ledger
     }
-    
+
     /// Evaluate tree via pointerless DFS
     ///
     /// Space breakdown:
@@ -80,47 +81,39 @@ impl AlgebraicEngine {
     ) -> Result<BlockSummary, SimulationError> {
         // Track space for path token (2 bits per level = 1 byte)
         tracker.push_stack_frame(1);
-        
+
         if node.is_leaf() {
             // Base case: leaf → evaluate_leaf()
             let summary = self.evaluate_leaf(node, input, tracker)?;
-            
-            // Cache the summary for boundary reconstruction of subsequent blocks
-            let block_id = node.leaf_block_id();
-            self.boundary_cache.insert(block_id, summary.clone());
-            
             tracker.pop_stack_frame();
             return Ok(summary);
         }
-        
+
         // Recursive case: internal node
         let (left_child, right_child) = node.children();
-        
+
         // Evaluate left subtree recursively
         let left_summary = self.evaluate_dfs(left_child, input, tracker)?;
-        
+
         // Mark progress in streaming ledger
         self.ledger.mark_left_complete(node);
-        
+
         // Evaluate right subtree recursively
         let right_summary = self.evaluate_dfs(right_child, input, tracker)?;
-        
+
         // Mark progress
         self.ledger.mark_right_complete(node);
-        
+
         // Merge summaries via combiner
         // CRITICAL: This uses exact interface checking + algebraic encoding
-        let merged = self.combiner.merge(
-            &left_summary,
-            &right_summary,
-            &self.grid,
-            tracker,
-        )?;
-        
+        let merged = self
+            .combiner
+            .merge(&left_summary, &right_summary, &self.grid, tracker)?;
+
         tracker.pop_stack_frame();
         Ok(merged)
     }
-    
+
     /// Evaluate leaf block
     ///
     /// Space: O(b) for replay buffer + O(1) for accumulators
@@ -131,41 +124,51 @@ impl AlgebraicEngine {
         tracker: &mut SpaceTracker,
     ) -> Result<BlockSummary, SimulationError> {
         let block_id = node.leaf_block_id();
-        
+
         // Allocate O(b) buffer
         tracker.allocate_leaf_buffer(self.config.block_size);
-        
+
         // Reconstruct block summary by simulation
         // Get initial configuration
         let config = if block_id == 1 {
             // First block: use initial configuration
             Configuration::initial(input, self.machine.num_tapes() + 1) // +1 for input tape
         } else {
-            // Get previous block's summary from cache
-            let prev_block_id = block_id - 1;
-            let prev_summary = self.boundary_cache.get(&prev_block_id)
-                .ok_or_else(|| SimulationError::InvalidMachine(
-                    format!("Missing boundary for block {}", prev_block_id)
-                ))?;
-            
+            let prev_summary = self.prev_boundary.as_ref().ok_or_else(|| {
+                SimulationError::InvalidMachine(format!(
+                    "Missing boundary for block {}",
+                    block_id - 1
+                ))
+            })?;
             // Reconstruct configuration from previous block
             self.reconstruct_boundary_config(prev_summary, input, self.machine.num_tapes() + 1)
         };
-        
+
         // Simulate block
-        let summary = simulate_block(
-            &self.machine,
-            &config,
-            block_id,
-            self.config.block_size,
-        )?;
-        
+        let summary = simulate_block(&self.machine, &config, block_id, self.config.block_size)?;
+
         // Free buffer
         tracker.free_leaf_buffer(self.config.block_size);
-        
+
+        // Store boundary for next block (rolling cache)
+        self.prev_boundary = Some(summary.clone());
+        #[cfg(debug_assertions)]
+        {
+            if let Some(prev_id) = self.last_leaf_id {
+                debug_assert_eq!(
+                    block_id,
+                    prev_id + 1,
+                    "Leaf visitation order violated: expected block {} next, saw {}",
+                    prev_id + 1,
+                    block_id
+                );
+            }
+            self.last_leaf_id = Some(block_id);
+        }
+
         Ok(summary)
     }
-    
+
     /// Reconstruct boundary configuration from previous block's summary
     ///
     /// This is used to chain blocks together - each block after the first
@@ -178,15 +181,17 @@ impl AlgebraicEngine {
     ) -> Configuration {
         // Reconstruct configuration from previous block's summary
         // Clone summary since into_configuration takes ownership
-        let config = previous_summary.clone().into_configuration(input, self.machine.blank());
-        
+        let config = previous_summary
+            .clone()
+            .into_configuration(input, self.machine.blank());
+
         // Verify state matches (sanity check)
         assert_eq!(config.state(), previous_summary.exit_state());
-        
+
         // Verify head positions match (sanity check)
         let head_positions = config.head_positions();
         assert_eq!(head_positions, previous_summary.exit_heads());
-        
+
         config
     }
 }

@@ -4,29 +4,26 @@
 //! This module exposes foundational components used by higher-level genomic
 //! algorithms (alignment, variant calling, etc.).
 
+mod block_alignment;
+mod bwt_aligner;
 mod compressed_dna;
 mod fm_index;
-mod block_alignment;
-mod rank_select;
-mod bwt_aligner;
-mod types;
 mod pileup;
+mod rank_select;
 mod statistics;
+mod types;
 mod variant_caller;
 
+pub use block_alignment::{align_within_block, AlignmentError, BlockAlignmentSummary, FMInterval};
+pub use bwt_aligner::{AlignerError, AlignmentResult, BWTAligner};
 pub use compressed_dna::{AmbiguityMask, CompressedDNA, CompressedDNAError};
 pub use fm_index::{
-    BlockBoundary, BlockedFMIndex, CompressedBoundaries, FMIndexError, FmSymbol, BWTBlock,
+    BWTBlock, BlockBoundary, BlockedFMIndex, CompressedBoundaries, FMIndexError, FmSymbol,
 };
-pub use block_alignment::{
-    align_within_block, AlignmentError, BlockAlignmentSummary, FMInterval,
-};
+pub use pileup::{PileupNode, PileupProcessor, PileupSummary, PileupWorkload};
 pub use rank_select::{
     BaseCode, RankSelectCheckpoint, RankSelectIndex, ALPHABET_SIZE, CHECKPOINT_STRIDE,
 };
-pub use bwt_aligner::{BWTAligner, AlignerError, AlignmentResult};
+pub use statistics::{bayesian_variant_caller, VariantCall};
 pub use types::{AlignedRead, CigarOp, CigarOpKind};
-pub use pileup::{PileupNode, PileupProcessor, PileupSummary, PileupWorkload};
-pub use statistics::{VariantCall, bayesian_variant_caller};
 pub use variant_caller::{StreamingVariantCaller, Variant, VariantCallerError};
-

@@ -96,4 +96,3 @@ pub fn rosalind_py(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<PyGenomicEngine>()?;
     Ok(())
 }
-

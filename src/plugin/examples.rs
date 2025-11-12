@@ -1,4 +1,4 @@
-use crate::framework::{FrameworkError, BlockProcessor};
+use crate::framework::{BlockProcessor, FrameworkError};
 use crate::genomics::{PileupProcessor, PileupSummary, PileupWorkload};
 use crate::plugin::GenomicPlugin;
 
@@ -61,4 +61,3 @@ impl GenomicPlugin for RNASeqQuantification {
         input.bases_per_block
     }
 }
-

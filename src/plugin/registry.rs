@@ -73,4 +73,3 @@ impl PluginRegistry {
             .collect()
     }
 }
-

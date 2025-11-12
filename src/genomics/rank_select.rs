@@ -106,12 +106,7 @@ impl RankSelectIndex {
     }
 
     /// Rank query: count of `base` in `sequence[..position)`.
-    pub fn rank(
-        &self,
-        sequence: &CompressedDNA,
-        base: BaseCode,
-        position: usize,
-    ) -> u32 {
+    pub fn rank(&self, sequence: &CompressedDNA, base: BaseCode, position: usize) -> u32 {
         let bounded = position.min(sequence.len());
         let checkpoint_idx = bounded / self.stride;
         let remainder_start = checkpoint_idx * self.stride;
@@ -120,8 +115,8 @@ impl RankSelectIndex {
         let mut count = checkpoint.counts[base.index()];
 
         for idx in remainder_start..bounded {
-            let symbol = BaseCode::from_ascii(sequence.base_at(idx).unwrap_or(b'N'))
-                .unwrap_or(BaseCode::N);
+            let symbol =
+                BaseCode::from_ascii(sequence.base_at(idx).unwrap_or(b'N')).unwrap_or(BaseCode::N);
             if symbol == base {
                 count += 1;
             }
@@ -138,8 +133,8 @@ impl RankSelectIndex {
 
         let mut counts = self.checkpoints[checkpoint_idx].counts;
         for idx in remainder_start..bounded {
-            let symbol = BaseCode::from_ascii(sequence.base_at(idx).unwrap_or(b'N'))
-                .unwrap_or(BaseCode::N);
+            let symbol =
+                BaseCode::from_ascii(sequence.base_at(idx).unwrap_or(b'N')).unwrap_or(BaseCode::N);
             counts[symbol.index()] += 1;
         }
         counts
@@ -158,7 +153,13 @@ mod tests {
 
         // Compare with naive counting.
         for pos in 0..=seq.len() {
-            for &base in &[BaseCode::A, BaseCode::C, BaseCode::G, BaseCode::T, BaseCode::N] {
+            for &base in &[
+                BaseCode::A,
+                BaseCode::C,
+                BaseCode::G,
+                BaseCode::T,
+                BaseCode::N,
+            ] {
                 let naive = seq[..pos]
                     .iter()
                     .filter(|&&b| BaseCode::from_ascii(b).unwrap_or(BaseCode::N) == base)
@@ -177,11 +178,26 @@ mod tests {
         for pos in 0..=seq.len() {
             let counts = index.rank_all(&compressed, pos);
             let naive = [
-                seq[..pos].iter().filter(|&&b| b == b'A' || b == b'a').count() as u32,
-                seq[..pos].iter().filter(|&&b| b == b'C' || b == b'c').count() as u32,
-                seq[..pos].iter().filter(|&&b| b == b'G' || b == b'g').count() as u32,
-                seq[..pos].iter().filter(|&&b| b == b'T' || b == b't' || b == b'U' || b == b'u').count() as u32,
-                seq[..pos].iter().filter(|&&b| b == b'N' || b == b'n').count() as u32,
+                seq[..pos]
+                    .iter()
+                    .filter(|&&b| b == b'A' || b == b'a')
+                    .count() as u32,
+                seq[..pos]
+                    .iter()
+                    .filter(|&&b| b == b'C' || b == b'c')
+                    .count() as u32,
+                seq[..pos]
+                    .iter()
+                    .filter(|&&b| b == b'G' || b == b'g')
+                    .count() as u32,
+                seq[..pos]
+                    .iter()
+                    .filter(|&&b| b == b'T' || b == b't' || b == b'U' || b == b'u')
+                    .count() as u32,
+                seq[..pos]
+                    .iter()
+                    .filter(|&&b| b == b'N' || b == b'n')
+                    .count() as u32,
             ];
             assert_eq!(counts, naive);
         }
@@ -204,4 +220,3 @@ mod tests {
         );
     }
 }
-

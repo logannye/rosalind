@@ -180,8 +180,8 @@ impl PileupProcessor {
             let read_offset_start = (overlap_start - read_start) as usize;
             let read_offset_end = (overlap_end - read_start) as usize;
 
-            for (offset, node_idx) in (read_offset_start..read_offset_end)
-                .zip((overlap_start - region.start) as usize..)
+            for (offset, node_idx) in
+                (read_offset_start..read_offset_end).zip((overlap_start - region.start) as usize..)
             {
                 if let Some(base) = read.base_at(offset) {
                     if let Some(idx) = base_index(base) {
@@ -286,4 +286,3 @@ mod tests {
         assert_eq!(first.depth, 1);
     }
 }
-

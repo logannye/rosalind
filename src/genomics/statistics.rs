@@ -103,4 +103,3 @@ mod tests {
         assert!(call.quality > 0.0);
     }
 }
-

@@ -7,10 +7,10 @@ use super::{State, Symbol};
 pub struct Transition {
     /// Next state
     pub next_state: State,
-    
+
     /// Symbols to write (one per work tape; input tape is read-only)
     pub writes: Vec<Symbol>,
-    
+
     /// Head movements for all tapes (including input)
     pub moves: Vec<Move>,
 }
@@ -20,10 +20,10 @@ pub struct Transition {
 pub enum Move {
     /// Move left (decrement position)
     Left,
-    
+
     /// Move right (increment position)
     Right,
-    
+
     /// Stay (no movement)
     Stay,
 }
@@ -37,7 +37,7 @@ impl Move {
             Move::Stay => position,
         }
     }
-    
+
     /// Encode as integer for movement log
     pub fn to_i8(&self) -> i8 {
         match self {
@@ -46,7 +46,7 @@ impl Move {
             Move::Stay => 0,
         }
     }
-    
+
     /// Decode from integer
     pub fn from_i8(val: i8) -> Self {
         match val {

@@ -88,4 +88,3 @@ impl AlignedRead {
         self.qualities.get(offset).copied()
     }
 }
-

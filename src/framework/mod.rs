@@ -7,7 +7,6 @@
 mod compressed_eval;
 
 pub use compressed_eval::{
-    BlockContext, BlockProcessor, CompressedEvaluator, EvaluatorConfig, EvaluationResult,
+    BlockContext, BlockProcessor, CompressedEvaluator, EvaluationResult, EvaluatorConfig,
     FrameworkError,
 };
-

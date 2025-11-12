@@ -2,7 +2,7 @@
 
 #![allow(dead_code)]
 #![allow(dead_code)]
-use sqrt_space_sim::{TuringMachine, Move};
+use sqrt_space_sim::{Move, TuringMachine};
 
 /// Create a simple accepting machine
 /// Reads '1' and accepts, otherwise rejects
@@ -15,15 +15,15 @@ pub fn create_accept_machine() -> TuringMachine {
         .reject_state(2)
         .add_transition(
             0,
-            vec!['1', '_'], // read: input='1', work='_'
-            1, // accept
-            vec!['_'], // no write
+            vec!['1', '_'],               // read: input='1', work='_'
+            1,                            // accept
+            vec!['_'],                    // no write
             vec![Move::Stay, Move::Stay], // no move
         )
         .add_transition(
             0,
             vec!['0', '_'], // read: input='0', work='_'
-            2, // reject
+            2,              // reject
             vec!['_'],
             vec![Move::Stay, Move::Stay],
         )
@@ -42,18 +42,17 @@ pub fn create_right_move_machine() -> TuringMachine {
         .add_transition(
             0,
             vec!['1', '_'],
-            0, // stay in state 0
-            vec!['1'], // write '1' to work tape
+            0,                              // stay in state 0
+            vec!['1'],                      // write '1' to work tape
             vec![Move::Right, Move::Right], // move both heads right
         )
         .add_transition(
             0,
             vec!['_', '_'], // end of input
-            1, // accept
+            1,              // accept
             vec!['_'],
             vec![Move::Stay, Move::Stay],
         )
         .build()
         .unwrap()
 }
-

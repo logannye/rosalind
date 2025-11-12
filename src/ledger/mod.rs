@@ -24,7 +24,7 @@ pub struct StreamingLedger {
     /// Completion bitvectors (1 bit per merge)
     left_status: BitVec,
     right_status: BitVec,
-    
+
     /// Number of blocks
     num_blocks: usize,
 }
@@ -38,25 +38,25 @@ impl StreamingLedger {
             num_blocks,
         }
     }
-    
+
     /// Mark left child complete
     pub fn mark_left_complete(&mut self, node: TreeNode) {
         let idx = self.node_to_index(node);
         self.left_status.set(idx, true);
     }
-    
+
     /// Mark right child complete
     pub fn mark_right_complete(&mut self, node: TreeNode) {
         let idx = self.node_to_index(node);
         self.right_status.set(idx, true);
     }
-    
+
     /// Check if merge is ready (both children done)
     pub fn is_merge_ready(&self, node: TreeNode) -> bool {
         let idx = self.node_to_index(node);
         self.left_status[idx] && self.right_status[idx]
     }
-    
+
     /// Map node to ledger index
     ///
     /// Uses Cantor pairing function to map (left, right) to unique index
@@ -67,16 +67,16 @@ impl StreamingLedger {
         let k1 = node.left as u64;
         let k2 = node.right as u64;
         let pair = (k1 + k2) * (k1 + k2 + 1) / 2 + k2;
-        
+
         // Map to [0, num_blocks) via modulo
         (pair as usize) % self.num_blocks
     }
-    
+
     /// Total space: O(T) cells
     pub fn space_usage(&self) -> usize {
         (self.num_blocks * 2 + 7) / 8 // 2 bits per block
     }
-    
+
     /// Verify all merges completed
     ///
     /// Checks that all internal nodes have both left and right children marked complete.
@@ -90,7 +90,7 @@ impl StreamingLedger {
         // For a binary tree with T leaves, we have T-1 internal nodes
         // However, we're using a hash-based index mapping with modulo,
         // so different nodes can map to the same index (collisions)
-        
+
         // Count how many merges should be completed
         // In a binary tree with T leaves: T-1 internal nodes
         let expected_merges = if self.num_blocks > 0 {
@@ -98,7 +98,7 @@ impl StreamingLedger {
         } else {
             0
         };
-        
+
         // Count how many unique indices have both left and right complete
         let mut completed_merges = 0;
         for idx in 0..self.num_blocks {
@@ -106,7 +106,7 @@ impl StreamingLedger {
                 completed_merges += 1;
             }
         }
-        
+
         // Due to hash collisions (modulo mapping), we might not get exactly T-1 unique completed merges.
         // The hash-based index mapping means different nodes can map to the same index,
         // which can cause collisions especially for large T.
@@ -123,11 +123,11 @@ impl StreamingLedger {
         } else if expected_merges > 1000 {
             // For very large trees (T > 1000), collisions are very frequent
             // Just verify we have some progress (at least 5% of merges)
-            (expected_merges / 20).max(50)  // At least 5% but minimum 50
+            (expected_merges / 20).max(50) // At least 5% but minimum 50
         } else if expected_merges > 100 {
             // For large trees (100 < T <= 1000), account for more collisions
             // Require at least 10% of merges
-            (expected_merges / 10).max(5)  // At least 10% but minimum 5
+            (expected_merges / 10).max(5) // At least 10% but minimum 5
         } else if expected_merges > 10 {
             // For medium trees (10 < T <= 100), expect some collisions
             // Require at least 20% of merges, but minimum 3
@@ -137,10 +137,10 @@ impl StreamingLedger {
             // Require at least 50% of merges
             expected_merges / 2
         };
-        
+
         completed_merges >= min_required
     }
-    
+
     /// Get completion statistics
     ///
     /// Returns (left_complete_count, right_complete_count, both_complete_count)
@@ -148,11 +148,11 @@ impl StreamingLedger {
         let mut left_count = 0;
         let mut right_count = 0;
         let mut both_count = 0;
-        
+
         for idx in 0..self.num_blocks {
             let left = self.left_status[idx];
             let right = self.right_status[idx];
-            
+
             if left {
                 left_count += 1;
             }
@@ -163,7 +163,7 @@ impl StreamingLedger {
                 both_count += 1;
             }
         }
-        
+
         (left_count, right_count, both_count)
     }
 }

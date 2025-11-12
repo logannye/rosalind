@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use crate::framework::{BlockContext, BlockProcessor, CompressedEvaluator, EvaluatorConfig, EvaluationResult, FrameworkError};
+use crate::framework::{
+    BlockContext, BlockProcessor, CompressedEvaluator, EvaluationResult, EvaluatorConfig,
+    FrameworkError,
+};
 
 /// Trait implemented by plugins that run on top of the compressed evaluation engine.
 pub trait GenomicPlugin: Send + Sync + 'static {
@@ -121,4 +124,3 @@ impl<P: GenomicPlugin> BlockProcessor for PluginAdapter<P> {
         self.plugin.finalize(root, input)
     }
 }
-
