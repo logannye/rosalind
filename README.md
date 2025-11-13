@@ -1,6 +1,6 @@
 # Rosalind
 
-**Deterministic, streaming genomics with O(√t) memory. Whole-genome runs in <100 MB RAM.**
+**Deterministic genomics engine with O(√t) memory. Run whole-genome workloads in <100 MB RAM.**
 
 **Rosalind** is a Rust engine for genome alignment, streaming variant calling, and custom bioinformatics analytics that runs on commodity or edge hardware. It achieves **O(√t)** working memory, deterministic replay, and drop-in extensibility for new pipelines (Rust plugins or Python bindings). Traditional pipelines often assume 50-100+ gigabytes of RAM, well-provisioned data centers, and uninterrupted connectivity; Rosalind is designed for the opposite: hospital workstations, clinic laptops, field kits, and classrooms.
 
