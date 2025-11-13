@@ -299,6 +299,47 @@ impl BlockedFMIndex {
     pub fn boundaries(&self) -> &CompressedBoundaries {
         &self.boundaries
     }
+
+    /// Retrieve the symbol stored at `index` in the BWT string.
+    pub fn symbol_at(&self, index: usize) -> FmSymbol {
+        assert!(index < self.bwt_len, "BWT index out of range");
+        if index == self.sentinel_pos {
+            return FmSymbol::Sentinel;
+        }
+
+        let block_idx = index / self.block_size;
+        let block = &self.blocks[block_idx];
+        let offset = index - block.start;
+        let base = block
+            .bwt
+            .base_at(offset)
+            .expect("BWT block should contain sequence data");
+        let code = BaseCode::from_ascii(base)
+            .expect("BWT symbol must be a valid DNA base except sentinel");
+        FmSymbol::Base(code)
+    }
+
+    fn lf_index(&self, index: usize) -> usize {
+        let symbol = self.symbol_at(index);
+        let occ_inclusive = self.rank(symbol, index + 1);
+        let c_row = self.c_table()[symbol.order()] as usize;
+        c_row + occ_inclusive as usize - 1
+    }
+
+    /// Compute the suffix array value corresponding to the provided BWT index.
+    pub fn sa_at(&self, index: usize) -> usize {
+        let mut current = index;
+        let mut steps = 0usize;
+
+        loop {
+            let symbol = self.symbol_at(current);
+            if symbol == FmSymbol::Sentinel {
+                return steps;
+            }
+            current = self.lf_index(current);
+            steps += 1;
+        }
+    }
 }
 
 fn sanitize_reference(reference: &[u8]) -> Result<Vec<u8>, FMIndexError> {
@@ -391,6 +432,7 @@ fn build_c_table(totals: [u32; ALPHABET_SIZE]) -> [u32; 6] {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::genomics::BWTAligner;
 
     #[test]
     fn fm_index_builds_and_ranks() {
@@ -419,5 +461,20 @@ mod tests {
         let (bwt, _) = build_bwt(&sanitize_reference(reference).unwrap());
         let bounded = position.min(bwt.len());
         bwt[..bounded].iter().filter(|&&ch| ch == base).count() as u32
+    }
+
+    #[test]
+    fn sa_at_recovers_reference_position() {
+        let reference = b"ACGTACGT";
+        let mut aligner = BWTAligner::new(reference).expect("aligner should initialize");
+        let result = aligner
+            .align_read(b"ACGT")
+            .expect("alignment should succeed");
+        assert!(result.has_candidates());
+
+        let index = BlockedFMIndex::build(reference, 4).expect("index build should succeed");
+        let position = index.sa_at(result.interval.lower as usize);
+        assert!(position + 4 <= reference.len());
+        assert_eq!(&reference[position..position + 4], b"ACGT");
     }
 }

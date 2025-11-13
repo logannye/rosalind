@@ -216,6 +216,8 @@ cargo run --release -- variants \
   --output examples/data/variants.vcf
 ```
 
+> **Note:** `rosalind align` indexes the first FASTA record via the O(√t) FM-index before emitting SAM/BAM output. Additional records are ignored (a warning is printed) until multi-contig sequencing is supported.
+
 Key knobs:
 - `--max-mismatches` bounds per-read Hamming distance during seeding.
 - `--format {sam|bam}` toggles between plain-text SAM and BGZF-compressed BAM (requires `--output` for BAM).

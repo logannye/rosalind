@@ -6,7 +6,8 @@ use std::sync::Arc;
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use rosalind::genomics::{
-    create_bam_writer, write_vcf, AlignedRead, CigarOp, CigarOpKind, StreamingVariantCaller,
+    create_bam_writer, write_vcf, AlignedRead, BWTAligner, CigarOp, CigarOpKind,
+    StreamingVariantCaller,
 };
 use rust_htslib::bam::{
     self, record::Aux, record::Cigar as BamCigar, record::CigarString, record::Record,
@@ -23,7 +24,7 @@ struct Cli {
 enum Commands {
     /// Align reads against a reference genome and emit SAM records.
     Align {
-        /// Reference genome in FASTA format.
+        /// Reference genome in FASTA format (only the first record is used).
         #[arg(long)]
         reference: PathBuf,
         /// Reads file in FASTQ format.
@@ -88,6 +89,11 @@ struct FastqRecord {
     qualities: Vec<u8>,
 }
 
+struct AlignmentCandidate {
+    position: usize,
+    mismatches: usize,
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
@@ -143,6 +149,10 @@ fn run_align(
         .with_context(|| format!("failed to read reference from {}", reference_path.display()))?;
     let records = read_fastq(&reads_path)
         .with_context(|| format!("failed to read reads from {}", reads_path.display()))?;
+    let mut aligner = BWTAligner::new(&fasta.sequence)
+        .context("failed to initialize the FM-index aligner for the reference")?;
+    let alignments =
+        align_reads(&mut aligner, &records, max_mismatches).context("aligning reads failed")?;
 
     match format {
         OutputFormat::Sam => {
@@ -154,10 +164,9 @@ fn run_align(
                     &mut writer,
                     &fasta.name,
                     fasta.sequence.len(),
-                    &fasta.sequence,
-                    &records,
-                    max_mismatches,
                     reference_offset,
+                    &records,
+                    &alignments,
                 )?;
             } else {
                 let stdout = io::stdout();
@@ -166,10 +175,9 @@ fn run_align(
                     &mut handle,
                     &fasta.name,
                     fasta.sequence.len(),
-                    &fasta.sequence,
-                    &records,
-                    max_mismatches,
                     reference_offset,
+                    &records,
+                    &alignments,
                 )?;
             }
         }
@@ -179,17 +187,36 @@ fn run_align(
             })?;
             let mut writer = create_bam_writer(&path, &fasta.name, fasta.sequence.len())
                 .with_context(|| format!("failed to create BAM writer for {}", path.display()))?;
-            write_bam_alignments(
-                &mut writer,
-                &fasta.sequence,
-                &records,
-                max_mismatches,
-                reference_offset,
-            )?;
+            write_bam_alignments(&mut writer, reference_offset, &records, &alignments)?;
         }
     }
 
     Ok(())
+}
+
+fn align_reads(
+    aligner: &mut BWTAligner,
+    records: &[FastqRecord],
+    max_mismatches: usize,
+) -> Result<Vec<Option<AlignmentCandidate>>> {
+    let mut results = Vec::with_capacity(records.len());
+    for record in records {
+        let alignment = aligner
+            .align_read(&record.sequence)
+            .with_context(|| format!("failed to align read {}", record.name))?;
+
+        if alignment.has_candidates() && alignment.mismatches <= max_mismatches {
+            let position = aligner.fm_index().sa_at(alignment.interval.lower as usize);
+            results.push(Some(AlignmentCandidate {
+                position,
+                mismatches: alignment.mismatches,
+            }));
+        } else {
+            results.push(None);
+        }
+    }
+
+    Ok(results)
 }
 
 fn run_variants(
@@ -262,9 +289,19 @@ fn read_fasta(path: &PathBuf) -> Result<FastaRecord> {
 
         if trimmed.starts_with('>') {
             if name.is_some() {
+                eprintln!(
+                    "warning: only the first FASTA record is currently used; ignoring '{}'",
+                    trimmed
+                );
                 break;
             }
-            name = Some(trimmed.trim_start_matches('>').trim().to_string());
+            let header = trimmed.trim_start_matches('>').trim();
+            let primary_name = header
+                .split_whitespace()
+                .next()
+                .ok_or_else(|| anyhow!("FASTA header '{}' has no name", header))?
+                .to_string();
+            name = Some(primary_name);
         } else {
             sequence.push_str(trimmed);
         }
@@ -299,7 +336,12 @@ fn read_fastq(path: &PathBuf) -> Result<Vec<FastqRecord>> {
                 path.display()
             );
         }
-        let name = header[1..].trim().to_string();
+        let header_rest = header[1..].trim();
+        let name = header_rest
+            .split_whitespace()
+            .next()
+            .ok_or_else(|| anyhow!("FASTQ header '{}' has no read name", header))?
+            .to_string();
 
         let seq_line = reader
             .next()
@@ -340,35 +382,6 @@ fn read_fastq(path: &PathBuf) -> Result<Vec<FastqRecord>> {
     Ok(records)
 }
 
-fn align_read_naive(
-    reference: &[u8],
-    read: &[u8],
-    max_mismatches: usize,
-) -> Option<(usize, usize)> {
-    if read.is_empty() || read.len() > reference.len() {
-        return None;
-    }
-
-    let mut best: Option<(usize, usize)> = None;
-
-    for start in 0..=reference.len() - read.len() {
-        let mismatches = reference[start..start + read.len()]
-            .iter()
-            .zip(read.iter())
-            .filter(|(a, b)| a.to_ascii_uppercase() != b.to_ascii_uppercase())
-            .count();
-
-        if mismatches <= max_mismatches {
-            match best {
-                Some((_, best_mismatches)) if mismatches >= best_mismatches => {}
-                _ => best = Some((start, mismatches)),
-            }
-        }
-    }
-
-    best
-}
-
 fn mapq_from_mismatches(mismatches: usize) -> u8 {
     match mismatches {
         0 => 60,
@@ -382,35 +395,37 @@ fn write_sam_alignments<W: Write>(
     writer: &mut W,
     reference_name: &str,
     reference_len: usize,
-    reference_sequence: &[u8],
-    reads: &[FastqRecord],
-    max_mismatches: usize,
     reference_offset: u32,
+    reads: &[FastqRecord],
+    alignments: &[Option<AlignmentCandidate>],
 ) -> Result<()> {
     writeln!(writer, "@HD\tVN:1.6\tSO:unknown")?;
     writeln!(writer, "@SQ\tSN:{reference_name}\tLN:{reference_len}")?;
 
-    for record in reads {
+    if reads.len() != alignments.len() {
+        bail!("internal error: read-alignment count mismatch");
+    }
+
+    for (record, alignment) in reads.iter().zip(alignments.iter()) {
         let seq_str = String::from_utf8(record.sequence.clone())
             .map_err(|_| anyhow!("FASTQ sequence for {} is not valid ASCII", record.name))?;
         let qual_str = String::from_utf8(record.qualities.clone())
             .map_err(|_| anyhow!("FASTQ qualities for {} are not valid ASCII", record.name))?;
 
-        if let Some((position, mismatches)) =
-            align_read_naive(reference_sequence, &record.sequence, max_mismatches)
-        {
-            let mapq = mapq_from_mismatches(mismatches);
+        if let Some(hit) = alignment {
+            let mapq = mapq_from_mismatches(hit.mismatches);
+            let pos = hit.position + reference_offset as usize + 1;
             writeln!(
                 writer,
                 "{qname}\t{flag}\t{rname}\t{pos}\t{mapq}\t{cigar}\t*\t0\t0\t{seq}\t{qual}\tNM:i:{nm}",
                 qname = record.name,
                 flag = 0,
                 rname = reference_name,
-                pos = position + reference_offset as usize + 1,
+                pos = pos,
                 cigar = format!("{}M", record.sequence.len()),
                 seq = seq_str,
                 qual = qual_str,
-                nm = mismatches
+                nm = hit.mismatches
             )?;
         } else {
             writeln!(
@@ -430,15 +445,16 @@ fn write_sam_alignments<W: Write>(
 
 fn write_bam_alignments(
     writer: &mut bam::Writer,
-    reference_sequence: &[u8],
-    reads: &[FastqRecord],
-    max_mismatches: usize,
     reference_offset: u32,
+    reads: &[FastqRecord],
+    alignments: &[Option<AlignmentCandidate>],
 ) -> Result<()> {
-    for record in reads {
-        if let Some((position, mismatches)) =
-            align_read_naive(reference_sequence, &record.sequence, max_mismatches)
-        {
+    if reads.len() != alignments.len() {
+        bail!("internal error: read-alignment count mismatch");
+    }
+
+    for (record, alignment) in reads.iter().zip(alignments.iter()) {
+        if let Some(hit) = alignment {
             let mut bam_record = Record::new();
             let cigar = CigarString::from(vec![BamCigar::Match(record.sequence.len() as u32)]);
             bam_record.set(
@@ -448,13 +464,13 @@ fn write_bam_alignments(
                 &record.qualities,
             );
             bam_record.set_tid(0);
-            bam_record.set_pos((position + reference_offset as usize) as i64);
+            bam_record.set_pos((hit.position + reference_offset as usize) as i64);
             bam_record.set_flags(0);
-            bam_record.set_mapq(mapq_from_mismatches(mismatches));
+            bam_record.set_mapq(mapq_from_mismatches(hit.mismatches));
             bam_record.set_mtid(-1);
             bam_record.set_mpos(-1);
             bam_record.set_insert_size(0);
-            bam_record.push_aux(b"NM", Aux::I32(mismatches as i32))?;
+            bam_record.push_aux(b"NM", Aux::I32(hit.mismatches as i32))?;
             writer.write(&bam_record)?;
         } else {
             let mut bam_record = Record::new();
@@ -574,4 +590,61 @@ fn parse_cigar(cigar: &str, read_len: usize) -> Result<Vec<CigarOp>> {
         );
     }
     Ok(vec![CigarOp::new(CigarOpKind::Match, len)])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::env;
+    use std::fs;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temp_file_path(suffix: &str) -> PathBuf {
+        let timestamp = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("time went backwards")
+            .as_nanos();
+        let mut path = env::temp_dir();
+        path.push(format!("rosalind-test-{suffix}-{timestamp}.tmp"));
+        path
+    }
+
+    fn write_temp_file(contents: &str, suffix: &str) -> PathBuf {
+        let path = temp_file_path(suffix);
+        fs::write(&path, contents).expect("failed to write temp file");
+        path
+    }
+
+    #[test]
+    fn fasta_parser_extracts_primary_name() {
+        let path = write_temp_file(">chr1 CP068277.2 description\nACGT\n", "fasta");
+        let record = read_fasta(&path).expect("FASTA read should succeed");
+        assert_eq!(record.name, "chr1");
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn fastq_parser_trims_after_space() {
+        let contents = "@read1 1:N:0:CG\nAC\n+\n!!\n";
+        let path = write_temp_file(contents, "fastq");
+        let records = read_fastq(&path).expect("FASTQ read should succeed");
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].name, "read1");
+        let _ = fs::remove_file(path);
+    }
+
+    #[test]
+    fn align_reads_with_fm_index() {
+        let reference = b"ACGTACGT";
+        let mut aligner =
+            BWTAligner::new(reference).expect("should build FM-index aligner for test");
+        let records = vec![FastqRecord {
+            name: "read1".to_string(),
+            sequence: b"ACGT".to_vec(),
+            qualities: b"IIII".to_vec(),
+        }];
+        let alignments = align_reads(&mut aligner, &records, 2).expect("alignment should run");
+        assert!(alignments[0].is_some());
+    }
 }
