@@ -28,6 +28,12 @@
 - **Partition invariance**: outputs are unchanged across valid choices of block size and chunking; merges are deterministic and order independent.
 - **Full-history equivalence**: results match an unbounded-history evaluation; the space savings come from recomputation, not information loss.
 
+### What O(√t) memory means (and what 't' is)
+- 't' denotes the total units of work (time steps) the pipeline performs. In practice it grows roughly with total bases processed: number of reads × read length, plus modest indexing/merge overhead proportional to the reference.
+- Peak resident memory grows with the square root of t, not linearly. If you double the total data processed, peak memory rises by about √2 ≈ 1.41×, not 2×.
+- The bound holds because Rosalind keeps only the current block buffer of size Θ(√t), a rolling boundary, and a height‑compressed merge stack of O(log t); older block state is recomputed when needed, not stored.
+- Practically: whole‑genome runs stay under ~100 MB on commodity laptops while matching the outputs of an unbounded‑history evaluation.
+
 ---
 
 ## Why This Is Different
