@@ -295,7 +295,8 @@ mod tests {
         assert!(!summary.nodes.is_empty());
         let first = &summary.nodes[0];
         assert_eq!(first.position, 100);
-        assert_eq!(first.depth, first.base_counts.iter().sum());
+        let depth_sum: u32 = first.base_counts.iter().copied().sum();
+        assert_eq!(first.depth, depth_sum);
     }
 
     fn read_strategy(window_len: u32) -> impl Strategy<Value = AlignedRead> {

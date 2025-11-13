@@ -32,7 +32,7 @@ clap = { version = "4.5", features = ["derive"] }
 # Serialization (optional, for debugging/visualization)
 serde = { version = "1.0", features = ["derive"], optional = true }
 # Python bindings
-pyo3 = { version = "0.23.2", features = ["extension-module", "abi3-py39"] }
+pyo3 = { version = "0.23.2", features = ["extension-module", "abi3-py39"], optional = true }
 # BAM/VCF output
 rust-htslib = { version = "0.44", default-features = false, features = ["bzip2", "lzma"] }
 
@@ -45,6 +45,7 @@ test-case = "3.3"
 default = []
 visualize = ["serde"]
 profiling = []
+python-bindings = ["dep:pyo3"]
 
 [[bench]]
 name = "simulation_bench"

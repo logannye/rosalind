@@ -37,6 +37,7 @@ pub mod ledger; // Streaming progress tracking
 pub mod machine; // Turing machine representation
 pub mod plugin; // Plugin system
 /// Python bindings for exposing Rosalind components to external runtimes.
+#[cfg(feature = "python-bindings")]
 pub mod python_bindings;
 pub mod space; // Space accounting utilities
 pub mod tree; // Height-compressed evaluation tree
