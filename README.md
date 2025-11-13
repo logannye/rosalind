@@ -1,4 +1,4 @@
-# Rosalind: Efficient, accessible genomics for every device
+# Rosalind: Efficient, deterministic genomics with O(√t) memory for ordinary hardware
 
 **Rosalind** is a Rust engine for genome alignment, streaming variant calling, and custom bioinformatics analytics that runs on commodity or edge hardware. It achieves **O(√t)** working memory, deterministic replay, and drop-in extensibility for new pipelines (Rust plugins or Python bindings). Traditional pipelines often assume tens of gigabytes of RAM, well-provisioned data centers, and uninterrupted connectivity; Rosalind is designed for the opposite: hospital workstations, clinic laptops, field kits, and classrooms.
 
@@ -25,12 +25,31 @@
 - **Deterministic replay**: every block is re-simulated from the previous boundary, producing the same results as a full history, even on resource-constrained devices.
 - **Composable design**: block processors, plugins, and bindings use the same compressed evaluator, so new analyses inherit the guarantees—perfect for bespoke QC or epidemiology dashboards.
 - **Guardrails included**: regression tests (`tests/space_bounds.rs`) and `scripts/run_scale_test.sh` fail if the O(√t) or sublinear scaling properties regress.
+- **Partition invariance**: outputs are unchanged across valid choices of block size and chunking; merges are deterministic and order independent.
+- **Full-history equivalence**: results match an unbounded-history evaluation; the space savings come from recomputation, not information loss.
+
+---
+
+## Why This Is Different
+- End-to-end determinism: bit-for-bit identical outputs across runs for the same inputs and parameters; ideal for clinical audits, SOP lock-down, and incident investigation.
+- Strict, test-enforced memory bound: whole-genome runs fit in well under 100 MB; CI tests fail if the O(√t) bound regresses.
+- True streaming from reads → variants: no need to materialize large intermediates; reduces IO/storage pressure and time-to-first-result.
+- Composable extensions that inherit guarantees: plugins and Python bindings share the same compressed evaluator and workspace pool, preserving memory bounds and determinism.
+- Standards without heavyweight infra: interoperable SAM/BAM/VCF emission while retaining streaming and memory advantages.
+- Cache-resident execution: keeping state in L1/L2 minimizes cache misses and paging on modest hardware, improving real-world throughput outside of large servers.
+
+### Clinical Relevance
+- Runs on 8–16 GB hospital desktops and field laptops; no cloud transfer of PHI required.
+- Reproducibility by design simplifies validation, accreditation, and audit trails.
+- Predictable resource envelope reduces OOM failures and manual reruns on shared workstations.
+- Edge-friendly operation tolerates intermittent connectivity and minimizes temp-file churn.
 
 ---
 
 ## Core Capabilities
 - **FM-index Alignment** – Blocked Burrows–Wheeler/FM-index search with per-block rank/select checkpoints uses only O(√t) working state, making it practical to align entire reference genomes on a mid-spec laptop.
 - **Streaming Variant Calling** – On-the-fly pileups with Bayesian scoring keep memory bounded while emitting variants live; ideal for remote surveillance, bedside genomics, or interactive notebooks.
+- **Standards-compliant outputs** – Interoperable SAM/BAM/VCF with streaming-friendly IO, minimizing large intermediate files and sort/index overhead.
 - **Plugin & Python Ecosystem** – Implement the `GenomicPlugin` trait or call into the PyO3 bindings to add custom analyses without duplicating memory—e.g., RNA expression summaries or coverage drop-out checks for diagnostics.
 - **Rolling Boundary** – During DFS evaluation only the latest block summary is retained; older summaries are discarded, guaranteeing `O(b + T + log T) = O(√t)`.
 
@@ -203,12 +222,20 @@ The example plugin emits per-base coverage suitable for expression quantificatio
 | `./scripts/run_scale_test.sh` | Runs the long-form benchmark; exits non-zero if the bound or sublinear scaling checks are violated (use `--csv` to capture output). |
 | `cargo run --example scale_performance_test` | Prints per-scale metrics and component breakdowns for manual inspection (leaf buffer, stack depth, ledger). |
 | `cargo test` | Runs all unit/integration tests covering alignment, variant calling, plugins, and supporting modules. |
+| `cargo test --test determinism` | Confirms bit-for-bit identical outputs across repeated runs given the same inputs/params. |
+| `cargo test --test fm_index_props` | Property tests that validate FM-index rank/total invariants against naive counting. |
+| `cargo test --test golden_vcf` | Snapshot test for stable VCF rendering; refresh with `ROSALIND_UPDATE_SNAPSHOTS=1`. |
 
 Optional: enable an RSS regression check with `--features rss` if you want to monitor process RSS in addition to logical counters.
 
 ### Benchmarks & Snapshots
 - `python scripts/benchmark_formats.py --release` – compare SAM vs BAM throughput using the bundled toy dataset (it will be generated on first run).
 - Refresh golden outputs with `ROSALIND_UPDATE_SNAPSHOTS=1 cargo test`.
+
+### Notes on Guarantees and Trade-offs
+- Variant scoring remains statistical (Bayesian), but execution is deterministic—no sampling or thread-order nondeterminism—simplifying validation.
+- FM-index seeding is exact over the indexed sequence; MAPQ/filters are explicit and covered by tests.
+- Recomputing block boundaries to preserve the space bound can add CPU vs server-optimized pipelines; in exchange, you get predictable, cache-friendly performance on commodity hardware.
 
 ---
 
