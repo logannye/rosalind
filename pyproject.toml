@@ -12,3 +12,4 @@ license = {text = "MIT OR Apache-2.0"}
 
 [tool.maturin]
 module-name = "rosalind_py"
+features = ["python-bindings"]
