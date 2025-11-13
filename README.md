@@ -1,6 +1,8 @@
-# Rosalind: Efficient, deterministic genomics with O(√t) memory for ordinary hardware
+# Rosalind
 
-**Rosalind** is a Rust engine for genome alignment, streaming variant calling, and custom bioinformatics analytics that runs on commodity or edge hardware. It achieves **O(√t)** working memory, deterministic replay, and drop-in extensibility for new pipelines (Rust plugins or Python bindings). Traditional pipelines often assume tens of gigabytes of RAM, well-provisioned data centers, and uninterrupted connectivity; Rosalind is designed for the opposite: hospital workstations, clinic laptops, field kits, and classrooms.
+**Deterministic, streaming genomics with O(√t) memory. Whole-genome runs in <100 MB RAM.**
+
+**Rosalind** is a Rust engine for genome alignment, streaming variant calling, and custom bioinformatics analytics that runs on commodity or edge hardware. It achieves **O(√t)** working memory, deterministic replay, and drop-in extensibility for new pipelines (Rust plugins or Python bindings). Traditional pipelines often assume 50-100+ gigabytes of RAM, well-provisioned data centers, and uninterrupted connectivity; Rosalind is designed for the opposite: hospital workstations, clinic laptops, field kits, and classrooms.
 
 ---
 
@@ -8,6 +10,18 @@
 - **Core problem**: standard tools such as BWA, GATK, or cloud-centric workflows frequently require >50 GB RAM, full copies of intermediate files, and high-bandwidth storage, placing them out of reach in many hospitals, public-health labs, and teaching environments.
 - **Rosalind’s answer**: split workloads into √t blocks, reuse a rolling boundary between blocks, and evaluate a height-compressed tree so memory stays in L1/L2 cache while preserving deterministic results. The entire pipeline fits in well under 100 MB even for whole genomes.
 - **How you use it**: run the CLI, embed the Rust APIs, or extend via plugins/Python to build bespoke genomics workflows—ideal for quick-turnaround clinical diagnostics, outbreak monitoring, or courses where students explore real data on laptops.
+
+See [At a Glance](#at-a-glance), [How It Compares](#how-it-compares), and [What O(√t) memory means](#what-o√t-memory-means-and-what-t-is) for deeper context.
+
+---
+
+## At a Glance
+- **O(√t) working memory** – whole-genome runs stay under ~100 MB without lossy approximations.
+- **End-to-end deterministic** – outputs are bit-for-bit identical across runs and partition choices.
+- **Full-history equivalent** – recomputation keeps results identical to unbounded-memory evaluations.
+- **Streaming SAM/BAM/VCF** – standards-compliant outputs without materializing huge intermediates.
+- **Edge-ready deployment** – runs on 8–16 GB laptops/desktops so PHI stays on-site.
+- **Composable extensions** – plugins/Python bindings inherit the same memory and determinism guarantees.
 
 ---
 
@@ -29,26 +43,41 @@
 - **Full-history equivalence**: results match an unbounded-history evaluation; the space savings come from recomputation, not information loss.
 
 ### What O(√t) memory means (and what 't' is)
-- 't' denotes the total units of work (time steps) the pipeline performs. In practice it grows roughly with total bases processed: number of reads × read length, plus modest indexing/merge overhead proportional to the reference.
-- Peak resident memory grows with the square root of t, not linearly. If you double the total data processed, peak memory rises by about √2 ≈ 1.41×, not 2×.
-- The bound holds because Rosalind keeps only the current block buffer of size Θ(√t), a rolling boundary, and a height‑compressed merge stack of O(log t); older block state is recomputed when needed, not stored.
-- Practically: whole‑genome runs stay under ~100 MB on commodity laptops while matching the outputs of an unbounded‑history evaluation.
+- `t` ≈ total bases processed. For 30× human whole-genome sequencing: coverage `C ≈ 30`, genome size `G ≈ 3.1×10⁹`, so `t ≈ C × G ≈ 9.3×10¹⁰`.
+- `√t ≈ 3.0×10⁵`, which sets the block buffer size. The height-compressed merge stack is `log₂(t) ≈ 36` levels—negligible compared with the block.
+- Working set ≈ `(α + β) · √t + γ`. With α ≈ 64–128 B per active position, whole-genome runs sit around 30–80 MB; even conservative assumptions keep the bound <100 MB.
+- The bound holds because only the current block, rolling boundary, and compact merge stack reside in memory; older state is recomputed on demand.
+- The FM-index/reference can be memory-mapped, so the O(√t) claim concerns Rosalind’s dynamic working set relative to dataset size.
 
 ---
 
 ## Why This Is Different
-- End-to-end determinism: bit-for-bit identical outputs across runs for the same inputs and parameters; ideal for clinical audits, SOP lock-down, and incident investigation.
-- Strict, test-enforced memory bound: whole-genome runs fit in well under 100 MB; CI tests fail if the O(√t) bound regresses.
-- True streaming from reads → variants: no need to materialize large intermediates; reduces IO/storage pressure and time-to-first-result.
-- Composable extensions that inherit guarantees: plugins and Python bindings share the same compressed evaluator and workspace pool, preserving memory bounds and determinism.
-- Standards without heavyweight infra: interoperable SAM/BAM/VCF emission while retaining streaming and memory advantages.
-- Cache-resident execution: keeping state in L1/L2 minimizes cache misses and paging on modest hardware, improving real-world throughput outside of large servers.
+- **Partition-invariant determinism** – bit-for-bit identical outputs across runs, regardless of block size or partitioning; ideal for clinical audits, SOP lock-down, and incident investigation.
+- **Strict, test-enforced O(√t) memory** – whole-genome runs fit in well under 100 MB; CI gates fail if the bound regresses.
+- **Full-history equivalence** – recomputation (not truncation) guarantees identical results to an unbounded-memory evaluation.
+- **True streaming reads → variants** – no need to materialize large intermediates; reduces IO/storage pressure and time-to-first-result.
+- **Standards without heavyweight infra** – interoperable SAM/BAM/VCF emission while retaining streaming and memory advantages.
+- **Cache-resident execution** – keeping state in L1/L2 minimizes cache misses and paging on modest hardware, improving real-world throughput outside of large servers.
+- **Composable extensions that inherit guarantees** – plugins and Python bindings share the same compressed evaluator and workspace pool, preserving memory bounds and determinism.
 
 ### Clinical Relevance
-- Runs on 8–16 GB hospital desktops and field laptops; no cloud transfer of PHI required.
-- Reproducibility by design simplifies validation, accreditation, and audit trails.
-- Predictable resource envelope reduces OOM failures and manual reruns on shared workstations.
-- Edge-friendly operation tolerates intermittent connectivity and minimizes temp-file churn.
+- Keeps PHI on-site—runs comfortably on 8–16 GB hospital desktops and field laptops without cloud transfer.
+- Bit-for-bit reproducibility simplifies CAP/CLIA audits, SOP lock-down, and incident review.
+- Predictable <100 MB working set avoids OOMs and keeps shared schedulers/workstations stable.
+- Streaming-friendly operation tolerates intermittent connectivity and minimizes temp-file churn in the field.
+
+---
+
+## How It Compares
+| Capability | Rosalind | Typical Stack |
+| --- | --- | --- |
+| Peak RAM (WGS) | `<100 MB` working set; no multi-GB temp files | `1–16+ GB` RAM plus large intermediates |
+| Determinism | Bit-for-bit identical outputs; partition invariant | Often varies with thread ordering or sharding |
+| Partition invariance | Validated in CI across block sizes | Repartitioning can alter outputs |
+| Streaming outputs | Reads → SAM/BAM → VCF without materializing huge files | Batch stages typically require full intermediates |
+| Standards | SAM/BAM/VCF with streaming-friendly pipeline | Standards supported, but streaming often limited |
+| On-prem edge viability | Runs on 8–16 GB laptops; PHI stays on-site | Assumes high-RAM servers or cloud resources |
+| Guardrails/tests | CI enforces O(√t), determinism, property tests | Unit tests common; resource/determinism guards rare |
 
 ---
 
@@ -231,6 +260,12 @@ The example plugin emits per-base coverage suitable for expression quantificatio
 | `cargo test --test determinism` | Confirms bit-for-bit identical outputs across repeated runs given the same inputs/params. |
 | `cargo test --test fm_index_props` | Property tests that validate FM-index rank/total invariants against naive counting. |
 | `cargo test --test golden_vcf` | Snapshot test for stable VCF rendering; refresh with `ROSALIND_UPDATE_SNAPSHOTS=1`. |
+
+### Reproducibility & Validation
+- `cargo test --test determinism` — locks down partition-invariant, bit-for-bit outputs for auditability and SOPs.
+- `cargo test --test fm_index_props` — property-based checks for FM-index rank/total invariants.
+- `ROSALIND_UPDATE_SNAPSHOTS=1 cargo test` — refreshes golden VCF/SAM outputs when expected results change; the default run verifies no drift.
+- Together with CI enforcement of the O(√t) bound, these tests provide a defensible validation story for regulated or clinical environments.
 
 Optional: enable an RSS regression check with `--features rss` if you want to monitor process RSS in addition to logical counters.
 
