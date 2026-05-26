@@ -57,13 +57,11 @@ Create `src/core/mod.rs`:
 //! Note: this module is named `core`; inside the crate always reference it as
 //! `crate::core::…`. Reach the std `core` crate (rarely needed) as `::core::…`.
 
-pub mod budget;
 pub mod error;
-pub mod locus;
-pub mod record;
-pub mod sequence;
 
 pub use error::CoreError;
+// Later tasks add `pub mod locus/budget/sequence/record;` + their re-exports as
+// each file is created; declaring them before the files exist would not compile.
 ```
 
 - [ ] **Step 2: Write the failing test**
@@ -280,9 +278,10 @@ impl ContigSet {
 }
 ```
 
-In `src/core/mod.rs`, add under the existing re-export:
+In `src/core/mod.rs`, add the module declaration and its re-exports:
 
 ```rust
+pub mod locus;
 pub use locus::{Contig, ContigSet, Locus, Position};
 ```
 
@@ -390,6 +389,7 @@ impl WorkingSet {
 In `src/core/mod.rs`, add:
 
 ```rust
+pub mod budget;
 pub use budget::{MemoryBudget, WorkingSet};
 ```
 
@@ -530,6 +530,7 @@ pub fn allele_index(base: u8) -> Option<usize> {
 In `src/core/mod.rs`, add:
 
 ```rust
+pub mod sequence;
 pub use sequence::{allele_index, BaseCode};
 ```
 
@@ -848,6 +849,7 @@ impl AlignedRead {
 In `src/core/mod.rs`, add:
 
 ```rust
+pub mod record;
 pub use record::{AlignedRead, CigarOp, CigarOpKind, RefBase, SamFlags};
 ```
 
