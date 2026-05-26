@@ -22,6 +22,12 @@ pub fn create_bam_writer<P: AsRef<Path>>(
     sq.push_tag(b"LN", &(reference_length as i64));
     header.push_record(&sq);
 
+    let mut pg = HeaderRecord::new(b"PG");
+    pg.push_tag(b"ID", &"rosalind");
+    pg.push_tag(b"PN", &"rosalind");
+    pg.push_tag(b"VN", &env!("CARGO_PKG_VERSION"));
+    header.push_record(&pg);
+
     let writer = bam::Writer::from_path(output_path, &header, bam::Format::Bam)?;
     Ok(writer)
 }

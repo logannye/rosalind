@@ -10,7 +10,20 @@ const HEADER: &str =
 pub fn write_vcf<W: Write>(writer: &mut W, variants: &[Variant]) -> Result<()> {
     writer.write_all(HEADER.as_bytes())?;
 
-    for variant in variants {
+    // Determinism requirement: callers may provide variants in any order.
+    // Emit records in a canonical, stable order.
+    let mut ordered: Vec<&Variant> = variants.iter().collect();
+    ordered.sort_by(|a, b| {
+        a.chrom
+            .as_ref()
+            .cmp(b.chrom.as_ref())
+            .then_with(|| a.position.cmp(&b.position))
+            .then_with(|| a.reference.cmp(&b.reference))
+            .then_with(|| a.alternate.cmp(&b.alternate))
+            .then_with(|| a.depth.cmp(&b.depth))
+    });
+
+    for variant in ordered {
         let line = format!(
             "{chrom}\t{pos}\t.\t{ref_base}\t{alt_base}\t{qual:.2}\tPASS\tDP={depth};AF={af:.3}\n",
             chrom = variant.chrom,

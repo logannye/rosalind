@@ -1,5 +1,189 @@
-   Compiling sqrt-space-sim v0.1.0 (/Users/logannye/space-time-sim)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.69s
+   Compiling proc-macro2 v1.0.103
+   Compiling unicode-ident v1.0.22
+   Compiling quote v1.0.41
+   Compiling libc v0.2.177
+   Compiling cfg-if v1.0.4
+   Compiling find-msvc-tools v0.1.4
+   Compiling autocfg v1.5.0
+   Compiling shlex v1.3.0
+   Compiling zerocopy v0.8.27
+   Compiling stable_deref_trait v1.2.1
+   Compiling pkg-config v0.3.32
+   Compiling version_check v0.9.5
+   Compiling syn v1.0.109
+   Compiling once_cell v1.21.3
+   Compiling memchr v2.7.6
+   Compiling serde_core v1.0.228
+   Compiling writeable v0.6.2
+   Compiling typenum v1.19.0
+   Compiling regex-syntax v0.8.8
+   Compiling getrandom v0.3.4
+   Compiling litemap v0.8.1
+   Compiling icu_properties_data v2.1.1
+   Compiling rand_core v0.6.4
+   Compiling generic-array v0.14.9
+   Compiling serde v1.0.228
+   Compiling aho-corasick v1.1.4
+   Compiling num-traits v0.2.19
+   Compiling icu_normalizer_data v2.1.1
+   Compiling quick-error v1.2.3
+   Compiling either v1.15.0
+   Compiling syn v2.0.108
+   Compiling crossbeam-utils v0.8.21
+   Compiling heck v0.5.0
+   Compiling vcpkg v0.2.15
+   Compiling smallvec v1.15.1
+   Compiling regex-automata v0.4.13
+   Compiling rustversion v1.0.22
+   Compiling jobserver v0.1.34
+   Compiling cc v1.2.44
+   Compiling semver v0.1.20
+   Compiling utf8parse v0.2.2
+   Compiling rustc_version v0.1.7
+   Compiling anstyle-parse v0.2.7
+   Compiling itertools v0.10.5
+   Compiling fs-utils v1.1.4
+   Compiling ahash v0.8.12
+   Compiling radium v0.7.0
+   Compiling anstyle-query v1.1.4
+   Compiling lazy_static v1.5.0
+   Compiling thiserror v1.0.69
+   Compiling crypto-common v0.1.6
+   Compiling glob v0.3.3
+   Compiling rustix v1.1.2
+   Compiling cmake v0.1.54
+   Compiling paste v1.0.15
+   Compiling anstyle v1.0.13
+   Compiling colorchoice v1.0.4
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling num-integer v0.1.46
+   Compiling anstream v0.6.21
+   Compiling digest v0.10.7
+   Compiling num-bigint v0.4.6
+   Compiling newtype_derive v0.1.6
+   Compiling rand_core v0.9.3
+   Compiling errno v0.3.14
+   Compiling tracing-core v0.1.34
+   Compiling lzma-sys v0.1.20
+   Compiling libz-sys v1.1.23
+   Compiling bzip2-sys v0.1.13+1.0.8
+   Compiling synstructure v0.13.2
+   Compiling crossbeam-epoch v0.9.18
+   Compiling regex v1.12.2
+   Compiling hts-sys v2.2.0
+   Compiling utf8_iter v1.0.4
+   Compiling strsim v0.11.1
+   Compiling rayon-core v1.13.0
+   Compiling percent-encoding v2.3.2
+   Compiling tap v1.0.1
+   Compiling serde_json v1.0.145
+   Compiling bitflags v2.10.0
+   Compiling clap_lex v0.7.6
+   Compiling wyz v0.5.1
+   Compiling form_urlencoded v1.2.2
+   Compiling clap_builder v4.5.51
+   Compiling crossbeam-deque v0.8.6
+   Compiling blake3 v1.8.2
+   Compiling anyhow v1.0.100
+   Compiling log v0.4.28
+   Compiling ark-serialize-derive v0.4.2
+   Compiling derivative v2.2.0
+   Compiling ark-ff-asm v0.4.2
+   Compiling ciborium-io v0.2.2
+   Compiling plotters-backend v0.3.7
+   Compiling itoa v1.0.15
+   Compiling pin-project-lite v0.2.16
+   Compiling ark-ff-macros v0.4.2
+   Compiling fastrand v2.3.0
+   Compiling ryu v1.0.20
+   Compiling zerocopy-derive v0.8.27
+   Compiling zerofrom-derive v0.1.6
+   Compiling yoke-derive v0.8.1
+   Compiling zerovec-derive v0.11.2
+   Compiling displaydoc v0.2.5
+   Compiling serde_derive v1.0.228
+   Compiling zeroize_derive v1.4.2
+   Compiling thiserror-impl v1.0.69
+   Compiling derive-new v0.6.0
+   Compiling tracing-attributes v0.1.30
+   Compiling clap_derive v4.5.49
+   Compiling strum_macros v0.26.4
+   Compiling zeroize v1.8.2
+   Compiling funty v2.0.0
+   Compiling zerofrom v0.1.6
+   Compiling tempfile v3.23.0
+   Compiling plotters-svg v0.3.7
+   Compiling bitvec v1.0.1
+   Compiling tracing-log v0.2.0
+   Compiling derive-new v0.5.9
+   Compiling tracing v0.1.41
+   Compiling yoke v0.8.1
+   Compiling test-case-core v3.3.1
+   Compiling matchers v0.2.0
+   Compiling sharded-slab v0.1.7
+   Compiling wait-timeout v0.2.1
+   Compiling clap v4.5.51
+   Compiling thread_local v1.1.9
+   Compiling fnv v1.0.7
+   Compiling constant_time_eq v0.3.1
+   Compiling custom_derive v0.1.7
+   Compiling same-file v1.0.6
+   Compiling bit-vec v0.8.0
+   Compiling linear-map v1.2.0
+   Compiling arrayvec v0.7.6
+   Compiling byteorder v1.5.0
+   Compiling ieee754 v0.2.6
+   Compiling bio-types v1.0.4
+   Compiling cast v0.3.0
+   Compiling subtle v2.6.1
+   Compiling arrayref v0.3.9
+   Compiling nu-ansi-term v0.50.3
+   Compiling bit-set v0.8.0
+   Compiling walkdir v2.5.0
+   Compiling criterion-plot v0.5.0
+   Compiling test-case-macros v3.3.1
+   Compiling rusty-fork v0.3.1
+   Compiling rayon v1.11.0
+   Compiling plotters v0.3.7
+   Compiling ff v0.13.1
+   Compiling rand_xorshift v0.4.0
+   Compiling rand v0.9.2
+   Compiling tracing-subscriber v0.3.20
+   Compiling is-terminal v0.4.17
+   Compiling anes v0.1.6
+   Compiling oorandom v11.1.5
+   Compiling unarray v0.1.4
+   Compiling ppv-lite86 v0.2.21
+   Compiling half v2.7.1
+   Compiling test-case v3.3.1
+   Compiling zerovec v0.11.5
+   Compiling zerotrie v0.2.3
+   Compiling rand_chacha v0.3.1
+   Compiling ciborium-ll v0.2.2
+   Compiling hashbrown v0.13.2
+   Compiling rand v0.8.5
+   Compiling rand_chacha v0.9.0
+   Compiling proptest v1.9.0
+   Compiling ark-std v0.4.0
+   Compiling ark-serialize v0.4.2
+   Compiling ciborium v0.2.2
+   Compiling tinytemplate v1.2.1
+   Compiling criterion v0.5.1
+   Compiling tinystr v0.8.2
+   Compiling potential_utf v0.1.4
+   Compiling icu_locale_core v2.1.1
+   Compiling icu_collections v2.1.1
+   Compiling ark-ff v0.4.2
+   Compiling icu_provider v2.1.1
+   Compiling icu_normalizer v2.1.1
+   Compiling icu_properties v2.1.1
+   Compiling idna_adapter v1.2.1
+   Compiling idna v1.1.0
+   Compiling url v2.5.7
+   Compiling ark-poly v0.4.2
+   Compiling rust-htslib v0.44.1
+   Compiling rosalind v0.1.0 (/Users/logannye/rosalind)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 10.26s
      Running `target/debug/examples/scale_performance_test`
 Scale Performance Test: O(√t) Space Complexity Verification
 ==========================================================
@@ -10,24 +194,85 @@ Note: Large time bounds (t > 1,000,000) may take several minutes to complete.
 Time Bound      | Block Size |     Blocks |   Space Used |     √t Bound |    Space/t |    Time(s) |    Scaling
 ------------------------------------------------------------------------------------------------------------------------
 100             |         10 |         10 |           17 |           20 | 0.17000000 |      0.002 |          -
-400             |         20 |         20 |           31 |           40 | 0.07750000 |      0.004 |      1.82x
-1,600           |         40 |         40 |           57 |           80 | 0.03562500 |      0.012 |      1.84x
-6,400           |         80 |         80 |          108 |          160 | 0.01687500 |      0.029 |      1.89x
-25,600          |        160 |        160 |          209 |          320 | 0.00816406 |      0.072 |      1.94x
-100,000         |        317 |        316 |          406 |          634 | 0.00406000 |      0.241 |      1.94x
-400,000         |        633 |        632 |          802 |        1,266 | 0.00200500 |      0.937 |      1.98x
+    components: leaf=10 stack=5 ledger=2
+400             |         20 |         20 |           31 |           40 | 0.07750000 |      0.003 |      1.82x
+    components: leaf=20 stack=6 ledger=5
+1,600           |         40 |         40 |           57 |           80 | 0.03562500 |      0.010 |      1.84x
+    components: leaf=40 stack=7 ledger=10
+6,400           |         80 |         80 |          108 |          160 | 0.01687500 |      0.023 |      1.89x
+    components: leaf=80 stack=8 ledger=20
+25,600          |        160 |        160 |          209 |          320 | 0.00816406 |      0.074 |      1.94x
+    components: leaf=160 stack=9 ledger=40
+100,000         |        317 |        316 |          406 |          634 | 0.00406000 |      0.268 |      1.94x
+    components: leaf=317 stack=10 ledger=79
+400,000         |        633 |        632 |          802 |        1,266 | 0.00200500 |      1.035 |      1.98x
+    components: leaf=633 stack=11 ledger=158
 Running test for t=1600000 (this may take a while)...
-1,600,000       |       1265 |      1,265 |        1,593 |        2,530 |  9.9562e-4 |      3.675 |      1.99x
+1,600,000       |       1265 |      1,265 |        1,593 |        2,530 |  9.9562e-4 |      4.072 |      1.99x
+    components: leaf=1,265 stack=12 ledger=316
 Running test for t=6400000 (this may take a while)...
-6,400,000       |       2530 |      2,530 |        3,175 |        5,060 |  4.9609e-4 |     14.945 |      1.99x
+6,400,000       |       2530 |      2,530 |        3,175 |        5,060 |  4.9609e-4 |     16.254 |      1.99x
+    components: leaf=2,530 stack=13 ledger=632
 Running test for t=25600000 (this may take a while)...
-25,600,000      |       5060 |      5,060 |        6,339 |       10,120 |  2.4762e-4 |     60.019 |      2.00x
+25,600,000      |       5060 |      5,060 |        6,339 |       10,120 |  2.4762e-4 |     64.045 |      2.00x
+    components: leaf=5,060 stack=14 ledger=1,265
 Running test for t=100000000 (this may take a while)...
-100,000,000     |      10000 |     10,000 |       12,515 |       20,000 |  1.2515e-4 |    241.073 |      1.97x
+100,000,000     |      10000 |     10,000 |       12,515 |       20,000 |  1.2515e-4 |    250.747 |      1.97x
+    components: leaf=10,000 stack=15 ledger=2,500
 Running test for t=400000000 (this may take a while)...
-400,000,000     |      20000 |     20,000 |       25,016 |       40,000 |  6.2540e-5 |    966.826 |      2.00x
+400,000,000     |      20000 |     20,000 |       25,016 |       40,000 |  6.2540e-5 |   1005.999 |      2.00x
+    components: leaf=20,000 stack=16 ledger=5,000
 Running test for t=1600000000 (this may take a while)...
-1,600,000,000   |      40000 |     40,000 |       50,017 |       80,000 |  3.1261e-5 |   3817.216 |      2.00x
-Running test for t=6400000000 (this may take a while)...
-6,400,000,000   |      80000 |     80,000 |      100,018 |      160,000 |  1.5628e-5 |  15577.326 |      2.00x
-Running test for t=25600000000 (this may take a while)...
+1,600,000,000   |      40000 |     40,000 |       50,017 |       80,000 |  3.1261e-5 |   4013.011 |      2.00x
+    components: leaf=40,000 stack=17 ledger=10,000
+
+Summary:
+--------
+✓ All tests satisfy space bound (space ≤ O(√t))
+✓ Space scaling: 1.95x average (expected: ~2.00x for 4x time increase)
+✓ Scaling is sublinear (closer to √t than linear)
+✓ Efficiency: 100.00% space savings vs naive O(t) at t=1600000000
+✓ Largest test: t=1600000000 completed in 4013.01s
+
+O(√t) Verification:
+-------------------
+t: 100 → 400 (4x), space: 17 → 31 (1.82x), √t ratio: 2.00x
+  ✓ Space scales as O(√t), not O(t)
+t: 400 → 1600 (4x), space: 31 → 57 (1.84x), √t ratio: 2.00x
+  ✓ Space scales as O(√t), not O(t)
+t: 1600 → 6400 (4x), space: 57 → 108 (1.89x), √t ratio: 2.00x
+  ✓ Space scales as O(√t), not O(t)
+t: 6400 → 25600 (4x), space: 108 → 209 (1.94x), √t ratio: 2.00x
+  ✓ Space scales as O(√t), not O(t)
+t: 25600 → 100000 (3x), space: 209 → 406 (1.94x), √t ratio: 1.98x
+  ✓ Space scales as O(√t), not O(t)
+t: 100000 → 400000 (4x), space: 406 → 802 (1.98x), √t ratio: 2.00x
+  ✓ Space scales as O(√t), not O(t)
+t: 400000 → 1600000 (4x), space: 802 → 1593 (1.99x), √t ratio: 2.00x
+  ✓ Space scales as O(√t), not O(t)
+t: 1600000 → 6400000 (4x), space: 1593 → 3175 (1.99x), √t ratio: 2.00x
+  ✓ Space scales as O(√t), not O(t)
+t: 6400000 → 25600000 (4x), space: 3175 → 6339 (2.00x), √t ratio: 2.00x
+  ✓ Space scales as O(√t), not O(t)
+t: 25600000 → 100000000 (3x), space: 6339 → 12515 (1.97x), √t ratio: 1.98x
+  ✓ Space scales as O(√t), not O(t)
+t: 100000000 → 400000000 (4x), space: 12515 → 25016 (2.00x), √t ratio: 2.00x
+  ✓ Space scales as O(√t), not O(t)
+t: 400000000 → 1600000000 (4x), space: 25016 → 50017 (2.00x), √t ratio: 2.00x
+  ✓ Space scales as O(√t), not O(t)
+
+CSV Export:
+time_bound,block_size,num_blocks,space_used,sqrt_t_bound,space_efficiency,execution_time,scaling_ratio
+100,10,10,17,20,0.1700,0.002,-
+400,20,20,31,40,0.0775,0.003,1.8235294117647058
+1600,40,40,57,80,0.0356,0.010,1.8387096774193548
+6400,80,80,108,160,0.0169,0.023,1.894736842105263
+25600,160,160,209,320,0.0082,0.074,1.9351851851851851
+100000,317,316,406,634,0.0041,0.268,1.9425837320574162
+400000,633,632,802,1266,0.0020,1.035,1.9753694581280787
+1600000,1265,1265,1593,2530,0.0010,4.072,1.986284289276808
+6400000,2530,2530,3175,5060,0.0005,16.254,1.9930947897049591
+25600000,5060,5060,6339,10120,0.0002,64.045,1.9965354330708662
+100000000,10000,10000,12515,20000,0.0001,250.747,1.974286165010254
+400000000,20000,20000,25016,40000,0.0001,1005.999,1.998881342389133
+1600000000,40000,40000,50017,80000,0.0000,4013.011,1.9994003837543972

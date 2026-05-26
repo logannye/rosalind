@@ -1,27 +1,25 @@
 # Rosalind
 
-**Deterministic genomics engine with O(√t) memory. Run whole-genome workloads in <100 MB RAM.**
+**Deterministic genomics engine for on-prem tumor/normal WGS. Built for clinic- and hospital-grade reproducibility on consumer hardware.**
 
 **Rosalind** is a Rust engine for genome alignment, streaming variant calling, and custom bioinformatics analytics that runs on commodity or edge hardware. It achieves **O(√t)** working memory, deterministic replay, and drop-in extensibility for new pipelines (Rust plugins or Python bindings). Traditional pipelines often assume 50-100+ gigabytes of RAM, well-provisioned data centers, and uninterrupted connectivity; Rosalind is designed for the opposite: hospital workstations, clinic laptops, field kits, and classrooms.
 
 ---
 
 ## Quick Overview
-- **Core problem**: standard tools such as BWA, GATK, or cloud-centric workflows frequently require >50 GB RAM, full copies of intermediate files, and high-bandwidth storage, placing them out of reach in many hospitals, public-health labs, and teaching environments.
-- **Rosalind’s answer**: split workloads into √t blocks, reuse a rolling boundary between blocks, and evaluate a height-compressed tree so memory stays in L1/L2 cache while preserving deterministic results. The entire pipeline fits in well under 100 MB even for whole genomes.
-- **How you use it**: run the CLI, embed the Rust APIs, or extend via plugins/Python to build bespoke genomics workflows—ideal for quick-turnaround clinical diagnostics, outbreak monitoring, or courses where students explore real data on laptops.
+- **Core problem**: existing WGS stacks are powerful but operationally heavy: nondeterminism, complex infra, and cloud-first assumptions can make clinical reproducibility and on-site operation painful.
+- **Rosalind’s answer**: prioritize **deterministic correctness** and **on-prem operation** for tumor/normal WGS pipelines. Memory is allowed to scale to practical consumer limits (e.g., single-digit GBs to ~10GB) while keeping resource usage predictable and auditable.
+- **How you use it**: run the CLI for end-to-end workflows, embed the Rust APIs, or extend via plugins/Python for bespoke analytics.
 
 See [At a Glance](#at-a-glance), [How It Compares](#how-it-compares), and [What O(√t) memory means](#what-o√t-memory-means-and-what-t-is) for deeper context.
 
 ---
 
 ## At a Glance
-- **O(√t) working memory** – whole-genome runs stay under ~100 MB without lossy approximations.
-- **End-to-end deterministic** – outputs are bit-for-bit identical across runs and partition choices.
-- **Full-history equivalent** – recomputation keeps results identical to unbounded-memory evaluations.
-- **Streaming SAM/BAM/VCF** – standards-compliant outputs without materializing huge intermediates.
-- **Edge-ready deployment** – runs on 8–16 GB laptops/desktops so PHI stays on-site.
-- **Composable extensions** – plugins/Python bindings inherit the same memory and determinism guarantees.
+- **Deterministic end-to-end** – primary artifacts are designed to be bit-for-bit identical across repeated runs given the same inputs/config.
+- **Clinic-ready operation model** – runs on hospital desktops and field laptops so PHI can stay on-site.
+- **Standards-first** – interoperable BAM/VCF emission (with deterministic canonicalization).
+- **Composable extensions** – plugins/Python bindings for custom analytics without forking the pipeline.
 
 ---
 
@@ -35,12 +33,9 @@ See [At a Glance](#at-a-glance), [How It Compares](#how-it-compares), and [What 
 ---
 
 ## Key Guarantees
-- **Space bound**: total memory `space_used ≤ block_size + num_blocks + O(log num_blocks) = O(√t)`; only the most recent block boundary is retained.
-- **Deterministic replay**: every block is re-simulated from the previous boundary, producing the same results as a full history, even on resource-constrained devices.
-- **Composable design**: block processors, plugins, and bindings use the same compressed evaluator, so new analyses inherit the guarantees—perfect for bespoke QC or epidemiology dashboards.
-- **Guardrails included**: regression tests (`tests/space_bounds.rs`) and `scripts/run_scale_test.sh` fail if the O(√t) or sublinear scaling properties regress.
-- **Partition invariance**: outputs are unchanged across valid choices of block size and chunking; merges are deterministic and order independent.
-- **Full-history equivalence**: results match an unbounded-history evaluation; the space savings come from recomputation, not information loss.
+- **Deterministic artifacts**: BAM/VCF outputs are produced in a canonical, stable order and are designed to be bit-for-bit reproducible given identical inputs and configuration.
+- **Explicit determinism contract**: see `docs/determinism.md` for what is covered, what isn’t, and the engineering rules required to preserve determinism.
+- **Predictable resource profile**: memory and disk usage are bounded by explicit configuration and tested with real process measurements (not just logical counters).
 
 ### What O(√t) memory means (and what 't' is)
 - `t` ≈ total bases processed. For 30× human whole-genome sequencing: coverage `C ≈ 30`, genome size `G ≈ 3.1×10⁹`, so `t ≈ C × G ≈ 9.3×10¹⁰`.
@@ -269,7 +264,7 @@ The example plugin emits per-base coverage suitable for expression quantificatio
 - `ROSALIND_UPDATE_SNAPSHOTS=1 cargo test` — refreshes golden VCF/SAM outputs when expected results change; the default run verifies no drift.
 - Together with CI enforcement of the O(√t) bound, these tests provide a defensible validation story for regulated or clinical environments.
 
-Optional: enable an RSS regression check with `--features rss` if you want to monitor process RSS in addition to logical counters.
+See `docs/determinism.md` for determinism testing and canonicalization rules.
 
 ### Benchmarks & Snapshots
 - `python scripts/benchmark_formats.py --release` – compare SAM vs BAM throughput using the bundled toy dataset (it will be generated on first run).

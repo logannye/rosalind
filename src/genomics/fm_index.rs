@@ -1,8 +1,8 @@
-use std::cmp::Ordering;
-
 use crate::genomics::{
     BaseCode, CompressedDNA, CompressedDNAError, RankSelectIndex, ALPHABET_SIZE,
 };
+use crate::genomics::suffix_array::{sais_u32, SuffixArrayError};
+use crate::genomics::FMInterval;
 use thiserror::Error;
 
 const SENTINEL_BYTE: u8 = b'$';
@@ -30,6 +30,10 @@ pub enum FMIndexError {
     /// Compression failure bubbling up from `CompressedDNA`.
     #[error("compression error: {0}")]
     Compression(#[from] CompressedDNAError),
+
+    /// Suffix array construction failed.
+    #[error("suffix array construction failed: {0}")]
+    SuffixArray(#[from] SuffixArrayError),
 }
 
 /// Compact representation of block boundaries and cumulative counts.
@@ -147,11 +151,15 @@ pub struct BlockedFMIndex {
     block_size: usize,
     bwt_len: usize,
     sentinel_pos: usize,
+    sa_sample_rate: usize,
+    sa_samples: Vec<u32>, // u32::MAX = not sampled
 }
 
 impl BlockedFMIndex {
-    /// Build the FM-index from a reference string using a naive suffix-array
-    /// construction. Suitable for demonstration and moderate input sizes.
+    /// Build the FM-index from a reference string.
+    ///
+    /// Note: The FM-index is stored in blocked form for rank queries. Locating
+    /// suffix array positions uses a sampled SA array, making `sa_at` O(sample_rate).
     pub fn build(reference: &[u8], block_size: usize) -> Result<Self, FMIndexError> {
         if reference.is_empty() {
             return Err(FMIndexError::EmptyReference);
@@ -161,7 +169,10 @@ impl BlockedFMIndex {
         }
 
         let clean = sanitize_reference(reference)?;
-        let (bwt, sentinel_pos) = build_bwt(&clean);
+        // For now, pick a conservative SA sampling rate. This will become
+        // configurable and/or derived from the on-disk index format.
+        let sa_sample_rate = 32usize;
+        let (bwt, sentinel_pos, sa_samples) = build_bwt_and_sa_samples(&clean, sa_sample_rate)?;
         let bwt_len = bwt.len();
 
         let mut blocks = Vec::new();
@@ -232,6 +243,8 @@ impl BlockedFMIndex {
             block_size,
             bwt_len,
             sentinel_pos,
+            sa_sample_rate,
+            sa_samples,
         })
     }
 
@@ -258,6 +271,61 @@ impl BlockedFMIndex {
     /// Position of the sentinel (`$`) in the BWT string.
     pub fn sentinel_position(&self) -> usize {
         self.sentinel_pos
+    }
+
+    /// Perform exact FM-index backward search over `pattern` (ASCII A/C/G/T/N).
+    ///
+    /// Returns an [`FMInterval`] over BWT indices for suffixes matching the pattern.
+    pub fn backward_search(&self, pattern: &[u8]) -> FMInterval {
+        let mut interval = FMInterval::full(self.len());
+
+        for &ch in pattern.iter().rev() {
+            let base_code = match BaseCode::from_ascii(ch) {
+                Some(code) => code,
+                None => return FMInterval { lower: 0, upper: 0 },
+            };
+            let symbol = FmSymbol::Base(base_code);
+            let c_row = self.c_table()[symbol.order()];
+            let new_lower = c_row + self.rank(symbol, interval.lower as usize);
+            let new_upper = c_row + self.rank(symbol, interval.upper as usize);
+            interval = FMInterval {
+                lower: new_lower,
+                upper: new_upper,
+            };
+            if interval.is_empty() {
+                break;
+            }
+        }
+
+        interval
+    }
+
+    /// Locate up to `max_hits` suffix array positions for the given interval.
+    ///
+    /// Returned positions are 0-based reference coordinates (excluding the sentinel).
+    pub fn locate_interval(&self, interval: FMInterval, max_hits: usize) -> Vec<u32> {
+        let max_hits = max_hits.max(1);
+        let mut out = Vec::new();
+
+        let reference_len = self.bwt_len.saturating_sub(1);
+        let lower = interval.lower as usize;
+        let upper = interval.upper as usize;
+        for bwt_idx in lower..upper {
+            if out.len() >= max_hits {
+                break;
+            }
+            let sa = self.sa_at(bwt_idx);
+            if sa < reference_len {
+                out.push(sa as u32);
+            }
+        }
+
+        out
+    }
+
+    /// Suffix array sample rate used for locating.
+    pub fn sa_sample_rate(&self) -> usize {
+        self.sa_sample_rate
     }
 
     /// Retrieve rank of `symbol` in `BWT[..position)`.
@@ -328,16 +396,24 @@ impl BlockedFMIndex {
 
     /// Compute the suffix array value corresponding to the provided BWT index.
     pub fn sa_at(&self, index: usize) -> usize {
-        let mut current = index;
-        let mut steps = 0usize;
+        assert!(index < self.bwt_len, "BWT index out of range");
 
+        let mut current = index;
+        let mut lf_steps = 0usize;
+
+        // Following LF decreases SA value by 1 modulo n, so within `sa_sample_rate`
+        // steps we must reach a sampled SA position.
         loop {
-            let symbol = self.symbol_at(current);
-            if symbol == FmSymbol::Sentinel {
-                return steps;
+            let sampled = self.sa_samples[current];
+            if sampled != u32::MAX {
+                return sampled as usize + lf_steps;
             }
             current = self.lf_index(current);
-            steps += 1;
+            lf_steps += 1;
+            debug_assert!(
+                lf_steps <= self.sa_sample_rate + 1,
+                "LF steps exceeded sample rate; sampling invariant violated"
+            );
         }
     }
 }
@@ -367,38 +443,59 @@ fn sanitize_reference(reference: &[u8]) -> Result<Vec<u8>, FMIndexError> {
     Ok(clean)
 }
 
-fn build_bwt(reference: &[u8]) -> (Vec<u8>, usize) {
-    let mut text = reference.to_vec();
-    text.push(SENTINEL_BYTE);
-    let sa = build_suffix_array(&text);
+fn build_bwt_and_sa_samples(
+    reference: &[u8],
+    sa_sample_rate: usize,
+) -> Result<(Vec<u8>, usize, Vec<u32>), FMIndexError> {
+    // Map A/C/G/T/N -> 1..5, sentinel -> 0.
+    let mut text: Vec<u32> = Vec::with_capacity(reference.len() + 1);
+    for &b in reference {
+        let code = BaseCode::from_ascii(b).expect("reference already sanitized");
+        let sym = match code {
+            BaseCode::A => 1u32,
+            BaseCode::C => 2u32,
+            BaseCode::G => 3u32,
+            BaseCode::T => 4u32,
+            BaseCode::N => 5u32,
+        };
+        text.push(sym);
+    }
+    text.push(0); // sentinel
+
+    let sa = sais_u32(&text, 5)?;
 
     let mut bwt = Vec::with_capacity(text.len());
     let mut sentinel_pos = 0usize;
+    let mut sa_samples = vec![u32::MAX; text.len()];
 
-    for (idx, &sa_idx) in sa.iter().enumerate() {
-        let prev = if sa_idx == 0 {
-            text.len() - 1
+    for (bwt_idx, &sa_idx_u32) in sa.iter().enumerate() {
+        let sa_idx = sa_idx_u32 as usize;
+        let prev = if sa_idx == 0 { text.len() - 1 } else { sa_idx - 1 };
+        let ch = if prev == text.len() - 1 {
+            SENTINEL_BYTE
         } else {
-            sa_idx - 1
+            // Map back to ASCII reference base.
+            match text[prev] {
+                1 => b'A',
+                2 => b'C',
+                3 => b'G',
+                4 => b'T',
+                5 => b'N',
+                _ => SENTINEL_BYTE,
+            }
         };
-        let ch = text[prev];
         if sa_idx == 0 {
-            sentinel_pos = idx;
+            sentinel_pos = bwt_idx;
         }
         bwt.push(ch);
+
+        // Sampling: store SA value when divisible by rate.
+        if sa_sample_rate > 0 && (sa_idx % sa_sample_rate == 0) {
+            sa_samples[bwt_idx] = sa_idx_u32;
+        }
     }
 
-    (bwt, sentinel_pos)
-}
-
-fn build_suffix_array(text: &[u8]) -> Vec<usize> {
-    let mut sa: Vec<usize> = (0..text.len()).collect();
-    sa.sort_by(|&a, &b| compare_suffixes(text, a, b));
-    sa
-}
-
-fn compare_suffixes(text: &[u8], lhs: usize, rhs: usize) -> Ordering {
-    text[lhs..].cmp(&text[rhs..])
+    Ok((bwt, sentinel_pos, sa_samples))
 }
 
 fn add_counts(lhs: [u32; ALPHABET_SIZE], rhs: [u32; ALPHABET_SIZE]) -> [u32; ALPHABET_SIZE] {
@@ -458,7 +555,8 @@ mod tests {
 
     fn naive_rank(reference: &[u8], base: u8, position: usize) -> u32 {
         // Build BWT naively for validation.
-        let (bwt, _) = build_bwt(&sanitize_reference(reference).unwrap());
+        let clean = sanitize_reference(reference).unwrap();
+        let (bwt, _, _) = build_bwt_and_sa_samples(&clean, 1).unwrap();
         let bounded = position.min(bwt.len());
         bwt[..bounded].iter().filter(|&&ch| ch == base).count() as u32
     }
