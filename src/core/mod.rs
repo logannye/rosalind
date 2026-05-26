@@ -4,5 +4,7 @@
 //! `crate::core::…`. Reach the std `core` crate (rarely needed) as `::core::…`.
 
 pub mod error;
+pub mod locus;
 
 pub use error::CoreError;
+pub use locus::{Contig, ContigSet, Locus, Position};
