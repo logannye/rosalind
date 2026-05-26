@@ -20,7 +20,10 @@ pub struct Contig {
 
 /// A 0-based position within a single contig.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Position(pub u32);
+pub struct Position(
+    /// 0-based offset within a contig.
+    pub u32,
+);
 
 /// A canonical genomic coordinate: a contig id plus a position.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -46,7 +49,7 @@ impl ContigSet {
     /// Append a contig, assigning the next id and the running global offset.
     /// Returns the new contig's id.
     pub fn push(&mut self, name: impl Into<Arc<str>>, length: u32) -> u32 {
-        let id = self.contigs.len() as u32;
+        let id = u32::try_from(self.contigs.len()).expect("contig count exceeds u32::MAX");
         let global_offset = self
             .contigs
             .last()
@@ -61,6 +64,9 @@ impl ContigSet {
     }
 
     /// Look up a contig by name.
+    ///
+    /// O(n) in the number of contigs; for repeated lookups, build a name-indexed
+    /// map from [`ContigSet::iter`].
     pub fn by_name(&self, name: &str) -> Option<&Contig> {
         self.contigs.iter().find(|c| c.name.as_ref() == name)
     }
@@ -112,5 +118,20 @@ mod tests {
         let b = Locus { contig: 0, pos: Position(200) };
         let c = Locus { contig: 1, pos: Position(0) };
         assert!(a < b && b < c);
+    }
+
+    #[test]
+    fn by_id_out_of_range_is_none() {
+        let mut set = ContigSet::new();
+        set.push("chr1", 1_000);
+        assert!(set.by_id(99).is_none());
+    }
+
+    #[test]
+    fn empty_contig_set_is_empty_with_zero_total_length() {
+        let set = ContigSet::new();
+        assert!(set.is_empty());
+        assert_eq!(set.len(), 0);
+        assert_eq!(set.total_length(), 0);
     }
 }

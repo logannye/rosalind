@@ -24,6 +24,8 @@ pub enum CigarOpKind {
     SoftClip,
     /// Hard clip (`H`): trimmed bases absent from the read; consumes neither.
     HardClip,
+    /// Padding (`P`): silent deletion from a padded/MSA reference; consumes neither.
+    Pad,
 }
 
 impl CigarOpKind {
@@ -151,6 +153,12 @@ impl AlignedRead {
     /// Insertions/soft-clips consume read only; deletions/ref-skips consume ref
     /// only; hard-clips consume neither. This is the single CIGAR projection the
     /// pileup kernel consumes.
+    ///
+    /// `Match` here is SAM `M`/`=`/`X`. `read_offset` is derived from the CIGAR
+    /// only and is NOT bounds-checked against `seq.len()`; the caller (e.g. the
+    /// Phase-A2 BAM source adapter) must ensure the read-consuming CIGAR length
+    /// equals `seq.len()`. Coordinate arithmetic is unchecked `u32` and assumes a
+    /// well-formed CIGAR — validation is the read-source's responsibility.
     pub fn projected_bases(&self) -> Vec<RefBase> {
         let mut out = Vec::new();
         let mut ref_pos = self.pos.0;
@@ -170,7 +178,7 @@ impl AlignedRead {
                 CigarOpKind::Deletion | CigarOpKind::RefSkip => {
                     ref_pos += op.len;
                 }
-                CigarOpKind::HardClip => {}
+                CigarOpKind::HardClip | CigarOpKind::Pad => {}
             }
         }
         out
@@ -264,5 +272,34 @@ mod tests {
         assert!(f.is_duplicate());
         assert!(!f.is_secondary());
         assert!(!f.is_unmapped());
+    }
+
+    #[test]
+    fn empty_cigar_projects_nothing() {
+        let r = read(100, vec![], b"");
+        assert!(r.projected_bases().is_empty());
+        assert_eq!(r.ref_span(), 0);
+        assert_eq!(r.end(), 100);
+    }
+
+    #[test]
+    fn pad_consumes_neither_ref_nor_read() {
+        // 2M 1P 2M — padding advances neither cursor.
+        let r = read(0, vec![op(CigarOpKind::Match, 2), op(CigarOpKind::Pad, 1), op(CigarOpKind::Match, 2)], b"ACGT");
+        let pairs: Vec<(u32, usize)> = r.projected_bases().iter().map(|p| (p.ref_pos, p.read_offset)).collect();
+        assert_eq!(pairs, vec![(0, 0), (1, 1), (2, 2), (3, 3)]);
+        assert_eq!(r.ref_span(), 4);
+        assert!(!CigarOpKind::Pad.consumes_ref());
+        assert!(!CigarOpKind::Pad.consumes_read());
+    }
+
+    #[test]
+    fn projection_offsets_follow_cigar_not_seq_len() {
+        // Contract: read_offset comes from the CIGAR, NOT from seq.len().
+        // Here the read-consuming CIGAR length (3) exceeds seq.len() (2);
+        // projection still emits CIGAR-derived offsets 0,1,2 (caller owns bounds-checking).
+        let r = read(10, vec![op(CigarOpKind::Match, 3)], b"AC");
+        let offsets: Vec<usize> = r.projected_bases().iter().map(|p| p.read_offset).collect();
+        assert_eq!(offsets, vec![0, 1, 2]);
     }
 }

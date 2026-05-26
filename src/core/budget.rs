@@ -49,6 +49,7 @@ mod tests {
         let budget = MemoryBudget::from_mb(2);
         assert!(budget.admits(1_000_000));
         assert!(!budget.admits(3 * 1024 * 1024));
+        assert!(budget.admits(2 * 1024 * 1024)); // boundary: working set == budget is admitted
     }
 
     #[test]

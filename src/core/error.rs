@@ -37,4 +37,11 @@ mod tests {
         assert!(msg.contains("4096"), "message should report needed bytes: {msg}");
         assert!(msg.contains("1024"), "message should report budget bytes: {msg}");
     }
+
+    #[test]
+    fn io_error_converts_via_from() {
+        let io = std::io::Error::new(std::io::ErrorKind::NotFound, "missing");
+        let e: CoreError = io.into();
+        assert!(matches!(e, CoreError::Io(_)));
+    }
 }
