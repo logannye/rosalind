@@ -6,6 +6,8 @@
 pub mod budget;
 pub mod error;
 pub mod locus;
+pub mod sequence;
+pub use sequence::{allele_index, BaseCode};
 
 pub use budget::{MemoryBudget, WorkingSet};
 pub use error::CoreError;
