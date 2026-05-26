@@ -13,6 +13,8 @@ categories = ["science::bioinformatics", "algorithms"]
 crate-type = ["rlib", "cdylib"]
 
 [dependencies]
+# OS bindings (used for read-only mmap of large reference/index files)
+libc = "0.2"
 # Finite field arithmetic - for constant-size field 𝔽_{2^c}
 ff = "0.13"
 # Polynomial operations - for low-degree extensions

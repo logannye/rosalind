@@ -1,8 +1,10 @@
+use std::path::Path;
 use std::sync::Arc;
 
 use crate::framework::{CompressedEvaluator, EvaluatorConfig, FrameworkError};
 use crate::genomics::{
-    bayesian_variant_caller, PileupProcessor, PileupSummary, PileupWorkload, VariantCall,
+    bayesian_variant_caller, BamPileupStream, PileupProcessor, PileupSummary, PileupWorkload,
+    VariantCall,
 };
 use crate::genomics::{AlignedRead, PileupNode};
 use thiserror::Error;
@@ -85,6 +87,30 @@ impl StreamingVariantCaller {
         let evaluation = self.evaluator.evaluate(&workload)?;
         let summary = evaluation.output;
         Ok(self.extract_variants(&summary))
+    }
+
+    /// Call variants from a coordinate-sorted BAM file using bounded-memory streaming pileup.
+    ///
+    /// This path is intended for WGS-scale operation where materializing all reads is infeasible.
+    pub fn call_variants_from_sorted_bam(
+        &self,
+        bam_path: impl AsRef<Path>,
+    ) -> Result<Vec<Variant>, VariantCallerError> {
+        let region = self.region_start..(self.region_start + self.reference.len() as u32);
+        let mut stream = BamPileupStream::new(bam_path, Arc::clone(&self.chrom), region)
+            .map_err(|e| VariantCallerError::Framework(FrameworkError::processor_failure(e.to_string())))?;
+
+        let mut out = Vec::new();
+        while let Some(node) = stream.next() {
+            let node = node.map_err(|e| {
+                VariantCallerError::Framework(FrameworkError::processor_failure(e.to_string()))
+            })?;
+            if let Some(v) = self.call_variant_for_node(&node) {
+                out.push(v);
+            }
+        }
+
+        Ok(out)
     }
 
     fn extract_variants(&self, summary: &PileupSummary) -> Vec<Variant> {

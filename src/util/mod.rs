@@ -1,6 +1,8 @@
 //! Utility functions
 
 mod index_free;
+pub mod mmap;
+pub mod rss;
 
 pub use index_free::IndexFreeIterator;
 

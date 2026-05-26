@@ -64,12 +64,17 @@ impl PluginRegistry {
 
     /// List all registered plugins.
     pub fn list(&self) -> Vec<PluginInfo> {
-        self.entries
+        // Determinism requirement: `HashMap` iteration order is nondeterministic.
+        // Always return plugins in a stable order.
+        let mut plugins: Vec<PluginInfo> = self
+            .entries
             .iter()
             .map(|(name, entry)| PluginInfo {
                 name: name.clone(),
                 description: entry.description.clone(),
             })
-            .collect()
+            .collect();
+        plugins.sort_by(|a, b| a.name.cmp(&b.name));
+        plugins
     }
 }
