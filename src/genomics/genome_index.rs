@@ -88,6 +88,21 @@ impl GenomeIndex {
         })
     }
 
+    /// Build from per-contig `(name, sequence)` pairs: assembles the
+    /// [`ContigSet`] and the concatenated reference (in the given order), then
+    /// delegates to [`GenomeIndex::build`]. Sequences should be uppercase
+    /// A/C/G/T/N.
+    pub fn from_named_sequences(named: &[(String, Vec<u8>)]) -> Result<Self, GenomeIndexError> {
+        let mut contigs = ContigSet::new();
+        let total: usize = named.iter().map(|(_, seq)| seq.len()).sum();
+        let mut concat = Vec::with_capacity(total);
+        for (name, seq) in named {
+            contigs.push(name.clone(), seq.len() as u32);
+            concat.extend_from_slice(seq);
+        }
+        Self::build(contigs, Arc::from(concat.into_boxed_slice()))
+    }
+
     /// The contig map for resolving `Locus`es.
     pub fn contigs(&self) -> &ContigSet {
         &self.contigs
@@ -263,5 +278,34 @@ mod tests {
         assert_eq!(idx.locate_exact(b"ACGT", 16).len(), 2);
         // Capping the candidate suffixes at 1 yields at most one locus.
         assert_eq!(idx.locate_exact(b"ACGT", 1).len(), 1);
+    }
+
+    #[test]
+    fn from_named_sequences_builds_a_multi_contig_index() {
+        let idx = GenomeIndex::from_named_sequences(&[
+            ("chr1".to_string(), b"ACGTACGT".to_vec()),
+            ("chr2".to_string(), b"TTTTGGGG".to_vec()),
+            ("chr3".to_string(), b"CCCCAAAA".to_vec()),
+        ])
+        .expect("build should succeed");
+
+        assert_eq!(idx.contigs().len(), 3);
+        assert_eq!(idx.reference(), b"ACGTACGTTTTTGGGGCCCCAAAA");
+        // "CCCC" is unique to chr3 at pos 0 (global 16).
+        assert_eq!(
+            idx.locate_exact(b"CCCC", 16),
+            vec![Locus {
+                contig: 2,
+                pos: Position(0)
+            }]
+        );
+    }
+
+    #[test]
+    fn from_named_sequences_rejects_an_empty_genome() {
+        assert!(matches!(
+            GenomeIndex::from_named_sequences(&[]),
+            Err(GenomeIndexError::EmptyGenome)
+        ));
     }
 }
