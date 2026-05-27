@@ -6,6 +6,8 @@
 
 pub mod column;
 pub mod source;
+pub mod engine;
 
 pub use column::{Obs, PileupColumn};
 pub use source::{ReadSource, SliceSource};
+pub use engine::{PileupParams, SkipCounts};
