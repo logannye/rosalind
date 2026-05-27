@@ -353,4 +353,98 @@ mod tests {
         };
         assert_eq!(s.total(), 21);
     }
+
+    #[test]
+    fn insertion_bases_do_not_shift_downstream_reference_positions() {
+        // 2M 1I 2M at ref 10: offsets 0,1 -> ref 10,11; offset 2 = inserted (no ref);
+        // offsets 3,4 -> ref 12,13.  seq "CCAGT": the inserted base is 'A' (offset 2).
+        let reference = b"AAAAAAAAAAAAAAAA"; // 16 'A'
+        let read = AlignedRead {
+            contig: 0,
+            pos: Position(10),
+            mapq: 60,
+            flags: SamFlags::default(),
+            cigar: vec![
+                CigarOp::new(CigarOpKind::Match, 2),
+                CigarOp::new(CigarOpKind::Insertion, 1),
+                CigarOp::new(CigarOpKind::Match, 2),
+            ],
+            seq: Arc::from(b"CCAGT".to_vec().into_boxed_slice()), // off: C C A(ins) G T
+            qual: Arc::from(vec![30u8; 5].into_boxed_slice()),
+        };
+        let cols = columns(engine(vec![read], reference));
+        let get = |p: u32| cols.iter().find(|c| c.locus.pos.0 == p).map(|c| c.allele_counts());
+        assert_eq!(get(10), Some([0, 1, 0, 0])); // C (offset 0)
+        assert_eq!(get(11), Some([0, 1, 0, 0])); // C (offset 1)
+        assert_eq!(get(12), Some([0, 0, 1, 0])); // G (offset 3 — NOT the inserted 'A')
+        assert_eq!(get(13), Some([0, 0, 0, 1])); // T (offset 4)
+        // The inserted 'A' (offset 2) appears at no reference position.
+        assert!(cols.iter().all(|c| c.allele_counts()[0] == 0));
+    }
+
+    #[test]
+    fn deletion_leaves_a_reference_gap_with_no_observation() {
+        // 2M 1D 2M at ref 0: ref 0,1 observed; ref 2 deleted (no obs); ref 3,4 observed.
+        let reference = b"AAAAAAAA";
+        let read = AlignedRead {
+            contig: 0,
+            pos: Position(0),
+            mapq: 60,
+            flags: SamFlags::default(),
+            cigar: vec![
+                CigarOp::new(CigarOpKind::Match, 2),
+                CigarOp::new(CigarOpKind::Deletion, 1),
+                CigarOp::new(CigarOpKind::Match, 2),
+            ],
+            seq: Arc::from(b"GGGG".to_vec().into_boxed_slice()),
+            qual: Arc::from(vec![30u8; 4].into_boxed_slice()),
+        };
+        let cols = columns(engine(vec![read], reference));
+        let positions: Vec<u32> = cols.iter().map(|c| c.locus.pos.0).collect();
+        assert_eq!(positions, vec![0, 1, 3, 4]); // ref 2 (deleted) emits no column
+    }
+
+    #[test]
+    fn soft_clipped_bases_are_excluded() {
+        // 2S 3M at ref 1: first 2 read bases clipped; only the 3 matched bases pile up.
+        let reference = b"AAAAAAA";
+        let read = AlignedRead {
+            contig: 0,
+            pos: Position(1),
+            mapq: 60,
+            flags: SamFlags::default(),
+            cigar: vec![
+                CigarOp::new(CigarOpKind::SoftClip, 2),
+                CigarOp::new(CigarOpKind::Match, 3),
+            ],
+            seq: Arc::from(b"TTCGA".to_vec().into_boxed_slice()), // TT clipped; CGA -> ref 1,2,3
+            qual: Arc::from(vec![30u8; 5].into_boxed_slice()),
+        };
+        let cols = columns(engine(vec![read], reference));
+        let positions: Vec<u32> = cols.iter().map(|c| c.locus.pos.0).collect();
+        assert_eq!(positions, vec![1, 2, 3]);
+        let at1 = cols.iter().find(|c| c.locus.pos.0 == 1).unwrap();
+        assert_eq!(at1.allele_counts(), [0, 1, 0, 0]); // 'C' (offset 2), not the clipped 'T'
+    }
+
+    #[test]
+    fn long_read_piles_up_every_matched_base() {
+        // Read-length-agnostic: a 5000-base full-match read covers 5000 positions.
+        let reference = vec![b'A'; 6000];
+        let seq = vec![b'C'; 5000];
+        let read = AlignedRead {
+            contig: 0,
+            pos: Position(1000),
+            mapq: 60,
+            flags: SamFlags::default(),
+            cigar: vec![CigarOp::new(CigarOpKind::Match, 5000)],
+            seq: Arc::from(seq.into_boxed_slice()),
+            qual: Arc::from(vec![30u8; 5000].into_boxed_slice()),
+        };
+        let cols = columns(engine(vec![read], &reference));
+        assert_eq!(cols.len(), 5000);
+        assert_eq!(cols.first().unwrap().locus.pos.0, 1000);
+        assert_eq!(cols.last().unwrap().locus.pos.0, 5999);
+        assert!(cols.iter().all(|c| c.allele_counts() == [0, 1, 0, 0]));
+    }
 }
