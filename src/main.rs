@@ -843,8 +843,7 @@ fn run_variants(
 /// are warned about (multi-contig consumption is a later phase). The streaming
 /// parser itself lives in `io::fasta`.
 fn read_fasta(path: &PathBuf) -> Result<FastaRecord> {
-    let reader =
-        open_input(path).with_context(|| format!("failed to open {}", path.display()))?;
+    let reader = open_input(path).with_context(|| format!("failed to open {}", path.display()))?;
     let mut records = FastaReader::new(reader);
     let first = records
         .next()
