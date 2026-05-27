@@ -7,7 +7,7 @@ pub mod somatic;
 pub mod types;
 
 pub use germline::call_germline;
-// pub use somatic::call_somatic;    // restored in Task 4
+pub use somatic::call_somatic;
 pub use types::{
     Filter, GermlineCall, GermlineParams, Genotype, SomaticCall, SomaticParams,
 };
