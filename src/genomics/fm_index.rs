@@ -1,7 +1,7 @@
 use crate::genomics::suffix_array::{sais_u32, SuffixArrayError};
 use crate::genomics::FMInterval;
 use crate::genomics::{
-    BaseCode, CompressedDNA, CompressedDNAError, RankSelectIndex, ALPHABET_SIZE,
+    BaseCode, CompressedDNA, CompressedDNAError, RankSelectIndex, SampledSuffixArray, ALPHABET_SIZE,
 };
 use thiserror::Error;
 
@@ -151,8 +151,7 @@ pub struct BlockedFMIndex {
     block_size: usize,
     bwt_len: usize,
     sentinel_pos: usize,
-    sa_sample_rate: usize,
-    sa_samples: Vec<u32>, // u32::MAX = not sampled
+    sampled: SampledSuffixArray,
 }
 
 impl BlockedFMIndex {
@@ -172,7 +171,7 @@ impl BlockedFMIndex {
         // For now, pick a conservative SA sampling rate. This will become
         // configurable and/or derived from the on-disk index format.
         let sa_sample_rate = 32usize;
-        let (bwt, sentinel_pos, sa_samples) = build_bwt_and_sa_samples(&clean, sa_sample_rate)?;
+        let (bwt, sentinel_pos, sampled) = build_bwt_and_sa_samples(&clean, sa_sample_rate)?;
         let bwt_len = bwt.len();
 
         let mut blocks = Vec::new();
@@ -243,8 +242,7 @@ impl BlockedFMIndex {
             block_size,
             bwt_len,
             sentinel_pos,
-            sa_sample_rate,
-            sa_samples,
+            sampled,
         })
     }
 
@@ -325,7 +323,12 @@ impl BlockedFMIndex {
 
     /// Suffix array sample rate used for locating.
     pub fn sa_sample_rate(&self) -> usize {
-        self.sa_sample_rate
+        self.sampled.rate()
+    }
+
+    /// The compact sampled suffix array backing `sa_at`.
+    pub fn sampled(&self) -> &SampledSuffixArray {
+        &self.sampled
     }
 
     /// Retrieve rank of `symbol` in `BWT[..position)`.
@@ -401,17 +404,17 @@ impl BlockedFMIndex {
         let mut current = index;
         let mut lf_steps = 0usize;
 
-        // Following LF decreases SA value by 1 modulo n, so within `sa_sample_rate`
-        // steps we must reach a sampled SA position.
+        // Following LF decreases the SA value by 1 (mod n), so within `rate`
+        // steps we must reach a sampled position; the recovered SA value is the
+        // sample plus the number of LF steps taken.
         loop {
-            let sampled = self.sa_samples[current];
-            if sampled != u32::MAX {
+            if let Some(sampled) = self.sampled.sample_at(current) {
                 return sampled as usize + lf_steps;
             }
             current = self.lf_index(current);
             lf_steps += 1;
             debug_assert!(
-                lf_steps <= self.sa_sample_rate + 1,
+                lf_steps <= self.sampled.rate() + 1,
                 "LF steps exceeded sample rate; sampling invariant violated"
             );
         }
@@ -446,7 +449,7 @@ fn sanitize_reference(reference: &[u8]) -> Result<Vec<u8>, FMIndexError> {
 fn build_bwt_and_sa_samples(
     reference: &[u8],
     sa_sample_rate: usize,
-) -> Result<(Vec<u8>, usize, Vec<u32>), FMIndexError> {
+) -> Result<(Vec<u8>, usize, SampledSuffixArray), FMIndexError> {
     // Map A/C/G/T/N -> 1..5, sentinel -> 0.
     let mut text: Vec<u32> = Vec::with_capacity(reference.len() + 1);
     for &b in reference {
@@ -466,7 +469,6 @@ fn build_bwt_and_sa_samples(
 
     let mut bwt = Vec::with_capacity(text.len());
     let mut sentinel_pos = 0usize;
-    let mut sa_samples = vec![u32::MAX; text.len()];
 
     for (bwt_idx, &sa_idx_u32) in sa.iter().enumerate() {
         let sa_idx = sa_idx_u32 as usize;
@@ -492,14 +494,18 @@ fn build_bwt_and_sa_samples(
             sentinel_pos = bwt_idx;
         }
         bwt.push(ch);
-
-        // Sampling: store SA value when divisible by rate.
-        if sa_sample_rate > 0 && (sa_idx % sa_sample_rate == 0) {
-            sa_samples[bwt_idx] = sa_idx_u32;
-        }
     }
 
-    Ok((bwt, sentinel_pos, sa_samples))
+    let rate = sa_sample_rate.max(1);
+    let sampled = SampledSuffixArray::from_sorted_samples(
+        text.len(),
+        rate,
+        sa.iter().enumerate().filter_map(|(bwt_idx, &sa_idx)| {
+            ((sa_idx as usize) % rate == 0).then_some((bwt_idx, sa_idx))
+        }),
+    );
+
+    Ok((bwt, sentinel_pos, sampled))
 }
 
 fn add_counts(lhs: [u32; ALPHABET_SIZE], rhs: [u32; ALPHABET_SIZE]) -> [u32; ALPHABET_SIZE] {
@@ -578,5 +584,24 @@ mod tests {
         let position = index.sa_at(result.interval.lower as usize);
         assert!(position + 4 <= reference.len());
         assert_eq!(&reference[position..position + 4], b"ACGT");
+    }
+
+    #[test]
+    fn sampled_sa_is_sparse_not_dense() {
+        // A reference long enough that a dense (one-slot-per-position) sample
+        // array would be ~bwt_len; the compact structure stores ~bwt_len/rate.
+        let reference = vec![b'A'; 4096];
+        let index = BlockedFMIndex::build(&reference, 64).expect("build");
+        let sampled = index.sampled();
+        assert_eq!(sampled.len(), reference.len() + 1); // covers every BWT position
+                                                        // Far fewer stored values than positions (sampled at `rate`).
+        assert!(
+            sampled.num_samples() <= sampled.len() / sampled.rate() + 1,
+            "expected ~len/rate samples, got {} for len {} rate {}",
+            sampled.num_samples(),
+            sampled.len(),
+            sampled.rate(),
+        );
+        assert!(sampled.num_samples() * 4 < sampled.len());
     }
 }
