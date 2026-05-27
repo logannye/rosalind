@@ -10,6 +10,7 @@ mod bwt_aligner;
 mod compressed_dna;
 mod eval;
 mod fm_index;
+mod genome_index;
 mod index;
 mod io;
 mod pileup;
@@ -29,6 +30,7 @@ pub use eval::{
 pub use fm_index::{
     BWTBlock, BlockBoundary, BlockedFMIndex, CompressedBoundaries, FMIndexError, FmSymbol,
 };
+pub use genome_index::{GenomeIndex, GenomeIndexError, MAX_GENOME_LEN};
 pub use index::{IndexHeader, IndexReader, IndexWriter, ReferenceIndex};
 pub use io::create_bam_writer;
 pub use pileup::{PileupNode, PileupProcessor, PileupSummary, PileupWorkload};
