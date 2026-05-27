@@ -239,8 +239,10 @@ impl<S: ReadSource> PileupEngine<S> {
         let ref_idx = (self.pos - self.region.start) as usize;
         let ref_base = self.reference.get(ref_idx).copied().unwrap_or(b'N');
         let mut obs = Vec::new();
+        let mut raw_depth: u32 = 0;
         for r in &self.active {
             if let Some(&off) = r.ref_to_read.get(&self.pos) {
+                raw_depth += 1;
                 // Forward orientation — read the stored SEQ byte directly. No
                 // complement (this is the reverse-strand fix). `off` is CIGAR-
                 // derived and not bounds-checked against seq.len() (per the
@@ -266,6 +268,7 @@ impl<S: ReadSource> PileupEngine<S> {
                 pos: Position(self.pos),
             },
             ref_base,
+            raw_depth,
             obs,
         }
     }
@@ -626,5 +629,18 @@ mod tests {
             coverage,
             vec![(0, 1), (1, 1), (2, 2), (3, 2), (4, 1), (5, 1)]
         );
+    }
+
+    #[test]
+    fn raw_depth_counts_covering_reads_even_when_base_is_dropped() {
+        // Two reads cover ref 0; one carries 'N' (not a callable allele), so it is
+        // excluded from obs/depth() but still counted in raw_depth.
+        let reference = b"AA";
+        let reads = vec![mread(0, b"C", false), mread(0, b"N", false)];
+        let cols = columns(engine(reads, reference));
+        let at0 = cols.iter().find(|c| c.locus.pos.0 == 0).unwrap();
+        assert_eq!(at0.depth(), 1); // only the callable 'C'
+        assert_eq!(at0.allele_counts(), [0, 1, 0, 0]);
+        assert_eq!(at0.raw_depth, 2); // both reads cover the position
     }
 }

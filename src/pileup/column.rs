@@ -24,6 +24,10 @@ pub struct PileupColumn {
     pub locus: Locus,
     /// The reference base at this locus (uppercase ASCII; `b'N'` if unknown).
     pub ref_base: u8,
+    /// Total reads covering this position, including reads whose base is non-ACGT
+    /// or below the base-quality floor (so `raw_depth >= depth()`). Use for DP
+    /// annotation and N-fraction QC; `depth()` reports the callable depth.
+    pub raw_depth: u32,
     /// Callable observations, in deterministic (active-read insertion) order.
     pub obs: Vec<Obs>,
 }
@@ -75,9 +79,11 @@ mod tests {
                 pos: Position(100),
             },
             ref_base: b'A',
+            raw_depth: 4,
             obs: vec![obs(0, false), obs(0, true), obs(1, false)],
         };
         assert_eq!(col.depth(), 3);
+        assert_eq!(col.raw_depth, 4);
         assert_eq!(col.allele_counts(), [2, 1, 0, 0]);
         // [allele][0=fwd,1=rev]: A has 1 fwd + 1 rev, C has 1 fwd.
         let sc = col.strand_counts();
