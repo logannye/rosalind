@@ -9,6 +9,7 @@ Rosalind streams variant calling over coordinate-sorted alignments with a workin
 ## What it does today
 
 - **Alignment** — Builds a Burrows–Wheeler / FM-index (SA-IS suffix array with blocked rank/select) over a reference contig and aligns reads via exact-match seeding, deterministic diagonal chaining, and banded affine-gap refinement. Emits SAM or BGZF-compressed BAM.
+- **Streaming I/O** — Reads plain or gzip/bgzf-compressed FASTA/FASTQ, auto-detected from the magic bytes; FASTQ can stream from stdin (`-`). Parsing lives in the `io::` layer (`io::fasta`, `io::fastq`).
 - **Coordinate sort** — A deterministic external merge sort (spills to disk) that orders a BAM by position within a configurable memory budget.
 - **Germline variant calling** — Streams a pileup over a coordinate-sorted BAM and calls SNVs to VCF, keeping the in-memory working set proportional to coverage, not to the size of the input.
 - **Somatic (tumor/normal) calling** — Calls somatic SNVs and simple indels from a paired tumor/normal BAM set using a deterministic binomial log-likelihood-ratio model with explicit depth and allele-fraction filters.
@@ -18,7 +19,9 @@ Rosalind streams variant calling over coordinate-sorted alignments with a workin
 
 ## Current scope
 
-Rosalind operates on a **single reference contig per run**, reads **uncompressed FASTQ** and FASTA, and runs **single-threaded**. Variant calling is **single-sample** (germline) or a **tumor/normal pair** (somatic); calling is SNV-focused, with simple indels in the somatic path. Alignment uses exact-match seeding. The FM-index is built in memory at the start of each run (memory proportional to the reference); the bounded-memory property applies to the streaming pileup and variant-calling stages. These boundaries define what the engine targets well today — small-to-moderate references, targeted regions, and per-sample streaming workloads.
+At the **command line**, Rosalind currently operates on a **single reference contig per run**, reads plain or **gzip/bgzf-compressed** FASTQ/FASTA (auto-detected, including from stdin), and runs **single-threaded**. Variant calling is **single-sample** (germline) or a **tumor/normal pair** (somatic); calling is SNV-focused, with simple indels in the somatic path. Alignment uses exact-match seeding. The FM-index is built in memory at the start of each run (memory proportional to the reference); the bounded-memory property applies to the streaming pileup and variant-calling stages. These boundaries define what the engine targets well today — small-to-moderate references, targeted regions, and per-sample streaming workloads.
+
+The library also provides a multi-contig FM-index over the concatenated genome (`genomics::GenomeIndex`) that resolves matches to `(contig, position)`; it is not yet used by the CLI. See the roadmap below.
 
 ## Who it's for
 
@@ -27,6 +30,16 @@ Rosalind operates on a **single reference contig per run**, reads **uncompressed
 - **Teaching and learning** — a readable, end-to-end Rust implementation of FM-index alignment, streaming pileup, and variant calling to study, modify, and extend.
 - **Builders** — anyone who wants a hackable Rust genomics engine to embed, extend with plugins, or drive from Python, rather than a black-box pipeline.
 - **Somatic SNV / simple-indel exploration** on small references and targeted regions.
+
+## Roadmap
+
+The core primitive is a streaming, CIGAR-aware pileup column stream; variant calling and custom plugins consume it.
+
+- **Phase A (done):** the streaming pileup engine; calibrated, abstention-aware germline SNV calling; tumor/normal somatic SNV calling; spec-valid VCF output; a BLAKE3 reproducibility receipt per run.
+- **Phase B (in progress):** streaming gzip/bgzf input and a multi-contig FM-index over the concatenated genome (`genomics::GenomeIndex`, with `(contig, position)` resolution and boundary-aware exact-match lookup) have landed. Next: wiring multi-contig through the CLI (whole-genome alignment and calling), a build-once memory-mapped index (`rosalind index`), and pipe-native composition across subcommands.
+- **Later:** germline indel calling and richer read QC; deterministic multithreading with an enforced memory budget; a Python binding exposing the pileup stream.
+
+Target architecture and per-phase plans: [`docs/superpowers/specs/`](docs/superpowers/specs/), [`docs/superpowers/plans/`](docs/superpowers/plans/).
 
 ---
 
@@ -89,27 +102,58 @@ Other subcommands (run `rosalind <subcommand> --help` for exact flags):
 - `rosalind somatic` — tumor/normal somatic SNV + simple-indel calling from a paired BAM set over a region.
 - `rosalind eval-somatic` — compare a call set to a truth VCF over confident regions.
 
-`align` indexes the first FASTA record; additional records are ignored with a warning (single-contig scope). `variants` reads coordinate-sorted SAM/BAM alignments.
+`align` indexes the first FASTA record; additional records are ignored with a warning (single-contig scope). `variants` reads coordinate-sorted SAM/BAM alignments. Inputs may be plain or gzip/bgzf-compressed (auto-detected); pass `-` to read FASTQ from stdin, e.g. `gzip -dc reads.fastq.gz | rosalind align --reads - --reference ref.fa --format sam`.
 
 ### Rust API
 
 ```rust
-use rosalind::genomics::{BWTAligner, AlignmentResult};
+use rosalind::genomics::{AlignerError, AlignmentResult, BWTAligner};
 
-fn align_reads(reads: &[Vec<u8>], reference: &[u8]) -> anyhow::Result<Vec<AlignmentResult>> {
+// Align reads to a single reference contig via exact-match FM-index seeding.
+fn align_reads(reads: &[Vec<u8>], reference: &[u8]) -> Result<Vec<AlignmentResult>, AlignerError> {
     let mut aligner = BWTAligner::new(reference)?;
     aligner.align_batch(reads.iter().map(|r| r.as_slice()))
 }
 ```
 
 ```rust
-use rosalind::genomics::{AlignedRead, StreamingVariantCaller};
+use std::sync::Arc;
 
-fn call_variants(reads: Vec<AlignedRead>, reference: &[u8]) -> anyhow::Result<Vec<rosalind::genomics::Variant>> {
-    let chrom = std::sync::Arc::from("chr1");
-    let reference = std::sync::Arc::from(reference.to_vec().into_boxed_slice());
-    let mut caller = StreamingVariantCaller::new(chrom, reference, 0, 1024, 10.0, 1e-6)?;
-    caller.call_variants(reads)
+use rosalind::call::{call_germline_region, GermlineCall, GermlineParams};
+use rosalind::core::{AlignedRead, CoreError, Locus};
+use rosalind::pileup::{PileupParams, SliceSource};
+
+// Calibrated, abstention-aware germline SNV calls over one contig, from
+// coordinate-sorted reads. Each emitted site is (locus, ref_base, call).
+fn call_germline(
+    reads: Vec<AlignedRead>,
+    reference: Arc<[u8]>,
+) -> Result<Vec<(Locus, u8, GermlineCall)>, CoreError> {
+    let region = 0..reference.len() as u32;
+    call_germline_region(
+        SliceSource::new(reads),
+        reference,
+        0, // contig id
+        region,
+        PileupParams::default(),
+        &GermlineParams::default(),
+    )
+}
+```
+
+```rust
+use rosalind::core::Locus;
+use rosalind::genomics::{GenomeIndex, GenomeIndexError};
+
+// Multi-contig exact match: build an index over the concatenated genome; hits
+// resolve to (contig, position), and matches that would straddle a contig
+// boundary are rejected.
+fn locate(query: &[u8]) -> Result<Vec<Locus>, GenomeIndexError> {
+    let index = GenomeIndex::from_named_sequences(&[
+        ("chr1".to_string(), b"ACGTACGT".to_vec()),
+        ("chr2".to_string(), b"TTTTGGGG".to_vec()),
+    ])?;
+    Ok(index.locate_exact(query, 16))
 }
 ```
 
