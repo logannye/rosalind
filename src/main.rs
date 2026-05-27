@@ -6,9 +6,11 @@ use std::time::Instant;
 
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
+use rosalind::core::MemoryBudget;
 use rosalind::genomics::{
-    compare_callsets, create_bam_writer, read_vcf_variants, sort_bam_deterministic, AlignedRead,
-    BWTAligner, BedIndex, CigarOp, CigarOpKind,
+    compare_callsets, create_bam_writer, estimate_build_working_set, read_vcf_variants,
+    render_plan_line, sort_bam_deterministic, AlignedRead, BWTAligner, BedIndex, CigarOp,
+    CigarOpKind, GenomeIndex, IndexBuildReport, IndexWriter,
 };
 use rosalind::io::decompress::open_input;
 use rosalind::io::fasta::{FastaReader, FastaRecord};
@@ -144,6 +146,19 @@ enum Commands {
         #[arg(long)]
         regions: Option<PathBuf>,
     },
+    /// Build a reference index once into a portable, memory-mappable artifact.
+    Index {
+        /// Reference genome in FASTA (plain or gzip; `-` for stdin). All contigs.
+        #[arg(long)]
+        reference: PathBuf,
+        /// Output path for the index artifact.
+        #[arg(short, long)]
+        output: PathBuf,
+        /// Declared memory budget (MiB) for the build. Records a plan line; does
+        /// not enforce (enforcement is a later phase).
+        #[arg(long)]
+        memory_budget_mb: Option<u64>,
+    },
 }
 
 #[derive(Copy, Clone, Debug, ValueEnum, Eq, PartialEq)]
@@ -250,6 +265,11 @@ fn main() -> Result<()> {
         } => {
             run_eval_somatic(reference, calls, truth, regions)?;
         }
+        Commands::Index {
+            reference,
+            output,
+            memory_budget_mb,
+        } => run_index(reference, output, memory_budget_mb)?,
     }
 
     Ok(())
@@ -294,6 +314,60 @@ fn run_eval_somatic(
     for (ty, (tp, fp, fn_)) in report.by_type.iter() {
         println!("type={:?} tp={} fp={} fn={}", ty, tp, fp, fn_);
     }
+    Ok(())
+}
+
+/// Build a multi-contig index from a FASTA and persist it (B3c).
+fn run_index(reference: PathBuf, output: PathBuf, memory_budget_mb: Option<u64>) -> Result<()> {
+    // Read every FASTA record (all contigs) into (name, sequence) pairs.
+    let fasta_reader = open_input(&reference)
+        .with_context(|| format!("failed to open reference {}", reference.display()))?;
+    let records: Vec<FastaRecord> = FastaReader::new(fasta_reader)
+        .collect::<std::result::Result<Vec<_>, _>>()
+        .with_context(|| format!("failed to parse FASTA {}", reference.display()))?;
+    if records.is_empty() {
+        bail!(
+            "reference {} contains no FASTA records",
+            reference.display()
+        );
+    }
+    let total_bp: u64 = records.iter().map(|r| r.sequence.len() as u64).sum();
+
+    // Record-only budget plan line, printed BEFORE the build. Never refuses.
+    if let Some(mb) = memory_budget_mb {
+        let estimate = estimate_build_working_set(total_bp);
+        eprintln!("{}", render_plan_line(estimate, MemoryBudget::from_mb(mb)));
+    }
+
+    let named: Vec<(String, Vec<u8>)> = records.into_iter().map(|r| (r.name, r.sequence)).collect();
+    let index = GenomeIndex::from_named_sequences(&named)
+        .with_context(|| format!("failed to build index from {}", reference.display()))?;
+
+    IndexWriter::create(&output)
+        .with_context(|| format!("failed to create index file {}", output.display()))?
+        .write_genome_index(&index)
+        .with_context(|| format!("failed to write index to {}", output.display()))?;
+
+    // Deterministic build receipt → stdout.
+    let index_bytes = std::fs::metadata(&output)
+        .with_context(|| format!("failed to stat index file {}", output.display()))?
+        .len();
+    let reference_blake3 = *blake3::hash(index.reference()).as_bytes();
+    let report = IndexBuildReport {
+        index_path: output.display().to_string(),
+        contigs: index
+            .contigs()
+            .iter()
+            .map(|c| (c.name.to_string(), c.length))
+            .collect(),
+        total_bp,
+        reference_blake3,
+        index_bytes,
+    };
+    print!("{}", report.render());
+
+    // Realized peak RSS (per-run, informational) → stderr.
+    eprintln!("build peak RSS: {} MiB", peak_rss_bytes() / (1 << 20));
     Ok(())
 }
 
