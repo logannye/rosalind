@@ -5,5 +5,7 @@
 //! callers and plugins build on. Reference as `crate::pileup::…`.
 
 pub mod column;
+pub mod source;
 
 pub use column::{Obs, PileupColumn};
+pub use source::{ReadSource, SliceSource};
