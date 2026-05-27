@@ -16,7 +16,7 @@ use thiserror::Error;
 
 use crate::core::ContigSet;
 use crate::genomics::index::format::{
-    IndexHeader, SectionEntry, SectionKind, ROSALIND_INDEX_MAGIC,
+    IndexHeader, IndexVersion, SectionEntry, SectionKind, ROSALIND_INDEX_MAGIC,
 };
 use crate::genomics::{CompressedDNA, GenomeIndex};
 use crate::util::mmap::MmapReadOnly;
@@ -355,10 +355,114 @@ fn write_block_record(
 pub struct IndexReader;
 
 impl IndexReader {
-    /// Open and memory-map an existing index file. (Rewritten in B3b.2 Task 6.)
-    pub fn open(_path: impl AsRef<Path>) -> Result<ReferenceIndex, IndexIoError> {
-        unimplemented!("IndexReader::open is implemented in Task 6")
+    /// Open and memory-map an existing index file, parsing the header, section
+    /// table, and contig set, and validating every section's extent + 8-alignment.
+    /// The FM query surface is obtained via [`ReferenceIndex::view`].
+    pub fn open(path: impl AsRef<Path>) -> Result<ReferenceIndex, IndexIoError> {
+        let path = path.as_ref().to_path_buf();
+        let file = File::open(&path)?;
+        let mmap = MmapReadOnly::map(&file)?;
+        let bytes = mmap.as_bytes();
+
+        let header = read_header(bytes)?;
+        validate_header(&header)?;
+
+        let version = IndexVersion::from_u16(header.version).ok_or_else(|| {
+            IndexIoError::Invalid(format!("unsupported index version {}", header.version))
+        })?;
+        if version != IndexVersion::V1 {
+            return Err(IndexIoError::Invalid(format!(
+                "unsupported index version {version:?}"
+            )));
+        }
+
+        let sections = read_section_table(bytes, &header)?;
+        validate_sections(bytes, &sections)?;
+        let contigs = read_contigs(bytes, &header, &sections)?;
+
+        Ok(ReferenceIndex {
+            path,
+            header,
+            contigs,
+            sections,
+            mmap,
+        })
     }
+}
+
+/// Validate that every section lies within the file and starts 8-aligned.
+fn validate_sections(bytes: &[u8], sections: &[SectionEntry]) -> Result<(), IndexIoError> {
+    for s in sections {
+        if s.offset % 8 != 0 {
+            return Err(IndexIoError::Invalid(format!(
+                "section {:?} offset {} is not 8-aligned",
+                s.kind, s.offset
+            )));
+        }
+        let end = s
+            .offset
+            .checked_add(s.bytes)
+            .ok_or_else(|| IndexIoError::Invalid("section extent overflow".to_string()))?;
+        if end as usize > bytes.len() {
+            return Err(IndexIoError::Invalid(format!(
+                "section {:?} out of bounds",
+                s.kind
+            )));
+        }
+    }
+    Ok(())
+}
+
+/// Parse the `Contigs` section into a `ContigSet`, recomputing global offsets via
+/// `push` and asserting they match the stored offsets (an integrity check).
+fn read_contigs(
+    bytes: &[u8],
+    header: &IndexHeader,
+    sections: &[SectionEntry],
+) -> Result<ContigSet, IndexIoError> {
+    let section = sections
+        .iter()
+        .find(|s| s.kind == SectionKind::Contigs)
+        .ok_or_else(|| IndexIoError::Invalid("missing contigs section".to_string()))?;
+    let mut offset = section.offset as usize;
+    // `validate_sections` already proved `offset + bytes <= file len`, so this
+    // addition cannot overflow on the 64-bit targets Rosalind supports.
+    let end = section.offset as usize + section.bytes as usize;
+
+    let mut contigs = ContigSet::new();
+    for _ in 0..header.contig_count {
+        let name_len = read_u32(bytes, &mut offset)? as usize;
+        if offset + name_len > end {
+            return Err(IndexIoError::Invalid(
+                "contig name out of bounds".to_string(),
+            ));
+        }
+        let name = std::str::from_utf8(&bytes[offset..offset + name_len])
+            .map_err(|_| IndexIoError::Invalid("contig name not valid utf-8".to_string()))?
+            .to_string();
+        offset += name_len;
+        // The two u64 fields (length, global_offset) must lie within this section,
+        // not spill into the next one (`read_u64` only bounds-checks against the
+        // whole file). Reject a record that would cross the section boundary.
+        if offset + 16 > end {
+            return Err(IndexIoError::Invalid(
+                "contig record crosses the section boundary".to_string(),
+            ));
+        }
+        let length = read_u64(bytes, &mut offset)?;
+        let stored_global = read_u64(bytes, &mut offset)?;
+
+        let length_u32 = u32::try_from(length)
+            .map_err(|_| IndexIoError::Invalid("contig length exceeds u32".to_string()))?;
+        let id = contigs.push(name, length_u32);
+        let recomputed = contigs.by_id(id).expect("just pushed").global_offset;
+        if recomputed != stored_global {
+            return Err(IndexIoError::Invalid(format!(
+                "contig {id} global_offset {stored_global} != recomputed {recomputed}"
+            )));
+        }
+    }
+    Ok(contigs)
 }
 
 fn validate_header(header: &IndexHeader) -> Result<(), IndexIoError> {
@@ -564,6 +668,81 @@ mod tests {
         );
         let _ = std::fs::remove_file(p1);
         let _ = std::fs::remove_file(p2);
+    }
+
+    #[test]
+    fn open_parses_header_contigs_and_sections() {
+        let idx = sample_index();
+        let path = temp_path("open");
+        IndexWriter::create(&path)
+            .unwrap()
+            .write_genome_index(&idx)
+            .unwrap();
+
+        let loaded = IndexReader::open(&path).expect("open");
+        assert_eq!(loaded.header.magic, ROSALIND_INDEX_MAGIC);
+
+        // Contigs round-trip with names, lengths, and global offsets.
+        let contigs = loaded.contigs();
+        assert_eq!(contigs.len(), 2);
+        assert_eq!(contigs.by_name("chr1").unwrap().length, 17);
+        assert_eq!(contigs.by_name("chr2").unwrap().global_offset, 17);
+
+        // reference_blake3 matches the uppercased ASCII reference.
+        let mut hasher = blake3::Hasher::new();
+        hasher.update(idx.reference());
+        assert_eq!(
+            *hasher.finalize().as_bytes(),
+            loaded.header.reference_blake3
+        );
+
+        // The FM sections are all present.
+        for kind in [
+            SectionKind::FmMeta,
+            SectionKind::Boundaries,
+            SectionKind::Blocks,
+            SectionKind::SaSamples,
+        ] {
+            assert!(
+                loaded.sections.iter().any(|s| s.kind == kind),
+                "missing {kind:?}"
+            );
+        }
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn open_rejects_a_truncated_index() {
+        let idx = sample_index();
+        let path = temp_path("trunc");
+        IndexWriter::create(&path)
+            .unwrap()
+            .write_genome_index(&idx)
+            .unwrap();
+        let mut bytes = std::fs::read(&path).unwrap();
+        bytes.truncate(bytes.len() / 2);
+        let truncated = temp_path("trunc-half");
+        std::fs::write(&truncated, &bytes).unwrap();
+        assert!(IndexReader::open(&truncated).is_err());
+        let _ = std::fs::remove_file(path);
+        let _ = std::fs::remove_file(truncated);
+    }
+
+    #[test]
+    fn open_rejects_bad_magic() {
+        let idx = sample_index();
+        let path = temp_path("magic");
+        IndexWriter::create(&path)
+            .unwrap()
+            .write_genome_index(&idx)
+            .unwrap();
+        let mut bytes = std::fs::read(&path).unwrap();
+        bytes[0] = b'X';
+        let corrupt = temp_path("magic-bad");
+        std::fs::write(&corrupt, &bytes).unwrap();
+        assert!(IndexReader::open(&corrupt).is_err());
+        let _ = std::fs::remove_file(path);
+        let _ = std::fs::remove_file(corrupt);
     }
 
     #[test]
