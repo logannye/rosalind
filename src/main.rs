@@ -7,9 +7,9 @@ use std::time::Instant;
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use rosalind::genomics::{
-    compare_callsets, create_bam_writer, read_vcf_variants, sort_bam_deterministic, write_vcf,
-    AlignedRead, BWTAligner, BedIndex, CigarOp, CigarOpKind, SomaticCaller, SomaticCallerConfig,
-    SomaticIndel, SomaticVariant, StreamingVariantCaller,
+    compare_callsets, create_bam_writer, read_vcf_variants, sort_bam_deterministic, AlignedRead,
+    BWTAligner, BedIndex, CigarOp, CigarOpKind, SomaticCaller, SomaticCallerConfig, SomaticIndel,
+    SomaticVariant,
 };
 use rosalind::util::rss::peak_rss_bytes;
 use rust_htslib::bam::Read as BamRead;
@@ -827,63 +827,128 @@ fn run_variants(
     region_start: u32,
     mapq_threshold: u8,
     output: Option<PathBuf>,
-    block_size: usize,
+    _block_size: usize,
     quality_threshold: f32,
 ) -> Result<()> {
+    use rosalind::call::{call_germline_region, GermlineParams};
+    use rosalind::core::ContigSet;
+    use rosalind::io::bam::BamSource;
+    use rosalind::io::vcf::{write_germline_vcf, GermlineRow};
+    use rosalind::pileup::{PileupParams, SliceSource};
+    use rosalind::provenance::{blake3_file, write_manifest, FileHash, RunManifest};
+
     let fasta = read_fasta(&reference_path)
         .with_context(|| format!("failed to read reference from {}", reference_path.display()))?;
     let chrom_name = chrom.unwrap_or_else(|| fasta.name.clone());
-    let chrom_arc: Arc<str> = chrom_name.into();
-    let reference = Arc::from(fasta.sequence.into_boxed_slice());
-    let mut caller = StreamingVariantCaller::new(
-        Arc::clone(&chrom_arc),
-        Arc::clone(&reference),
-        region_start,
-        block_size,
-        quality_threshold,
-        1e-6,
-    )
-    .context("failed to initialize variant caller")?;
+    let chrom_arc: Arc<str> = chrom_name.clone().into();
+    let reference: Arc<[u8]> = Arc::from(fasta.sequence.into_boxed_slice());
 
-    let variants = if alignments_path
+    // Single-contig run: one contig spanning the reference window.
+    let mut contigs = ContigSet::new();
+    let contig_id = contigs.push(chrom_name.clone(), region_start + reference.len() as u32);
+
+    let region = region_start..(region_start + reference.len() as u32);
+    let pileup_params = PileupParams {
+        min_mapq: mapq_threshold, // now actually honored by the engine
+        ..PileupParams::default()
+    };
+    let germline_params = GermlineParams {
+        min_qual: quality_threshold as f64,
+        ..GermlineParams::default()
+    };
+
+    let is_bam = alignments_path
         .extension()
         .and_then(|ext| ext.to_str())
         .map(|ext| ext.eq_ignore_ascii_case("bam"))
-        .unwrap_or(false)
-    {
-        // Streaming path for large BAMs.
-        caller
-            .call_variants_from_sorted_bam(&alignments_path)
-            .context("variant calling failed (BAM streaming)")?
-            .into_iter()
-            // NOTE: MAPQ filtering is not yet applied in streaming mode; this will move into
-            // the streaming pileup once we propagate MAPQ into the per-base observations.
-            .collect()
+        .unwrap_or(false);
+
+    let sites = if is_bam {
+        let source = BamSource::new(&alignments_path, &contigs)
+            .map_err(|e| anyhow!("failed to read BAM {}: {e}", alignments_path.display()))?;
+        call_germline_region(
+            source,
+            Arc::clone(&reference),
+            contig_id,
+            region,
+            pileup_params,
+            &germline_params,
+        )
+        .map_err(|e| anyhow!("variant calling failed (BAM): {e}"))?
     } else {
-        let reads = read_alignment_file(&alignments_path, Some(&chrom_arc)).with_context(|| {
-            format!(
-                "failed to read SAM alignments from {}",
-                alignments_path.display()
-            )
-        })?;
-        let filtered_reads: Vec<AlignedRead> = reads
-            .into_iter()
-            .filter(|read| read.mapq() >= mapq_threshold)
+        let legacy =
+            read_alignment_file(&alignments_path, Some(&chrom_arc)).with_context(|| {
+                format!(
+                    "failed to read SAM alignments from {}",
+                    alignments_path.display()
+                )
+            })?;
+        let core_reads: Vec<rosalind::core::AlignedRead> = legacy
+            .iter()
+            .map(|r| legacy_read_to_core(r, contig_id))
             .collect();
-        caller
-            .call_variants(filtered_reads)
-            .context("variant calling failed (SAM)")?
+        let source = SliceSource::new(core_reads);
+        call_germline_region(
+            source,
+            Arc::clone(&reference),
+            contig_id,
+            region,
+            pileup_params,
+            &germline_params,
+        )
+        .map_err(|e| anyhow!("variant calling failed (SAM): {e}"))?
     };
 
-    if let Some(path) = output {
-        let file = File::create(&path)
-            .with_context(|| format!("failed to create VCF file {}", path.display()))?;
-        let mut writer = io::BufWriter::new(file);
-        write_vcf(&mut writer, &variants)?;
-    } else {
-        let stdout = io::stdout();
-        let mut handle = stdout.lock();
-        write_vcf(&mut handle, &variants)?;
+    let rows: Vec<GermlineRow> = sites
+        .into_iter()
+        .map(|(locus, ref_base, call)| GermlineRow {
+            locus,
+            ref_base,
+            call,
+        })
+        .collect();
+
+    match output {
+        Some(path) => {
+            let file = File::create(&path)
+                .with_context(|| format!("failed to create VCF file {}", path.display()))?;
+            let mut writer = io::BufWriter::new(file);
+            write_germline_vcf(&mut writer, &contigs, &chrom_name, &rows)?;
+            writer.flush()?;
+            drop(writer);
+
+            // Reproducibility receipt next to the VCF.
+            let mut manifest = RunManifest::new("variants");
+            manifest.inputs.push(FileHash {
+                path: reference_path.display().to_string(),
+                blake3: blake3_file(&reference_path)?,
+            });
+            manifest.inputs.push(FileHash {
+                path: alignments_path.display().to_string(),
+                blake3: blake3_file(&alignments_path)?,
+            });
+            manifest.outputs.push(FileHash {
+                path: path.display().to_string(),
+                blake3: blake3_file(&path)?,
+            });
+            manifest
+                .params
+                .insert("mapq_threshold".to_string(), mapq_threshold.to_string());
+            manifest.params.insert(
+                "min_qual".to_string(),
+                (quality_threshold as f64).to_string(),
+            );
+            manifest
+                .params
+                .insert("region_start".to_string(), region_start.to_string());
+            let manifest_path = write_manifest(&path, &manifest)?;
+            eprintln!("wrote reproducibility receipt: {}", manifest_path.display());
+        }
+        None => {
+            let stdout = io::stdout();
+            let mut handle = stdout.lock();
+            write_germline_vcf(&mut handle, &contigs, &chrom_name, &rows)?;
+        }
     }
 
     Ok(())
@@ -1545,6 +1610,40 @@ fn read_alignment_file(
     }
 
     Ok(reads)
+}
+
+/// Convert a legacy `genomics::AlignedRead` into a canonical `core::AlignedRead`
+/// for the new calling vertical. The legacy type has no RefSkip/Pad CIGAR ops.
+fn legacy_read_to_core(r: &AlignedRead, contig: u32) -> rosalind::core::AlignedRead {
+    use rosalind::core::{CigarOp as CoreOp, CigarOpKind as CoreKind};
+    let cigar = r
+        .cigar
+        .iter()
+        .map(|op| {
+            let kind = match op.kind {
+                CigarOpKind::Match => CoreKind::Match,
+                CigarOpKind::Insertion => CoreKind::Insertion,
+                CigarOpKind::Deletion => CoreKind::Deletion,
+                CigarOpKind::SoftClip => CoreKind::SoftClip,
+                CigarOpKind::HardClip => CoreKind::HardClip,
+            };
+            CoreOp::new(kind, op.len)
+        })
+        .collect();
+    let flags = if r.is_reverse {
+        rosalind::core::SamFlags(rosalind::core::SamFlags::REVERSE)
+    } else {
+        rosalind::core::SamFlags::default()
+    };
+    rosalind::core::AlignedRead {
+        contig,
+        pos: rosalind::core::Position(r.pos),
+        mapq: r.mapq,
+        flags,
+        cigar,
+        seq: std::sync::Arc::clone(&r.sequence),
+        qual: std::sync::Arc::clone(&r.qualities),
+    }
 }
 
 fn read_bam_alignment_file(
