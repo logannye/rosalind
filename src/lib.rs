@@ -31,10 +31,14 @@
 // Core modules - each implements a key component of the algorithm
 pub mod algebra; // Algebraic replay engine
 pub mod blocking; // Block-respecting simulation
+/// Core types: the lingua franca shared by every layer (io, index, align, pileup, call).
+pub mod core;
 pub mod framework; // Generic compressed evaluation
 pub mod genomics; // Genomics primitives and algorithms
 pub mod ledger; // Streaming progress tracking
 pub mod machine; // Turing machine representation
+/// The streaming pileup kernel: one CIGAR-aware, filtered, bounded-memory engine.
+pub mod pileup;
 pub mod plugin; // Plugin system
 /// Python bindings for exposing Rosalind components to external runtimes.
 #[cfg(feature = "python-bindings")]
