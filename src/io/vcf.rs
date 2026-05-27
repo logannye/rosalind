@@ -5,7 +5,7 @@
 
 use std::io::{self, Write};
 
-use crate::call::{Filter, GermlineCall, Genotype, SomaticCall};
+use crate::call::{Filter, Genotype, GermlineCall, SomaticCall};
 use crate::core::{ContigSet, Locus};
 
 /// One germline row: the locus, its reference base, and the call there. The
@@ -82,8 +82,14 @@ pub fn write_germline_vcf<W: Write>(
         out,
         r#"##FORMAT=<ID=PL,Number=G,Type=Integer,Description="Phred genotype likelihoods">"#
     )?;
-    writeln!(out, r#"##FILTER=<ID=LowQual,Description="QUAL below threshold">"#)?;
-    writeln!(out, r#"##FILTER=<ID=LowDepth,Description="Depth below threshold">"#)?;
+    writeln!(
+        out,
+        r#"##FILTER=<ID=LowQual,Description="QUAL below threshold">"#
+    )?;
+    writeln!(
+        out,
+        r#"##FILTER=<ID=LowDepth,Description="Depth below threshold">"#
+    )?;
     writeln!(
         out,
         "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t{sample}"
@@ -214,7 +220,6 @@ pub fn render_somatic_vcf(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::call::GermlineParams;
     use crate::core::Position;
 
     fn contigs() -> ContigSet {
@@ -281,7 +286,8 @@ mod tests {
         let r1 = row(0, 100, b'A', het_call());
         let r2 = row(0, 50, b'A', het_call());
         let r3 = row(1, 10, b'A', het_call());
-        let forward = render_germline_vcf(&contigs(), "S", &[r1.clone(), r2.clone(), r3.clone()]).unwrap();
+        let forward =
+            render_germline_vcf(&contigs(), "S", &[r1.clone(), r2.clone(), r3.clone()]).unwrap();
         let shuffled = render_germline_vcf(&contigs(), "S", &[r3, r1, r2]).unwrap();
         assert_eq!(forward, shuffled);
         // chr1:51 sorts before chr1:101 before chr2:11.
@@ -323,9 +329,9 @@ mod tests {
         assert!(vcf.starts_with("##fileformat=VCFv4.2\n"));
         assert!(vcf.contains("##INFO=<ID=SOMATIC,"));
         assert!(vcf.contains("##FORMAT=<ID=AF,Number=A,Type=Float,"));
-        assert!(vcf.contains(
-            "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tTUMOR\tNORMAL\n"
-        ));
+        assert!(
+            vcf.contains("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tTUMOR\tNORMAL\n")
+        );
     }
 
     #[test]

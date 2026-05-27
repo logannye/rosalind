@@ -214,15 +214,15 @@ mod tests {
     fn json_escapes_special_characters() {
         let mut m = RunManifest::new("variants");
         m.tool_version = "0.1.0".to_string();
-        m.params
-            .insert("note".to_string(), "a\"b\\c".to_string());
+        m.params.insert("note".to_string(), "a\"b\\c".to_string());
         let json = m.to_canonical_json();
         assert!(json.contains(r#""note":"a\"b\\c""#));
     }
 
     #[test]
     fn write_manifest_emits_sidecar_file() {
-        let dir = std::env::temp_dir().join(format!("rosalind_manifest_test_{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("rosalind_manifest_test_{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let out = dir.join("calls.vcf");
         std::fs::write(&out, b"##fileformat=VCFv4.2\n").unwrap();
