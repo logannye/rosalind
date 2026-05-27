@@ -21,7 +21,7 @@ Rosalind streams variant calling over coordinate-sorted alignments with a workin
 
 At the **command line**, Rosalind currently operates on a **single reference contig per run**, reads plain or **gzip/bgzf-compressed** FASTQ/FASTA (auto-detected, including from stdin), and runs **single-threaded**. Variant calling is **single-sample** (germline) or a **tumor/normal pair** (somatic); calling is SNV-focused, with simple indels in the somatic path. Alignment uses exact-match seeding. The FM-index is built in memory at the start of each run (memory proportional to the reference); the bounded-memory property applies to the streaming pileup and variant-calling stages. These boundaries define what the engine targets well today — small-to-moderate references, targeted regions, and per-sample streaming workloads.
 
-The library also provides a multi-contig FM-index over the concatenated genome (`genomics::GenomeIndex`) that resolves matches to `(contig, position)`; it is not yet used by the CLI. See the roadmap below.
+The library also provides a multi-contig FM-index over the concatenated genome (`genomics::GenomeIndex`) that resolves matches to `(contig, position)`; it is exposed via `rosalind index` / `rosalind locate` (wiring multi-contig through `align`/`variants` is a later phase). See the roadmap below.
 
 ## Who it's for
 
@@ -36,7 +36,7 @@ The library also provides a multi-contig FM-index over the concatenated genome (
 The core primitive is a streaming, CIGAR-aware pileup column stream; variant calling and custom plugins consume it.
 
 - **Phase A (done):** the streaming pileup engine; calibrated, abstention-aware germline SNV calling; tumor/normal somatic SNV calling; spec-valid VCF output; a BLAKE3 reproducibility receipt per run.
-- **Phase B (in progress):** streaming gzip/bgzf input and a multi-contig FM-index over the concatenated genome (`genomics::GenomeIndex`, with `(contig, position)` resolution and boundary-aware exact-match lookup) have landed. Next: wiring multi-contig through the CLI (whole-genome alignment and calling), a build-once memory-mapped index (`rosalind index`), and pipe-native composition across subcommands.
+- **Phase B (in progress):** streaming gzip/bgzf input, a multi-contig FM-index over the concatenated genome (`genomics::GenomeIndex`, with `(contig, position)` resolution and boundary-aware exact-match lookup), and a build-once, memory-mapped index (`rosalind index` to build, `rosalind locate` to query — never rebuilds, byte-identically reproducible) have landed. Next: wiring multi-contig through the `align`/`variants` CLI (whole-genome alignment and calling), and pipe-native composition across subcommands.
 - **Later:** germline indel calling and richer read QC; deterministic multithreading with an enforced memory budget; a Python binding exposing the pileup stream.
 
 Target architecture and per-phase plans: [`docs/superpowers/specs/`](docs/superpowers/specs/), [`docs/superpowers/plans/`](docs/superpowers/plans/).
@@ -103,6 +103,34 @@ Other subcommands (run `rosalind <subcommand> --help` for exact flags):
 - `rosalind eval-somatic` — compare a call set to a truth VCF over confident regions.
 
 `align` indexes the first FASTA record; additional records are ignored with a warning (single-contig scope). `variants` reads coordinate-sorted SAM/BAM alignments. Inputs may be plain or gzip/bgzf-compressed (auto-detected); pass `-` to read FASTQ from stdin, e.g. `gzip -dc reads.fastq.gz | rosalind align --reads - --reference ref.fa --format sam`.
+
+## Build once, query many: the persisted index
+
+Build a portable, memory-mappable index from a (multi-contig) reference once:
+
+```bash
+rosalind index --reference genome.fa --output genome.idx
+# index: genome.idx
+# contigs: 3 (90 bp total)
+#   chr1	30
+#   ...
+# reference_blake3: <hex>
+# index_bytes: <n>
+```
+
+Then query it in milliseconds — it is memory-mapped, never rebuilt:
+
+```bash
+rosalind locate --index genome.idx --pattern GATTACA
+# chr3	0
+# chr3	11
+```
+
+`rosalind index` is deterministic (the `.idx` is byte-identical across builds of
+the same reference). `--memory-budget-mb M` prints a record-only build plan line
+(`[OK]`/`[OVER]`) — it does not yet enforce the budget (that is a later phase).
+`locate` is exact-match only; seed/chain/extend alignment against the persisted
+index lands in a later phase.
 
 ### Rust API
 

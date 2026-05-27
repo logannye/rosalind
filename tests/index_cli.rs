@@ -143,7 +143,12 @@ fn locate_matches_in_ram_ground_truth() {
     ])
     .unwrap();
 
-    for pat in ["GATTACA", "ACGT", "GGGGG", "NNNN", "TTTTGGGG", "ZZZZ"] {
+    // Battery: multi-hit, lowercase (case-insensitive), cross-contig boundary
+    // straddle ("CTTTTTT" spans chr1's tail into chr2 -> rejected, 0 hits),
+    // N-bearing, and an invalid base ("ZZZZ" -> 0 hits).
+    for pat in [
+        "GATTACA", "gattaca", "ACGT", "GGGGG", "NNNN", "TTTTGGGG", "CTTTTTT", "ZZZZ",
+    ] {
         let out = Command::new(bin())
             .args(["locate", "--index", idx.to_str().unwrap(), "--pattern", pat])
             .output()
@@ -168,5 +173,73 @@ fn locate_matches_in_ram_ground_truth() {
         got.sort();
         assert_eq!(got, expected, "locate mismatch for {pat}");
     }
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn index_build_is_deterministic_via_cli() {
+    let dir = tmpdir();
+    let fa = write_fasta(&dir);
+    let idx1 = dir.join("a.idx");
+    let idx2 = dir.join("b.idx");
+    for out in [&idx1, &idx2] {
+        let r = Command::new(bin())
+            .args([
+                "index",
+                "--reference",
+                fa.to_str().unwrap(),
+                "--output",
+                out.to_str().unwrap(),
+            ])
+            .output()
+            .expect("index");
+        assert!(r.status.success());
+    }
+    assert_eq!(
+        std::fs::read(&idx1).unwrap(),
+        std::fs::read(&idx2).unwrap(),
+        "two CLI builds of the same reference must be byte-identical"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn locate_works_from_the_artifact_alone() {
+    // Build, delete the source FASTA, then locate from the index file alone —
+    // proving the load path is self-contained and never rebuilds.
+    let dir = tmpdir();
+    let fa = write_fasta(&dir);
+    let idx = dir.join("ref.idx");
+    assert!(Command::new(bin())
+        .args([
+            "index",
+            "--reference",
+            fa.to_str().unwrap(),
+            "--output",
+            idx.to_str().unwrap(),
+        ])
+        .output()
+        .expect("index")
+        .status
+        .success());
+    std::fs::remove_file(&fa).unwrap(); // the only source of the sequence is now gone
+
+    let out = Command::new(bin())
+        .args([
+            "locate",
+            "--index",
+            idx.to_str().unwrap(),
+            "--pattern",
+            "GATTACA",
+        ])
+        .output()
+        .expect("locate");
+    assert!(out.status.success());
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert_eq!(
+        stdout.lines().count(),
+        2,
+        "GATTACA: 2 hits in chr3, served from the artifact alone"
+    );
     std::fs::remove_dir_all(&dir).ok();
 }
