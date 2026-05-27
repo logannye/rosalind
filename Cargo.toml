@@ -21,6 +21,8 @@ ff = "0.13"
 ark-poly = "0.4"
 # Fast hashing for advisory fingerprints
 blake3 = "1.5"
+# Transparent gzip/bgzf-sequential decompression for FASTA/FASTQ ingestion
+flate2 = "1.0"
 # Bit manipulation - for compact ledger representation
 bitvec = "1.0"
 # Error handling

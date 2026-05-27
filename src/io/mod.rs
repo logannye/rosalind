@@ -4,4 +4,6 @@
 
 pub mod vcf;
 
+pub mod decompress;
+
 pub mod bam;
