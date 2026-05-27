@@ -8,8 +8,7 @@ use anyhow::{anyhow, bail, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use rosalind::genomics::{
     compare_callsets, create_bam_writer, read_vcf_variants, sort_bam_deterministic, AlignedRead,
-    BWTAligner, BedIndex, CigarOp, CigarOpKind, SomaticCaller, SomaticCallerConfig, SomaticIndel,
-    SomaticVariant,
+    BWTAligner, BedIndex, CigarOp, CigarOpKind,
 };
 use rosalind::util::rss::peak_rss_bytes;
 use rust_htslib::bam::Read as BamRead;
@@ -53,7 +52,8 @@ enum Commands {
         #[arg(short, long)]
         output: Option<PathBuf>,
     },
-    /// Call variants from aligned reads using the streaming variant caller.
+    /// Call germline variants from aligned reads (streaming pileup engine +
+    /// calibrated, abstention-aware genotype-likelihood caller).
     Variants {
         /// Reference genome (FASTA).
         #[arg(long)]
@@ -73,8 +73,9 @@ enum Commands {
         /// Optional VCF output path (stdout if omitted).
         #[arg(short, long)]
         output: Option<PathBuf>,
-        /// Bases per block for streaming evaluation.
-        #[arg(long, default_value_t = 1024)]
+        /// Deprecated and ignored: the engine streams without fixed blocks.
+        /// Accepted for backward compatibility.
+        #[arg(long, default_value_t = 1024, hide = true)]
         block_size: usize,
         /// Minimum quality threshold for reporting variants.
         #[arg(long, default_value_t = 10.0)]
@@ -320,7 +321,6 @@ fn run_somatic(
     let start_total = Instant::now();
     let fasta = read_fasta(&reference_path)
         .with_context(|| format!("failed to read reference from {}", reference_path.display()))?;
-    let chrom: Arc<str> = Arc::from(fasta.name.clone());
     let reference: Arc<[u8]> = Arc::from(fasta.sequence.clone().into_boxed_slice());
 
     let workdir = workdir.unwrap_or_else(|| {
@@ -395,30 +395,45 @@ fn run_somatic(
     sort_bam_deterministic(&normal_bam, &normal_sorted, bytes)?;
     let dur_sort = start_sort.elapsed();
 
-    // Call somatic SNVs and indels.
+    // Call somatic SNVs on the new engine (indels deferred to Phase C).
+    use rosalind::call::{call_somatic_region, SomaticParams};
+    use rosalind::core::ContigSet;
+    use rosalind::io::bam::BamSource;
+    use rosalind::io::vcf::write_somatic_vcf;
+    use rosalind::pileup::PileupParams;
+    use rosalind::provenance::{blake3_file, write_manifest, FileHash, RunManifest};
+
     let start_call = Instant::now();
-    let caller = SomaticCaller::new(SomaticCallerConfig::default());
-    let snvs = caller.call_snvs_from_sorted_bams(
-        Arc::clone(&chrom),
+    let mut contigs = ContigSet::new();
+    let contig_id = contigs.push(fasta.name.clone(), reference.len() as u32);
+    let region = 0..(reference.len() as u32);
+
+    let tumor_src = BamSource::new(&tumor_sorted, &contigs)
+        .map_err(|e| anyhow!("failed to read tumor BAM {}: {e}", tumor_sorted.display()))?;
+    let normal_src = BamSource::new(&normal_sorted, &contigs)
+        .map_err(|e| anyhow!("failed to read normal BAM {}: {e}", normal_sorted.display()))?;
+    let calls = call_somatic_region(
+        tumor_src,
+        normal_src,
         Arc::clone(&reference),
-        0,
-        &tumor_sorted,
-        &normal_sorted,
-    )?;
-    let indels = caller.call_indels_from_sorted_bams(
-        Arc::clone(&chrom),
-        Arc::clone(&reference),
-        0,
-        &tumor_sorted,
-        &normal_sorted,
-    )?;
+        contig_id,
+        region,
+        PileupParams::default(),
+        &SomaticParams::default(),
+    )
+    .map_err(|e| anyhow!("somatic calling failed: {e}"))?;
     let dur_call = start_call.elapsed();
 
-    // Write combined VCF.
-    write_combined_somatic_vcf(&output_vcf, &snvs, &indels)?;
+    // Write spec-valid somatic VCF (TUMOR/NORMAL).
+    {
+        let file = File::create(&output_vcf)
+            .with_context(|| format!("failed to create somatic VCF {}", output_vcf.display()))?;
+        let mut writer = io::BufWriter::new(file);
+        write_somatic_vcf(&mut writer, &contigs, &calls)?;
+        writer.flush()?;
+    }
 
-    // Deterministic manifest (no timestamps).
-    let manifest_path = workdir.join("somatic.manifest.txt");
+    // Reproducibility receipt (BLAKE3, canonical JSON).
     let tumor_inputs: Vec<PathBuf> = match (&tumor_fastq, &tumor_r1, &tumor_r2) {
         (Some(p), None, None) => vec![p.clone()],
         (None, Some(r1), Some(r2)) => vec![r1.clone(), r2.clone()],
@@ -429,16 +444,28 @@ fn run_somatic(
         (None, Some(r1), Some(r2)) => vec![r1.clone(), r2.clone()],
         _ => Vec::new(),
     };
-    write_somatic_manifest(
-        &manifest_path,
-        &reference_path,
-        &tumor_inputs,
-        &normal_inputs,
-        &tumor_sorted,
-        &normal_sorted,
-        &output_vcf,
-        memory_mb,
-    )?;
+    let mut manifest = RunManifest::new("somatic");
+    manifest.inputs.push(FileHash {
+        path: reference_path.display().to_string(),
+        blake3: blake3_file(&reference_path)?,
+    });
+    for p in tumor_inputs.iter().chain(normal_inputs.iter()) {
+        if p.exists() {
+            manifest.inputs.push(FileHash {
+                path: p.display().to_string(),
+                blake3: blake3_file(p)?,
+            });
+        }
+    }
+    manifest.outputs.push(FileHash {
+        path: output_vcf.display().to_string(),
+        blake3: blake3_file(&output_vcf)?,
+    });
+    manifest
+        .params
+        .insert("somatic_snv_only".to_string(), "true".to_string());
+    let manifest_path = write_manifest(&output_vcf, &manifest)?;
+    eprintln!("wrote reproducibility receipt: {}", manifest_path.display());
 
     // Performance/RSS report (kept separate from determinism checks).
     let perf_path = workdir.join("somatic.perf.txt");
@@ -454,140 +481,6 @@ fn run_somatic(
     writeln!(f, "peak_rss_bytes={}", peak_rss_bytes())?;
     f.flush()?;
 
-    Ok(())
-}
-
-fn write_combined_somatic_vcf(
-    output: &PathBuf,
-    snvs: &[SomaticVariant],
-    indels: &[SomaticIndel],
-) -> Result<()> {
-    let mut records: Vec<(String, u32, Vec<u8>, Vec<u8>, f32, &'static str, String)> = Vec::new();
-
-    for v in snvs {
-        records.push((
-            v.chrom.to_string(),
-            v.position,
-            vec![v.reference],
-            vec![v.alternate],
-            v.quality,
-            v.filter,
-            format!(
-                "DP_T={};DP_N={};AF_T={:.3};AF_N={:.3}",
-                v.tumor_depth, v.normal_depth, v.tumor_af, v.normal_af
-            ),
-        ));
-    }
-    for v in indels {
-        records.push((
-            v.chrom.to_string(),
-            v.position,
-            v.reference.clone(),
-            v.alternate.clone(),
-            v.quality,
-            v.filter,
-            format!("TSUP={};NSUP={}", v.tumor_support, v.normal_support),
-        ));
-    }
-
-    records.sort_by(|a, b| {
-        a.0.cmp(&b.0)
-            .then_with(|| a.1.cmp(&b.1))
-            .then_with(|| a.2.cmp(&b.2))
-            .then_with(|| a.3.cmp(&b.3))
-    });
-
-    let file = File::create(output)
-        .with_context(|| format!("failed to create somatic VCF {}", output.display()))?;
-    let mut writer = io::BufWriter::new(file);
-
-    writeln!(writer, "##fileformat=VCFv4.3")?;
-    writeln!(writer, "##source=Rosalind")?;
-    writeln!(
-        writer,
-        "##INFO=<ID=DP_T,Number=1,Type=Integer,Description=\"Tumor depth\">"
-    )?;
-    writeln!(
-        writer,
-        "##INFO=<ID=DP_N,Number=1,Type=Integer,Description=\"Normal depth\">"
-    )?;
-    writeln!(
-        writer,
-        "##INFO=<ID=AF_T,Number=1,Type=Float,Description=\"Tumor alt allele fraction\">"
-    )?;
-    writeln!(
-        writer,
-        "##INFO=<ID=AF_N,Number=1,Type=Float,Description=\"Normal alt allele fraction\">"
-    )?;
-    writeln!(
-        writer,
-        "##INFO=<ID=TSUP,Number=1,Type=Integer,Description=\"Tumor indel supporting reads\">"
-    )?;
-    writeln!(
-        writer,
-        "##INFO=<ID=NSUP,Number=1,Type=Integer,Description=\"Normal indel supporting reads\">"
-    )?;
-    writeln!(writer, "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO")?;
-
-    for (chrom, pos0, ref_allele, alt_allele, qual, filter, info) in records {
-        let ref_str = String::from_utf8(ref_allele).unwrap_or_else(|_| "N".to_string());
-        let alt_str = String::from_utf8(alt_allele).unwrap_or_else(|_| "N".to_string());
-        writeln!(
-            writer,
-            "{chrom}\t{pos}\t.\t{ref_allele}\t{alt_allele}\t{qual:.2}\t{filter}\t{info}",
-            chrom = chrom,
-            pos = pos0 + 1,
-            ref_allele = ref_str,
-            alt_allele = alt_str,
-            qual = qual,
-            filter = filter,
-            info = info
-        )?;
-    }
-
-    writer.flush()?;
-    Ok(())
-}
-
-fn write_somatic_manifest(
-    output: &PathBuf,
-    reference: &PathBuf,
-    tumor_inputs: &[PathBuf],
-    normal_inputs: &[PathBuf],
-    tumor_bam: &PathBuf,
-    normal_bam: &PathBuf,
-    vcf: &PathBuf,
-    memory_mb: usize,
-) -> Result<()> {
-    let file = File::create(output)
-        .with_context(|| format!("failed to create manifest {}", output.display()))?;
-    let mut w = io::BufWriter::new(file);
-
-    writeln!(w, "rosalind_version={}", env!("CARGO_PKG_VERSION"))?;
-    writeln!(w, "reference={}", reference.display())?;
-    writeln!(
-        w,
-        "tumor_inputs={}",
-        tumor_inputs
-            .iter()
-            .map(|p| p.display().to_string())
-            .collect::<Vec<_>>()
-            .join(",")
-    )?;
-    writeln!(
-        w,
-        "normal_inputs={}",
-        normal_inputs
-            .iter()
-            .map(|p| p.display().to_string())
-            .collect::<Vec<_>>()
-            .join(",")
-    )?;
-    writeln!(w, "tumor_sorted_bam={}", tumor_bam.display())?;
-    writeln!(w, "normal_sorted_bam={}", normal_bam.display())?;
-    writeln!(w, "output_vcf={}", vcf.display())?;
-    writeln!(w, "sort_memory_mb={}", memory_mb)?;
-    w.flush()?;
     Ok(())
 }
 

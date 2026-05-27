@@ -3,9 +3,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use rosalind::genomics::{
-    AlignedRead, BWTAligner, CigarOp, CigarOpKind, StreamingVariantCaller, Variant,
-};
+use rosalind::call::{call_germline_region, GermlineCall, GermlineParams};
+use rosalind::core::{AlignedRead, CigarOp, CigarOpKind, Locus, Position, SamFlags};
+use rosalind::genomics::BWTAligner;
+use rosalind::pileup::{PileupParams, SliceSource};
 
 fn main() -> Result<()> {
     let data_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples/data");
@@ -54,22 +55,26 @@ fn load_reference(path: &PathBuf) -> Result<Vec<u8>> {
     Ok(sequence.to_ascii_uppercase().into_bytes())
 }
 
-fn call_variants(reference: &[u8]) -> Result<Vec<Variant>> {
-    let chrom = Arc::from("chr1");
-    let reference_arc = Arc::from(reference.to_vec().into_boxed_slice());
+fn call_variants(reference: &[u8]) -> Result<Vec<(Locus, u8, GermlineCall)>> {
+    let reference_arc: Arc<[u8]> = Arc::from(reference.to_vec().into_boxed_slice());
 
-    let reads = vec![AlignedRead::new(
-        Arc::clone(&chrom),
+    let reads = vec![AlignedRead {
+        contig: 0,
+        pos: Position(0),
+        mapq: 60,
+        flags: SamFlags::default(),
+        cigar: vec![CigarOp::new(CigarOpKind::Match, 8)],
+        seq: Arc::from(b"ACGTACGT".to_vec().into_boxed_slice()),
+        qual: Arc::from(vec![30u8; 8].into_boxed_slice()),
+    }];
+
+    let sites = call_germline_region(
+        SliceSource::new(reads),
+        Arc::clone(&reference_arc),
         0,
-        60,
-        vec![CigarOp::new(CigarOpKind::Match, 8)],
-        b"ACGTACGT".to_vec(),
-        vec![30u8; 8],
-        false,
-    )];
-
-    let mut caller =
-        StreamingVariantCaller::new(Arc::clone(&chrom), reference_arc, 0, 32, 5.0, 1e-6)?;
-
-    Ok(caller.call_variants(reads)?)
+        0..reference.len() as u32,
+        PileupParams::default(),
+        &GermlineParams::default(),
+    )?;
+    Ok(sites)
 }

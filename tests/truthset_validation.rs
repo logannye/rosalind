@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use rosalind::genomics::{sort_bam_deterministic, SomaticCaller, SomaticCallerConfig};
+use rosalind::genomics::sort_bam_deterministic;
 use rust_htslib::bam;
 use rust_htslib::bam::record::{Cigar, CigarString, Record};
 
@@ -32,7 +32,6 @@ fn somatic_snv_truth_mixture_simple() {
 
     // Reference is all 'A'.
     let reference: Arc<[u8]> = Arc::from(vec![b'A'; 200].into_boxed_slice());
-    let chrom: Arc<str> = Arc::from("chr1");
     let pos0 = 50i64;
 
     // Tumor: 12 alt reads (C), 8 ref reads (A) at pos 50 => AF 0.6.
@@ -78,30 +77,34 @@ fn somatic_snv_truth_mixture_simple() {
     sort_bam_deterministic(&tumor_bam, &tumor_sorted, 1 << 20).unwrap();
     sort_bam_deterministic(&normal_bam, &normal_sorted, 1 << 20).unwrap();
 
-    let cfg = SomaticCallerConfig {
-        min_tumor_depth: 10,
-        min_normal_depth: 10,
-        min_tumor_af: 0.2,
-        max_normal_af: 0.01,
-        min_quality: 0.0,
-        sequencing_error_rate: 1e-3,
-        min_indel_support: 3,
-    };
-    let caller = SomaticCaller::new(cfg);
-    let calls = caller
-        .call_snvs_from_sorted_bams(
-            Arc::clone(&chrom),
-            Arc::clone(&reference),
-            0,
-            &tumor_sorted,
-            &normal_sorted,
-        )
-        .unwrap();
+    use rosalind::call::{call_somatic_region, SomaticParams};
+    use rosalind::core::{ContigSet, Position};
+    use rosalind::io::bam::BamSource;
+    use rosalind::pileup::PileupParams;
 
+    let mut contigs = ContigSet::new();
+    contigs.push("chr1", 1000);
+    let calls = call_somatic_region(
+        BamSource::new(&tumor_sorted, &contigs).unwrap(),
+        BamSource::new(&normal_sorted, &contigs).unwrap(),
+        Arc::clone(&reference),
+        0,
+        0..200,
+        PileupParams::default(),
+        &SomaticParams {
+            min_tumor_depth: 10,
+            min_normal_depth: 10,
+            min_tumor_af: 0.2,
+            max_normal_af: 0.01,
+            min_quality: 0.0,
+            seq_error_rate: 1e-3,
+        },
+    )
+    .unwrap();
     assert_eq!(calls.len(), 1);
-    assert_eq!(calls[0].position, pos0 as u32);
-    assert_eq!(calls[0].reference, b'A');
-    assert_eq!(calls[0].alternate, b'C');
+    assert_eq!(calls[0].0.pos, Position(50));
+    assert_eq!(calls[0].1.ref_base, b'A');
+    assert_eq!(calls[0].1.alt_base, b'C');
 
     let _ = std::fs::remove_file(tumor_bam);
     let _ = std::fs::remove_file(tumor_sorted);

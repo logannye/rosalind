@@ -15,13 +15,9 @@ mod io;
 mod pileup;
 mod pileup_stream;
 mod rank_select;
-mod somatic;
 mod sort;
-mod statistics;
 mod suffix_array;
 mod types;
-mod variant_caller;
-mod vcf;
 
 pub use block_alignment::{align_within_block, AlignmentError, BlockAlignmentSummary, FMInterval};
 pub use bwt_aligner::{AlignerError, AlignmentResult, BWTAligner};
@@ -40,12 +36,5 @@ pub use pileup_stream::BamPileupStream;
 pub use rank_select::{
     BaseCode, RankSelectCheckpoint, RankSelectIndex, ALPHABET_SIZE, CHECKPOINT_STRIDE,
 };
-pub use somatic::{
-    render_somatic_vcf, write_somatic_vcf, SomaticCaller, SomaticCallerConfig, SomaticIndel,
-    SomaticVariant,
-};
 pub use sort::sort_bam_deterministic;
-pub use statistics::{bayesian_variant_caller, VariantCall};
 pub use types::{AlignedRead, CigarOp, CigarOpKind};
-pub use variant_caller::{StreamingVariantCaller, Variant, VariantCallerError};
-pub use vcf::{render_vcf, write_vcf};
