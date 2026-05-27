@@ -136,6 +136,81 @@ pub fn render_germline_vcf(
     Ok(String::from_utf8(buf).expect("VCF is valid UTF-8"))
 }
 
+/// Write a spec-valid somatic VCFv4.2 with `TUMOR` and `NORMAL` sample columns.
+/// Records are emitted in canonical (contig, pos, ref, alt) order.
+pub fn write_somatic_vcf<W: Write>(
+    out: &mut W,
+    contigs: &ContigSet,
+    calls: &[(Locus, SomaticCall)],
+) -> io::Result<()> {
+    write_fileformat_and_contigs(out, contigs)?;
+    writeln!(
+        out,
+        r#"##INFO=<ID=SOMATIC,Number=0,Type=Flag,Description="Somatic mutation">"#
+    )?;
+    writeln!(
+        out,
+        r#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#
+    )?;
+    writeln!(
+        out,
+        r#"##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read depth">"#
+    )?;
+    writeln!(
+        out,
+        r#"##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allelic depths (ref,alt)">"#
+    )?;
+    writeln!(
+        out,
+        r#"##FORMAT=<ID=AF,Number=A,Type=Float,Description="Alt allele fraction">"#
+    )?;
+    writeln!(
+        out,
+        "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tTUMOR\tNORMAL"
+    )?;
+
+    let mut ordered: Vec<&(Locus, SomaticCall)> = calls.iter().collect();
+    ordered.sort_by(|a, b| {
+        a.0.cmp(&b.0)
+            .then_with(|| a.1.ref_base.cmp(&b.1.ref_base))
+            .then_with(|| a.1.alt_base.cmp(&b.1.alt_base))
+    });
+
+    for (locus, c) in ordered {
+        let chrom = contigs
+            .by_id(locus.contig)
+            .map(|ct| ct.name.as_ref())
+            .unwrap_or(".");
+        let pos = locus.pos.0 as u64 + 1;
+        let t_ref = c.tumor_depth.saturating_sub(c.tumor_alt);
+        let n_ref = c.normal_depth.saturating_sub(c.normal_alt);
+        writeln!(
+            out,
+            "{chrom}\t{pos}\t.\t{ref_b}\t{alt}\t{qual:.1}\tPASS\tSOMATIC\tGT:DP:AD:AF\t0/1:{t_dp}:{t_ref},{t_alt}:{t_af:.3}\t0/0:{n_dp}:{n_ref},{n_alt}:{n_af:.3}",
+            ref_b = c.ref_base as char,
+            alt = c.alt_base as char,
+            qual = c.quality,
+            t_dp = c.tumor_depth,
+            t_alt = c.tumor_alt,
+            t_af = c.tumor_af,
+            n_dp = c.normal_depth,
+            n_alt = c.normal_alt,
+            n_af = c.normal_af,
+        )?;
+    }
+    out.flush()
+}
+
+/// Render a somatic VCF into a `String` (tests/snapshots).
+pub fn render_somatic_vcf(
+    contigs: &ContigSet,
+    calls: &[(Locus, SomaticCall)],
+) -> io::Result<String> {
+    let mut buf = Vec::new();
+    write_somatic_vcf(&mut buf, contigs, calls)?;
+    Ok(String::from_utf8(buf).expect("VCF is valid UTF-8"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -226,5 +301,51 @@ mod tests {
         let last = vcf.lines().last().unwrap();
         assert!(last.contains("\tLowDepth\t"));
         assert!(last.contains("\t1/1:"));
+    }
+
+    fn somatic_call() -> SomaticCall {
+        SomaticCall {
+            ref_base: b'A',
+            alt_base: b'T',
+            tumor_alt: 12,
+            tumor_depth: 40,
+            normal_alt: 0,
+            normal_depth: 38,
+            tumor_af: 0.3,
+            normal_af: 0.0,
+            quality: 55.0,
+        }
+    }
+
+    #[test]
+    fn somatic_header_has_two_samples() {
+        let vcf = render_somatic_vcf(&contigs(), &[]).unwrap();
+        assert!(vcf.starts_with("##fileformat=VCFv4.2\n"));
+        assert!(vcf.contains("##INFO=<ID=SOMATIC,"));
+        assert!(vcf.contains("##FORMAT=<ID=AF,Number=A,Type=Float,"));
+        assert!(vcf.contains(
+            "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tTUMOR\tNORMAL\n"
+        ));
+    }
+
+    #[test]
+    fn somatic_record_is_exact() {
+        let vcf = render_somatic_vcf(
+            &contigs(),
+            &[(
+                Locus {
+                    contig: 0,
+                    pos: Position(200),
+                },
+                somatic_call(),
+            )],
+        )
+        .unwrap();
+        let last = vcf.lines().last().unwrap();
+        // TUMOR AD = [40-12, 12] = 28,12; NORMAL AD = [38, 0].
+        assert_eq!(
+            last,
+            "chr1\t201\t.\tA\tT\t55.0\tPASS\tSOMATIC\tGT:DP:AD:AF\t0/1:40:28,12:0.300\t0/0:38:38,0:0.000"
+        );
     }
 }
