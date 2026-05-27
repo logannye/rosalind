@@ -320,7 +320,6 @@ fn run_somatic(
     let start_total = Instant::now();
     let fasta = read_fasta(&reference_path)
         .with_context(|| format!("failed to read reference from {}", reference_path.display()))?;
-    let chrom: Arc<str> = Arc::from(fasta.name.clone());
     let reference: Arc<[u8]> = Arc::from(fasta.sequence.clone().into_boxed_slice());
 
     let workdir = workdir.unwrap_or_else(|| {
@@ -395,30 +394,45 @@ fn run_somatic(
     sort_bam_deterministic(&normal_bam, &normal_sorted, bytes)?;
     let dur_sort = start_sort.elapsed();
 
-    // Call somatic SNVs and indels.
+    // Call somatic SNVs on the new engine (indels deferred to Phase C).
+    use rosalind::call::{call_somatic_region, SomaticParams};
+    use rosalind::core::ContigSet;
+    use rosalind::io::bam::BamSource;
+    use rosalind::io::vcf::write_somatic_vcf;
+    use rosalind::pileup::PileupParams;
+    use rosalind::provenance::{blake3_file, write_manifest, FileHash, RunManifest};
+
     let start_call = Instant::now();
-    let caller = SomaticCaller::new(SomaticCallerConfig::default());
-    let snvs = caller.call_snvs_from_sorted_bams(
-        Arc::clone(&chrom),
+    let mut contigs = ContigSet::new();
+    let contig_id = contigs.push(fasta.name.clone(), reference.len() as u32);
+    let region = 0..(reference.len() as u32);
+
+    let tumor_src = BamSource::new(&tumor_sorted, &contigs)
+        .map_err(|e| anyhow!("failed to read tumor BAM {}: {e}", tumor_sorted.display()))?;
+    let normal_src = BamSource::new(&normal_sorted, &contigs)
+        .map_err(|e| anyhow!("failed to read normal BAM {}: {e}", normal_sorted.display()))?;
+    let calls = call_somatic_region(
+        tumor_src,
+        normal_src,
         Arc::clone(&reference),
-        0,
-        &tumor_sorted,
-        &normal_sorted,
-    )?;
-    let indels = caller.call_indels_from_sorted_bams(
-        Arc::clone(&chrom),
-        Arc::clone(&reference),
-        0,
-        &tumor_sorted,
-        &normal_sorted,
-    )?;
+        contig_id,
+        region,
+        PileupParams::default(),
+        &SomaticParams::default(),
+    )
+    .map_err(|e| anyhow!("somatic calling failed: {e}"))?;
     let dur_call = start_call.elapsed();
 
-    // Write combined VCF.
-    write_combined_somatic_vcf(&output_vcf, &snvs, &indels)?;
+    // Write spec-valid somatic VCF (TUMOR/NORMAL).
+    {
+        let file = File::create(&output_vcf)
+            .with_context(|| format!("failed to create somatic VCF {}", output_vcf.display()))?;
+        let mut writer = io::BufWriter::new(file);
+        write_somatic_vcf(&mut writer, &contigs, &calls)?;
+        writer.flush()?;
+    }
 
-    // Deterministic manifest (no timestamps).
-    let manifest_path = workdir.join("somatic.manifest.txt");
+    // Reproducibility receipt (BLAKE3, canonical JSON).
     let tumor_inputs: Vec<PathBuf> = match (&tumor_fastq, &tumor_r1, &tumor_r2) {
         (Some(p), None, None) => vec![p.clone()],
         (None, Some(r1), Some(r2)) => vec![r1.clone(), r2.clone()],
@@ -429,16 +443,28 @@ fn run_somatic(
         (None, Some(r1), Some(r2)) => vec![r1.clone(), r2.clone()],
         _ => Vec::new(),
     };
-    write_somatic_manifest(
-        &manifest_path,
-        &reference_path,
-        &tumor_inputs,
-        &normal_inputs,
-        &tumor_sorted,
-        &normal_sorted,
-        &output_vcf,
-        memory_mb,
-    )?;
+    let mut manifest = RunManifest::new("somatic");
+    manifest.inputs.push(FileHash {
+        path: reference_path.display().to_string(),
+        blake3: blake3_file(&reference_path)?,
+    });
+    for p in tumor_inputs.iter().chain(normal_inputs.iter()) {
+        if p.exists() {
+            manifest.inputs.push(FileHash {
+                path: p.display().to_string(),
+                blake3: blake3_file(p)?,
+            });
+        }
+    }
+    manifest.outputs.push(FileHash {
+        path: output_vcf.display().to_string(),
+        blake3: blake3_file(&output_vcf)?,
+    });
+    manifest
+        .params
+        .insert("somatic_snv_only".to_string(), "true".to_string());
+    let manifest_path = write_manifest(&output_vcf, &manifest)?;
+    eprintln!("wrote reproducibility receipt: {}", manifest_path.display());
 
     // Performance/RSS report (kept separate from determinism checks).
     let perf_path = workdir.join("somatic.perf.txt");
