@@ -10,7 +10,7 @@ use rosalind::core::MemoryBudget;
 use rosalind::genomics::{
     compare_callsets, create_bam_writer, estimate_build_working_set, read_vcf_variants,
     render_plan_line, sort_bam_deterministic, AlignedRead, BWTAligner, BedIndex, CigarOp,
-    CigarOpKind, GenomeIndex, IndexBuildReport, IndexWriter,
+    CigarOpKind, GenomeIndex, IndexBuildReport, IndexReader, IndexWriter,
 };
 use rosalind::io::decompress::open_input;
 use rosalind::io::fasta::{FastaReader, FastaRecord};
@@ -159,6 +159,18 @@ enum Commands {
         #[arg(long)]
         memory_budget_mb: Option<u64>,
     },
+    /// Locate exact occurrences of a pattern in a prebuilt index (load + query).
+    Locate {
+        /// Index artifact built by `rosalind index`.
+        #[arg(long)]
+        index: PathBuf,
+        /// Pattern to locate (ASCII A/C/G/T/N; case-insensitive).
+        #[arg(long)]
+        pattern: String,
+        /// Maximum number of candidate hits to locate.
+        #[arg(long, default_value_t = 1024)]
+        max_hits: usize,
+    },
 }
 
 #[derive(Copy, Clone, Debug, ValueEnum, Eq, PartialEq)]
@@ -270,6 +282,11 @@ fn main() -> Result<()> {
             output,
             memory_budget_mb,
         } => run_index(reference, output, memory_budget_mb)?,
+        Commands::Locate {
+            index,
+            pattern,
+            max_hits,
+        } => run_locate(index, pattern, max_hits)?,
     }
 
     Ok(())
@@ -368,6 +385,34 @@ fn run_index(reference: PathBuf, output: PathBuf, memory_budget_mb: Option<u64>)
 
     // Realized peak RSS (per-run, informational) → stderr.
     eprintln!("build peak RSS: {} MiB", peak_rss_bytes() / (1 << 20));
+    Ok(())
+}
+
+/// Load a prebuilt index and print exact-match loci for `pattern` (B3c). This is
+/// a memory-mapped load + exact match — it never rebuilds the index.
+fn run_locate(index: PathBuf, pattern: String, max_hits: usize) -> Result<()> {
+    let loaded = IndexReader::open(&index)
+        .with_context(|| format!("failed to open index {}", index.display()))?;
+    let view = loaded
+        .genome_view()
+        .with_context(|| format!("failed to view index {}", index.display()))?;
+
+    let loci = view.locate_exact(pattern.as_bytes(), max_hits);
+    if loci.is_empty() {
+        eprintln!("no hits");
+        return Ok(());
+    }
+
+    let mut stdout = io::BufWriter::new(io::stdout().lock());
+    for locus in loci {
+        let name = view
+            .contigs()
+            .by_id(locus.contig)
+            .map(|c| c.name.to_string())
+            .unwrap_or_else(|| locus.contig.to_string());
+        writeln!(stdout, "{name}\t{}", locus.pos.0)?;
+    }
+    stdout.flush()?;
     Ok(())
 }
 

@@ -106,3 +106,67 @@ fn index_memory_budget_prints_plan_line_and_never_refuses() {
 
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn locate_matches_in_ram_ground_truth() {
+    use rosalind::genomics::GenomeIndex;
+
+    let dir = tmpdir();
+    let fa = write_fasta(&dir);
+    let idx = dir.join("ref.idx");
+    let build = Command::new(bin())
+        .args([
+            "index",
+            "--reference",
+            fa.to_str().unwrap(),
+            "--output",
+            idx.to_str().unwrap(),
+        ])
+        .output()
+        .expect("index");
+    assert!(build.status.success());
+
+    // In-RAM ground truth over the same sequences.
+    let gi = GenomeIndex::from_named_sequences(&[
+        (
+            "chr1".to_string(),
+            b"ACGTACGTNNACGTACGTACGTAAGGCCTT".to_vec(),
+        ),
+        (
+            "chr2".to_string(),
+            b"TTTTGGGGCCCCAAAANNNNACGTACGTAC".to_vec(),
+        ),
+        (
+            "chr3".to_string(),
+            b"GATTACATTTTGATTACAGGGGGCCCCAAA".to_vec(),
+        ),
+    ])
+    .unwrap();
+
+    for pat in ["GATTACA", "ACGT", "GGGGG", "NNNN", "TTTTGGGG", "ZZZZ"] {
+        let out = Command::new(bin())
+            .args(["locate", "--index", idx.to_str().unwrap(), "--pattern", pat])
+            .output()
+            .expect("locate");
+        assert!(
+            out.status.success(),
+            "locate {pat} failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        let stdout = String::from_utf8_lossy(&out.stdout);
+
+        let mut expected: Vec<String> = gi
+            .locate_exact(pat.as_bytes(), 1024)
+            .into_iter()
+            .map(|l| {
+                let name = gi.contigs().by_id(l.contig).unwrap().name.to_string();
+                format!("{name}\t{}", l.pos.0)
+            })
+            .collect();
+        expected.sort();
+        let mut got: Vec<String> = stdout.lines().map(|s| s.to_string()).collect();
+        got.sort();
+        assert_eq!(got, expected, "locate mismatch for {pat}");
+    }
+    std::fs::remove_dir_all(&dir).ok();
+}
