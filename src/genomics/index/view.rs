@@ -330,6 +330,16 @@ fn validate_block_records(blocks: &[u8], block_dir: &[u64]) -> Result<(), IndexI
     const HEADER: usize = 64; // 8 u64/i64 fields
     for &rec_off in block_dir {
         let rec = rec_off as usize;
+        // The record's u64 arrays must be 8-aligned for `block()`'s zero-copy
+        // `align_to` to succeed. Records are 8-aligned by construction; reject a
+        // corrupt non-aligned offset here at `open` rather than letting `block()`
+        // hit `.expect("aligned")` at query time (the integrity contract: a corrupt
+        // index is rejected up front, never crashed-on later).
+        if rec % 8 != 0 {
+            return Err(IndexIoError::Invalid(
+                "block record offset is not 8-aligned".to_string(),
+            ));
+        }
         let header_end = rec
             .checked_add(HEADER)
             .filter(|&e| e <= blocks.len())

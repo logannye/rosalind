@@ -118,7 +118,7 @@ impl IndexWriter {
         let mut w = BufWriter::new(self.file);
 
         // Reserve space for the header (rewritten at the end).
-        w.write_all(&vec![0u8; IndexHeader::FIXED_SIZE])?;
+        w.write_all(&[0u8; IndexHeader::FIXED_SIZE])?;
 
         let mut sections: Vec<SectionEntry> = Vec::new();
 
@@ -310,6 +310,8 @@ fn block_record_len(block: &crate::genomics::BWTBlock) -> u64 {
         + 8 * 5 * occ_bitvec_words
         + 4 * 5 * occ_superblock_len
         + 4 * 5; // totals[5]
+                 // Round up to a multiple of 8. `(body + 7) / 8 * 8`, not `body.div_ceil(8) * 8`
+                 // (div_ceil is Rust 1.73+; MSRV is 1.72).
     (body + 7) / 8 * 8
 }
 
@@ -359,6 +361,7 @@ fn write_block_record(
         + 8 * 5 * occ_bitvec_words
         + 4 * 5 * occ_superblock_len
         + 4 * 5;
+    // Pad to a multiple of 8. `(body + 7) / 8 * 8`, not `div_ceil` (Rust 1.73+; MSRV 1.72).
     let pad = ((body + 7) / 8 * 8 - body) as usize;
     if pad != 0 {
         w.write_all(&[0u8; 8][..pad])?;
@@ -827,6 +830,42 @@ mod tests {
         assert!(
             IndexReader::open(&corrupt).is_err(),
             "open must reject a block directory whose record offset is out of bounds"
+        );
+        let _ = std::fs::remove_file(path);
+        let _ = std::fs::remove_file(corrupt);
+    }
+
+    #[test]
+    fn open_rejects_a_misaligned_block_offset() {
+        // A block-record offset that is in-bounds but not 8-aligned must be rejected
+        // at open() — never deferred to a query-time `.expect("aligned")` panic.
+        let idx = sample_index();
+        let path = temp_path("misaligned-blockdir");
+        IndexWriter::create(&path)
+            .unwrap()
+            .write_genome_index(&idx)
+            .unwrap();
+        let mut bytes = std::fs::read(&path).unwrap();
+
+        let header = read_header(&bytes).unwrap();
+        let sections = read_section_table(&bytes, &header).unwrap();
+        let blocks = sections
+            .iter()
+            .find(|s| s.kind == SectionKind::Blocks)
+            .expect("blocks section");
+        // Bump the first record offset (8-aligned by construction) by 1: still
+        // in-bounds, now misaligned.
+        let dir0 = blocks.offset as usize;
+        let mut off = [0u8; 8];
+        off.copy_from_slice(&bytes[dir0..dir0 + 8]);
+        let bumped = u64::from_le_bytes(off) + 1;
+        bytes[dir0..dir0 + 8].copy_from_slice(&bumped.to_le_bytes());
+
+        let corrupt = temp_path("misaligned-blockdir-bad");
+        std::fs::write(&corrupt, &bytes).unwrap();
+        assert!(
+            IndexReader::open(&corrupt).is_err(),
+            "open must reject a non-8-aligned block record offset"
         );
         let _ = std::fs::remove_file(path);
         let _ = std::fs::remove_file(corrupt);
