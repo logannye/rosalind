@@ -9,6 +9,7 @@ mod block_alignment;
 mod bwt_aligner;
 mod compressed_dna;
 mod eval;
+mod fm_backing;
 mod fm_index;
 mod genome_index;
 mod index;
@@ -32,13 +33,17 @@ pub use fm_index::{
     BWTBlock, BlockBoundary, BlockedFMIndex, CompressedBoundaries, FMIndexError, FmSymbol,
 };
 pub use genome_index::{GenomeIndex, GenomeIndexError, MAX_GENOME_LEN};
-pub use index::{IndexHeader, IndexReader, IndexWriter, ReferenceIndex};
+pub use index::{
+    FmIndexView, GenomeIndexView, IndexHeader, IndexReader, IndexWriter, ReferenceIndex,
+};
 pub use io::create_bam_writer;
 pub use pileup::{PileupNode, PileupProcessor, PileupSummary, PileupWorkload};
 pub use pileup_stream::BamPileupStream;
+pub(crate) use rank_select::popcount_range;
 pub use rank_select::{
     BaseCode, RankSelectCheckpoint, RankSelectIndex, ALPHABET_SIZE, CHECKPOINT_STRIDE,
 };
 pub use sampled_sa::SampledSuffixArray;
+pub(crate) use sampled_sa::RANK_STRIDE;
 pub use sort::sort_bam_deterministic;
 pub use types::{AlignedRead, CigarOp, CigarOpKind};

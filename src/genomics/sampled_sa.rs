@@ -8,7 +8,7 @@
 //! index serialises (Phase B3b).
 
 /// BWT positions per superblock in the rank structure over `marks`.
-const RANK_STRIDE: usize = 1024;
+pub(crate) const RANK_STRIDE: usize = 1024;
 
 /// A compact sampled suffix array.
 #[derive(Debug, Clone)]
@@ -81,6 +81,23 @@ impl SampledSuffixArray {
     /// Number of sampled values stored (≈ `bwt_len / rate`).
     pub fn num_samples(&self) -> usize {
         self.values.len()
+    }
+
+    /// The sampled-position bitvector (`ceil(bwt_len/64)` words). (Serialization.)
+    pub(crate) fn marks(&self) -> &[u64] {
+        &self.marks
+    }
+
+    /// The prefix-popcount superblocks over `marks`
+    /// (`ceil(bwt_len/RANK_STRIDE) + 1` entries). (Serialization.)
+    pub(crate) fn superblocks(&self) -> &[u32] {
+        &self.superblocks
+    }
+
+    /// The sampled SA values in ascending BWT-position order
+    /// (`num_samples` entries). (Serialization.)
+    pub(crate) fn values(&self) -> &[u32] {
+        &self.values
     }
 
     /// The sampled SA value at BWT position `bwt_idx`, or `None` if that position

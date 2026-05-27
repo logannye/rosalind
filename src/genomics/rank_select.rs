@@ -139,6 +139,18 @@ impl RankSelectIndex {
         self.totals
     }
 
+    /// The per-base rank bitvectors (`A,C,G,T,N`); bit `i` set iff `BWT[i]` is
+    /// that base. Each has `ceil(len/64)` words. (Serialization.)
+    pub(crate) fn bitvectors(&self) -> &[Vec<u64>; ALPHABET_SIZE] {
+        &self.bitvectors
+    }
+
+    /// The per-base superblock prefix-count arrays (each `ceil(len/stride) + 1`
+    /// entries). (Serialization.)
+    pub(crate) fn superblocks(&self) -> &[Vec<u32>; ALPHABET_SIZE] {
+        &self.superblocks
+    }
+
     /// Rank query: count of `base` in `sequence[..position)`.
     pub fn rank(&self, sequence: &CompressedDNA, base: BaseCode, position: usize) -> u32 {
         debug_assert_eq!(
@@ -196,7 +208,7 @@ fn bit_position(idx: usize) -> (usize, u64) {
 }
 
 #[inline]
-fn popcount_range(words: &[u64], start: usize, end: usize) -> u32 {
+pub(crate) fn popcount_range(words: &[u64], start: usize, end: usize) -> u32 {
     if end <= start {
         return 0;
     }

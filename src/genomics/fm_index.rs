@@ -1,3 +1,4 @@
+use crate::genomics::fm_backing::{self, BwtBacking};
 use crate::genomics::suffix_array::{sais_u32, SuffixArrayError};
 use crate::genomics::FMInterval;
 use crate::genomics::{
@@ -62,6 +63,11 @@ impl CompressedBoundaries {
     pub fn iter(&self) -> impl Iterator<Item = &BlockBoundary> {
         self.entries.iter()
     }
+
+    /// Number of boundary entries (`num_blocks + 1`). (Serialization.)
+    pub(crate) fn len(&self) -> usize {
+        self.entries.len()
+    }
 }
 
 /// Delimits the start of a block and carries cumulative counts at that point.
@@ -88,6 +94,32 @@ pub struct BWTBlock {
 impl BWTBlock {
     fn len(&self) -> usize {
         self.end - self.start
+    }
+
+    /// Block start offset (inclusive) in the BWT. (Serialization.)
+    pub(crate) fn start(&self) -> usize {
+        self.start
+    }
+
+    /// Block end offset (exclusive) in the BWT. (Serialization.)
+    pub(crate) fn end(&self) -> usize {
+        self.end
+    }
+
+    /// The block's 2-bit BWT payload. (Serialization.)
+    pub(crate) fn bwt(&self) -> &CompressedDNA {
+        &self.bwt
+    }
+
+    /// The block's rank/select (occ) structure. (Serialization.)
+    pub(crate) fn occ(&self) -> &RankSelectIndex {
+        &self.occ
+    }
+
+    /// The sentinel offset within this block, if the sentinel falls here.
+    /// (Serialization.)
+    pub(crate) fn sentinel_offset(&self) -> Option<usize> {
+        self.sentinel_offset
     }
 
     fn rank_symbol(&self, symbol: FmSymbol, position: usize) -> u32 {
@@ -275,50 +307,14 @@ impl BlockedFMIndex {
     ///
     /// Returns an [`FMInterval`] over BWT indices for suffixes matching the pattern.
     pub fn backward_search(&self, pattern: &[u8]) -> FMInterval {
-        let mut interval = FMInterval::full(self.len());
-
-        for &ch in pattern.iter().rev() {
-            let base_code = match BaseCode::from_ascii(ch) {
-                Some(code) => code,
-                None => return FMInterval { lower: 0, upper: 0 },
-            };
-            let symbol = FmSymbol::Base(base_code);
-            let c_row = self.c_table()[symbol.order()];
-            let new_lower = c_row + self.rank(symbol, interval.lower as usize);
-            let new_upper = c_row + self.rank(symbol, interval.upper as usize);
-            interval = FMInterval {
-                lower: new_lower,
-                upper: new_upper,
-            };
-            if interval.is_empty() {
-                break;
-            }
-        }
-
-        interval
+        fm_backing::backward_search(self, pattern)
     }
 
     /// Locate up to `max_hits` suffix array positions for the given interval.
     ///
     /// Returned positions are 0-based reference coordinates (excluding the sentinel).
     pub fn locate_interval(&self, interval: FMInterval, max_hits: usize) -> Vec<u32> {
-        let max_hits = max_hits.max(1);
-        let mut out = Vec::new();
-
-        let reference_len = self.bwt_len.saturating_sub(1);
-        let lower = interval.lower as usize;
-        let upper = interval.upper as usize;
-        for bwt_idx in lower..upper {
-            if out.len() >= max_hits {
-                break;
-            }
-            let sa = self.sa_at(bwt_idx);
-            if sa < reference_len {
-                out.push(sa as u32);
-            }
-        }
-
-        out
+        fm_backing::locate_interval(self, interval, max_hits)
     }
 
     /// Suffix array sample rate used for locating.
@@ -333,32 +329,12 @@ impl BlockedFMIndex {
 
     /// Retrieve rank of `symbol` in `BWT[..position)`.
     pub fn rank(&self, symbol: FmSymbol, position: usize) -> u32 {
-        let bounded = position.min(self.bwt_len);
-        let block_idx = bounded / self.block_size;
-        let boundary = self.boundaries.boundary(block_idx);
-
-        let mut count = match symbol {
-            FmSymbol::Sentinel => boundary.sentinel_count,
-            FmSymbol::Base(code) => boundary.cumulative_counts[code.index()],
-        };
-
-        if let Some(block) = self.blocks.get(block_idx) {
-            let within = bounded - block.start;
-            count += block.rank_symbol(symbol, within);
-        }
-
-        count
+        fm_backing::rank(self, symbol, position)
     }
 
     /// Total occurrences of `symbol` across the entire BWT string.
     pub fn total(&self, symbol: FmSymbol) -> u32 {
-        match symbol {
-            FmSymbol::Sentinel => 1,
-            FmSymbol::Base(code) => {
-                let boundary = self.boundaries.boundary(self.blocks.len());
-                boundary.cumulative_counts[code.index()]
-            }
-        }
+        fm_backing::total(self, symbol)
     }
 
     /// Access to the raw blocks (useful for specialized processing).
@@ -373,51 +349,65 @@ impl BlockedFMIndex {
 
     /// Retrieve the symbol stored at `index` in the BWT string.
     pub fn symbol_at(&self, index: usize) -> FmSymbol {
-        assert!(index < self.bwt_len, "BWT index out of range");
-        if index == self.sentinel_pos {
-            return FmSymbol::Sentinel;
-        }
+        fm_backing::symbol_at(self, index)
+    }
 
-        let block_idx = index / self.block_size;
+    /// Compute the suffix array value corresponding to the provided BWT index.
+    pub fn sa_at(&self, index: usize) -> usize {
+        fm_backing::sa_at(self, index)
+    }
+}
+
+impl BwtBacking for BlockedFMIndex {
+    fn bwt_len(&self) -> usize {
+        self.bwt_len
+    }
+
+    fn block_size(&self) -> usize {
+        self.block_size
+    }
+
+    fn num_blocks(&self) -> usize {
+        self.blocks.len()
+    }
+
+    fn sentinel_pos(&self) -> usize {
+        self.sentinel_pos
+    }
+
+    fn sample_rate(&self) -> usize {
+        self.sampled.rate()
+    }
+
+    fn c_table(&self) -> [u32; 6] {
+        self.c_table
+    }
+
+    fn boundary_base(&self, block_idx: usize, base_index: usize) -> u32 {
+        self.boundaries.boundary(block_idx).cumulative_counts[base_index]
+    }
+
+    fn boundary_sentinel(&self, block_idx: usize) -> u32 {
+        self.boundaries.boundary(block_idx).sentinel_count
+    }
+
+    fn block_rank(&self, block_idx: usize, symbol: FmSymbol, within: usize) -> u32 {
+        self.blocks[block_idx].rank_symbol(symbol, within)
+    }
+
+    fn block_symbol(&self, block_idx: usize, within: usize) -> FmSymbol {
         let block = &self.blocks[block_idx];
-        let offset = index - block.start;
         let base = block
             .bwt
-            .base_at(offset)
+            .base_at(within)
             .expect("BWT block should contain sequence data");
         let code = BaseCode::from_ascii(base)
             .expect("BWT symbol must be a valid DNA base except sentinel");
         FmSymbol::Base(code)
     }
 
-    fn lf_index(&self, index: usize) -> usize {
-        let symbol = self.symbol_at(index);
-        let occ_inclusive = self.rank(symbol, index + 1);
-        let c_row = self.c_table()[symbol.order()] as usize;
-        c_row + occ_inclusive as usize - 1
-    }
-
-    /// Compute the suffix array value corresponding to the provided BWT index.
-    pub fn sa_at(&self, index: usize) -> usize {
-        assert!(index < self.bwt_len, "BWT index out of range");
-
-        let mut current = index;
-        let mut lf_steps = 0usize;
-
-        // Following LF decreases the SA value by 1 (mod n), so within `rate`
-        // steps we must reach a sampled position; the recovered SA value is the
-        // sample plus the number of LF steps taken.
-        loop {
-            if let Some(sampled) = self.sampled.sample_at(current) {
-                return sampled as usize + lf_steps;
-            }
-            current = self.lf_index(current);
-            lf_steps += 1;
-            debug_assert!(
-                lf_steps <= self.sampled.rate() + 1,
-                "LF steps exceeded sample rate; sampling invariant violated"
-            );
-        }
+    fn sampled_at(&self, index: usize) -> Option<u32> {
+        self.sampled.sample_at(index)
     }
 }
 
@@ -587,6 +577,66 @@ mod tests {
     }
 
     #[test]
+    fn owned_backing_matches_generic_ops() {
+        use crate::genomics::fm_backing::{self, BwtBacking};
+
+        let reference = b"ACGTNACGTACGTACGTNNACG";
+        let index = BlockedFMIndex::build(reference, 5).expect("build");
+
+        // The generic ops, run over the owned backing through the BwtBacking
+        // trait, match a naive count over the raw BWT — i.e. the trait surface
+        // feeds the algorithm correct data (not merely "equals the public method",
+        // which now routes through the same generic op and so would be tautological).
+        let clean = sanitize_reference(reference).unwrap();
+        let (bwt, _, _) = build_bwt_and_sa_samples(&clean, 1).unwrap();
+        for symbol in [
+            FmSymbol::Sentinel,
+            FmSymbol::Base(BaseCode::A),
+            FmSymbol::Base(BaseCode::C),
+            FmSymbol::Base(BaseCode::G),
+            FmSymbol::Base(BaseCode::T),
+            FmSymbol::Base(BaseCode::N),
+        ] {
+            // The raw BWT stores the sentinel as `$` and real `N`s as `N`, which
+            // matches the FM-index's symbol semantics (sentinel counted separately
+            // from `N`), so a byte count is the ground truth.
+            let byte = match symbol {
+                FmSymbol::Sentinel => b'$',
+                FmSymbol::Base(BaseCode::A) => b'A',
+                FmSymbol::Base(BaseCode::C) => b'C',
+                FmSymbol::Base(BaseCode::G) => b'G',
+                FmSymbol::Base(BaseCode::T) => b'T',
+                FmSymbol::Base(BaseCode::N) => b'N',
+            };
+            for pos in 0..=index.len() {
+                let naive = bwt[..pos.min(bwt.len())]
+                    .iter()
+                    .filter(|&&c| c == byte)
+                    .count() as u32;
+                assert_eq!(
+                    fm_backing::rank(&index, symbol, pos),
+                    naive,
+                    "generic rank vs naive @ {pos} for {symbol:?}"
+                );
+                assert_eq!(
+                    index.rank(symbol, pos),
+                    naive,
+                    "public rank vs naive @ {pos} for {symbol:?}"
+                );
+            }
+        }
+
+        // c_table by value (trait) equals the inherent c_table by reference.
+        assert_eq!(BwtBacking::c_table(&index), *index.c_table());
+
+        // sa_at via the generic op matches the public method over the interval.
+        let interval = index.backward_search(b"ACGT");
+        for bwt_idx in (interval.lower as usize)..(interval.upper as usize) {
+            assert_eq!(fm_backing::sa_at(&index, bwt_idx), index.sa_at(bwt_idx));
+        }
+    }
+
+    #[test]
     fn sampled_sa_is_sparse_not_dense() {
         // A reference long enough that a dense (one-slot-per-position) sample
         // array would be ~bwt_len; the compact structure stores ~bwt_len/rate.
@@ -603,5 +653,37 @@ mod tests {
             sampled.rate(),
         );
         assert!(sampled.num_samples() * 4 < sampled.len());
+    }
+
+    #[test]
+    fn serialization_accessors_expose_backing() {
+        let reference = b"ACGTNACGTACGTACGT";
+        let index = BlockedFMIndex::build(reference, 6).expect("build");
+
+        // Boundaries length is num_blocks + 1 (one per block + terminal).
+        assert_eq!(index.boundaries().len(), index.num_blocks() + 1);
+
+        // Every block exposes its 2-bit BWT, occ structure, and span.
+        for block in index.blocks() {
+            assert_eq!(block.end() - block.start(), block.bwt().len());
+            // Each of the 5 occ rank bitvectors has ceil(n/64) words.
+            let n = block.bwt().len();
+            let expected_words = (n + 63) / 64;
+            for bv in block.occ().bitvectors() {
+                assert_eq!(bv.len(), expected_words);
+            }
+            // Each of the 5 occ superblock arrays has ceil(n/stride) + 1 entries.
+            let expected_sb = (n + block.occ().stride() - 1) / block.occ().stride() + 1;
+            for sb in block.occ().superblocks() {
+                assert_eq!(sb.len(), expected_sb);
+            }
+            let _ = block.sentinel_offset();
+        }
+
+        // The sampled SA exposes marks/superblocks/values.
+        let s = index.sampled();
+        assert_eq!(s.marks().len(), (s.len() + 63) / 64);
+        assert_eq!(s.values().len(), s.num_samples());
+        assert!(!s.superblocks().is_empty());
     }
 }
