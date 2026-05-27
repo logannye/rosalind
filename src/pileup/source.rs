@@ -23,7 +23,9 @@ impl SliceSource {
     /// Build a source from reads (sorted by `(contig, pos)` here).
     pub fn new(mut reads: Vec<AlignedRead>) -> Self {
         reads.sort_by(|a, b| a.contig.cmp(&b.contig).then(a.pos.0.cmp(&b.pos.0)));
-        Self { reads: reads.into_iter() }
+        Self {
+            reads: reads.into_iter(),
+        }
     }
 }
 

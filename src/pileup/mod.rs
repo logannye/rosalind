@@ -5,9 +5,9 @@
 //! callers and plugins build on. Reference as `crate::pileup::…`.
 
 pub mod column;
-pub mod source;
 pub mod engine;
+pub mod source;
 
 pub use column::{Obs, PileupColumn};
-pub use source::{ReadSource, SliceSource};
 pub use engine::{PileupEngine, PileupParams, SkipCounts};
+pub use source::{ReadSource, SliceSource};

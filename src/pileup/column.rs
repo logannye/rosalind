@@ -59,13 +59,21 @@ mod tests {
     use crate::core::Position;
 
     fn obs(allele: u8, reverse: bool) -> Obs {
-        Obs { allele, base_qual: 30, mapq: 60, reverse }
+        Obs {
+            allele,
+            base_qual: 30,
+            mapq: 60,
+            reverse,
+        }
     }
 
     #[test]
     fn depth_allele_and_strand_counts() {
         let col = PileupColumn {
-            locus: Locus { contig: 0, pos: Position(100) },
+            locus: Locus {
+                contig: 0,
+                pos: Position(100),
+            },
             ref_base: b'A',
             obs: vec![obs(0, false), obs(0, true), obs(1, false)],
         };

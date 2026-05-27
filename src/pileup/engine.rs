@@ -142,7 +142,9 @@ impl<S: ReadSource> PileupEngine<S> {
             .iter()
             .map(|r| (r.ref_to_read.len() as u64) * 16 + 64)
             .sum();
-        WorkingSet { bytes: active_bytes + 256 }
+        WorkingSet {
+            bytes: active_bytes + 256,
+        }
     }
 
     /// Whether the read passes flag/MAPQ filters. (Contig routing and the
@@ -256,7 +258,10 @@ impl<S: ReadSource> PileupEngine<S> {
             }
         }
         PileupColumn {
-            locus: Locus { contig: self.contig, pos: Position(self.pos) },
+            locus: Locus {
+                contig: self.contig,
+                pos: Position(self.pos),
+            },
             ref_base,
             obs,
         }
@@ -333,7 +338,10 @@ mod tests {
         let fwd = mread(0, b"AAGAA", false);
         let rev = mread(0, b"AAGAA", true);
         let cols = columns(engine(vec![fwd, rev], reference));
-        let at2 = cols.iter().find(|c| c.locus.pos.0 == 2).expect("column at pos 2");
+        let at2 = cols
+            .iter()
+            .find(|c| c.locus.pos.0 == 2)
+            .expect("column at pos 2");
         // Both observe G (allele 2); none observe C (allele 1, the complement of G).
         assert_eq!(at2.allele_counts(), [0, 0, 2, 0]);
     }
@@ -403,12 +411,16 @@ mod tests {
             qual: Arc::from(vec![30u8; 5].into_boxed_slice()),
         };
         let cols = columns(engine(vec![read], reference));
-        let get = |p: u32| cols.iter().find(|c| c.locus.pos.0 == p).map(|c| c.allele_counts());
+        let get = |p: u32| {
+            cols.iter()
+                .find(|c| c.locus.pos.0 == p)
+                .map(|c| c.allele_counts())
+        };
         assert_eq!(get(10), Some([0, 1, 0, 0])); // C (offset 0)
         assert_eq!(get(11), Some([0, 1, 0, 0])); // C (offset 1)
         assert_eq!(get(12), Some([0, 0, 1, 0])); // G (offset 3 — NOT the inserted 'A')
         assert_eq!(get(13), Some([0, 0, 0, 1])); // T (offset 4)
-        // The inserted 'A' (offset 2) appears at no reference position.
+                                                 // The inserted 'A' (offset 2) appears at no reference position.
         assert!(cols.iter().all(|c| c.allele_counts()[0] == 0));
     }
 
@@ -510,7 +522,10 @@ mod tests {
         let mut low = mread(0, b"GGGGG", false);
         low.mapq = 3;
         let reads = vec![mread(0, b"CCCCC", false), low];
-        let params = PileupParams { min_mapq: 10, ..PileupParams::default() };
+        let params = PileupParams {
+            min_mapq: 10,
+            ..PileupParams::default()
+        };
         let mut e = PileupEngine::new(
             SliceSource::new(reads),
             Arc::from(reference.to_vec().into_boxed_slice()),
@@ -531,7 +546,10 @@ mod tests {
         let reference = b"AAAAA";
         let mut r = mread(0, b"GGGGG", false);
         r.qual = Arc::from(vec![2u8; 5].into_boxed_slice()); // below the floor
-        let params = PileupParams { min_base_qual: 20, ..PileupParams::default() };
+        let params = PileupParams {
+            min_base_qual: 20,
+            ..PileupParams::default()
+        };
         let mut e = PileupEngine::new(
             SliceSource::new(vec![r]),
             Arc::from(reference.to_vec().into_boxed_slice()),
@@ -567,6 +585,43 @@ mod tests {
             assert!(ws.fits(budget), "working set {} exceeded 1 MiB", ws.bytes);
         }
         // Sanity: peak working set is far below holding all reads would cost.
-        assert!(max_ws < 64 * 1024, "peak working set unexpectedly large: {max_ws}");
+        assert!(
+            max_ws < 64 * 1024,
+            "peak working set unexpectedly large: {max_ws}"
+        );
+    }
+
+    #[test]
+    fn shuffled_source_yields_identical_columns() {
+        // SliceSource sorts on construction, so a shuffled input must produce the
+        // exact same column sequence (deterministic output).
+        let reference = b"ACGTACGTACGT";
+        let make = |order: Vec<(u32, &'static [u8])>| {
+            let reads: Vec<AlignedRead> =
+                order.into_iter().map(|(p, s)| mread(p, s, false)).collect();
+            columns(engine(reads, reference))
+        };
+        let a = make(vec![(0, b"AAAA"), (4, b"CCCC"), (8, b"GGGG")]);
+        let b = make(vec![(8, b"GGGG"), (0, b"AAAA"), (4, b"CCCC")]);
+        assert_eq!(a, b);
+    }
+
+    #[test]
+    fn engine_is_an_open_substrate_for_arbitrary_per_locus_analysis() {
+        // A non-caller consumer: compute per-position coverage directly from the
+        // PileupColumn stream — no variant calling involved.
+        let reference = b"AAAAAAAA";
+        let reads = vec![mread(0, b"CCCC", false), mread(2, b"CCCC", false)];
+        let mut coverage = Vec::new();
+        let mut e = engine(reads, reference);
+        while let Some(c) = e.next() {
+            let col = c.unwrap();
+            coverage.push((col.locus.pos.0, col.depth()));
+        }
+        // pos 0,1 depth 1; pos 2,3 depth 2; pos 4,5 depth 1.
+        assert_eq!(
+            coverage,
+            vec![(0, 1), (1, 1), (2, 2), (3, 2), (4, 1), (5, 1)]
+        );
     }
 }
