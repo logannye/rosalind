@@ -5,7 +5,9 @@
 use std::ops::Range;
 use std::sync::Arc;
 
-use crate::call::{call_germline, call_somatic, GermlineCall, GermlineParams, SomaticCall, SomaticParams};
+use crate::call::{
+    call_germline, call_somatic, GermlineCall, GermlineParams, SomaticCall, SomaticParams,
+};
 use crate::core::{CoreError, Locus};
 use crate::pileup::{PileupColumn, PileupEngine, PileupParams, ReadSource};
 
@@ -45,11 +47,17 @@ pub fn call_somatic_region<T: ReadSource, N: ReadSource>(
     pileup_params: PileupParams,
     somatic_params: &SomaticParams,
 ) -> Result<Vec<(Locus, SomaticCall)>, CoreError> {
-    let tumor_cols: Vec<PileupColumn> =
-        PileupEngine::new(tumor, Arc::clone(&reference), contig, region.clone(), pileup_params.clone())
-            .collect::<Result<_, _>>()?;
+    let tumor_cols: Vec<PileupColumn> = PileupEngine::new(
+        tumor,
+        Arc::clone(&reference),
+        contig,
+        region.clone(),
+        pileup_params.clone(),
+    )
+    .collect::<Result<_, _>>()?;
     let normal_cols: Vec<PileupColumn> =
-        PileupEngine::new(normal, reference, contig, region, pileup_params).collect::<Result<_, _>>()?;
+        PileupEngine::new(normal, reference, contig, region, pileup_params)
+            .collect::<Result<_, _>>()?;
 
     // Merge-join by position (both streams are ascending in `pos`).
     let mut out = Vec::new();
