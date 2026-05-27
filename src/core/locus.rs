@@ -99,6 +99,43 @@ impl ContigSet {
             .last()
             .map_or(0, |c| c.global_offset + c.length as u64)
     }
+
+    /// Resolve a 0-based offset in the concatenated genome to a [`Locus`].
+    /// Returns `None` if `global` lies at or beyond the end of the last contig.
+    /// O(log n) in the number of contigs.
+    pub fn resolve(&self, global: u64) -> Option<Locus> {
+        // INVARIANT: `self.contigs` is sorted by ascending `global_offset`
+        // (maintained by `push`); `partition_point` relies on this. A future
+        // mutator must preserve it or this binary search breaks.
+        // `partition_point` gives the count of contigs whose offset is <= global;
+        // the owning contig is the one just before that boundary.
+        let after = self.contigs.partition_point(|c| c.global_offset <= global);
+        let contig = self.contigs.get(after.checked_sub(1)?)?;
+        let pos = global - contig.global_offset;
+        if pos < contig.length as u64 {
+            Some(Locus {
+                contig: contig.id,
+                pos: Position(pos as u32),
+            })
+        } else {
+            None
+        }
+    }
+
+    /// Resolve a `len`-byte span starting at `global`, returning its start
+    /// [`Locus`] only if the entire span `[global, global + len)` lies within a
+    /// single contig (the bwa "bns" boundary rule). Returns `None` if the span
+    /// crosses a contig boundary or runs past the end of the genome.
+    pub fn resolve_span(&self, global: u64, len: u32) -> Option<Locus> {
+        let start = self.resolve(global)?;
+        let contig = self.by_id(start.contig)?;
+        let end = global.checked_add(len as u64)?;
+        if end <= contig.global_offset + contig.length as u64 {
+            Some(start)
+        } else {
+            None
+        }
+    }
 }
 
 #[cfg(test)]
@@ -149,5 +186,79 @@ mod tests {
         assert!(set.is_empty());
         assert_eq!(set.len(), 0);
         assert_eq!(set.total_length(), 0);
+    }
+
+    #[test]
+    fn resolve_maps_global_offset_to_locus() {
+        let mut set = ContigSet::new();
+        set.push("chr1", 10); // global 0..10
+        set.push("chr2", 5); // global 10..15
+        assert_eq!(
+            set.resolve(0),
+            Some(Locus {
+                contig: 0,
+                pos: Position(0)
+            })
+        );
+        assert_eq!(
+            set.resolve(9),
+            Some(Locus {
+                contig: 0,
+                pos: Position(9)
+            })
+        );
+        assert_eq!(
+            set.resolve(10),
+            Some(Locus {
+                contig: 1,
+                pos: Position(0)
+            })
+        );
+        assert_eq!(
+            set.resolve(14),
+            Some(Locus {
+                contig: 1,
+                pos: Position(4)
+            })
+        );
+    }
+
+    #[test]
+    fn resolve_out_of_range_is_none() {
+        let mut set = ContigSet::new();
+        set.push("chr1", 10);
+        assert_eq!(set.resolve(10), None); // exactly past chr1's end (the only contig)
+        assert_eq!(set.resolve(100), None);
+        assert_eq!(ContigSet::new().resolve(0), None); // empty set
+    }
+
+    #[test]
+    fn resolve_span_within_a_contig_returns_start() {
+        let mut set = ContigSet::new();
+        set.push("chr1", 10);
+        set.push("chr2", 5);
+        assert_eq!(
+            set.resolve_span(8, 2),
+            Some(Locus {
+                contig: 0,
+                pos: Position(8)
+            })
+        ); // [8,10) within chr1
+        assert_eq!(
+            set.resolve_span(10, 5),
+            Some(Locus {
+                contig: 1,
+                pos: Position(0)
+            })
+        ); // [10,15) within chr2
+    }
+
+    #[test]
+    fn resolve_span_crossing_a_boundary_is_rejected() {
+        let mut set = ContigSet::new();
+        set.push("chr1", 10);
+        set.push("chr2", 5);
+        assert_eq!(set.resolve_span(8, 4), None); // [8,12) crosses chr1->chr2
+        assert_eq!(set.resolve_span(12, 4), None); // [12,16) runs past genome end
     }
 }
