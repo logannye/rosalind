@@ -1618,20 +1618,51 @@ fn parse_cigar(cigar: &str, read_len: usize) -> Result<Vec<CigarOp>> {
     if cigar == "*" {
         bail!("variant calling requires mapped reads (CIGAR cannot be '*')");
     }
-    if !cigar.ends_with('M') {
-        bail!("only match operations (M) are supported in CIGAR strings");
+
+    let mut ops = Vec::new();
+    let mut run = String::new();
+    let mut read_consuming: usize = 0;
+
+    for ch in cigar.chars() {
+        if ch.is_ascii_digit() {
+            run.push(ch);
+            continue;
+        }
+        let len: u32 = run
+            .parse()
+            .with_context(|| format!("invalid CIGAR run length in '{cigar}'"))?;
+        run.clear();
+        // Map operations the same way `read_bam_alignment_file` does; skip ops
+        // that `CigarOpKind` does not represent (e.g. N/P), mirroring that reader.
+        let kind = match ch {
+            'M' | '=' | 'X' => CigarOpKind::Match,
+            'I' => CigarOpKind::Insertion,
+            'D' => CigarOpKind::Deletion,
+            'S' => CigarOpKind::SoftClip,
+            'H' => CigarOpKind::HardClip,
+            _ => continue,
+        };
+        // M/=/X, I, and S consume read bases; D and H do not.
+        if matches!(
+            kind,
+            CigarOpKind::Match | CigarOpKind::Insertion | CigarOpKind::SoftClip
+        ) {
+            read_consuming += len as usize;
+        }
+        ops.push(CigarOp::new(kind, len));
     }
-    let len: u32 = cigar[..cigar.len() - 1]
-        .parse()
-        .with_context(|| format!("invalid CIGAR length in '{}'", cigar))?;
-    if len as usize != read_len {
-        bail!(
-            "CIGAR length {} does not match read length {}",
-            len,
-            read_len
-        );
+
+    if !run.is_empty() {
+        bail!("CIGAR '{cigar}' ends with a run length but no operation");
     }
-    Ok(vec![CigarOp::new(CigarOpKind::Match, len)])
+    if ops.is_empty() {
+        bail!("CIGAR '{cigar}' contains no supported operations");
+    }
+    if read_consuming != read_len {
+        bail!("CIGAR '{cigar}' consumes {read_consuming} read bases but the read has {read_len}");
+    }
+
+    Ok(ops)
 }
 
 #[cfg(test)]
@@ -1656,6 +1687,42 @@ mod tests {
         let path = temp_file_path(suffix);
         fs::write(&path, contents).expect("failed to write temp file");
         path
+    }
+
+    #[test]
+    fn parse_cigar_handles_multi_op_indels() {
+        // The exact CIGAR the SAM reader previously choked on (regression).
+        // 146M + 2I + 2M consumes 150 read bases.
+        let ops = parse_cigar("146M2I2M", 150).expect("multi-op CIGAR should parse");
+        assert_eq!(
+            ops,
+            vec![
+                CigarOp::new(CigarOpKind::Match, 146),
+                CigarOp::new(CigarOpKind::Insertion, 2),
+                CigarOp::new(CigarOpKind::Match, 2),
+            ]
+        );
+    }
+
+    #[test]
+    fn parse_cigar_handles_match_softclip_and_deletion() {
+        assert_eq!(
+            parse_cigar("150M", 150).unwrap(),
+            vec![CigarOp::new(CigarOpKind::Match, 150)]
+        );
+        // Soft-clips consume read bases (5 + 140 + 5 = 150).
+        let sc = parse_cigar("5S140M5S", 150).unwrap();
+        assert_eq!(sc[0], CigarOp::new(CigarOpKind::SoftClip, 5));
+        assert_eq!(sc[2], CigarOp::new(CigarOpKind::SoftClip, 5));
+        // Deletions consume reference only, so read-consuming length is 20.
+        let del = parse_cigar("10M2D10M", 20).unwrap();
+        assert_eq!(del[1], CigarOp::new(CigarOpKind::Deletion, 2));
+    }
+
+    #[test]
+    fn parse_cigar_rejects_length_mismatch_and_star() {
+        assert!(parse_cigar("100M", 150).is_err());
+        assert!(parse_cigar("*", 0).is_err());
     }
 
     #[test]
