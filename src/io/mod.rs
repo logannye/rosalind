@@ -6,4 +6,6 @@ pub mod vcf;
 
 pub mod decompress;
 
+pub mod fasta;
+
 pub mod bam;
