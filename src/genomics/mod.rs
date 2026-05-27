@@ -33,7 +33,9 @@ pub use fm_index::{
     BWTBlock, BlockBoundary, BlockedFMIndex, CompressedBoundaries, FMIndexError, FmSymbol,
 };
 pub use genome_index::{GenomeIndex, GenomeIndexError, MAX_GENOME_LEN};
-pub use index::{IndexHeader, IndexReader, IndexWriter, ReferenceIndex};
+pub use index::{
+    FmIndexView, GenomeIndexView, IndexHeader, IndexReader, IndexWriter, ReferenceIndex,
+};
 pub use io::create_bam_writer;
 pub use pileup::{PileupNode, PileupProcessor, PileupSummary, PileupWorkload};
 pub use pileup_stream::BamPileupStream;

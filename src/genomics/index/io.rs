@@ -57,6 +57,22 @@ impl ReferenceIndex {
     pub fn contigs(&self) -> &ContigSet {
         &self.contigs
     }
+
+    /// Borrow a zero-copy FM-index view over the memory-mapped sections.
+    pub fn view(&self) -> Result<crate::genomics::index::view::FmIndexView<'_>, IndexIoError> {
+        crate::genomics::index::view::FmIndexView::new(self.mmap.as_bytes(), &self.sections)
+    }
+
+    /// Borrow a zero-copy genome view (FM-index + contig set) for `locate_exact`.
+    pub fn genome_view(
+        &self,
+    ) -> Result<crate::genomics::index::view::GenomeIndexView<'_>, IndexIoError> {
+        let fm = self.view()?;
+        Ok(crate::genomics::index::view::GenomeIndexView::new(
+            fm,
+            &self.contigs,
+        ))
+    }
 }
 
 /// Writes a new index file.
@@ -627,7 +643,7 @@ fn read_u64(bytes: &[u8], offset: &mut usize) -> Result<u64, IndexIoError> {
 mod tests {
     use super::*;
     use crate::genomics::index::format::SectionKind;
-    use crate::genomics::GenomeIndex;
+    use crate::genomics::{BaseCode, BlockedFMIndex, FmSymbol, GenomeIndex};
     use std::env;
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -774,6 +790,71 @@ mod tests {
             assert_eq!(s.offset % 8, 0, "{kind:?} not 8-aligned");
             let end = s.offset + s.bytes;
             assert!(end as usize <= bytes.len(), "{kind:?} out of bounds");
+        }
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn view_is_byte_identical_to_in_ram_index() {
+        let idx = sample_index();
+        let path = temp_path("equiv");
+        IndexWriter::create(&path)
+            .unwrap()
+            .write_genome_index(&idx)
+            .unwrap();
+        let loaded = IndexReader::open(&path).unwrap();
+        let gv = loaded.genome_view().unwrap();
+        let fv = gv.fm();
+        let fm = idx.fm();
+
+        // backward_search + sa_at over a pattern battery, incl. boundary-straddle
+        // and an N-bearing pattern.
+        let patterns: &[&[u8]] = &[
+            b"A", b"C", b"G", b"T", b"N", b"AC", b"ACG", b"ACGT", b"GT", b"TTTT", b"GGGG", b"CCCC",
+            b"AAAA", b"ACGTACG", b"NNAC", b"GTTTTT", b"NNNN", b"TACG", b"CGTACG", b"GTACGT",
+        ];
+        for &p in patterns {
+            let a = fm.backward_search(p);
+            let b = fv.backward_search(p);
+            assert_eq!(a.lower, b.lower, "lower mismatch for {p:?}");
+            assert_eq!(a.upper, b.upper, "upper mismatch for {p:?}");
+            // sa_at over the whole interval must agree.
+            for i in (a.lower as usize)..(a.upper as usize) {
+                assert_eq!(fm.sa_at(i), fv.sa_at(i), "sa_at mismatch @ {i} for {p:?}");
+            }
+            // locate_exact returns identical Locus vectors.
+            assert_eq!(
+                idx.locate_exact(p, 1024),
+                gv.locate_exact(p, 1024),
+                "locate_exact mismatch for {p:?}"
+            );
+        }
+
+        // Exhaustive rank/symbol_at equivalence over every BWT position.
+        use crate::genomics::fm_backing::{self, BwtBacking};
+        let _ = <BlockedFMIndex as BwtBacking>::bwt_len;
+        for symbol in [
+            FmSymbol::Sentinel,
+            FmSymbol::Base(BaseCode::A),
+            FmSymbol::Base(BaseCode::C),
+            FmSymbol::Base(BaseCode::G),
+            FmSymbol::Base(BaseCode::T),
+            FmSymbol::Base(BaseCode::N),
+        ] {
+            for pos in 0..=fm.len() {
+                assert_eq!(
+                    fm.rank(symbol, pos),
+                    fm_backing::rank(fv, symbol, pos),
+                    "rank mismatch {symbol:?} @ {pos}"
+                );
+            }
+        }
+        for i in 0..fm.len() {
+            assert_eq!(
+                fm.symbol_at(i),
+                fm_backing::symbol_at(fv, i),
+                "symbol_at @ {i}"
+            );
         }
         let _ = std::fs::remove_file(path);
     }

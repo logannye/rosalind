@@ -7,6 +7,8 @@
 
 mod format;
 mod io;
+mod view;
 
 pub use format::IndexHeader;
 pub use io::{IndexReader, IndexWriter, ReferenceIndex};
+pub use view::{FmIndexView, GenomeIndexView};
