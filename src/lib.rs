@@ -33,6 +33,8 @@ pub mod algebra; // Algebraic replay engine
 pub mod blocking; // Block-respecting simulation
 /// Core types: the lingua franca shared by every layer (io, index, align, pileup, call).
 pub mod core;
+/// The streaming pileup kernel: one CIGAR-aware, filtered, bounded-memory engine.
+pub mod pileup;
 pub mod framework; // Generic compressed evaluation
 pub mod genomics; // Genomics primitives and algorithms
 pub mod ledger; // Streaming progress tracking
