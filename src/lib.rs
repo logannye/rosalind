@@ -42,6 +42,8 @@ pub mod machine; // Turing machine representation
 /// The streaming pileup kernel: one CIGAR-aware, filtered, bounded-memory engine.
 pub mod pileup;
 pub mod plugin; // Plugin system
+/// Reproducibility receipts: canonical-JSON BLAKE3 manifests for every run.
+pub mod provenance;
 /// Python bindings for exposing Rosalind components to external runtimes.
 #[cfg(feature = "python-bindings")]
 pub mod python_bindings;
