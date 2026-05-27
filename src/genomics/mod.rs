@@ -9,6 +9,7 @@ mod block_alignment;
 mod bwt_aligner;
 mod compressed_dna;
 mod eval;
+mod fm_backing;
 mod fm_index;
 mod genome_index;
 mod index;
