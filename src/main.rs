@@ -1332,6 +1332,16 @@ fn compute_tlen(
     }
 }
 
+/// Convert FASTQ-ASCII quality bytes (Phred+33, e.g. `b'I'` = 73 for Q40) to
+/// raw Phred values (e.g. 40) as required by the BAM QUAL field.
+///
+/// The FASTQ parser stores quality bytes verbatim from the quality line, so
+/// in-memory `FastqRecord.qualities` are ASCII-encoded (Phred+33). BAM/htslib
+/// expects raw Phred (0–93) in `Record::set`; this function decodes them.
+fn fastq_quals_to_phred(ascii: &[u8]) -> Vec<u8> {
+    ascii.iter().map(|q| q.saturating_sub(33)).collect()
+}
+
 fn write_bam_alignments(
     writer: &mut bam::Writer,
     reference_offset: u32,
@@ -1343,6 +1353,7 @@ fn write_bam_alignments(
     }
 
     for (record, alignment) in reads.iter().zip(alignments.iter()) {
+        let phred_quals = fastq_quals_to_phred(&record.qualities);
         if let Some(hit) = alignment {
             let mut bam_record = Record::new();
             let cigar_ops = if hit.cigar.is_empty() {
@@ -1364,7 +1375,7 @@ fn write_bam_alignments(
                 record.name.as_bytes(),
                 Some(&cigar),
                 &record.sequence,
-                &record.qualities,
+                &phred_quals,
             );
             bam_record.set_tid(0);
             bam_record.set_pos((hit.position + reference_offset as usize) as i64);
@@ -1382,12 +1393,7 @@ fn write_bam_alignments(
             writer.write(&bam_record)?;
         } else {
             let mut bam_record = Record::new();
-            bam_record.set(
-                record.name.as_bytes(),
-                None,
-                &record.sequence,
-                &record.qualities,
-            );
+            bam_record.set(record.name.as_bytes(), None, &record.sequence, &phred_quals);
             bam_record.set_tid(-1);
             bam_record.set_pos(-1);
             bam_record.set_flags(0x4);
@@ -1472,11 +1478,12 @@ fn write_one_bam_mate(
         Some(CigarString::from(cigar_ops))
     };
 
+    let phred_quals = fastq_quals_to_phred(&record.qualities);
     bam_record.set(
         record.name.as_bytes(),
         cigar.as_ref(),
         &record.sequence,
-        &record.qualities,
+        &phred_quals,
     );
     bam_record.set_flags(flags);
     bam_record.set_tid(tid);
@@ -1854,5 +1861,39 @@ mod tests {
         }];
         let alignments = align_reads(&mut aligner, &records, 2).expect("alignment should run");
         assert!(alignments[0].is_some());
+    }
+
+    // ── fastq_quals_to_phred unit tests ────────────────────────────────────────
+    // BAM/htslib expect raw Phred (0–93) in Record::set; the FASTQ parser keeps
+    // ASCII-encoded (Phred+33) bytes. These tests guard the conversion helper.
+
+    #[test]
+    fn fastq_quals_to_phred_decodes_single_byte() {
+        // ASCII b'I' = 73; Phred = 73 - 33 = 40 (Q40, a typical high-quality base).
+        assert_eq!(fastq_quals_to_phred(b"I"), vec![40]);
+    }
+
+    #[test]
+    fn fastq_quals_to_phred_decodes_lowest_quality() {
+        // ASCII b'!' = 33; Phred = 33 - 33 = 0.
+        assert_eq!(fastq_quals_to_phred(b"!"), vec![0]);
+    }
+
+    #[test]
+    fn fastq_quals_to_phred_decodes_run() {
+        // b"!I~" → [0, 40, 93]  (b'~' = 126; 126 - 33 = 93, the maximum valid Phred score).
+        assert_eq!(fastq_quals_to_phred(b"!I~"), vec![0, 40, 93]);
+    }
+
+    #[test]
+    fn fastq_quals_to_phred_empty_input_returns_empty() {
+        assert_eq!(fastq_quals_to_phred(b""), Vec::<u8>::new());
+    }
+
+    #[test]
+    fn fastq_quals_to_phred_saturating_does_not_underflow() {
+        // A byte below 33 should saturate to 0 rather than wrapping (defensive).
+        assert_eq!(fastq_quals_to_phred(&[0u8]), vec![0]);
+        assert_eq!(fastq_quals_to_phred(&[32u8]), vec![0]);
     }
 }
