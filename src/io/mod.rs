@@ -3,3 +3,5 @@
 //! phases.
 
 pub mod vcf;
+
+pub mod bam;

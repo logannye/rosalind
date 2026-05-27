@@ -7,9 +7,9 @@ use std::time::Instant;
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use rosalind::genomics::{
-    compare_callsets, create_bam_writer, read_vcf_variants, sort_bam_deterministic, write_vcf,
-    AlignedRead, BWTAligner, BedIndex, CigarOp, CigarOpKind, SomaticCaller, SomaticCallerConfig,
-    SomaticIndel, SomaticVariant, StreamingVariantCaller,
+    compare_callsets, create_bam_writer, read_vcf_variants, sort_bam_deterministic, AlignedRead,
+    BWTAligner, BedIndex, CigarOp, CigarOpKind, SomaticCaller, SomaticCallerConfig, SomaticIndel,
+    SomaticVariant,
 };
 use rosalind::util::rss::peak_rss_bytes;
 use rust_htslib::bam::Read as BamRead;
@@ -827,63 +827,128 @@ fn run_variants(
     region_start: u32,
     mapq_threshold: u8,
     output: Option<PathBuf>,
-    block_size: usize,
+    _block_size: usize,
     quality_threshold: f32,
 ) -> Result<()> {
+    use rosalind::call::{call_germline_region, GermlineParams};
+    use rosalind::core::ContigSet;
+    use rosalind::io::bam::BamSource;
+    use rosalind::io::vcf::{write_germline_vcf, GermlineRow};
+    use rosalind::pileup::{PileupParams, SliceSource};
+    use rosalind::provenance::{blake3_file, write_manifest, FileHash, RunManifest};
+
     let fasta = read_fasta(&reference_path)
         .with_context(|| format!("failed to read reference from {}", reference_path.display()))?;
     let chrom_name = chrom.unwrap_or_else(|| fasta.name.clone());
-    let chrom_arc: Arc<str> = chrom_name.into();
-    let reference = Arc::from(fasta.sequence.into_boxed_slice());
-    let mut caller = StreamingVariantCaller::new(
-        Arc::clone(&chrom_arc),
-        Arc::clone(&reference),
-        region_start,
-        block_size,
-        quality_threshold,
-        1e-6,
-    )
-    .context("failed to initialize variant caller")?;
+    let chrom_arc: Arc<str> = chrom_name.clone().into();
+    let reference: Arc<[u8]> = Arc::from(fasta.sequence.into_boxed_slice());
 
-    let variants = if alignments_path
+    // Single-contig run: one contig spanning the reference window.
+    let mut contigs = ContigSet::new();
+    let contig_id = contigs.push(chrom_name.clone(), region_start + reference.len() as u32);
+
+    let region = region_start..(region_start + reference.len() as u32);
+    let pileup_params = PileupParams {
+        min_mapq: mapq_threshold, // now actually honored by the engine
+        ..PileupParams::default()
+    };
+    let germline_params = GermlineParams {
+        min_qual: quality_threshold as f64,
+        ..GermlineParams::default()
+    };
+
+    let is_bam = alignments_path
         .extension()
         .and_then(|ext| ext.to_str())
         .map(|ext| ext.eq_ignore_ascii_case("bam"))
-        .unwrap_or(false)
-    {
-        // Streaming path for large BAMs.
-        caller
-            .call_variants_from_sorted_bam(&alignments_path)
-            .context("variant calling failed (BAM streaming)")?
-            .into_iter()
-            // NOTE: MAPQ filtering is not yet applied in streaming mode; this will move into
-            // the streaming pileup once we propagate MAPQ into the per-base observations.
-            .collect()
+        .unwrap_or(false);
+
+    let sites = if is_bam {
+        let source = BamSource::new(&alignments_path, &contigs)
+            .map_err(|e| anyhow!("failed to read BAM {}: {e}", alignments_path.display()))?;
+        call_germline_region(
+            source,
+            Arc::clone(&reference),
+            contig_id,
+            region,
+            pileup_params,
+            &germline_params,
+        )
+        .map_err(|e| anyhow!("variant calling failed (BAM): {e}"))?
     } else {
-        let reads = read_alignment_file(&alignments_path, Some(&chrom_arc)).with_context(|| {
-            format!(
-                "failed to read SAM alignments from {}",
-                alignments_path.display()
-            )
-        })?;
-        let filtered_reads: Vec<AlignedRead> = reads
-            .into_iter()
-            .filter(|read| read.mapq() >= mapq_threshold)
+        let legacy =
+            read_alignment_file(&alignments_path, Some(&chrom_arc)).with_context(|| {
+                format!(
+                    "failed to read SAM alignments from {}",
+                    alignments_path.display()
+                )
+            })?;
+        let core_reads: Vec<rosalind::core::AlignedRead> = legacy
+            .iter()
+            .map(|r| legacy_read_to_core(r, contig_id))
             .collect();
-        caller
-            .call_variants(filtered_reads)
-            .context("variant calling failed (SAM)")?
+        let source = SliceSource::new(core_reads);
+        call_germline_region(
+            source,
+            Arc::clone(&reference),
+            contig_id,
+            region,
+            pileup_params,
+            &germline_params,
+        )
+        .map_err(|e| anyhow!("variant calling failed (SAM): {e}"))?
     };
 
-    if let Some(path) = output {
-        let file = File::create(&path)
-            .with_context(|| format!("failed to create VCF file {}", path.display()))?;
-        let mut writer = io::BufWriter::new(file);
-        write_vcf(&mut writer, &variants)?;
-    } else {
-        let stdout = io::stdout();
-        let mut handle = stdout.lock();
-        write_vcf(&mut handle, &variants)?;
+    let rows: Vec<GermlineRow> = sites
+        .into_iter()
+        .map(|(locus, ref_base, call)| GermlineRow {
+            locus,
+            ref_base,
+            call,
+        })
+        .collect();
+
+    match output {
+        Some(path) => {
+            let file = File::create(&path)
+                .with_context(|| format!("failed to create VCF file {}", path.display()))?;
+            let mut writer = io::BufWriter::new(file);
+            write_germline_vcf(&mut writer, &contigs, &chrom_name, &rows)?;
+            writer.flush()?;
+            drop(writer);
+
+            // Reproducibility receipt next to the VCF.
+            let mut manifest = RunManifest::new("variants");
+            manifest.inputs.push(FileHash {
+                path: reference_path.display().to_string(),
+                blake3: blake3_file(&reference_path)?,
+            });
+            manifest.inputs.push(FileHash {
+                path: alignments_path.display().to_string(),
+                blake3: blake3_file(&alignments_path)?,
+            });
+            manifest.outputs.push(FileHash {
+                path: path.display().to_string(),
+                blake3: blake3_file(&path)?,
+            });
+            manifest
+                .params
+                .insert("mapq_threshold".to_string(), mapq_threshold.to_string());
+            manifest.params.insert(
+                "min_qual".to_string(),
+                (quality_threshold as f64).to_string(),
+            );
+            manifest
+                .params
+                .insert("region_start".to_string(), region_start.to_string());
+            let manifest_path = write_manifest(&path, &manifest)?;
+            eprintln!("wrote reproducibility receipt: {}", manifest_path.display());
+        }
+        None => {
+            let stdout = io::stdout();
+            let mut handle = stdout.lock();
+            write_germline_vcf(&mut handle, &contigs, &chrom_name, &rows)?;
+        }
     }
 
     Ok(())
@@ -1267,6 +1332,16 @@ fn compute_tlen(
     }
 }
 
+/// Convert FASTQ-ASCII quality bytes (Phred+33, e.g. `b'I'` = 73 for Q40) to
+/// raw Phred values (e.g. 40) as required by the BAM QUAL field.
+///
+/// The FASTQ parser stores quality bytes verbatim from the quality line, so
+/// in-memory `FastqRecord.qualities` are ASCII-encoded (Phred+33). BAM/htslib
+/// expects raw Phred (0–93) in `Record::set`; this function decodes them.
+fn fastq_quals_to_phred(ascii: &[u8]) -> Vec<u8> {
+    ascii.iter().map(|q| q.saturating_sub(33)).collect()
+}
+
 fn write_bam_alignments(
     writer: &mut bam::Writer,
     reference_offset: u32,
@@ -1278,6 +1353,7 @@ fn write_bam_alignments(
     }
 
     for (record, alignment) in reads.iter().zip(alignments.iter()) {
+        let phred_quals = fastq_quals_to_phred(&record.qualities);
         if let Some(hit) = alignment {
             let mut bam_record = Record::new();
             let cigar_ops = if hit.cigar.is_empty() {
@@ -1299,7 +1375,7 @@ fn write_bam_alignments(
                 record.name.as_bytes(),
                 Some(&cigar),
                 &record.sequence,
-                &record.qualities,
+                &phred_quals,
             );
             bam_record.set_tid(0);
             bam_record.set_pos((hit.position + reference_offset as usize) as i64);
@@ -1317,12 +1393,7 @@ fn write_bam_alignments(
             writer.write(&bam_record)?;
         } else {
             let mut bam_record = Record::new();
-            bam_record.set(
-                record.name.as_bytes(),
-                None,
-                &record.sequence,
-                &record.qualities,
-            );
+            bam_record.set(record.name.as_bytes(), None, &record.sequence, &phred_quals);
             bam_record.set_tid(-1);
             bam_record.set_pos(-1);
             bam_record.set_flags(0x4);
@@ -1407,11 +1478,12 @@ fn write_one_bam_mate(
         Some(CigarString::from(cigar_ops))
     };
 
+    let phred_quals = fastq_quals_to_phred(&record.qualities);
     bam_record.set(
         record.name.as_bytes(),
         cigar.as_ref(),
         &record.sequence,
-        &record.qualities,
+        &phred_quals,
     );
     bam_record.set_flags(flags);
     bam_record.set_tid(tid);
@@ -1545,6 +1617,40 @@ fn read_alignment_file(
     }
 
     Ok(reads)
+}
+
+/// Convert a legacy `genomics::AlignedRead` into a canonical `core::AlignedRead`
+/// for the new calling vertical. The legacy type has no RefSkip/Pad CIGAR ops.
+fn legacy_read_to_core(r: &AlignedRead, contig: u32) -> rosalind::core::AlignedRead {
+    use rosalind::core::{CigarOp as CoreOp, CigarOpKind as CoreKind};
+    let cigar = r
+        .cigar
+        .iter()
+        .map(|op| {
+            let kind = match op.kind {
+                CigarOpKind::Match => CoreKind::Match,
+                CigarOpKind::Insertion => CoreKind::Insertion,
+                CigarOpKind::Deletion => CoreKind::Deletion,
+                CigarOpKind::SoftClip => CoreKind::SoftClip,
+                CigarOpKind::HardClip => CoreKind::HardClip,
+            };
+            CoreOp::new(kind, op.len)
+        })
+        .collect();
+    let flags = if r.is_reverse {
+        rosalind::core::SamFlags(rosalind::core::SamFlags::REVERSE)
+    } else {
+        rosalind::core::SamFlags::default()
+    };
+    rosalind::core::AlignedRead {
+        contig,
+        pos: rosalind::core::Position(r.pos),
+        mapq: r.mapq,
+        flags,
+        cigar,
+        seq: std::sync::Arc::clone(&r.sequence),
+        qual: std::sync::Arc::clone(&r.qualities),
+    }
 }
 
 fn read_bam_alignment_file(
@@ -1755,5 +1861,39 @@ mod tests {
         }];
         let alignments = align_reads(&mut aligner, &records, 2).expect("alignment should run");
         assert!(alignments[0].is_some());
+    }
+
+    // ── fastq_quals_to_phred unit tests ────────────────────────────────────────
+    // BAM/htslib expect raw Phred (0–93) in Record::set; the FASTQ parser keeps
+    // ASCII-encoded (Phred+33) bytes. These tests guard the conversion helper.
+
+    #[test]
+    fn fastq_quals_to_phred_decodes_single_byte() {
+        // ASCII b'I' = 73; Phred = 73 - 33 = 40 (Q40, a typical high-quality base).
+        assert_eq!(fastq_quals_to_phred(b"I"), vec![40]);
+    }
+
+    #[test]
+    fn fastq_quals_to_phred_decodes_lowest_quality() {
+        // ASCII b'!' = 33; Phred = 33 - 33 = 0.
+        assert_eq!(fastq_quals_to_phred(b"!"), vec![0]);
+    }
+
+    #[test]
+    fn fastq_quals_to_phred_decodes_run() {
+        // b"!I~" → [0, 40, 93]  (b'~' = 126; 126 - 33 = 93, the maximum valid Phred score).
+        assert_eq!(fastq_quals_to_phred(b"!I~"), vec![0, 40, 93]);
+    }
+
+    #[test]
+    fn fastq_quals_to_phred_empty_input_returns_empty() {
+        assert_eq!(fastq_quals_to_phred(b""), Vec::<u8>::new());
+    }
+
+    #[test]
+    fn fastq_quals_to_phred_saturating_does_not_underflow() {
+        // A byte below 33 should saturate to 0 rather than wrapping (defensive).
+        assert_eq!(fastq_quals_to_phred(&[0u8]), vec![0]);
+        assert_eq!(fastq_quals_to_phred(&[32u8]), vec![0]);
     }
 }
