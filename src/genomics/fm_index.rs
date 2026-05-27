@@ -63,6 +63,11 @@ impl CompressedBoundaries {
     pub fn iter(&self) -> impl Iterator<Item = &BlockBoundary> {
         self.entries.iter()
     }
+
+    /// Number of boundary entries (`num_blocks + 1`). (Serialization.)
+    pub(crate) fn len(&self) -> usize {
+        self.entries.len()
+    }
 }
 
 /// Delimits the start of a block and carries cumulative counts at that point.
@@ -89,6 +94,32 @@ pub struct BWTBlock {
 impl BWTBlock {
     fn len(&self) -> usize {
         self.end - self.start
+    }
+
+    /// Block start offset (inclusive) in the BWT. (Serialization.)
+    pub(crate) fn start(&self) -> usize {
+        self.start
+    }
+
+    /// Block end offset (exclusive) in the BWT. (Serialization.)
+    pub(crate) fn end(&self) -> usize {
+        self.end
+    }
+
+    /// The block's 2-bit BWT payload. (Serialization.)
+    pub(crate) fn bwt(&self) -> &CompressedDNA {
+        &self.bwt
+    }
+
+    /// The block's rank/select (occ) structure. (Serialization.)
+    pub(crate) fn occ(&self) -> &RankSelectIndex {
+        &self.occ
+    }
+
+    /// The sentinel offset within this block, if the sentinel falls here.
+    /// (Serialization.)
+    pub(crate) fn sentinel_offset(&self) -> Option<usize> {
+        self.sentinel_offset
     }
 
     fn rank_symbol(&self, symbol: FmSymbol, position: usize) -> u32 {
@@ -622,5 +653,38 @@ mod tests {
             sampled.rate(),
         );
         assert!(sampled.num_samples() * 4 < sampled.len());
+    }
+
+    #[test]
+    fn serialization_accessors_expose_backing() {
+        let reference = b"ACGTNACGTACGTACGT";
+        let index = BlockedFMIndex::build(reference, 6).expect("build");
+
+        // Boundaries length is num_blocks + 1 (one per block + terminal).
+        assert_eq!(index.boundaries().len(), index.num_blocks() + 1);
+
+        // Every block exposes its 2-bit BWT, occ structure, and span.
+        for block in index.blocks() {
+            assert_eq!(block.end() - block.start(), block.bwt().len());
+            // Each of the 5 occ rank bitvectors has ceil(n/64) words.
+            let n = block.bwt().len();
+            let expected_words = (n + 63) / 64;
+            for bv in block.occ().bitvectors() {
+                assert_eq!(bv.len(), expected_words);
+            }
+            // Each of the 5 occ superblock arrays has ceil(n/stride) + 1 entries.
+            let expected_sb = (n + block.occ().stride() - 1) / block.occ().stride() + 1;
+            for sb in block.occ().superblocks() {
+                assert_eq!(sb.len(), expected_sb);
+            }
+            assert_eq!(block.occ().len(), n);
+            let _ = block.sentinel_offset();
+        }
+
+        // The sampled SA exposes marks/superblocks/values.
+        let s = index.sampled();
+        assert_eq!(s.marks().len(), (s.len() + 63) / 64);
+        assert_eq!(s.values().len(), s.num_samples());
+        assert!(!s.superblocks().is_empty());
     }
 }

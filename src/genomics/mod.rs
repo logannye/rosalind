@@ -37,9 +37,11 @@ pub use index::{IndexHeader, IndexReader, IndexWriter, ReferenceIndex};
 pub use io::create_bam_writer;
 pub use pileup::{PileupNode, PileupProcessor, PileupSummary, PileupWorkload};
 pub use pileup_stream::BamPileupStream;
+pub(crate) use rank_select::popcount_range;
 pub use rank_select::{
     BaseCode, RankSelectCheckpoint, RankSelectIndex, ALPHABET_SIZE, CHECKPOINT_STRIDE,
 };
 pub use sampled_sa::SampledSuffixArray;
+pub(crate) use sampled_sa::RANK_STRIDE;
 pub use sort::sort_bam_deterministic;
 pub use types::{AlignedRead, CigarOp, CigarOpKind};
