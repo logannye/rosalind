@@ -396,6 +396,11 @@ impl IndexReader {
         validate_sections(bytes, &sections)?;
         let contigs = read_contigs(bytes, &header, &sections)?;
 
+        // Eagerly validate the FM-index sections (block directory offsets + declared
+        // word-counts) so open() is the single rejection point for corrupt files.
+        // The view is dropped immediately; queries use ReferenceIndex::view().
+        crate::genomics::index::view::FmIndexView::new(bytes, &sections)?;
+
         Ok(ReferenceIndex {
             path,
             header,
@@ -792,6 +797,39 @@ mod tests {
             assert!(end as usize <= bytes.len(), "{kind:?} out of bounds");
         }
         let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn open_rejects_a_corrupt_block_directory() {
+        // A file whose section extents are valid but whose first block-record
+        // offset is corrupt must be rejected at open() — never silently mis-read.
+        let idx = sample_index();
+        let path = temp_path("corrupt-blockdir");
+        IndexWriter::create(&path)
+            .unwrap()
+            .write_genome_index(&idx)
+            .unwrap();
+        let mut bytes = std::fs::read(&path).unwrap();
+
+        // Locate the Blocks section via the parsed section table, then overwrite
+        // the first directory entry (u64 at the section start) with a huge offset.
+        let header = read_header(&bytes).unwrap();
+        let sections = read_section_table(&bytes, &header).unwrap();
+        let blocks = sections
+            .iter()
+            .find(|s| s.kind == SectionKind::Blocks)
+            .expect("blocks section");
+        let dir0 = blocks.offset as usize; // first u64 of the directory
+        bytes[dir0..dir0 + 8].copy_from_slice(&u64::MAX.to_le_bytes());
+
+        let corrupt = temp_path("corrupt-blockdir-bad");
+        std::fs::write(&corrupt, &bytes).unwrap();
+        assert!(
+            IndexReader::open(&corrupt).is_err(),
+            "open must reject a block directory whose record offset is out of bounds"
+        );
+        let _ = std::fs::remove_file(path);
+        let _ = std::fs::remove_file(corrupt);
     }
 
     #[test]

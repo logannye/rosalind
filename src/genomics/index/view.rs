@@ -35,7 +35,6 @@ pub struct FmIndexView<'a> {
 
 #[derive(Debug)]
 struct SampledView<'a> {
-    rate: usize,
     bwt_len: usize,
     marks: &'a [u64],
     superblocks: &'a [u32],
@@ -95,11 +94,17 @@ impl<'a> FmIndexView<'a> {
             ));
         }
         let block_dir = as_u64_slice(&blocks[..dir_bytes])?;
+        validate_block_records(blocks, block_dir)?;
 
         // SaSamples.
         let sa = section_bytes(bytes, sections, SectionKind::SaSamples)?;
         let mut so = 0usize;
         let rate = read_u64(sa, &mut so)? as usize;
+        if rate != sample_rate {
+            return Err(IndexIoError::Invalid(format!(
+                "SaSamples rate {rate} != FmMeta sa_sample_rate {sample_rate}"
+            )));
+        }
         let s_bwt_len = read_u64(sa, &mut so)? as usize;
         let marks_words = read_u64(sa, &mut so)? as usize;
         let sb_len = read_u64(sa, &mut so)? as usize;
@@ -119,7 +124,6 @@ impl<'a> FmIndexView<'a> {
             block_dir,
             blocks,
             sampled: SampledView {
-                rate,
                 bwt_len: s_bwt_len,
                 marks,
                 superblocks,
@@ -316,6 +320,57 @@ impl<'a> GenomeIndexView<'a> {
         loci.sort_unstable();
         loci
     }
+}
+
+/// Validate that every block record (at the directory's offsets) lies fully
+/// within the `Blocks` section, using checked arithmetic so a corrupt word-count
+/// can never overflow into an in-bounds-but-wrong slice. Lets `block()` use
+/// infallible slicing on a file that passed `open()`.
+fn validate_block_records(blocks: &[u8], block_dir: &[u64]) -> Result<(), IndexIoError> {
+    const HEADER: usize = 64; // 8 u64/i64 fields
+    for &rec_off in block_dir {
+        let rec = rec_off as usize;
+        let header_end = rec
+            .checked_add(HEADER)
+            .filter(|&e| e <= blocks.len())
+            .ok_or_else(|| {
+                IndexIoError::Invalid("block record header out of bounds".to_string())
+            })?;
+        // Re-read the four word-count fields (header layout: start,end,sentinel,
+        // stride at [rec..rec+32]; then the 4 counts at [rec+32..rec+64]).
+        let mut o = rec + 32;
+        let bwt_data_words = read_u64(blocks, &mut o)? as usize;
+        let bwt_amb_words = read_u64(blocks, &mut o)? as usize;
+        let occ_bitvec_words = read_u64(blocks, &mut o)? as usize;
+        let occ_superblock_len = read_u64(blocks, &mut o)? as usize;
+        debug_assert_eq!(o, header_end);
+        // Bytes block() touches after the header: bwt_data + bwt_amb + 5×bitvec
+        // (u64) + 5×superblock (u32). (totals/pad are not read by block().)
+        let payload = bwt_data_words
+            .checked_mul(8)
+            .and_then(|x| bwt_amb_words.checked_mul(8).and_then(|y| x.checked_add(y)))
+            .and_then(|x| {
+                occ_bitvec_words
+                    .checked_mul(8)
+                    .and_then(|y| y.checked_mul(5))
+                    .and_then(|y| x.checked_add(y))
+            })
+            .and_then(|x| {
+                occ_superblock_len
+                    .checked_mul(4)
+                    .and_then(|y| y.checked_mul(5))
+                    .and_then(|y| x.checked_add(y))
+            })
+            .ok_or_else(|| IndexIoError::Invalid("block record size overflow".to_string()))?;
+        let rec_end = header_end
+            .checked_add(payload)
+            .filter(|&e| e <= blocks.len())
+            .ok_or_else(|| {
+                IndexIoError::Invalid("block record payload out of bounds".to_string())
+            })?;
+        let _ = rec_end;
+    }
+    Ok(())
 }
 
 /// The bytes of section `kind`.
