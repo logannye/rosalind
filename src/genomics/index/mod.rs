@@ -7,8 +7,10 @@
 
 mod format;
 mod io;
+mod report;
 mod view;
 
 pub use format::IndexHeader;
 pub use io::{IndexReader, IndexWriter, ReferenceIndex};
+pub use report::{estimate_build_working_set, render_plan_line, IndexBuildReport};
 pub use view::{FmIndexView, GenomeIndexView};

@@ -34,7 +34,8 @@ pub use fm_index::{
 };
 pub use genome_index::{GenomeIndex, GenomeIndexError, MAX_GENOME_LEN};
 pub use index::{
-    FmIndexView, GenomeIndexView, IndexHeader, IndexReader, IndexWriter, ReferenceIndex,
+    estimate_build_working_set, render_plan_line, FmIndexView, GenomeIndexView, IndexBuildReport,
+    IndexHeader, IndexReader, IndexWriter, ReferenceIndex,
 };
 pub use io::create_bam_writer;
 pub use pileup::{PileupNode, PileupProcessor, PileupSummary, PileupWorkload};
