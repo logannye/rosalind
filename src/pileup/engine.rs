@@ -7,7 +7,7 @@ use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::Arc;
 
-use crate::core::{allele_index, AlignedRead, CoreError, Locus, Position};
+use crate::core::{allele_index, AlignedRead, CoreError, Locus, Position, WorkingSet};
 use crate::pileup::column::{Obs, PileupColumn};
 use crate::pileup::source::ReadSource;
 
@@ -130,6 +130,19 @@ impl<S: ReadSource> PileupEngine<S> {
     /// Reads skipped so far, by reason. Final after iteration completes.
     pub fn skip_counts(&self) -> SkipCounts {
         self.skips
+    }
+
+    /// Current working-set estimate: bounded by the active read set (local
+    /// coverage), independent of total input size. Foundation for `rosalind plan`.
+    pub fn current_working_set(&self) -> WorkingSet {
+        // Each active read costs roughly its projection map (16 B/entry) plus a
+        // small constant for handles; plus a fixed engine overhead.
+        let active_bytes: u64 = self
+            .active
+            .iter()
+            .map(|r| (r.ref_to_read.len() as u64) * 16 + 64)
+            .sum();
+        WorkingSet { bytes: active_bytes + 256 }
     }
 
     /// Whether the read passes flag/MAPQ filters. (Contig routing and the
@@ -528,5 +541,32 @@ mod tests {
         );
         // All observations dropped → no columns emitted.
         assert!(e.next().is_none());
+    }
+
+    use crate::core::MemoryBudget;
+
+    #[test]
+    fn working_set_is_bounded_by_coverage_not_input_size() {
+        // 50,000 single-base reads tiled across the reference at depth ~1: the
+        // active set (and thus the working set) stays tiny throughout iteration.
+        let reference = vec![b'A'; 50_000];
+        let reads: Vec<AlignedRead> = (0..50_000u32).map(|p| mread(p, b"C", false)).collect();
+        let mut e = PileupEngine::new(
+            SliceSource::new(reads),
+            Arc::from(reference.into_boxed_slice()),
+            0,
+            0..50_000,
+            PileupParams::default(),
+        );
+        let budget = MemoryBudget::from_mb(1);
+        let mut max_ws = 0u64;
+        while let Some(c) = e.next() {
+            let _ = c.unwrap();
+            let ws = e.current_working_set();
+            max_ws = max_ws.max(ws.bytes);
+            assert!(ws.fits(budget), "working set {} exceeded 1 MiB", ws.bytes);
+        }
+        // Sanity: peak working set is far below holding all reads would cost.
+        assert!(max_ws < 64 * 1024, "peak working set unexpectedly large: {max_ws}");
     }
 }
