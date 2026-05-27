@@ -46,8 +46,18 @@ pub fn call_somatic(
     }
     let n_alt = n_counts[alt_idx];
 
-    let t_af = t_alt as f32 / t_depth as f32;
-    let n_af = n_alt as f32 / n_depth as f32;
+    // Guard the divisions (legacy parity + future-proofing if a caller lowers
+    // the min-depth gates): an empty column yields AF 0.0, never NaN.
+    let t_af = if t_depth > 0 {
+        t_alt as f32 / t_depth as f32
+    } else {
+        0.0
+    };
+    let n_af = if n_depth > 0 {
+        n_alt as f32 / n_depth as f32
+    } else {
+        0.0
+    };
     if t_af < params.min_tumor_af || n_af > params.max_normal_af {
         return None;
     }
