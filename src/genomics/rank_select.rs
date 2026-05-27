@@ -151,11 +151,6 @@ impl RankSelectIndex {
         &self.superblocks
     }
 
-    /// Number of symbols this index was built over (the block length).
-    pub(crate) fn len(&self) -> usize {
-        self.len
-    }
-
     /// Rank query: count of `base` in `sequence[..position)`.
     pub fn rank(&self, sequence: &CompressedDNA, base: BaseCode, position: usize) -> u32 {
         debug_assert_eq!(

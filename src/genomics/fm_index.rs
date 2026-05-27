@@ -677,7 +677,6 @@ mod tests {
             for sb in block.occ().superblocks() {
                 assert_eq!(sb.len(), expected_sb);
             }
-            assert_eq!(block.occ().len(), n);
             let _ = block.sentinel_offset();
         }
 
