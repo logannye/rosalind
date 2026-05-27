@@ -10,6 +10,9 @@ use rosalind::genomics::{
     compare_callsets, create_bam_writer, read_vcf_variants, sort_bam_deterministic, AlignedRead,
     BWTAligner, BedIndex, CigarOp, CigarOpKind,
 };
+use rosalind::io::decompress::open_input;
+use rosalind::io::fasta::{FastaReader, FastaRecord};
+use rosalind::io::fastq::{FastqReader, FastqRecord};
 use rosalind::util::rss::peak_rss_bytes;
 use rust_htslib::bam::Read as BamRead;
 use rust_htslib::bam::{
@@ -147,18 +150,6 @@ enum Commands {
 enum OutputFormat {
     Sam,
     Bam,
-}
-
-struct FastaRecord {
-    name: String,
-    sequence: Vec<u8>,
-}
-
-#[derive(Debug, Clone)]
-struct FastqRecord {
-    name: String,
-    sequence: Vec<u8>,
-    qualities: Vec<u8>,
 }
 
 #[derive(Debug, Clone)]
@@ -847,112 +838,36 @@ fn run_variants(
     Ok(())
 }
 
+/// Read a reference FASTA (plain or gzip; `-` = stdin). Phase B1 keeps the
+/// single-contig CLI policy: only the first record is used; additional records
+/// are warned about (multi-contig consumption is a later phase). The streaming
+/// parser itself lives in `io::fasta`.
 fn read_fasta(path: &PathBuf) -> Result<FastaRecord> {
-    let contents = std::fs::read_to_string(path)
-        .with_context(|| format!("failed to open {}", path.display()))?;
-
-    let mut name = None;
-    let mut sequence = String::new();
-
-    for line in contents.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-
-        if trimmed.starts_with('>') {
-            if name.is_some() {
-                eprintln!(
-                    "warning: only the first FASTA record is currently used; ignoring '{}'",
-                    trimmed
-                );
-                break;
-            }
-            let header = trimmed.trim_start_matches('>').trim();
-            let primary_name = header
-                .split_whitespace()
-                .next()
-                .ok_or_else(|| anyhow!("FASTA header '{}' has no name", header))?
-                .to_string();
-            name = Some(primary_name);
-        } else {
-            sequence.push_str(trimmed);
-        }
+    let reader =
+        open_input(path).with_context(|| format!("failed to open {}", path.display()))?;
+    let mut records = FastaReader::new(reader);
+    let first = records
+        .next()
+        .ok_or_else(|| anyhow!("FASTA file {} is missing a record", path.display()))?
+        .with_context(|| format!("failed to parse FASTA {}", path.display()))?;
+    if records.next().is_some() {
+        eprintln!(
+            "warning: {}: only the first FASTA record is currently used; ignoring the rest \
+             (multi-contig lands in a later phase)",
+            path.display()
+        );
     }
-
-    let name = name.ok_or_else(|| anyhow!("FASTA file {} is missing a header", path.display()))?;
-    if sequence.is_empty() {
-        bail!("FASTA record {} has no sequence data", name);
-    }
-
-    Ok(FastaRecord {
-        name,
-        sequence: sequence.to_ascii_uppercase().into_bytes(),
-    })
+    Ok(first)
 }
 
+/// Read a FASTQ file (plain or gzip; `-` = stdin) into a vector of records.
+/// The streaming parser lives in `io::fastq`.
 fn read_fastq(path: &PathBuf) -> Result<Vec<FastqRecord>> {
-    let file = File::open(path)
+    let reader = open_input(path)
         .with_context(|| format!("failed to open FASTQ file {}", path.display()))?;
-    let mut reader = BufReader::new(file).lines();
-    let mut records = Vec::new();
-
-    while let Some(header) = reader.next() {
-        let header = header?;
-        if header.trim().is_empty() {
-            continue;
-        }
-        if !header.starts_with('@') {
-            bail!(
-                "expected FASTQ header starting with '@', got '{}' in {}",
-                header,
-                path.display()
-            );
-        }
-        let header_rest = header[1..].trim();
-        let name = header_rest
-            .split_whitespace()
-            .next()
-            .ok_or_else(|| anyhow!("FASTQ header '{}' has no read name", header))?
-            .to_string();
-
-        let seq_line = reader
-            .next()
-            .ok_or_else(|| anyhow!("unexpected end of FASTQ file while reading {}", name))??;
-        let plus_line = reader
-            .next()
-            .ok_or_else(|| anyhow!("unexpected end of FASTQ file after sequence {}", name))??;
-        if !plus_line.trim().starts_with('+') {
-            bail!(
-                "expected '+' separator after sequence for read {}, found '{}'",
-                name,
-                plus_line
-            );
-        }
-        let qual_line = reader
-            .next()
-            .ok_or_else(|| anyhow!("unexpected end of FASTQ file after '+' for {}", name))??;
-
-        let sequence = seq_line.trim().to_ascii_uppercase().into_bytes();
-        let qualities = qual_line.trim().as_bytes().to_vec();
-
-        if sequence.len() != qualities.len() {
-            bail!(
-                "sequence/quality length mismatch for read {} ({} vs {})",
-                name,
-                sequence.len(),
-                qualities.len()
-            );
-        }
-
-        records.push(FastqRecord {
-            name,
-            sequence,
-            qualities,
-        });
-    }
-
-    Ok(records)
+    FastqReader::new(reader)
+        .collect::<std::result::Result<Vec<_>, _>>()
+        .with_context(|| format!("failed to parse FASTQ {}", path.display()))
 }
 
 fn normalize_read_name(raw: &str) -> String {
