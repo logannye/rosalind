@@ -73,6 +73,13 @@ impl ReferenceIndex {
             &self.contigs,
         ))
     }
+
+    /// Borrow a zero-copy view over the persisted 2-bit reference (`Reference2bit`).
+    pub fn reference_view(
+        &self,
+    ) -> Result<crate::genomics::index::view::ReferenceView<'_>, IndexIoError> {
+        crate::genomics::index::view::ReferenceView::new(self.mmap.as_bytes(), &self.sections)
+    }
 }
 
 /// Writes a new index file.
@@ -833,6 +840,46 @@ mod tests {
         );
         let _ = std::fs::remove_file(path);
         let _ = std::fs::remove_file(corrupt);
+    }
+
+    #[test]
+    fn reference_view_decodes_bytes_identical_to_in_ram() {
+        let idx = sample_index();
+        let path = temp_path("refview");
+        IndexWriter::create(&path)
+            .unwrap()
+            .write_genome_index(&idx)
+            .unwrap();
+        let loaded = IndexReader::open(&path).unwrap();
+        let rv = loaded.reference_view().unwrap();
+        let reference = idx.reference();
+
+        assert_eq!(rv.len(), reference.len());
+        assert!(!rv.is_empty());
+        for i in 0..rv.len() {
+            assert_eq!(rv.base_at(i), reference[i], "base_at mismatch @ {i}");
+        }
+
+        let mut buf = Vec::new();
+        let n = reference.len();
+        for (s, e) in [(0usize, 10usize), (6, 14), (12, 22), (0, n), (n - 3, n + 5)] {
+            rv.decode_window(s, e, &mut buf);
+            assert_eq!(
+                buf.as_slice(),
+                &reference[s..e.min(n)],
+                "decode_window {s}..{e}"
+            );
+        }
+        let _ = std::fs::remove_file(path);
+    }
+
+    #[test]
+    fn reference_view_is_a_small_borrow() {
+        assert!(
+            std::mem::size_of::<crate::genomics::ReferenceView<'_>>() <= 64,
+            "ReferenceView must be a small borrow, got {}",
+            std::mem::size_of::<crate::genomics::ReferenceView<'_>>()
+        );
     }
 
     #[test]

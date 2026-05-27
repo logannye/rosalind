@@ -322,6 +322,83 @@ impl<'a> GenomeIndexView<'a> {
     }
 }
 
+/// A borrowed, zero-copy view over the persisted 2-bit forward reference
+/// (`Reference2bit`). Decodes bases on demand from the mmap — no full-reference
+/// allocation — so consumers (the aligner DP window in B4b, variants' `ref_base`
+/// in B4c) read the reference from the `.idx` alone. Uses **global** (concatenated)
+/// coordinates; `(contig, pos)` mapping stays with `ContigSet`. The little-endian
+/// host requirement is the same as `FmIndexView` (checked in `new`).
+#[derive(Debug)]
+pub struct ReferenceView<'a> {
+    len: usize,
+    /// 2-bit packed bases, 32 per `u64` word (A/C/G/T = 0/1/2/3).
+    data: &'a [u64],
+    /// Ambiguity bits, one per base (a set bit marks `N`).
+    amb: &'a [u64],
+}
+
+impl<'a> ReferenceView<'a> {
+    /// Parse + validate the `Reference2bit` section into a borrowed view.
+    pub(crate) fn new(bytes: &'a [u8], sections: &[SectionEntry]) -> Result<Self, IndexIoError> {
+        if cfg!(target_endian = "big") {
+            return Err(IndexIoError::Invalid(
+                "zero-copy reference view requires a little-endian host".to_string(),
+            ));
+        }
+        let section = section_bytes(bytes, sections, SectionKind::Reference2bit)?;
+        let mut o = 0usize;
+        let len = read_u64(section, &mut o)? as usize;
+        let data_words = read_u64(section, &mut o)? as usize;
+        let amb_words = read_u64(section, &mut o)? as usize;
+        let data = as_u64_slice(slice_exact(section, &mut o, data_words.saturating_mul(8))?)?;
+        let amb = as_u64_slice(slice_exact(section, &mut o, amb_words.saturating_mul(8))?)?;
+        // The slices must cover `len` bases so `base_at` cannot index out of bounds.
+        if data.len().saturating_mul(32) < len || amb.len().saturating_mul(64) < len {
+            return Err(IndexIoError::Invalid(
+                "Reference2bit section too small for the declared length".to_string(),
+            ));
+        }
+        Ok(Self { len, data, amb })
+    }
+
+    /// Number of reference bases.
+    pub fn len(&self) -> usize {
+        self.len
+    }
+
+    /// Whether the reference is empty.
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
+    /// The ASCII base at global position `global`. Mirrors `CompressedDNA::base_at`:
+    /// a set ambiguity bit decodes to `N`, otherwise the 2-bit code maps to A/C/G/T.
+    pub fn base_at(&self, global: usize) -> u8 {
+        debug_assert!(global < self.len, "reference index out of range");
+        if self.amb[global / 64] & (1u64 << (global % 64)) != 0 {
+            return b'N';
+        }
+        let code = ((self.data[global / 32] >> ((global % 32) * 2)) & 0b11) as u8;
+        match code {
+            0 => b'A',
+            1 => b'C',
+            2 => b'G',
+            _ => b'T',
+        }
+    }
+
+    /// Decode `[start, end.min(len))` into `out` (cleared first). `end` is clamped
+    /// to `len`, so an over-range request never panics; `start <= end` is the
+    /// caller's contract. Bounded by the window size — never the whole genome.
+    pub fn decode_window(&self, start: usize, end: usize, out: &mut Vec<u8>) {
+        out.clear();
+        let end = end.min(self.len);
+        for i in start..end {
+            out.push(self.base_at(i));
+        }
+    }
+}
+
 /// Validate that every block record (at the directory's offsets) lies fully
 /// within the `Blocks` section, using checked arithmetic so a corrupt word-count
 /// can never overflow into an in-bounds-but-wrong slice. Lets `block()` use
