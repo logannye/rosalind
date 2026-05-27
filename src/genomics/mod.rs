@@ -15,7 +15,6 @@ mod io;
 mod pileup;
 mod pileup_stream;
 mod rank_select;
-mod somatic;
 mod sort;
 mod suffix_array;
 mod types;
@@ -36,10 +35,6 @@ pub use pileup::{PileupNode, PileupProcessor, PileupSummary, PileupWorkload};
 pub use pileup_stream::BamPileupStream;
 pub use rank_select::{
     BaseCode, RankSelectCheckpoint, RankSelectIndex, ALPHABET_SIZE, CHECKPOINT_STRIDE,
-};
-pub use somatic::{
-    render_somatic_vcf, write_somatic_vcf, SomaticCaller, SomaticCallerConfig, SomaticIndel,
-    SomaticVariant,
 };
 pub use sort::sort_bam_deterministic;
 pub use types::{AlignedRead, CigarOp, CigarOpKind};
