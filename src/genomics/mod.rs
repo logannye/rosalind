@@ -16,6 +16,7 @@ mod io;
 mod pileup;
 mod pileup_stream;
 mod rank_select;
+mod sampled_sa;
 mod sort;
 mod suffix_array;
 mod types;
@@ -38,5 +39,6 @@ pub use pileup_stream::BamPileupStream;
 pub use rank_select::{
     BaseCode, RankSelectCheckpoint, RankSelectIndex, ALPHABET_SIZE, CHECKPOINT_STRIDE,
 };
+pub use sampled_sa::SampledSuffixArray;
 pub use sort::sort_bam_deterministic;
 pub use types::{AlignedRead, CigarOp, CigarOpKind};
