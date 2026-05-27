@@ -10,4 +10,4 @@ pub mod engine;
 
 pub use column::{Obs, PileupColumn};
 pub use source::{ReadSource, SliceSource};
-pub use engine::{PileupParams, SkipCounts};
+pub use engine::{PileupEngine, PileupParams, SkipCounts};
