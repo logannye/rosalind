@@ -1,7 +1,5 @@
 //! The streaming pileup engine: CIGAR-aware, read-filtered, strand-aware,
 //! bounded-memory. Yields one `PileupColumn` per covered reference position.
-//!
-//! (The engine's imports are added in Task 4, alongside the engine itself.)
 
 use std::collections::HashMap;
 use std::ops::Range;
@@ -235,13 +233,18 @@ impl<S: ReadSource> PileupEngine<S> {
 
     /// Build the column at the current cursor from the active set.
     fn build_column(&self) -> PileupColumn {
+        // The cursor starts at region.start and only increments, so this
+        // subtraction cannot underflow.
+        debug_assert!(self.pos >= self.region.start);
         let ref_idx = (self.pos - self.region.start) as usize;
         let ref_base = self.reference.get(ref_idx).copied().unwrap_or(b'N');
         let mut obs = Vec::new();
         for r in &self.active {
             if let Some(&off) = r.ref_to_read.get(&self.pos) {
                 // Forward orientation — read the stored SEQ byte directly. No
-                // complement (this is the reverse-strand fix).
+                // complement (this is the reverse-strand fix). `off` is CIGAR-
+                // derived and not bounds-checked against seq.len() (per the
+                // RefBase contract), so a malformed read folds to N, not a panic.
                 let base = r.seq.get(off).copied().unwrap_or(b'N');
                 let bq = r.qual.get(off).copied().unwrap_or(0);
                 if bq < self.params.min_base_qual {
