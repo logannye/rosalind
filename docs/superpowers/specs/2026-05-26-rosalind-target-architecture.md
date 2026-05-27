@@ -36,6 +36,14 @@ hospital laptops, portable sequencers (MinION in the field), classrooms, and res
 want to *build on* a genomics engine rather than shell out to one. Variant calling is the first
 consumer of the kernel, not the whole product.
 
+**Sharpened core bet (2026-05-27).** The differentiator is made precise: **memory is a declared,
+predictable, never-refusing, verifiable contract across the whole lifecycle**, with the
+square-root-space machinery (Williams 2025 / Cook–Mertz 2024, bound *O(√(t·log log t))*) as the
+**continuous space/time knob** a declared RAM budget selects — beachheaded on **sublinear-space
+index construction**, the one stage where the framework genuinely bites. The research thesis, the
+open problem (time-vs-space), and the intermediate-state-vs-input lens are in
+[`docs/OPEN_PROBLEMS.md`](../../OPEN_PROBLEMS.md).
+
 Non-goals (on purpose, so the promises are airtight): out-accuracy-ing GATK/DeepVariant on
 benchmarks; cloud/cluster-scale orchestration; supporting every exotic format.
 
@@ -162,33 +170,46 @@ we RSS-gate (promise #2), expose to Python (promise #5/embeddable), and let plug
 
 - **Rebuild approach: evolve toward the target** — rewrite the wrong layers; re-home/extend the
   correct tested kernels; each phase lands green; no throwaway of working code.
-- **Theory layer: separate as a feature-gated `theory/` demo**; `ff`/`ark-poly` become optional
-  (`theory = ["dep:ff","dep:ark-poly"]`); decoupled from the genomics core.
+- **Theory layer: KEEP and repurpose as load-bearing (revised 2026-05-27).** The √t / Cook–Mertz
+  machinery (`algebra`/`ledger`/`machine`/`tree`/`space`) becomes the *knob* that realizes the
+  budget-tunable space/time curve — beachheaded on sublinear-space index construction (Phase D; see
+  `docs/OPEN_PROBLEMS.md`). It is **not** feature-gated away, and `ff`/`ark-poly` stay as core deps.
+  (Supersedes the earlier "feature-gate the `theory/` demo" decision.)
 - **Guiding principle for all open design choices:** maximize *unique* value to edge builders —
   the kernel/substrate, memory-as-contract, calibrated honesty, verifiable reproducibility,
   embeddability (§1, §3).
 
 ---
 
-## 9. Sequencing
+## 9. Sequencing (re-derived 2026-05-27 — see `docs/OPEN_PROBLEMS.md`)
 
-1. **Phase A — the kernel + calling vertical + receipt.** `core/` (locus, sequence, record,
-   budget, `PileupColumn`), the public `pileup/` engine, `call/germline` (calibrated GL model)
-   + re-homed `call/somatic`, `io/vcf` (spec-valid), and a **minimal `provenance/` receipt** so
-   the first improved outputs are already verifiable. Detailed in
+Reprioritized around the core contribution — *memory as a declared, predictable, never-refusing,
+verifiable contract*, beachheaded on sublinear-space index construction — and for the builders who
+need that capability first (edge / field / large-/meta-/pan-genome), ahead of generic performance.
+We commit to the optimal end-state rather than shippable intermediates. (The practical pillars B and
+C stand alone; D lands the space-complexity headline on top, de-risking the research bet.)
+
+1. **Phase A — kernel + calling vertical + receipt.** ✅ Done. Detailed in
    `2026-05-26-phase-a-unified-pileup-genotype-design.md`.
-2. **Phase B — make it real on a genome.** Index persistence (build-once → mmap), multi-contig,
-   streaming/gzip/multi-record ingestion, pipe-native composition.
-3. **Phase D — fast & honest, memory-as-contract.** rayon (deterministic), `.csi` region
-   `fetch`, **real RSS gates + `rosalind plan`** (budget envelope) + `rosalind verify` (receipt
-   check), honest memory docs.
-4. **Phase C — scoped calling.** Germline indels, richer read QC (mate-overlap dedup,
-   strand-bias filter, BQ/BAQ), long-read calling refinements.
-5. **Phase P — Python substrate binding.** Expose the `PileupColumn` stream + index/align/call
-   to Python with type stubs, pytest, and a wheel matrix (manylinux/macOS/aarch64). Sequenced
-   right after the engine API stabilizes (after A/B).
-6. **Phase E — interleaved.** Theory separation (§8), CI hardening (clippy `-D warnings`,
-   bcftools validation, wheels), README-honesty pass.
+2. **Phase B — genome-scale kernel.** Zero-copy persisted lean multi-contig index (build-once →
+   mmap), wired consumers, whole-genome pileup, pipe-native; lay the `MemoryBudget` /
+   space-accounting hooks. (B1 streaming readers + B2 multi-contig FM-index ✅ done; B3 zero-copy
+   persistence + B4 wiring remain.) Detailed in `2026-05-27-phase-b-genome-scale-design.md`.
+3. **Phase C — memory as a verifiable contract.** Declared `MemoryBudget` across every streaming
+   stage + mmap-query; `rosalind plan` (envelope + space/time curve); honor-or-refuse + graceful
+   degradation; **real RSS gates** in CI; deterministic (thread-count-invariant) execution +
+   receipts + `rosalind verify`.
+4. **Phase D — sublinear-space index construction (beachhead).** The √t-family knob: build the index
+   under the declared budget across the full curve (in-RAM-fast → checkpointed √(n·log log n) →
+   external-memory spill), time overhead characterized; theory layer load-bearing; erases the
+   O(reference) build-RAM caveat. The headline space-complexity contribution.
+5. **Phase E — reach + substrate.** Fast deterministic-parallel aligner + germline indels + richer
+   read QC; the Python/tensor **pileup-feature substrate** + pluggable models; rigorous eval +
+   calibration validation + the open-problems benchmark. (Deterministic-parallel *execution* is part
+   of C's contract; aligner-*algorithm* quality + micro-optimization are E.)
+
+The open research problem and the intermediate-state-vs-input lens that order these phases are in
+[`docs/OPEN_PROBLEMS.md`](../../OPEN_PROBLEMS.md).
 
 ---
 
