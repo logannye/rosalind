@@ -7,16 +7,15 @@ use std::time::Instant;
 use anyhow::{anyhow, bail, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use rosalind::genomics::{
-    create_bam_writer, write_vcf, AlignedRead, BWTAligner, CigarOp, CigarOpKind,
-    sort_bam_deterministic, SomaticCaller, SomaticCallerConfig, SomaticIndel, SomaticVariant,
-    StreamingVariantCaller,
-    BedIndex, compare_callsets, read_vcf_variants,
+    compare_callsets, create_bam_writer, read_vcf_variants, sort_bam_deterministic, write_vcf,
+    AlignedRead, BWTAligner, BedIndex, CigarOp, CigarOpKind, SomaticCaller, SomaticCallerConfig,
+    SomaticIndel, SomaticVariant, StreamingVariantCaller,
 };
 use rosalind::util::rss::peak_rss_bytes;
+use rust_htslib::bam::Read as BamRead;
 use rust_htslib::bam::{
     self, record::Aux, record::Cigar as BamCigar, record::CigarString, record::Record,
 };
-use rust_htslib::bam::Read as BamRead;
 
 #[derive(Parser, Debug)]
 #[command(name = "rosalind", about = "Genomic analysis engine using O(√t) space")]
@@ -247,16 +246,8 @@ fn main() -> Result<()> {
             memory_mb,
         } => {
             run_somatic(
-                reference,
-                tumor,
-                tumor_r1,
-                tumor_r2,
-                normal,
-                normal_r1,
-                normal_r2,
-                output,
-                workdir,
-                memory_mb,
+                reference, tumor, tumor_r1, tumor_r2, normal, normal_r1, normal_r2, output,
+                workdir, memory_mb,
             )?;
         }
         Commands::EvalSomatic {
@@ -349,8 +340,9 @@ fn run_somatic(
     // Align tumor reads.
     let start_align_tumor = Instant::now();
     {
-        let mut writer = create_bam_writer(&tumor_bam, fasta.name.as_str(), fasta.sequence.len())
-            .with_context(|| format!("failed to create tumor BAM {}", tumor_bam.display()))?;
+        let mut writer =
+            create_bam_writer(&tumor_bam, fasta.name.as_str(), fasta.sequence.len())
+                .with_context(|| format!("failed to create tumor BAM {}", tumor_bam.display()))?;
         let mut aligner = BWTAligner::new(&reference)?;
 
         match resolve_reads(
@@ -494,10 +486,7 @@ fn write_combined_somatic_vcf(
             v.alternate.clone(),
             v.quality,
             v.filter,
-            format!(
-                "TSUP={};NSUP={}",
-                v.tumor_support, v.normal_support
-            ),
+            format!("TSUP={};NSUP={}", v.tumor_support, v.normal_support),
         ));
     }
 
@@ -514,12 +503,30 @@ fn write_combined_somatic_vcf(
 
     writeln!(writer, "##fileformat=VCFv4.3")?;
     writeln!(writer, "##source=Rosalind")?;
-    writeln!(writer, "##INFO=<ID=DP_T,Number=1,Type=Integer,Description=\"Tumor depth\">")?;
-    writeln!(writer, "##INFO=<ID=DP_N,Number=1,Type=Integer,Description=\"Normal depth\">")?;
-    writeln!(writer, "##INFO=<ID=AF_T,Number=1,Type=Float,Description=\"Tumor alt allele fraction\">")?;
-    writeln!(writer, "##INFO=<ID=AF_N,Number=1,Type=Float,Description=\"Normal alt allele fraction\">")?;
-    writeln!(writer, "##INFO=<ID=TSUP,Number=1,Type=Integer,Description=\"Tumor indel supporting reads\">")?;
-    writeln!(writer, "##INFO=<ID=NSUP,Number=1,Type=Integer,Description=\"Normal indel supporting reads\">")?;
+    writeln!(
+        writer,
+        "##INFO=<ID=DP_T,Number=1,Type=Integer,Description=\"Tumor depth\">"
+    )?;
+    writeln!(
+        writer,
+        "##INFO=<ID=DP_N,Number=1,Type=Integer,Description=\"Normal depth\">"
+    )?;
+    writeln!(
+        writer,
+        "##INFO=<ID=AF_T,Number=1,Type=Float,Description=\"Tumor alt allele fraction\">"
+    )?;
+    writeln!(
+        writer,
+        "##INFO=<ID=AF_N,Number=1,Type=Float,Description=\"Normal alt allele fraction\">"
+    )?;
+    writeln!(
+        writer,
+        "##INFO=<ID=TSUP,Number=1,Type=Integer,Description=\"Tumor indel supporting reads\">"
+    )?;
+    writeln!(
+        writer,
+        "##INFO=<ID=NSUP,Number=1,Type=Integer,Description=\"Normal indel supporting reads\">"
+    )?;
     writeln!(writer, "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO")?;
 
     for (chrom, pos0, ref_allele, alt_allele, qual, filter, info) in records {
@@ -603,13 +610,14 @@ fn run_align(
 
     match reads {
         ResolvedReads::Single(records) => {
-            let alignments =
-                align_reads(&mut aligner, &records, max_mismatches).context("aligning reads failed")?;
+            let alignments = align_reads(&mut aligner, &records, max_mismatches)
+                .context("aligning reads failed")?;
             match format {
                 OutputFormat::Sam => {
                     if let Some(path) = output {
-                        let file = File::create(&path)
-                            .with_context(|| format!("failed to create SAM file {}", path.display()))?;
+                        let file = File::create(&path).with_context(|| {
+                            format!("failed to create SAM file {}", path.display())
+                        })?;
                         let mut writer = io::BufWriter::new(file);
                         write_sam_alignments(
                             &mut writer,
@@ -637,19 +645,22 @@ fn run_align(
                         anyhow!("--output <FILE> must be provided when writing BAM output")
                     })?;
                     let mut writer = create_bam_writer(&path, &fasta.name, fasta.sequence.len())
-                        .with_context(|| format!("failed to create BAM writer for {}", path.display()))?;
+                        .with_context(|| {
+                            format!("failed to create BAM writer for {}", path.display())
+                        })?;
                     write_bam_alignments(&mut writer, reference_offset, &records, &alignments)?;
                 }
             }
         }
         ResolvedReads::Paired(pairs) => {
-            let alignments =
-                align_pairs(&mut aligner, &pairs, max_mismatches).context("aligning reads failed")?;
+            let alignments = align_pairs(&mut aligner, &pairs, max_mismatches)
+                .context("aligning reads failed")?;
             match format {
                 OutputFormat::Sam => {
                     if let Some(path) = output {
-                        let file = File::create(&path)
-                            .with_context(|| format!("failed to create SAM file {}", path.display()))?;
+                        let file = File::create(&path).with_context(|| {
+                            format!("failed to create SAM file {}", path.display())
+                        })?;
                         let mut writer = io::BufWriter::new(file);
                         write_sam_alignments_paired(
                             &mut writer,
@@ -677,8 +688,15 @@ fn run_align(
                         anyhow!("--output <FILE> must be provided when writing BAM output")
                     })?;
                     let mut writer = create_bam_writer(&path, &fasta.name, fasta.sequence.len())
-                        .with_context(|| format!("failed to create BAM writer for {}", path.display()))?;
-                    write_bam_alignments_paired(&mut writer, reference_offset, &pairs, &alignments)?;
+                        .with_context(|| {
+                            format!("failed to create BAM writer for {}", path.display())
+                        })?;
+                    write_bam_alignments_paired(
+                        &mut writer,
+                        reference_offset,
+                        &pairs,
+                        &alignments,
+                    )?;
                 }
             }
         }
@@ -709,7 +727,9 @@ fn align_reads(
                         Some(aligner.fm_index().sa_at(alignment.interval.lower as usize))
                     }
                 })
-                .ok_or_else(|| anyhow!("alignment reported candidates but no position could be located"))?;
+                .ok_or_else(|| {
+                    anyhow!("alignment reported candidates but no position could be located")
+                })?;
             results.push(Some(AlignmentCandidate {
                 position,
                 mismatches: alignment.mismatches,
@@ -755,7 +775,9 @@ fn align_pairs(
                             Some(aligner.fm_index().sa_at(a1.interval.lower as usize))
                         }
                     })
-                    .ok_or_else(|| anyhow!("alignment reported candidates but no position could be located"))?,
+                    .ok_or_else(|| {
+                        anyhow!("alignment reported candidates but no position could be located")
+                    })?,
                 mismatches: a1.mismatches,
                 mapq: a1.mapq,
                 is_reverse: a1.is_reverse,
@@ -779,7 +801,9 @@ fn align_pairs(
                             Some(aligner.fm_index().sa_at(a2.interval.lower as usize))
                         }
                     })
-                    .ok_or_else(|| anyhow!("alignment reported candidates but no position could be located"))?,
+                    .ok_or_else(|| {
+                        anyhow!("alignment reported candidates but no position could be located")
+                    })?,
                 mismatches: a2.mismatches,
                 mapq: a2.mapq,
                 is_reverse: a2.is_reverse,
@@ -984,10 +1008,10 @@ fn normalize_read_name(raw: &str) -> String {
 }
 
 fn read_fastq_pairs(r1: &PathBuf, r2: &PathBuf) -> Result<Vec<FastqPair>> {
-    let mut r1_records = read_fastq(r1)
-        .with_context(|| format!("failed to read FASTQ R1 from {}", r1.display()))?;
-    let mut r2_records = read_fastq(r2)
-        .with_context(|| format!("failed to read FASTQ R2 from {}", r2.display()))?;
+    let mut r1_records =
+        read_fastq(r1).with_context(|| format!("failed to read FASTQ R1 from {}", r1.display()))?;
+    let mut r2_records =
+        read_fastq(r2).with_context(|| format!("failed to read FASTQ R2 from {}", r2.display()))?;
 
     if r1_records.len() != r2_records.len() {
         bail!(
@@ -1126,8 +1150,24 @@ fn write_sam_alignments_paired<W: Write>(
     }
 
     for (pair, (a1, a2)) in reads.iter().zip(alignments.iter()) {
-        write_one_sam_mate(writer, reference_name, reference_offset, &pair.r1, a1, a2, true)?;
-        write_one_sam_mate(writer, reference_name, reference_offset, &pair.r2, a2, a1, false)?;
+        write_one_sam_mate(
+            writer,
+            reference_name,
+            reference_offset,
+            &pair.r1,
+            a1,
+            a2,
+            true,
+        )?;
+        write_one_sam_mate(
+            writer,
+            reference_name,
+            reference_offset,
+            &pair.r2,
+            a2,
+            a1,
+            false,
+        )?;
     }
 
     writer.flush()?;
@@ -1381,7 +1421,11 @@ fn write_one_bam_mate(
     if let Some(m) = mate {
         bam_record.set_mtid(0);
         bam_record.set_mpos((m.position + reference_offset as usize) as i64);
-        bam_record.set_insert_size(compute_tlen(this.as_ref(), mate.as_ref(), record.sequence.len()));
+        bam_record.set_insert_size(compute_tlen(
+            this.as_ref(),
+            mate.as_ref(),
+            record.sequence.len(),
+        ));
     } else {
         bam_record.set_mtid(-1);
         bam_record.set_mpos(-1);
@@ -1503,9 +1547,12 @@ fn read_alignment_file(
     Ok(reads)
 }
 
-fn read_bam_alignment_file(path: &PathBuf, target_chrom: Option<&Arc<str>>) -> Result<Vec<AlignedRead>> {
-    let mut reader =
-        bam::Reader::from_path(path).with_context(|| format!("failed to open BAM {}", path.display()))?;
+fn read_bam_alignment_file(
+    path: &PathBuf,
+    target_chrom: Option<&Arc<str>>,
+) -> Result<Vec<AlignedRead>> {
+    let mut reader = bam::Reader::from_path(path)
+        .with_context(|| format!("failed to open BAM {}", path.display()))?;
     let header = reader.header().to_owned();
 
     let mut reads = Vec::new();

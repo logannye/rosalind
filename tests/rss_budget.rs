@@ -28,5 +28,3 @@ fn rss_peak_is_bounded_for_small_workloads() {
         cap_mb
     );
 }
-
-

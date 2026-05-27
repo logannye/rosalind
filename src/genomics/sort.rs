@@ -17,7 +17,11 @@ use rust_htslib::bam::Read as BamRead;
 ///
 /// - Uses stable sorting within each chunk.
 /// - Uses a deterministic k-way merge across chunk files.
-pub fn sort_bam_deterministic(input: impl AsRef<Path>, output: impl AsRef<Path>, memory_bytes: usize) -> Result<()> {
+pub fn sort_bam_deterministic(
+    input: impl AsRef<Path>,
+    output: impl AsRef<Path>,
+    memory_bytes: usize,
+) -> Result<()> {
     let input = input.as_ref();
     let output = output.as_ref();
 
@@ -40,12 +44,10 @@ pub fn sort_bam_deterministic(input: impl AsRef<Path>, output: impl AsRef<Path>,
     for rec_result in reader.records() {
         let rec = rec_result?;
         // rust-htslib does not expose raw record byte length; approximate.
-        let approx = 128usize
-            + rec.qname().len()
-            + rec.seq_len()
-            + rec.cigar().len() * 8;
+        let approx = 128usize + rec.qname().len() + rec.seq_len() + rec.cigar().len() * 8;
         if !current_chunk.is_empty() && current_bytes + approx > memory_bytes {
-            let chunk_path = spill_chunk(&header, &temp_dir, chunk_paths.len(), &mut current_chunk)?;
+            let chunk_path =
+                spill_chunk(&header, &temp_dir, chunk_paths.len(), &mut current_chunk)?;
             chunk_paths.push(chunk_path);
             current_bytes = 0;
         }
@@ -69,7 +71,12 @@ pub fn sort_bam_deterministic(input: impl AsRef<Path>, output: impl AsRef<Path>,
     Ok(())
 }
 
-fn spill_chunk(header: &bam::Header, dir: &Path, idx: usize, chunk: &mut Vec<Record>) -> Result<PathBuf> {
+fn spill_chunk(
+    header: &bam::Header,
+    dir: &Path,
+    idx: usize,
+    chunk: &mut Vec<Record>,
+) -> Result<PathBuf> {
     chunk.sort_by(|a, b| sort_key_cmp(a, b));
 
     let path = dir.join(format!("{idx:05}.bam"));
@@ -197,5 +204,3 @@ fn sort_key_cmp(a: &Record, b: &Record) -> Ordering {
         .then_with(|| a.is_reverse().cmp(&b.is_reverse()))
         .then_with(|| a.qname().cmp(b.qname()))
 }
-
-

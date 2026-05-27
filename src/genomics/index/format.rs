@@ -154,5 +154,3 @@ pub struct SectionEntry {
 impl SectionEntry {
     pub const FIXED_SIZE: usize = 4 + 8 + 8;
 }
-
-

@@ -94,7 +94,8 @@ impl IndexWriter {
         hasher.update(reference_payload);
         let reference_blake3 = *hasher.finalize().as_bytes();
 
-        let mut header = IndexHeader::new_v1(contigs.len() as u32, sa_sample_rate, reference_blake3);
+        let mut header =
+            IndexHeader::new_v1(contigs.len() as u32, sa_sample_rate, reference_blake3);
 
         // Reserve space for header.
         self.file.seek(SeekFrom::Start(0))?;
@@ -178,8 +179,9 @@ impl IndexReader {
         let header = read_header(bytes)?;
         validate_header(&header)?;
 
-        let version = IndexVersion::from_u16(header.version)
-            .ok_or_else(|| IndexIoError::Invalid(format!("unsupported index version {}", header.version)))?;
+        let version = IndexVersion::from_u16(header.version).ok_or_else(|| {
+            IndexIoError::Invalid(format!("unsupported index version {}", header.version))
+        })?;
         if version != IndexVersion::V1 {
             return Err(IndexIoError::Invalid(format!(
                 "unsupported index version {:?}",
@@ -242,7 +244,9 @@ fn read_contigs(
         .checked_add(contig_section.bytes as usize)
         .ok_or_else(|| IndexIoError::Invalid("contigs section overflow".to_string()))?;
     if end > bytes.len() {
-        return Err(IndexIoError::Invalid("contigs section out of bounds".to_string()));
+        return Err(IndexIoError::Invalid(
+            "contigs section out of bounds".to_string(),
+        ));
     }
 
     let mut contigs = Vec::with_capacity(header.contig_count as usize);
@@ -250,7 +254,9 @@ fn read_contigs(
         let name_len = read_u32(bytes, &mut offset)?;
         let name_len_usize: usize = name_len as usize;
         if offset + name_len_usize > end {
-            return Err(IndexIoError::Invalid("contig name out of bounds".to_string()));
+            return Err(IndexIoError::Invalid(
+                "contig name out of bounds".to_string(),
+            ));
         }
         let name = std::str::from_utf8(&bytes[offset..offset + name_len_usize])
             .map_err(|_| IndexIoError::Invalid("contig name not valid utf-8".to_string()))?
@@ -265,7 +271,9 @@ fn read_contigs(
 
 fn read_header(bytes: &[u8]) -> Result<IndexHeader, IndexIoError> {
     if bytes.len() < IndexHeader::FIXED_SIZE {
-        return Err(IndexIoError::Invalid("file too small for header".to_string()));
+        return Err(IndexIoError::Invalid(
+            "file too small for header".to_string(),
+        ));
     }
     let mut offset = 0usize;
     let mut magic = [0u8; 8];
@@ -331,13 +339,18 @@ fn write_section_table(mut w: impl Write, sections: &[SectionEntry]) -> Result<(
     Ok(())
 }
 
-fn read_section_table(bytes: &[u8], header: &IndexHeader) -> Result<Vec<SectionEntry>, IndexIoError> {
+fn read_section_table(
+    bytes: &[u8],
+    header: &IndexHeader,
+) -> Result<Vec<SectionEntry>, IndexIoError> {
     let mut offset = header.section_table_offset as usize;
     let end = offset
         .checked_add(header.section_table_bytes as usize)
         .ok_or_else(|| IndexIoError::Invalid("section table overflow".to_string()))?;
     if end > bytes.len() {
-        return Err(IndexIoError::Invalid("section table out of bounds".to_string()));
+        return Err(IndexIoError::Invalid(
+            "section table out of bounds".to_string(),
+        ));
     }
     let count = read_u32(bytes, &mut offset)? as usize;
     let mut sections = Vec::with_capacity(count);
@@ -426,10 +439,11 @@ mod tests {
         // Verify checksum matches the reference payload.
         let mut hasher = Hasher::new();
         hasher.update(reference_payload);
-        assert_eq!(*hasher.finalize().as_bytes(), loaded.header.reference_blake3);
+        assert_eq!(
+            *hasher.finalize().as_bytes(),
+            loaded.header.reference_blake3
+        );
 
         let _ = std::fs::remove_file(path);
     }
 }
-
-

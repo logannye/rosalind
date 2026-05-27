@@ -70,5 +70,3 @@ fn somatic_indel_emits_simple_insertion() {
     let _ = std::fs::remove_file(tumor_bam);
     let _ = std::fs::remove_file(normal_bam);
 }
-
-
