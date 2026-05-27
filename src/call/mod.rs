@@ -8,6 +8,6 @@ pub mod somatic;
 pub mod types;
 
 pub use germline::call_germline;
-pub use pipeline::call_germline_region;
+pub use pipeline::{call_germline_region, call_somatic_region};
 pub use somatic::call_somatic;
 pub use types::{Filter, Genotype, GermlineCall, GermlineParams, SomaticCall, SomaticParams};

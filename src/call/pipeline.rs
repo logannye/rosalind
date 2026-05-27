@@ -5,9 +5,9 @@
 use std::ops::Range;
 use std::sync::Arc;
 
-use crate::call::{call_germline, GermlineCall, GermlineParams};
+use crate::call::{call_germline, call_somatic, GermlineCall, GermlineParams, SomaticCall, SomaticParams};
 use crate::core::{CoreError, Locus};
-use crate::pileup::{PileupEngine, PileupParams, ReadSource};
+use crate::pileup::{PileupColumn, PileupEngine, PileupParams, ReadSource};
 
 /// Call germline variants across `region` of `contig`. Returns one entry per
 /// emitted site as `(locus, ref_base, call)`; the caller pairs these into VCF
@@ -31,10 +31,46 @@ pub fn call_germline_region<S: ReadSource>(
     Ok(out)
 }
 
+/// Call somatic SNVs by co-walking a tumor and a normal pileup over `region` of
+/// `contig`. A call is attempted only at positions covered in BOTH samples
+/// (a somatic call needs a normal baseline). Returns `(locus, call)` per emitted
+/// site. Collects both column streams first (bounded by region; a bounded-memory
+/// streaming co-walk is Phase-D work alongside `.csi` fetch).
+pub fn call_somatic_region<T: ReadSource, N: ReadSource>(
+    tumor: T,
+    normal: N,
+    reference: Arc<[u8]>,
+    contig: u32,
+    region: Range<u32>,
+    pileup_params: PileupParams,
+    somatic_params: &SomaticParams,
+) -> Result<Vec<(Locus, SomaticCall)>, CoreError> {
+    let tumor_cols: Vec<PileupColumn> =
+        PileupEngine::new(tumor, Arc::clone(&reference), contig, region.clone(), pileup_params.clone())
+            .collect::<Result<_, _>>()?;
+    let normal_cols: Vec<PileupColumn> =
+        PileupEngine::new(normal, reference, contig, region, pileup_params).collect::<Result<_, _>>()?;
+
+    // Merge-join by position (both streams are ascending in `pos`).
+    let mut out = Vec::new();
+    let mut n = 0usize;
+    for t in &tumor_cols {
+        while n < normal_cols.len() && normal_cols[n].locus.pos < t.locus.pos {
+            n += 1;
+        }
+        if n < normal_cols.len() && normal_cols[n].locus.pos == t.locus.pos {
+            if let Some(call) = call_somatic(t, &normal_cols[n], somatic_params) {
+                out.push((t.locus, call));
+            }
+        }
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::call::Genotype;
+    use crate::call::{Genotype, SomaticParams};
     use crate::core::{AlignedRead, CigarOp, CigarOpKind, Position, SamFlags};
     use crate::pileup::SliceSource;
 
@@ -105,5 +141,41 @@ mod tests {
         )
         .unwrap();
         assert!(calls.is_empty());
+    }
+
+    #[test]
+    fn calls_a_somatic_snv_from_tumor_normal_cowalk() {
+        // Reference AAAA. At position 1: tumor has C (alt) in 6/12 reads; normal is
+        // all A. Expect one somatic SNV at pos 1, alt C.
+        let reference: Arc<[u8]> = Arc::from(b"AAAA".to_vec().into_boxed_slice());
+        let tumor: Vec<AlignedRead> = (0..6)
+            .map(|_| read(0, b"ACAA", false))
+            .chain((0..6).map(|_| read(0, b"AAAA", false)))
+            .collect();
+        let normal: Vec<AlignedRead> = (0..12).map(|_| read(0, b"AAAA", false)).collect();
+        let params = SomaticParams {
+            min_tumor_depth: 4,
+            min_normal_depth: 4,
+            min_tumor_af: 0.1,
+            max_normal_af: 0.05,
+            min_quality: 0.0,
+            seq_error_rate: 1e-3,
+        };
+        let calls = call_somatic_region(
+            SliceSource::new(tumor),
+            SliceSource::new(normal),
+            reference,
+            0,
+            0..4,
+            PileupParams::default(),
+            &params,
+        )
+        .unwrap();
+        assert_eq!(calls.len(), 1);
+        let (locus, call) = &calls[0];
+        assert_eq!(locus.pos, Position(1));
+        assert_eq!(call.ref_base, b'A');
+        assert_eq!(call.alt_base, b'C');
+        assert_eq!(call.normal_alt, 0);
     }
 }
