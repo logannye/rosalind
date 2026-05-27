@@ -152,8 +152,7 @@ mod tests {
         let mut t = reads(0, 10);
         t.extend(reads(1, 10));
         let n = reads(0, 20);
-        let call =
-            call_somatic(&col(b'A', &t), &col(b'A', &n), &SomaticParams::default()).unwrap();
+        let call = call_somatic(&col(b'A', &t), &col(b'A', &n), &SomaticParams::default()).unwrap();
         assert_eq!(call.alt_base, b'C');
         assert_eq!(call.tumor_alt, 10);
         assert_eq!(call.normal_alt, 0);

@@ -8,6 +8,4 @@ pub mod types;
 
 pub use germline::call_germline;
 pub use somatic::call_somatic;
-pub use types::{
-    Filter, GermlineCall, GermlineParams, Genotype, SomaticCall, SomaticParams,
-};
+pub use types::{Filter, Genotype, GermlineCall, GermlineParams, SomaticCall, SomaticParams};

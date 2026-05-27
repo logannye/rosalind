@@ -2,7 +2,7 @@
 //! error integrated into [0/0, 0/1, 1/1] log-likelihoods, then a prior, then a
 //! calibrated, abstention-aware call.
 
-use crate::call::types::{Filter, GermlineCall, GermlineParams, Genotype, ACGT};
+use crate::call::types::{Filter, Genotype, GermlineCall, GermlineParams, ACGT};
 use crate::core::allele_index;
 use crate::pileup::PileupColumn;
 
@@ -73,11 +73,7 @@ pub fn call_germline(column: &PileupColumn, params: &GermlineParams) -> Option<G
     let sl = site_likelihoods(column)?;
 
     let theta = params.heterozygosity;
-    let log_prior = [
-        (1.0 - 1.5 * theta).ln(),
-        theta.ln(),
-        (theta / 2.0).ln(),
-    ];
+    let log_prior = [(1.0 - 1.5 * theta).ln(), theta.ln(), (theta / 2.0).ln()];
     let log_post = [
         sl.log_l[0] + log_prior[0],
         sl.log_l[1] + log_prior[1],
