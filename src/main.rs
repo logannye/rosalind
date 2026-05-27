@@ -52,7 +52,8 @@ enum Commands {
         #[arg(short, long)]
         output: Option<PathBuf>,
     },
-    /// Call variants from aligned reads using the streaming variant caller.
+    /// Call germline variants from aligned reads (streaming pileup engine +
+    /// calibrated, abstention-aware genotype-likelihood caller).
     Variants {
         /// Reference genome (FASTA).
         #[arg(long)]
@@ -72,8 +73,9 @@ enum Commands {
         /// Optional VCF output path (stdout if omitted).
         #[arg(short, long)]
         output: Option<PathBuf>,
-        /// Bases per block for streaming evaluation.
-        #[arg(long, default_value_t = 1024)]
+        /// Deprecated and ignored: the engine streams without fixed blocks.
+        /// Accepted for backward compatibility.
+        #[arg(long, default_value_t = 1024, hide = true)]
         block_size: usize,
         /// Minimum quality threshold for reporting variants.
         #[arg(long, default_value_t = 10.0)]
