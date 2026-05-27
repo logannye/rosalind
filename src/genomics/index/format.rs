@@ -124,12 +124,21 @@ fn hex32(bytes: &[u8; 32]) -> String {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[repr(u32)]
 pub enum SectionKind {
-    /// Contig metadata table.
+    /// Contig metadata table (`name_len:u32, name, length:u64, global_offset:u64`).
     Contigs = 1,
-    /// Reference payload (v1 stores raw uppercase ASCII).
+    /// Reserved: the v1 scaffold's raw uppercase-ASCII reference (unused by the
+    /// B3b writer, which stores `Reference2bit`).
     Reference = 2,
-    /// Sampled suffix array payload (may be empty in early versions).
+    /// Compact sampled suffix array (`rate, bwt_len, lengths, marks, superblocks, values`).
     SaSamples = 3,
+    /// The 2-bit forward reference (`CompressedDNA`) — self-contained ref-base lookups (B4).
+    Reference2bit = 4,
+    /// FM-index scalar metadata (`block_size, bwt_len, sentinel_pos, sa_sample_rate, num_blocks, c_table`).
+    FmMeta = 5,
+    /// Block-boundary cumulative counts (`num_blocks + 1` entries of `[u32;5] + u32`).
+    Boundaries = 6,
+    /// Per-block BWT + occ payloads (directory of offsets, then block records).
+    Blocks = 7,
 }
 
 impl SectionKind {
@@ -138,6 +147,10 @@ impl SectionKind {
             1 => Some(SectionKind::Contigs),
             2 => Some(SectionKind::Reference),
             3 => Some(SectionKind::SaSamples),
+            4 => Some(SectionKind::Reference2bit),
+            5 => Some(SectionKind::FmMeta),
+            6 => Some(SectionKind::Boundaries),
+            7 => Some(SectionKind::Blocks),
             _ => None,
         }
     }
@@ -153,4 +166,27 @@ pub struct SectionEntry {
 
 impl SectionEntry {
     pub const FIXED_SIZE: usize = 4 + 8 + 8;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn section_kind_discriminants_round_trip() {
+        for (raw, kind) in [
+            (1u32, SectionKind::Contigs),
+            (2, SectionKind::Reference),
+            (3, SectionKind::SaSamples),
+            (4, SectionKind::Reference2bit),
+            (5, SectionKind::FmMeta),
+            (6, SectionKind::Boundaries),
+            (7, SectionKind::Blocks),
+        ] {
+            assert_eq!(SectionKind::from_u32(raw), Some(kind));
+            assert_eq!(kind as u32, raw);
+        }
+        assert_eq!(SectionKind::from_u32(8), None);
+        assert_eq!(SectionKind::from_u32(0), None);
+    }
 }
