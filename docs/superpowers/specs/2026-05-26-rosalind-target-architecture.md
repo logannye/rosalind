@@ -38,7 +38,7 @@ consumer of the kernel, not the whole product.
 
 **Sharpened core bet (2026-05-27).** The differentiator is made precise: **memory is a declared,
 predictable, never-refusing, verifiable contract across the whole lifecycle**, with the
-square-root-space machinery (Williams 2025 / Cook–Mertz 2024, bound *O(√(t·log log t))*) as the
+square-root-space machinery (Williams 2025 / Cook–Mertz 2024; bound **~√t**, up to lower-order factors) as the
 **continuous space/time knob** a declared RAM budget selects — beachheaded on **sublinear-space
 index construction**, the one stage where the framework genuinely bites. The research thesis, the
 open problem (time-vs-space), and the intermediate-state-vs-input lens are in
@@ -200,7 +200,7 @@ C stand alone; D lands the space-complexity headline on top, de-risking the rese
    degradation; **real RSS gates** in CI; deterministic (thread-count-invariant) execution +
    receipts + `rosalind verify`.
 4. **Phase D — sublinear-space index construction (beachhead).** The √t-family knob: build the index
-   under the declared budget across the full curve (in-RAM-fast → checkpointed √(n·log log n) →
+   under the declared budget across the full curve (in-RAM-fast → checkpointed ~√n →
    external-memory spill), time overhead characterized; theory layer load-bearing; erases the
    O(reference) build-RAM caveat. The headline space-complexity contribution.
 5. **Phase E — reach + substrate.** Fast deterministic-parallel aligner + germline indels + richer

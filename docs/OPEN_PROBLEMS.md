@@ -28,14 +28,13 @@ where RAM is fixed, swap is death, and an unpredictable OOM at hour 20 of a buil
 
 The enabling machinery is the square-root-space evaluation framework Rosalind is built over
 (Williams 2025, *Simulating Time with Square-Root Space*; Cook–Mertz 2024 tree evaluation). The
-headline is usually written *O(√t)*; the construction here realizes a space bound of
-**O(√(t · log log t))** (a refinement of Williams' *O(√(t log t))*; the "O(√t)" in the code and
-older docs is the simplified label).
+space bound is **~√t** — the square root of the running time, up to lower-order (sub-polynomial)
+factors. (The "O(√t)" in the source headers denotes the same bound.)
 
 The key reframing — and what makes this a *systems* contribution rather than a theory citation —
 is that this is **not a single low-space operating point.** Block-respecting simulation with a
 tunable block size `b` (and checkpoint density) yields a **continuous curve**: from `b = t`
-(standard, fast, O(t) space) through `b = √t` (minimal space ≈ O(√(t · log log t)), more
+(standard, fast, O(t) space) through `b = √t` (minimal space ~√t, more
 recomputation) and onward toward external-memory spill. **A declared RAM budget simply selects the
 point on that curve.** The theory layer's job is to *be the knob.*
 
@@ -43,7 +42,7 @@ point on that curve.** The theory layer's job is to *be the knob.*
 
 The Williams/Cook–Mertz result is a **space** upper bound that, in the general simulation, **buys
 space by spending time** (recomputation). So the real research question is not "can we hit
-√(t·log log t) space" — it is:
+~√t space" — it is:
 
 > **For which genomics computations can we realize the full space/time curve with *tolerable time
 > overhead*?** I.e., where is the trade a small polynomial / modest constant factor rather than a
@@ -131,7 +130,7 @@ D lands the space-complexity headline on top.
   align/call/query/sort.
 - **D — Sublinear-space index construction (beachhead research contribution).** The √t-family knob:
   build the index under the declared budget across the full curve (in-RAM-fast → checkpointed
-  √(n·log log n) → external-memory spill), with the time overhead characterized; makes the theory
+  ~√n → external-memory spill), with the time overhead characterized; makes the theory
   layer load-bearing; erases the O(reference) build-RAM caveat; completes the contract for the build
   step.
 - **E — Reach + substrate.** Fast deterministic-parallel aligner + germline indels + richer read QC
@@ -159,4 +158,4 @@ real data — the point there is memory, not speed.)
 
 - R. R. Williams. *Simulating Time with Square-Root Space.* 2025.
 - J. Cook, I. Mertz. *Tree Evaluation in Sublinear Space* (catalytic / tree-evaluation lineage). 2024.
-- The simplified "O(√t)" framing in the source headers refers to the O(√(t · log log t)) bound above.
+- The "O(√t)" label in the source headers denotes the same ~√t bound (square-root space, up to lower-order factors).
