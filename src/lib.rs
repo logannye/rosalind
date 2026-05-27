@@ -31,6 +31,8 @@
 // Core modules - each implements a key component of the algorithm
 pub mod algebra; // Algebraic replay engine
 pub mod blocking; // Block-respecting simulation
+/// The calling layer: calibrated, abstention-aware variant calls from pileup columns.
+pub mod call;
 /// Core types: the lingua franca shared by every layer (io, index, align, pileup, call).
 pub mod core;
 pub mod framework; // Generic compressed evaluation
