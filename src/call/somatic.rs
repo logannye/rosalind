@@ -30,12 +30,12 @@ pub fn call_somatic(
     // Alt = tumor's most-supported non-reference allele; ties → lowest index.
     let mut alt_idx: Option<usize> = None;
     let mut best = 0u32;
-    for i in 0..4 {
+    for (i, &cnt) in t_counts.iter().enumerate() {
         if i == ref_idx {
             continue;
         }
-        if t_counts[i] > best {
-            best = t_counts[i];
+        if cnt > best {
+            best = cnt;
             alt_idx = Some(i);
         }
     }

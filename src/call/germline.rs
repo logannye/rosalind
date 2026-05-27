@@ -30,12 +30,12 @@ fn site_likelihoods(column: &PileupColumn) -> Option<SiteLikelihoods> {
     // Alt = most-supported non-reference allele; ties → lowest index.
     let mut alt_idx: Option<usize> = None;
     let mut best = 0u32;
-    for i in 0..4 {
+    for (i, &cnt) in counts.iter().enumerate() {
         if i == ref_idx {
             continue;
         }
-        if counts[i] > best {
-            best = counts[i];
+        if cnt > best {
+            best = cnt;
             alt_idx = Some(i);
         }
     }
@@ -90,8 +90,8 @@ pub fn call_germline(column: &PileupColumn, params: &GermlineParams) -> Option<G
     // each capped at 255. Order [0/0, 0/1, 1/1].
     let max_log_l = sl.log_l.iter().copied().fold(f64::NEG_INFINITY, f64::max);
     let mut pl = [0u32; 3];
-    for g in 0..3 {
-        let phred = -10.0 * (sl.log_l[g] - max_log_l) / LN10;
+    for (g, &ll) in sl.log_l.iter().enumerate() {
+        let phred = -10.0 * (ll - max_log_l) / LN10;
         pl[g] = phred.round().min(255.0) as u32;
     }
 
