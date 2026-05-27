@@ -110,7 +110,9 @@ impl BamPileupStream {
         // Pull in new reads whose start <= pos.
         loop {
             self.ensure_next_record_loaded()?;
-            let Some(rec) = self.next_record.take() else { break };
+            let Some(rec) = self.next_record.take() else {
+                break;
+            };
 
             if rec.is_unmapped() || !self.tid_matches(rec.tid()) {
                 // Skip other contigs/unmapped.
@@ -152,9 +154,8 @@ impl BamPileupStream {
             });
 
             // Maintain deterministic iteration order in the active set.
-            self.active.sort_by(|a, b| {
-                a.end.cmp(&b.end).then_with(|| a.start.cmp(&b.start))
-            });
+            self.active
+                .sort_by(|a, b| a.end.cmp(&b.end).then_with(|| a.start.cmp(&b.start)));
 
             self.next_record = None;
         }
@@ -232,5 +233,3 @@ fn is_simple_match_cigar(rec: &bam::Record) -> bool {
         None => false,
     }
 }
-
-

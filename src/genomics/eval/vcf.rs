@@ -112,5 +112,3 @@ fn parse_info(info: &str) -> BTreeMap<String, String> {
     }
     map
 }
-
-

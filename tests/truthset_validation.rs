@@ -119,7 +119,10 @@ fn alignment_truth_exact_matches_map_to_expected_position() {
     for start in 0..(reference.len() - 8) {
         let read = &reference[start..start + 8];
         let res = aligner.align_read(read).unwrap();
-        assert!(res.primary_position.is_some(), "expected mapping for start={start}");
+        assert!(
+            res.primary_position.is_some(),
+            "expected mapping for start={start}"
+        );
         let mapped = res.primary_position.unwrap() as usize;
 
         // This reference is highly repetitive; accept any exact-match location.
@@ -135,5 +138,3 @@ fn alignment_truth_exact_matches_map_to_expected_position() {
         );
     }
 }
-
-

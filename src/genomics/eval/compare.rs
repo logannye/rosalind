@@ -120,5 +120,3 @@ fn variant_type(v: &NormalizedVariant) -> VariantType {
         VariantType::Indel
     }
 }
-
-

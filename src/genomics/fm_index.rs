@@ -1,8 +1,8 @@
+use crate::genomics::suffix_array::{sais_u32, SuffixArrayError};
+use crate::genomics::FMInterval;
 use crate::genomics::{
     BaseCode, CompressedDNA, CompressedDNAError, RankSelectIndex, ALPHABET_SIZE,
 };
-use crate::genomics::suffix_array::{sais_u32, SuffixArrayError};
-use crate::genomics::FMInterval;
 use thiserror::Error;
 
 const SENTINEL_BYTE: u8 = b'$';
@@ -470,7 +470,11 @@ fn build_bwt_and_sa_samples(
 
     for (bwt_idx, &sa_idx_u32) in sa.iter().enumerate() {
         let sa_idx = sa_idx_u32 as usize;
-        let prev = if sa_idx == 0 { text.len() - 1 } else { sa_idx - 1 };
+        let prev = if sa_idx == 0 {
+            text.len() - 1
+        } else {
+            sa_idx - 1
+        };
         let ch = if prev == text.len() - 1 {
             SENTINEL_BYTE
         } else {

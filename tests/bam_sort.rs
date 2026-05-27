@@ -33,7 +33,12 @@ fn deterministic_bam_sort_orders_by_tid_pos_strand_qname() {
         let mut writer = bam::Writer::from_path(&input, &header, bam::Format::Bam).unwrap();
 
         let mut r1 = Record::new();
-        r1.set(b"readB", Some(&CigarString::from(vec![Cigar::Match(4)])), b"ACGT", b"IIII");
+        r1.set(
+            b"readB",
+            Some(&CigarString::from(vec![Cigar::Match(4)])),
+            b"ACGT",
+            b"IIII",
+        );
         r1.set_tid(0);
         r1.set_pos(10);
         r1.set_flags(0);
@@ -41,7 +46,12 @@ fn deterministic_bam_sort_orders_by_tid_pos_strand_qname() {
         writer.write(&r1).unwrap();
 
         let mut r2 = Record::new();
-        r2.set(b"readA", Some(&CigarString::from(vec![Cigar::Match(4)])), b"ACGT", b"IIII");
+        r2.set(
+            b"readA",
+            Some(&CigarString::from(vec![Cigar::Match(4)])),
+            b"ACGT",
+            b"IIII",
+        );
         r2.set_tid(0);
         r2.set_pos(5);
         r2.set_flags(0);
@@ -49,7 +59,12 @@ fn deterministic_bam_sort_orders_by_tid_pos_strand_qname() {
         writer.write(&r2).unwrap();
 
         let mut r3 = Record::new();
-        r3.set(b"readC", Some(&CigarString::from(vec![Cigar::Match(4)])), b"ACGT", b"IIII");
+        r3.set(
+            b"readC",
+            Some(&CigarString::from(vec![Cigar::Match(4)])),
+            b"ACGT",
+            b"IIII",
+        );
         r3.set_tid(0);
         r3.set_pos(10);
         r3.set_flags(0x10); // reverse
@@ -80,5 +95,3 @@ fn deterministic_bam_sort_orders_by_tid_pos_strand_qname() {
     let _ = std::fs::remove_file(input);
     let _ = std::fs::remove_file(output);
 }
-
-

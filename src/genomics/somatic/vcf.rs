@@ -47,5 +47,3 @@ pub fn render_somatic_vcf(variants: &[SomaticVariant]) -> Result<String> {
     write_somatic_vcf(&mut buffer, variants)?;
     String::from_utf8(buffer).map_err(|_| anyhow!("rendered VCF is not valid UTF-8"))
 }
-
-

@@ -36,5 +36,3 @@ chr1\t31\t.\tA\tT\t50\tPASS\t.
     assert!(rep.precision() > 0.0);
     assert!(rep.recall() > 0.0);
 }
-
-

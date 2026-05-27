@@ -33,7 +33,12 @@ fn pileup_stream_counts_depth() {
         let mut writer = bam::Writer::from_path(&input, &header, bam::Format::Bam).unwrap();
 
         let mut r1 = Record::new();
-        r1.set(b"read1", Some(&CigarString::from(vec![Cigar::Match(4)])), b"ACGT", b"IIII");
+        r1.set(
+            b"read1",
+            Some(&CigarString::from(vec![Cigar::Match(4)])),
+            b"ACGT",
+            b"IIII",
+        );
         r1.set_tid(0);
         r1.set_pos(4); // covers 4..8
         r1.set_flags(0);
@@ -41,7 +46,12 @@ fn pileup_stream_counts_depth() {
         writer.write(&r1).unwrap();
 
         let mut r2 = Record::new();
-        r2.set(b"read2", Some(&CigarString::from(vec![Cigar::Match(4)])), b"TTTT", b"IIII");
+        r2.set(
+            b"read2",
+            Some(&CigarString::from(vec![Cigar::Match(4)])),
+            b"TTTT",
+            b"IIII",
+        );
         r2.set_tid(0);
         r2.set_pos(5); // covers 5..9
         r2.set_flags(0);
@@ -70,5 +80,3 @@ fn pileup_stream_counts_depth() {
     let _ = std::fs::remove_file(input);
     let _ = std::fs::remove_file(sorted);
 }
-
-

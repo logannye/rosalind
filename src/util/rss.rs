@@ -26,5 +26,3 @@ pub fn peak_rss_bytes() -> u64 {
         raw
     }
 }
-
-

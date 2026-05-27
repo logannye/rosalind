@@ -275,10 +275,7 @@ fn sais_impl(text: &[u32], max_symbol: u32) -> Vec<u32> {
 
     // Final induced sort using ordered LMS.
     let sa_final = induce_sort(text, max_symbol, &types, &ordered_lms);
-    sa_final
-        .into_iter()
-        .map(|v| v as u32)
-        .collect()
+    sa_final.into_iter().map(|v| v as u32).collect()
 }
 
 #[cfg(test)]
@@ -306,5 +303,3 @@ mod tests {
         assert_eq!(sa, naive_sa(&text));
     }
 }
-
-

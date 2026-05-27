@@ -122,11 +122,8 @@ pub fn banded_affine_align(
                 scores.mismatch_score
             };
 
-            let (best_prev, prev_id) = best3(
-                m_mat[i - 1][j - 1],
-                ix[i - 1][j - 1],
-                iy[i - 1][j - 1],
-            );
+            let (best_prev, prev_id) =
+                best3(m_mat[i - 1][j - 1], ix[i - 1][j - 1], iy[i - 1][j - 1]);
             m_mat[i][j] = best_prev + s;
             tb_m[i][j] = prev_id;
         }
@@ -263,7 +260,12 @@ fn compute_ref_start(
     }
 }
 
-fn compute_nm_md(reference_window: &[u8], read: &[u8], ref_start: usize, cigar: &[CigarOp]) -> (u32, String) {
+fn compute_nm_md(
+    reference_window: &[u8],
+    read: &[u8],
+    ref_start: usize,
+    cigar: &[CigarOp],
+) -> (u32, String) {
     let mut nm: u32 = 0;
     let mut md = String::new();
     let mut match_run: u32 = 0;
@@ -311,5 +313,3 @@ fn compute_nm_md(reference_window: &[u8], read: &[u8], ref_start: usize, cigar: 
     md.push_str(&match_run.to_string());
     (nm, md)
 }
-
-
