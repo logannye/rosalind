@@ -37,6 +37,8 @@ pub mod call;
 pub mod core;
 pub mod framework; // Generic compressed evaluation
 pub mod genomics; // Genomics primitives and algorithms
+/// IO layer: spec-valid VCF writer (FASTA/FASTQ/BAM readers arrive in later phases).
+pub mod io;
 pub mod ledger; // Streaming progress tracking
 pub mod machine; // Turing machine representation
 /// The streaming pileup kernel: one CIGAR-aware, filtered, bounded-memory engine.
