@@ -132,9 +132,26 @@ impl<S: ReadSource> PileupEngine<S> {
         self.skips
     }
 
-    /// Whether the read passes flag/MAPQ filters (contig + unmapped handled in
-    /// `advance_to`). Filtering is implemented in Task 6; here it accepts every read.
-    fn passes_filters(&mut self, _read: &AlignedRead) -> bool {
+    /// Whether the read passes flag/MAPQ filters. (Contig routing and the
+    /// unmapped flag are handled in `advance_to`.)
+    fn passes_filters(&mut self, read: &AlignedRead) -> bool {
+        let f = read.flags;
+        if self.params.skip_secondary && f.is_secondary() {
+            self.skips.secondary += 1;
+            return false;
+        }
+        if self.params.skip_supplementary && f.is_supplementary() {
+            self.skips.supplementary += 1;
+            return false;
+        }
+        if self.params.skip_duplicate && f.is_duplicate() {
+            self.skips.duplicate += 1;
+            return false;
+        }
+        if read.mapq < self.params.min_mapq {
+            self.skips.low_mapq += 1;
+            return false;
+        }
         true
     }
 
@@ -446,5 +463,70 @@ mod tests {
         assert_eq!(cols.first().unwrap().locus.pos.0, 1000);
         assert_eq!(cols.last().unwrap().locus.pos.0, 5999);
         assert!(cols.iter().all(|c| c.allele_counts() == [0, 1, 0, 0]));
+    }
+
+    fn flagged_read(pos: u32, seq: &[u8], flag_bits: u16) -> AlignedRead {
+        let mut r = mread(pos, seq, false);
+        r.flags = SamFlags(flag_bits);
+        r
+    }
+
+    #[test]
+    fn filters_skip_secondary_supplementary_and_duplicate_reads() {
+        let reference = b"AAAAA";
+        let reads = vec![
+            mread(0, b"CCCCC", false),                          // kept
+            flagged_read(0, b"GGGGG", SamFlags::SECONDARY),     // skipped
+            flagged_read(0, b"GGGGG", SamFlags::SUPPLEMENTARY), // skipped
+            flagged_read(0, b"GGGGG", SamFlags::DUPLICATE),     // skipped
+        ];
+        let mut e = engine(reads, reference);
+        let mut cols = Vec::new();
+        while let Some(c) = e.next() {
+            cols.push(c.unwrap());
+        }
+        // Only the kept read's 'C' (allele 1) appears at every position.
+        assert!(cols.iter().all(|c| c.allele_counts() == [0, 1, 0, 0]));
+        let s = e.skip_counts();
+        assert_eq!((s.secondary, s.supplementary, s.duplicate), (1, 1, 1));
+    }
+
+    #[test]
+    fn filters_skip_low_mapq_reads() {
+        let reference = b"AAAAA";
+        let mut low = mread(0, b"GGGGG", false);
+        low.mapq = 3;
+        let reads = vec![mread(0, b"CCCCC", false), low];
+        let params = PileupParams { min_mapq: 10, ..PileupParams::default() };
+        let mut e = PileupEngine::new(
+            SliceSource::new(reads),
+            Arc::from(reference.to_vec().into_boxed_slice()),
+            0,
+            0..5,
+            params,
+        );
+        let mut cols = Vec::new();
+        while let Some(c) = e.next() {
+            cols.push(c.unwrap());
+        }
+        assert!(cols.iter().all(|c| c.allele_counts() == [0, 1, 0, 0]));
+        assert_eq!(e.skip_counts().low_mapq, 1);
+    }
+
+    #[test]
+    fn low_base_quality_observations_are_dropped() {
+        let reference = b"AAAAA";
+        let mut r = mread(0, b"GGGGG", false);
+        r.qual = Arc::from(vec![2u8; 5].into_boxed_slice()); // below the floor
+        let params = PileupParams { min_base_qual: 20, ..PileupParams::default() };
+        let mut e = PileupEngine::new(
+            SliceSource::new(vec![r]),
+            Arc::from(reference.to_vec().into_boxed_slice()),
+            0,
+            0..5,
+            params,
+        );
+        // All observations dropped → no columns emitted.
+        assert!(e.next().is_none());
     }
 }
