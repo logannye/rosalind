@@ -32,10 +32,19 @@ mod tests {
 
     #[test]
     fn budget_exceeded_displays_both_numbers() {
-        let e = CoreError::BudgetExceeded { needed: 4096, budget: 1024 };
+        let e = CoreError::BudgetExceeded {
+            needed: 4096,
+            budget: 1024,
+        };
         let msg = e.to_string();
-        assert!(msg.contains("4096"), "message should report needed bytes: {msg}");
-        assert!(msg.contains("1024"), "message should report budget bytes: {msg}");
+        assert!(
+            msg.contains("4096"),
+            "message should report needed bytes: {msg}"
+        );
+        assert!(
+            msg.contains("1024"),
+            "message should report budget bytes: {msg}"
+        );
     }
 
     #[test]

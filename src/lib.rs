@@ -29,10 +29,10 @@
 #![allow(clippy::new_without_default)]
 
 // Core modules - each implements a key component of the algorithm
-/// Core types: the lingua franca shared by every layer (io, index, align, pileup, call).
-pub mod core;
 pub mod algebra; // Algebraic replay engine
 pub mod blocking; // Block-respecting simulation
+/// Core types: the lingua franca shared by every layer (io, index, align, pileup, call).
+pub mod core;
 pub mod framework; // Generic compressed evaluation
 pub mod genomics; // Genomics primitives and algorithms
 pub mod ledger; // Streaming progress tracking

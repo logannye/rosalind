@@ -31,12 +31,18 @@ pub enum CigarOpKind {
 impl CigarOpKind {
     /// Whether this op consumes reference bases.
     pub fn consumes_ref(self) -> bool {
-        matches!(self, CigarOpKind::Match | CigarOpKind::Deletion | CigarOpKind::RefSkip)
+        matches!(
+            self,
+            CigarOpKind::Match | CigarOpKind::Deletion | CigarOpKind::RefSkip
+        )
     }
 
     /// Whether this op consumes read/query bases.
     pub fn consumes_read(self) -> bool {
-        matches!(self, CigarOpKind::Match | CigarOpKind::Insertion | CigarOpKind::SoftClip)
+        matches!(
+            self,
+            CigarOpKind::Match | CigarOpKind::Insertion | CigarOpKind::SoftClip
+        )
     }
 }
 
@@ -141,7 +147,11 @@ pub struct AlignedRead {
 impl AlignedRead {
     /// Reference bases spanned by the alignment (sum of ref-consuming ops).
     pub fn ref_span(&self) -> u32 {
-        self.cigar.iter().filter(|o| o.kind.consumes_ref()).map(|o| o.len).sum()
+        self.cigar
+            .iter()
+            .filter(|o| o.kind.consumes_ref())
+            .map(|o| o.len)
+            .sum()
     }
 
     /// Half-open reference end coordinate. CIGAR-derived — never `pos + seq_len`.
@@ -167,7 +177,10 @@ impl AlignedRead {
             match op.kind {
                 CigarOpKind::Match => {
                     for _ in 0..op.len {
-                        out.push(RefBase { ref_pos, read_offset: read_off });
+                        out.push(RefBase {
+                            ref_pos,
+                            read_offset: read_off,
+                        });
                         ref_pos += 1;
                         read_off += 1;
                     }
@@ -208,7 +221,15 @@ mod tests {
     #[test]
     fn ref_span_and_end_are_cigar_derived_not_seq_len() {
         // 3M1D2M consumes 6 reference bases from 5 read bases.
-        let r = read(100, vec![op(CigarOpKind::Match, 3), op(CigarOpKind::Deletion, 1), op(CigarOpKind::Match, 2)], b"ACGTT");
+        let r = read(
+            100,
+            vec![
+                op(CigarOpKind::Match, 3),
+                op(CigarOpKind::Deletion, 1),
+                op(CigarOpKind::Match, 2),
+            ],
+            b"ACGTT",
+        );
         assert_eq!(r.ref_span(), 6);
         assert_eq!(r.end(), 106);
     }
@@ -234,19 +255,33 @@ mod tests {
         assert_eq!(
             pairs,
             vec![
-                (50, 2), (51, 3), (52, 4), // first 3M
-                (53, 6), (54, 7),          // 2M after the 1I (read offset skips 5)
-                (56, 8), (57, 9),          // 2M after the 1D (ref skips 55)
+                (50, 2),
+                (51, 3),
+                (52, 4), // first 3M
+                (53, 6),
+                (54, 7), // 2M after the 1I (read offset skips 5)
+                (56, 8),
+                (57, 9), // 2M after the 1D (ref skips 55)
             ]
         );
         // Soft-clipped and inserted read bases never appear in the projection.
-        assert!(!pairs.iter().any(|(_, off)| *off == 0 || *off == 1 || *off == 5));
+        assert!(!pairs
+            .iter()
+            .any(|(_, off)| *off == 0 || *off == 1 || *off == 5));
     }
 
     #[test]
     fn refskip_consumes_reference_only_like_a_long_intron() {
         // 2M 100N 2M (spliced long read): ref advances over the skip, no bases there.
-        let r = read(0, vec![op(CigarOpKind::Match, 2), op(CigarOpKind::RefSkip, 100), op(CigarOpKind::Match, 2)], b"ACGT");
+        let r = read(
+            0,
+            vec![
+                op(CigarOpKind::Match, 2),
+                op(CigarOpKind::RefSkip, 100),
+                op(CigarOpKind::Match, 2),
+            ],
+            b"ACGT",
+        );
         let proj = r.projected_bases();
         assert_eq!(proj.first().unwrap().ref_pos, 0);
         assert_eq!(proj.last().unwrap().ref_pos, 103);
@@ -261,8 +296,20 @@ mod tests {
         let r = read(1000, vec![op(CigarOpKind::Match, 5000)], &seq);
         let proj = r.projected_bases();
         assert_eq!(proj.len(), 5000);
-        assert_eq!(proj[0], RefBase { ref_pos: 1000, read_offset: 0 });
-        assert_eq!(proj[4999], RefBase { ref_pos: 5999, read_offset: 4999 });
+        assert_eq!(
+            proj[0],
+            RefBase {
+                ref_pos: 1000,
+                read_offset: 0
+            }
+        );
+        assert_eq!(
+            proj[4999],
+            RefBase {
+                ref_pos: 5999,
+                read_offset: 4999
+            }
+        );
     }
 
     #[test]
@@ -285,8 +332,20 @@ mod tests {
     #[test]
     fn pad_consumes_neither_ref_nor_read() {
         // 2M 1P 2M — padding advances neither cursor.
-        let r = read(0, vec![op(CigarOpKind::Match, 2), op(CigarOpKind::Pad, 1), op(CigarOpKind::Match, 2)], b"ACGT");
-        let pairs: Vec<(u32, usize)> = r.projected_bases().iter().map(|p| (p.ref_pos, p.read_offset)).collect();
+        let r = read(
+            0,
+            vec![
+                op(CigarOpKind::Match, 2),
+                op(CigarOpKind::Pad, 1),
+                op(CigarOpKind::Match, 2),
+            ],
+            b"ACGT",
+        );
+        let pairs: Vec<(u32, usize)> = r
+            .projected_bases()
+            .iter()
+            .map(|p| (p.ref_pos, p.read_offset))
+            .collect();
         assert_eq!(pairs, vec![(0, 0), (1, 1), (2, 2), (3, 3)]);
         assert_eq!(r.ref_span(), 4);
         assert!(!CigarOpKind::Pad.consumes_ref());

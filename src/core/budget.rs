@@ -12,7 +12,9 @@ pub struct MemoryBudget {
 impl MemoryBudget {
     /// A budget expressed in mebibytes.
     pub fn from_mb(mb: u64) -> Self {
-        Self { bytes: mb.saturating_mul(1024 * 1024) }
+        Self {
+            bytes: mb.saturating_mul(1024 * 1024),
+        }
     }
 
     /// An effectively unbounded budget.
@@ -57,6 +59,9 @@ mod tests {
         assert!(MemoryBudget::unlimited().admits(u64::MAX));
         let ws = WorkingSet { bytes: 512 };
         assert!(ws.fits(MemoryBudget::from_mb(1)));
-        assert!(!WorkingSet { bytes: 5 * 1024 * 1024 }.fits(MemoryBudget::from_mb(1)));
+        assert!(!WorkingSet {
+            bytes: 5 * 1024 * 1024
+        }
+        .fits(MemoryBudget::from_mb(1)));
     }
 }

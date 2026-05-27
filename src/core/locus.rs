@@ -43,7 +43,9 @@ pub struct ContigSet {
 impl ContigSet {
     /// Create an empty contig set.
     pub fn new() -> Self {
-        Self { contigs: Vec::new() }
+        Self {
+            contigs: Vec::new(),
+        }
     }
 
     /// Append a contig, assigning the next id and the running global offset.
@@ -54,7 +56,12 @@ impl ContigSet {
             .contigs
             .last()
             .map_or(0, |c| c.global_offset + c.length as u64);
-        self.contigs.push(Contig { id, name: name.into(), length, global_offset });
+        self.contigs.push(Contig {
+            id,
+            name: name.into(),
+            length,
+            global_offset,
+        });
         id
     }
 
@@ -114,9 +121,18 @@ mod tests {
 
     #[test]
     fn loci_order_by_contig_then_position() {
-        let a = Locus { contig: 0, pos: Position(100) };
-        let b = Locus { contig: 0, pos: Position(200) };
-        let c = Locus { contig: 1, pos: Position(0) };
+        let a = Locus {
+            contig: 0,
+            pos: Position(100),
+        };
+        let b = Locus {
+            contig: 0,
+            pos: Position(200),
+        };
+        let c = Locus {
+            contig: 1,
+            pos: Position(0),
+        };
         assert!(a < b && b < c);
     }
 
