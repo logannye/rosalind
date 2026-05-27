@@ -177,7 +177,9 @@ impl BWTAligner {
             let window_end = (start + read_upper.len() + band).min(self.reference.len());
             if window_start < window_end {
                 let window = &self.reference[window_start..window_end];
-                if let Some(refined) = banded_affine_align(window, &read_upper, band, AffineScores::default()) {
+                if let Some(refined) =
+                    banded_affine_align(window, &read_upper, band, AffineScores::default())
+                {
                     primary_position = Some((window_start + refined.ref_start) as u32);
                     cigar = refined.cigar;
                     nm = refined.nm;

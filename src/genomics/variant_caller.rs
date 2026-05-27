@@ -97,8 +97,10 @@ impl StreamingVariantCaller {
         bam_path: impl AsRef<Path>,
     ) -> Result<Vec<Variant>, VariantCallerError> {
         let region = self.region_start..(self.region_start + self.reference.len() as u32);
-        let mut stream = BamPileupStream::new(bam_path, Arc::clone(&self.chrom), region)
-            .map_err(|e| VariantCallerError::Framework(FrameworkError::processor_failure(e.to_string())))?;
+        let mut stream =
+            BamPileupStream::new(bam_path, Arc::clone(&self.chrom), region).map_err(|e| {
+                VariantCallerError::Framework(FrameworkError::processor_failure(e.to_string()))
+            })?;
 
         let mut out = Vec::new();
         while let Some(node) = stream.next() {

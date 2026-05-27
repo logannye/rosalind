@@ -37,10 +37,21 @@ pub struct NormalizedVariant {
 /// - uppercase alleles
 /// - trim common suffix then prefix (minimal representation)
 /// - best-effort left-alignment for indels within the provided reference slice
-pub fn normalize_variant(reference: &[u8], v: &VcfVariant) -> Result<NormalizedVariant, NormalizeError> {
+pub fn normalize_variant(
+    reference: &[u8],
+    v: &VcfVariant,
+) -> Result<NormalizedVariant, NormalizeError> {
     let mut pos0 = v.pos0;
-    let mut r = v.reference.iter().map(|b| b.to_ascii_uppercase()).collect::<Vec<u8>>();
-    let mut a = v.alternate.iter().map(|b| b.to_ascii_uppercase()).collect::<Vec<u8>>();
+    let mut r = v
+        .reference
+        .iter()
+        .map(|b| b.to_ascii_uppercase())
+        .collect::<Vec<u8>>();
+    let mut a = v
+        .alternate
+        .iter()
+        .map(|b| b.to_ascii_uppercase())
+        .collect::<Vec<u8>>();
 
     if pos0 as usize >= reference.len() {
         return Err(NormalizeError::OutOfBounds {
@@ -123,5 +134,3 @@ fn left_align(
     }
     Ok(())
 }
-
-

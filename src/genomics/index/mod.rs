@@ -10,5 +10,3 @@ mod io;
 
 pub use format::IndexHeader;
 pub use io::{IndexReader, IndexWriter, ReferenceIndex};
-
-

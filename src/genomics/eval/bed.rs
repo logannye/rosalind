@@ -86,7 +86,9 @@ impl BedIndex {
             *intervals = merged;
         }
 
-        Ok(Self { intervals: per_chrom })
+        Ok(Self {
+            intervals: per_chrom,
+        })
     }
 
     /// Returns true if `(chrom, pos0)` is inside any interval.
@@ -107,9 +109,6 @@ impl BedIndex {
             Ok(i) => i,
             Err(i) => i,
         };
-        v.get(idx)
-            .is_some_and(|r| pos0 >= r.start && pos0 < r.end)
+        v.get(idx).is_some_and(|r| pos0 >= r.start && pos0 < r.end)
     }
 }
-
-

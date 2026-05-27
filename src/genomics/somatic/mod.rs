@@ -5,8 +5,6 @@
 mod model;
 mod vcf;
 
-pub use model::{SomaticCaller, SomaticCallerConfig, SomaticVariant};
 pub use model::SomaticIndel;
+pub use model::{SomaticCaller, SomaticCallerConfig, SomaticVariant};
 pub use vcf::{render_somatic_vcf, write_somatic_vcf};
-
-

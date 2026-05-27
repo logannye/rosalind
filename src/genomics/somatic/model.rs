@@ -152,7 +152,9 @@ impl SomaticCaller {
             }
             let ref_base = reference[offset];
 
-            if let Some(call) = self.call_position(&chrom, pos, ref_base, t_node.as_ref(), n_node.as_ref()) {
+            if let Some(call) =
+                self.call_position(&chrom, pos, ref_base, t_node.as_ref(), n_node.as_ref())
+            {
                 out.push(call);
             }
         }
@@ -245,7 +247,11 @@ impl SomaticCaller {
         let n_alt = n_counts[alt_idx];
 
         let t_af = t_alt as f32 / t_depth as f32;
-        let n_af = if n_depth > 0 { n_alt as f32 / n_depth as f32 } else { 0.0 };
+        let n_af = if n_depth > 0 {
+            n_alt as f32 / n_depth as f32
+        } else {
+            0.0
+        };
 
         if t_af < self.cfg.min_tumor_af {
             return None;
@@ -254,7 +260,13 @@ impl SomaticCaller {
             return None;
         }
 
-        let llr = somatic_llr(t_alt, t_depth, n_alt, n_depth, self.cfg.sequencing_error_rate);
+        let llr = somatic_llr(
+            t_alt,
+            t_depth,
+            n_alt,
+            n_depth,
+            self.cfg.sequencing_error_rate,
+        );
         let qual = (llr / std::f64::consts::LN_10 * 10.0).max(0.0).min(200.0) as f32;
         if qual < self.cfg.min_quality {
             return None;
@@ -528,5 +540,3 @@ mod tests {
         assert!(call.is_none());
     }
 }
-
-

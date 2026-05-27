@@ -89,7 +89,8 @@ impl RankSelectIndex {
         let len = sequence.len();
         let word_len = words_for_bits(len);
 
-        let mut bitvectors: [Vec<u64>; ALPHABET_SIZE] = std::array::from_fn(|_| vec![0u64; word_len]);
+        let mut bitvectors: [Vec<u64>; ALPHABET_SIZE] =
+            std::array::from_fn(|_| vec![0u64; word_len]);
         let mut totals = [0u32; ALPHABET_SIZE];
 
         for idx in 0..len {
