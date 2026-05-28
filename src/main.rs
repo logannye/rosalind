@@ -60,16 +60,25 @@ enum Commands {
     /// Call germline variants from aligned reads (streaming pileup engine +
     /// calibrated, abstention-aware genotype-likelihood caller).
     Variants {
-        /// Reference genome (FASTA).
-        #[arg(long)]
-        reference: PathBuf,
-        /// Alignments in SAM format (primary alignments only).
+        /// Persisted index (`rosalind index`); calls all contigs, reference from
+        /// the index. Mutually exclusive with `--reference`.
+        #[arg(
+            long,
+            conflicts_with = "reference",
+            required_unless_present = "reference"
+        )]
+        index: Option<PathBuf>,
+        /// Reference genome (FASTA) — single-contig path. Mutually exclusive with `--index`.
+        #[arg(long, required_unless_present = "index")]
+        reference: Option<PathBuf>,
+        /// Alignments in SAM or BAM format (coordinate-sorted for `--index`).
         #[arg(long)]
         alignments: PathBuf,
-        /// Chromosome name (defaults to the first FASTA record if omitted).
+        /// Chromosome name (single-contig `--reference` path only; defaults to the
+        /// first FASTA record). Not allowed with `--index`.
         #[arg(long)]
         chrom: Option<String>,
-        /// Starting offset (0-based) for the reference region.
+        /// Starting offset (0-based) for the reference region (`--reference` only).
         #[arg(long, default_value_t = 0)]
         region_start: u32,
         /// Minimum MAPQ required for a read to be considered.
@@ -78,13 +87,16 @@ enum Commands {
         /// Optional VCF output path (stdout if omitted).
         #[arg(short, long)]
         output: Option<PathBuf>,
-        /// Deprecated and ignored: the engine streams without fixed blocks.
-        /// Accepted for backward compatibility.
+        /// Deprecated and ignored.
         #[arg(long, default_value_t = 1024, hide = true)]
         block_size: usize,
         /// Minimum quality threshold for reporting variants.
         #[arg(long, default_value_t = 10.0)]
         quality_threshold: f32,
+        /// Declared memory budget (MiB) for the run — records a plan/peak line; does
+        /// not enforce (enforcement is a later phase). (`--index` path.)
+        #[arg(long)]
+        memory_budget_mb: Option<u64>,
     },
     /// Deterministically coordinate-sort a BAM file using bounded memory.
     Sort {
@@ -226,24 +238,43 @@ fn main() -> Result<()> {
             output,
         )?,
         Commands::Variants {
+            index,
             reference,
             alignments,
             chrom,
             region_start,
             mapq_threshold,
             output,
-            block_size,
+            block_size: _,
             quality_threshold,
-        } => run_variants(
-            reference,
-            alignments,
-            chrom,
-            region_start,
-            mapq_threshold,
-            output,
-            block_size,
-            quality_threshold,
-        )?,
+            memory_budget_mb,
+        } => {
+            if let Some(index) = index {
+                if chrom.is_some() || region_start != 0 {
+                    bail!("--chrom/--region-start are not valid with --index (the whole index is called)");
+                }
+                run_variants_index(
+                    index,
+                    alignments,
+                    mapq_threshold,
+                    output,
+                    quality_threshold,
+                    memory_budget_mb,
+                )?
+            } else {
+                let reference = reference.expect("clap guarantees one of --index/--reference");
+                run_variants(
+                    reference,
+                    alignments,
+                    chrom,
+                    region_start,
+                    mapq_threshold,
+                    output,
+                    1024,
+                    quality_threshold,
+                )?
+            }
+        }
         Commands::Sort {
             input,
             output,
@@ -954,6 +985,113 @@ fn run_variants(
         }
     }
 
+    Ok(())
+}
+
+/// Call germline variants across all contigs of a persisted index (B4), reading
+/// the reference from the index and streaming the (coordinate-sorted) BAM.
+fn run_variants_index(
+    index_path: PathBuf,
+    alignments_path: PathBuf,
+    mapq_threshold: u8,
+    output: Option<PathBuf>,
+    quality_threshold: f32,
+    memory_budget_mb: Option<u64>,
+) -> Result<()> {
+    use rosalind::call::{call_germline_whole_genome, GermlineParams};
+    use rosalind::genomics::IndexReader;
+    use rosalind::io::bam::StreamingBamSource;
+    use rosalind::io::vcf::{write_germline_vcf, GermlineRow};
+    use rosalind::pileup::PileupParams;
+    use rosalind::provenance::{blake3_file, write_manifest, FileHash, RunManifest};
+
+    let loaded = IndexReader::open(&index_path)
+        .with_context(|| format!("failed to open index {}", index_path.display()))?;
+    let ref_view = loaded.reference_view().with_context(|| {
+        format!(
+            "failed to read reference from index {}",
+            index_path.display()
+        )
+    })?;
+    let contigs = loaded.contigs();
+
+    let pileup_params = PileupParams {
+        min_mapq: mapq_threshold,
+        ..PileupParams::default()
+    };
+    let germline_params = GermlineParams {
+        min_qual: quality_threshold as f64,
+        ..GermlineParams::default()
+    };
+
+    // `--index` streams a coordinate-sorted BAM (the bounded, multi-contig WGS
+    // path). SAM under `--index` is unsupported — the legacy SAM reader is
+    // single-contig; use a sorted BAM (`rosalind sort`), or `--reference` for
+    // single-contig SAM.
+    let is_bam = alignments_path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.eq_ignore_ascii_case("bam"))
+        .unwrap_or(false);
+    if !is_bam {
+        bail!(
+            "--index requires a coordinate-sorted BAM (use `rosalind sort`); \
+             for single-contig SAM use --reference"
+        );
+    }
+    let source = StreamingBamSource::new(&alignments_path, contigs)
+        .map_err(|e| anyhow!("failed to open BAM {}: {e}", alignments_path.display()))?;
+    let (sites, _max_ws) =
+        call_germline_whole_genome(source, &ref_view, contigs, pileup_params, &germline_params)
+            .map_err(|e| anyhow!("variant calling failed: {e}"))?;
+
+    let rows: Vec<GermlineRow> = sites
+        .into_iter()
+        .map(|(locus, ref_base, call)| GermlineRow {
+            locus,
+            ref_base,
+            call,
+        })
+        .collect();
+
+    match output {
+        Some(path) => {
+            let file = File::create(&path)
+                .with_context(|| format!("failed to create VCF file {}", path.display()))?;
+            let mut writer = io::BufWriter::new(file);
+            write_germline_vcf(&mut writer, contigs, "SAMPLE", &rows)?;
+            writer.flush()?;
+            drop(writer);
+            let mut manifest = RunManifest::new("variants");
+            manifest.inputs.push(FileHash {
+                path: index_path.display().to_string(),
+                blake3: blake3_file(&index_path)?,
+            });
+            manifest.inputs.push(FileHash {
+                path: alignments_path.display().to_string(),
+                blake3: blake3_file(&alignments_path)?,
+            });
+            manifest.outputs.push(FileHash {
+                path: path.display().to_string(),
+                blake3: blake3_file(&path)?,
+            });
+            manifest
+                .params
+                .insert("mapq_threshold".to_string(), mapq_threshold.to_string());
+            manifest.params.insert(
+                "min_qual".to_string(),
+                (quality_threshold as f64).to_string(),
+            );
+            let manifest_path = write_manifest(&path, &manifest)?;
+            eprintln!("wrote reproducibility receipt: {}", manifest_path.display());
+        }
+        None => {
+            let stdout = io::stdout();
+            let mut handle = stdout.lock();
+            write_germline_vcf(&mut handle, contigs, "SAMPLE", &rows)?;
+        }
+    }
+    let _ = memory_budget_mb; // wired in Task 4
     Ok(())
 }
 
