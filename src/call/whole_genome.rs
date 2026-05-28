@@ -159,7 +159,10 @@ mod tests {
             .all(|(l, _, _)| (l.contig as usize) < contigs.len()));
         // Working set was tracked: depth-2 coverage on each contig means the
         // pileup engine held a non-zero active read set at its peak.
-        assert!(ws.bytes > 0, "max working set should be tracked and non-zero");
+        assert!(
+            ws.bytes > 0,
+            "max working set should be tracked and non-zero"
+        );
 
         // Equivalence: union of per-contig call_germline_region over the same reads.
         let mut expected = Vec::new();
