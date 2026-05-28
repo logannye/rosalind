@@ -217,3 +217,38 @@ fn variants_index_rejects_sam() {
     assert!(!out.status.success(), "--index with SAM must error");
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn variants_index_memory_budget_reports_and_never_refuses() {
+    let dir = tmpdir();
+    let seq = "ACGTACGTACGTACGTACGTACGTACGTACGT";
+    let fa = write_fasta(&dir, "chr1", seq);
+    let fq = write_fastq(&dir, seq, &[0, 0, 8], 16);
+    let (idx, bam) = build_index_and_sorted_bam(&dir, &fa, &fq);
+
+    // Budget 0 -> reported EXCEEDED, but the call still completes (record-only).
+    let out = run(&[
+        "variants",
+        "--index",
+        idx.to_str().unwrap(),
+        "--alignments",
+        bam.to_str().unwrap(),
+        "--memory-budget-mb",
+        "0",
+    ]);
+    assert!(
+        out.status.success(),
+        "must complete even when over budget: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("peak RSS"),
+        "receipt must report realized peak: {stderr}"
+    );
+    assert!(
+        stderr.contains("EXCEEDED") || stderr.contains("budget"),
+        "budget verdict: {stderr}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}

@@ -1041,9 +1041,11 @@ fn run_variants_index(
     }
     let source = StreamingBamSource::new(&alignments_path, contigs)
         .map_err(|e| anyhow!("failed to open BAM {}: {e}", alignments_path.display()))?;
-    let (sites, _max_ws) =
+    let (sites, max_ws) =
         call_germline_whole_genome(source, &ref_view, contigs, pileup_params, &germline_params)
             .map_err(|e| anyhow!("variant calling failed: {e}"))?;
+    // Realized peak (monotonic high-water mark) captured after the calling pass.
+    let peak_rss = peak_rss_bytes();
 
     let rows: Vec<GermlineRow> = sites
         .into_iter()
@@ -1082,6 +1084,13 @@ fn run_variants_index(
                 "min_qual".to_string(),
                 (quality_threshold as f64).to_string(),
             );
+            manifest
+                .params
+                .insert("peak_rss_bytes".to_string(), peak_rss.to_string());
+            manifest.params.insert(
+                "max_working_set_bytes".to_string(),
+                max_ws.bytes.to_string(),
+            );
             let manifest_path = write_manifest(&path, &manifest)?;
             eprintln!("wrote reproducibility receipt: {}", manifest_path.display());
         }
@@ -1091,7 +1100,24 @@ fn run_variants_index(
             write_germline_vcf(&mut handle, contigs, "SAMPLE", &rows)?;
         }
     }
-    let _ = memory_budget_mb; // wired in Task 4
+    // Memory receipt: the bounded contract, made visible + verifiable.
+    eprintln!(
+        "memory: peak RSS {} MiB; max pileup working set {} KiB",
+        peak_rss / (1 << 20),
+        max_ws.bytes / 1024
+    );
+    if let Some(mb) = memory_budget_mb {
+        let budget = MemoryBudget::from_mb(mb);
+        if budget.admits(peak_rss) {
+            eprintln!("memory: within budget ({mb} MiB)");
+        } else {
+            eprintln!(
+                "memory: EXCEEDED budget {} MiB (realized peak {} MiB) — record-only, run completed",
+                mb,
+                peak_rss / (1 << 20)
+            );
+        }
+    }
     Ok(())
 }
 
