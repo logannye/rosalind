@@ -1,45 +1,90 @@
 # Rosalind
 
-A deterministic, low-memory genomics engine in Rust for read alignment and variant calling on commodity hardware.
+**A deterministic, low-memory genomics engine in Rust — call variants across a whole genome on a laptop, with memory you can predict and verify, and results that are byte-for-byte reproducible.**
 
-Rosalind streams variant calling over coordinate-sorted alignments with a working set bounded by local read coverage rather than by file size, and emits BAM/VCF that are designed to be bit-for-bit reproducible across runs. It is built to be embedded and extended: a Rust library and CLI you can call directly, add plugins to, or drive from Python.
+Most variant callers use memory that grows with your data, so "will this finish on my machine?" is something you find out the hard way. Rosalind is built around a different promise: **memory as a contract you can see before you commit and verify after the run.** It streams a coordinate-sorted BAM one read at a time, reads the reference from a compact portable index (no second copy of the genome in RAM), keeps its working set proportional to *local read depth* rather than file size, and prints a receipt showing the memory it actually used. Run it twice on the same inputs and you get identical output, bit for bit. And where the evidence is too thin to be sure, it **abstains** instead of guessing.
+
+It's a Rust **library and CLI** you can call directly, extend with plugins, or drive from Python — not a black-box pipeline.
+
+---
+
+## The headline: bounded whole-genome calling from a portable index
+
+You already have an aligner you trust (bwa-mem2, minimap2, or Rosalind's own). Bring Rosalind a **coordinate-sorted BAM** and a **prebuilt index**, and it calls germline variants across **every contig** in bounded, predictable memory:
+
+```bash
+# 1. Build a portable, memory-mappable index of your reference — once.
+rosalind index --reference genome.fa --output genome.idx
+
+# 2. (Align reads with your favorite aligner and coordinate-sort the BAM.)
+#    `rosalind sort` will do the sort deterministically within a memory budget.
+
+# 3. Call germline variants across the WHOLE genome, streaming, bounded.
+rosalind variants \
+  --index genome.idx \
+  --alignments sample.sorted.bam \
+  --memory-budget-mb 4096 \
+  -o sample.vcf
+# ...writes a multi-contig VCF, plus to stderr:
+#   memory: peak RSS 412 MiB; max pileup working set 18 KiB
+#   wrote reproducibility receipt: sample.vcf.manifest.json
+```
+
+What makes this different:
+
+- **Bounded memory, independent of BAM size.** Reads stream one record at a time; peak memory is roughly *the largest contig's reference + the local pileup working set* — not the size of your alignments. A human genome calls comfortably on a laptop.
+- **Self-contained.** The reference comes from the `.idx`; you don't need the original FASTA at call time.
+- **A memory receipt.** Every run reports its realized peak RSS and max pileup working set — to stderr and into a reproducibility manifest. `--memory-budget-mb` flags a run that exceeds your declared budget *(it records the verdict; it does not yet abort — enforcement is on the roadmap)*.
+- **Reproducible + auditable.** Identical inputs produce a byte-identical VCF; a BLAKE3 manifest records the index, the BAM, the output, and the memory used.
 
 ---
 
 ## What it does today
 
-- **Alignment** — Builds a Burrows–Wheeler / FM-index (SA-IS suffix array with blocked rank/select) over a reference contig and aligns reads via exact-match seeding, deterministic diagonal chaining, and banded affine-gap refinement. Emits SAM or BGZF-compressed BAM.
-- **Streaming I/O** — Reads plain or gzip/bgzf-compressed FASTA/FASTQ, auto-detected from the magic bytes; FASTQ can stream from stdin (`-`). Parsing lives in the `io::` layer (`io::fasta`, `io::fastq`).
-- **Coordinate sort** — A deterministic external merge sort (spills to disk) that orders a BAM by position within a configurable memory budget.
-- **Germline variant calling** — Streams a pileup over a coordinate-sorted BAM and calls SNVs to VCF, keeping the in-memory working set proportional to coverage, not to the size of the input.
-- **Somatic (tumor/normal) calling** — Calls somatic SNVs and simple indels from a paired tumor/normal BAM set using a deterministic binomial log-likelihood-ratio model with explicit depth and allele-fraction filters.
-- **Truth-set evaluation** — Compares a call set against a truth VCF over confident regions (BED), with variant normalization (left-align + trim) and precision / recall / F1.
-- **Extensibility** — Implement the `GenomicPlugin` trait to run custom per-block analyses on the same bounded-memory evaluator (an example RNA-seq coverage plugin is included), or call the PyO3 bindings from Python.
-- **Determinism** — Primary artifacts are emitted in a canonical, stable order and are designed to be byte-for-byte identical across repeated runs given identical inputs and configuration. See [`docs/determinism.md`](docs/determinism.md).
+- **Bounded whole-genome germline calling** — `rosalind variants --index` streams a coordinate-sorted BAM over all contigs of a persisted index, calling SNVs to a multi-contig VCF with a working set bounded by coverage. Calls are calibrated and **abstention-aware** (no confident call → no row, rather than a guess).
+- **Build-once, query-many index** — `rosalind index` builds a portable, memory-mapped FM-index over a (multi-contig) reference; `rosalind locate` answers exact-match queries against it in milliseconds. The index is **never rebuilt on load** and is **byte-identical across builds** of the same reference.
+- **Alignment** — `rosalind align` builds a Burrows–Wheeler / FM-index over a reference contig and aligns reads via exact-match seeding, deterministic diagonal chaining, and banded affine-gap refinement. Emits SAM or BGZF-compressed BAM.
+- **Streaming I/O** — Reads plain or gzip/bgzf-compressed FASTA/FASTQ, auto-detected from the magic bytes; FASTQ can stream from stdin (`-`).
+- **Deterministic coordinate sort** — `rosalind sort`: an external merge sort (spills to disk) that orders a BAM by position within a configurable memory budget.
+- **Somatic (tumor/normal) calling** — `rosalind somatic` calls somatic SNVs and simple indels from a paired tumor/normal BAM set using a deterministic binomial log-likelihood-ratio model with explicit depth and allele-fraction filters.
+- **Truth-set evaluation** — `rosalind eval-somatic` compares a call set against a truth VCF over confident regions (BED), with variant normalization (left-align + trim) and precision / recall / F1.
+- **Extensibility** — Implement the `GenomicPlugin` trait to run custom per-block analyses on the same bounded-memory evaluator, or call the PyO3 bindings from Python.
+- **Determinism by design** — Primary artifacts are emitted in a canonical, stable order, byte-for-byte identical across repeated runs given identical inputs. See [`docs/determinism.md`](docs/determinism.md).
 
-## Current scope
+## Why it matters
 
-At the **command line**, Rosalind currently operates on a **single reference contig per run**, reads plain or **gzip/bgzf-compressed** FASTQ/FASTA (auto-detected, including from stdin), and runs **single-threaded**. Variant calling is **single-sample** (germline) or a **tumor/normal pair** (somatic); calling is SNV-focused, with simple indels in the somatic path. Alignment uses exact-match seeding. The FM-index is built in memory at the start of each run (memory proportional to the reference); the bounded-memory property applies to the streaming pileup and variant-calling stages. These boundaries define what the engine targets well today — small-to-moderate references, targeted regions, and per-sample streaming workloads.
+Three properties, treated as first-class guarantees rather than nice-to-haves:
 
-The library also provides a multi-contig FM-index over the concatenated genome (`genomics::GenomeIndex`) that resolves matches to `(contig, position)`; it is exposed via `rosalind index` / `rosalind locate` (wiring multi-contig through `align`/`variants` is a later phase). See the roadmap below.
+1. **Predictable memory.** The bet is that for a growing set of users — sequencing in the field, in the clinic, on a laptop, or at genome scale on modest hardware — *"it fits, and I knew it would"* matters more than raw throughput. Rosalind makes the streaming working set bounded by local coverage and surfaces the realized peak so the bound is **verifiable, not just claimed**.
+2. **Reproducibility.** Byte-identical outputs and a per-run BLAKE3 manifest make results auditable — a hard requirement for clinical and regulated pipelines, and a sanity-saver for everyone else.
+3. **Honest uncertainty.** Calibrated, abstention-aware calling refuses to emit a call where the evidence is insufficient, instead of papering over it.
+
+Under the hood, Rosalind is also a research vehicle for **space-bounded genomics**: a `~√t` (square-root-space) evaluation framework as a continuous space/time knob — trade time for memory along a curve a declared budget selects. That direction (sublinear-space index *construction*, budget *enforcement*, `rosalind plan`/`verify`) is on the roadmap below; the bounded streaming engine you can use today is the practical foundation it builds on.
 
 ## Who it's for
 
-- **Edge, field, and low-resource settings** — sequencing on a laptop or portable device where large servers aren't available and predictable memory matters more than peak throughput.
+- **Edge, field, and low-resource settings** — sequencing on a laptop or portable device where predictable memory matters more than peak throughput.
 - **Reproducibility-sensitive work** — pipelines where byte-identical, auditable outputs are a first-class requirement.
+- **Builders** — anyone who wants a hackable Rust genomics engine to embed, extend with plugins, or drive from Python.
 - **Teaching and learning** — a readable, end-to-end Rust implementation of FM-index alignment, streaming pileup, and variant calling to study, modify, and extend.
-- **Builders** — anyone who wants a hackable Rust genomics engine to embed, extend with plugins, or drive from Python, rather than a black-box pipeline.
-- **Somatic SNV / simple-indel exploration** on small references and targeted regions.
+
+## Current scope (what's single-contig vs. whole-genome today)
+
+- **Whole-genome:** germline variant calling via `rosalind variants --index` (all contigs, streaming, bounded) and exact-match lookup via `rosalind index` / `rosalind locate`.
+- **Single-contig:** Rosalind's own **aligner** (`rosalind align`) and the FASTA-based `variants --reference` path operate on one reference contig per run. For whole-genome calling, align with any standard aligner and bring the coordinate-sorted BAM to `variants --index`. (Wiring the *aligner* onto the persisted multi-contig index is a later phase — see the roadmap.)
+- Variant calling is **single-sample** (germline) or a **tumor/normal pair** (somatic); calling is SNV-focused, with simple indels in the somatic path.
+- The engine runs **single-threaded** today. `--memory-budget-mb` is **record-only** (it reports a verdict but does not yet enforce).
 
 ## Roadmap
 
-The core primitive is a streaming, CIGAR-aware pileup column stream; variant calling and custom plugins consume it.
+The core primitive is a streaming, CIGAR-aware pileup column stream; variant calling and custom plugins consume it. Performance work deliberately *follows* the unique capability — the target user needs "it fits and is predictable" before "it's fastest."
 
-- **Phase A (done):** the streaming pileup engine; calibrated, abstention-aware germline SNV calling; tumor/normal somatic SNV calling; spec-valid VCF output; a BLAKE3 reproducibility receipt per run.
-- **Phase B (in progress):** streaming gzip/bgzf input, a multi-contig FM-index over the concatenated genome (`genomics::GenomeIndex`, with `(contig, position)` resolution and boundary-aware exact-match lookup), and a build-once, memory-mapped index (`rosalind index` to build, `rosalind locate` to query — never rebuilds, byte-identically reproducible) have landed. Next: wiring multi-contig through the `align`/`variants` CLI (whole-genome alignment and calling), and pipe-native composition across subcommands.
-- **Later:** germline indel calling and richer read QC; deterministic multithreading with an enforced memory budget; a Python binding exposing the pileup stream.
+- **Phase A (done):** the streaming pileup engine; calibrated, abstention-aware germline SNV calling; tumor/normal somatic calling; spec-valid VCF; a BLAKE3 reproducibility receipt per run.
+- **Phase B (done):** streaming gzip/bgzf input; a multi-contig FM-index over the concatenated genome with `(contig, position)` resolution; a build-once, memory-mapped, byte-reproducible persisted index (`rosalind index`/`locate`); zero-copy reference access from the index; and **bounded whole-genome germline calling over a sorted BAM** (`rosalind variants --index`) with a realized-memory receipt.
+- **Phase C (next):** memory as an *enforceable* contract — `rosalind plan` (a checkable memory envelope before you commit), budget **enforcement** with graceful degradation (never OOM on a real device), and `rosalind verify`.
+- **Later:** sublinear-space index construction (the `~√t` space/time knob across the full curve); the aligner over the persisted multi-contig index (`align --index`, whole-genome alignment); germline indels and richer read QC; deterministic multithreading; a Python binding over the pileup stream.
 
-Target architecture and per-phase plans: [`docs/superpowers/specs/`](docs/superpowers/specs/), [`docs/superpowers/plans/`](docs/superpowers/plans/).
+Target architecture and per-phase specs/plans live in [`docs/superpowers/specs/`](docs/superpowers/specs/) and [`docs/superpowers/plans/`](docs/superpowers/plans/); the guiding thesis is in [`docs/OPEN_PROBLEMS.md`](docs/OPEN_PROBLEMS.md).
 
 ---
 
@@ -47,7 +92,7 @@ Target architecture and per-phase plans: [`docs/superpowers/specs/`](docs/superp
 
 ### Prerequisites
 - Rust 1.72+ (`rustup` recommended)
-- Native compression headers for BAM output: `libbz2-dev` & `liblzma-dev` on Debian/Ubuntu, `brew install bzip2 xz` on macOS
+- Native compression headers for BAM I/O: `libbz2-dev` & `liblzma-dev` on Debian/Ubuntu, `brew install bzip2 xz` on macOS
 - Python 3.9+ (only for the PyO3 bindings; set `PYO3_PYTHON=/path/to/python` if the default interpreter is unsuitable)
 
 ### Build
@@ -55,7 +100,7 @@ Target architecture and per-phase plans: [`docs/superpowers/specs/`](docs/superp
 git clone https://github.com/logannye/rosalind.git
 cd rosalind
 cargo build --release
-cargo test            # run the full suite
+cargo test              # run the full suite
 cargo run --release -- --help
 ```
 
@@ -74,63 +119,45 @@ python scripts/generate_toy_data.py examples/data/illumina_toy
 
 ## Use it
 
-### Command line
+### Whole-genome germline calling (the flagship path)
 
 ```bash
-# 1. Align FASTQ reads to a reference contig → SAM (stdout) or BAM (to disk)
-cargo run --release -- align \
-  --reference examples/data/ref.fa \
-  --reads examples/data/reads.fastq \
-  --format sam \
-  --max-mismatches 2 > examples/data/alignments.sam
+# Build the index once.
+rosalind index --reference genome.fa --output genome.idx
 
-cargo run --release -- align \
-  --reference examples/data/ref.fa \
-  --reads examples/data/reads.fastq \
-  --format bam \
-  --output examples/data/alignments.bam
-
-# 2. Call germline SNVs from the alignments → VCF (stdout, or --output FILE)
-cargo run --release -- variants \
-  --reference examples/data/ref.fa \
-  --alignments examples/data/alignments.sam \
-  --mapq-threshold 10
+# Call across all contigs from a coordinate-sorted BAM, in bounded memory.
+rosalind variants \
+  --index genome.idx \
+  --alignments sample.sorted.bam \
+  --mapq-threshold 20 \
+  --memory-budget-mb 4096 \
+  -o sample.vcf
 ```
 
-Other subcommands (run `rosalind <subcommand> --help` for exact flags):
+`variants --index` requires a **coordinate-sorted BAM** (use `rosalind sort` or `samtools sort`). It reads the reference from the index — no `--reference` FASTA needed — and writes a multi-contig VCF plus a memory + reproducibility receipt. `--memory-budget-mb` records (does not yet enforce) a verdict against the realized peak.
+
+### Single-contig alignment + calling
+
+```bash
+# Align FASTQ reads to a single reference contig → SAM (stdout) or BAM (to disk).
+rosalind align --reference examples/data/ref.fa --reads examples/data/reads.fastq \
+  --format bam --output examples/data/alignments.bam
+
+# Call germline SNVs from a single-contig reference + sorted alignments → VCF.
+rosalind variants --reference examples/data/ref.fa \
+  --alignments examples/data/alignments.sam --mapq-threshold 10
+```
+
+Inputs may be plain or gzip/bgzf-compressed (auto-detected); pass `-` to read FASTQ from stdin, e.g. `gzip -dc reads.fastq.gz | rosalind align --reads - --reference ref.fa --format sam`. `align` indexes the first FASTA record (single-contig scope).
+
+### Other subcommands
+
+Run `rosalind <subcommand> --help` for exact flags.
+
+- `rosalind locate --index genome.idx --pattern GATTACA` — exact-match positions in a prebuilt index (memory-mapped, never rebuilt). Exact-match only; seed/chain/extend alignment against the persisted index is a later phase.
 - `rosalind sort` — deterministic coordinate sort of a BAM within a memory budget.
 - `rosalind somatic` — tumor/normal somatic SNV + simple-indel calling from a paired BAM set over a region.
 - `rosalind eval-somatic` — compare a call set to a truth VCF over confident regions.
-
-`align` indexes the first FASTA record; additional records are ignored with a warning (single-contig scope). `variants` reads coordinate-sorted SAM/BAM alignments. Inputs may be plain or gzip/bgzf-compressed (auto-detected); pass `-` to read FASTQ from stdin, e.g. `gzip -dc reads.fastq.gz | rosalind align --reads - --reference ref.fa --format sam`.
-
-## Build once, query many: the persisted index
-
-Build a portable, memory-mappable index from a (multi-contig) reference once:
-
-```bash
-rosalind index --reference genome.fa --output genome.idx
-# index: genome.idx
-# contigs: 3 (90 bp total)
-#   chr1	30
-#   ...
-# reference_blake3: <hex>
-# index_bytes: <n>
-```
-
-Then query it in milliseconds — it is memory-mapped, never rebuilt:
-
-```bash
-rosalind locate --index genome.idx --pattern GATTACA
-# chr3	0
-# chr3	11
-```
-
-`rosalind index` is deterministic (the `.idx` is byte-identical across builds of
-the same reference). `--memory-budget-mb M` prints a record-only build plan line
-(`[OK]`/`[OVER]`) — it does not yet enforce the budget (that is a later phase).
-`locate` is exact-match only; seed/chain/extend alignment against the persisted
-index lands in a later phase.
 
 ### Rust API
 
@@ -185,6 +212,8 @@ fn locate(query: &[u8]) -> Result<Vec<Locus>, GenomeIndexError> {
 }
 ```
 
+The bounded whole-genome drive (`rosalind::call::call_germline_whole_genome`) wraps the per-contig caller above: it streams a sorted read source over a persisted index's `ReferenceView`, calling every contig in a single pass and returning the calls plus the max working set observed.
+
 ### Python
 
 ```bash
@@ -220,6 +249,7 @@ depth = engine.run_rna_seq_plugin(
 
 ```bash
 cargo test                          # full unit + integration suite
+cargo test --test variants_index    # bounded whole-genome `variants --index` gates
 cargo test --test determinism       # byte-identical outputs across repeated runs
 cargo test --test space_bounds      # working-set scaling checks for the streaming evaluator
 cargo test --test fm_index_props    # property tests: FM-index rank/total invariants vs. naive counts
