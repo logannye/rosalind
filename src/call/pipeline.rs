@@ -8,8 +8,35 @@ use std::sync::Arc;
 use crate::call::{
     call_germline, call_somatic, GermlineCall, GermlineParams, SomaticCall, SomaticParams,
 };
-use crate::core::{CoreError, Locus};
+use crate::core::{CoreError, Locus, WorkingSet};
 use crate::pileup::{PileupColumn, PileupEngine, PileupParams, ReadSource};
+
+/// Like [`call_germline_region`], but also returns the maximum pileup-engine
+/// working set observed during the pass (the bounded-memory signal — the
+/// foundation for the `variants` memory receipt and `rosalind plan`).
+pub fn call_germline_region_tracked<S: ReadSource>(
+    source: S,
+    reference: Arc<[u8]>,
+    contig: u32,
+    region: Range<u32>,
+    pileup_params: PileupParams,
+    germline_params: &GermlineParams,
+) -> Result<(Vec<(Locus, u8, GermlineCall)>, WorkingSet), CoreError> {
+    let mut engine = PileupEngine::new(source, reference, contig, region, pileup_params);
+    let mut out = Vec::new();
+    let mut max_ws = WorkingSet { bytes: 0 };
+    while let Some(column) = engine.next() {
+        let column = column?;
+        let ws = engine.current_working_set();
+        if ws.bytes > max_ws.bytes {
+            max_ws = ws;
+        }
+        if let Some(call) = call_germline(&column, germline_params) {
+            out.push((column.locus, column.ref_base, call));
+        }
+    }
+    Ok((out, max_ws))
+}
 
 /// Call germline variants across `region` of `contig`. Returns one entry per
 /// emitted site as `(locus, ref_base, call)`; the caller pairs these into VCF
@@ -22,15 +49,15 @@ pub fn call_germline_region<S: ReadSource>(
     pileup_params: PileupParams,
     germline_params: &GermlineParams,
 ) -> Result<Vec<(Locus, u8, GermlineCall)>, CoreError> {
-    let engine = PileupEngine::new(source, reference, contig, region, pileup_params);
-    let mut out = Vec::new();
-    for column in engine {
-        let column = column?;
-        if let Some(call) = call_germline(&column, germline_params) {
-            out.push((column.locus, column.ref_base, call));
-        }
-    }
-    Ok(out)
+    let (sites, _ws) = call_germline_region_tracked(
+        source,
+        reference,
+        contig,
+        region,
+        pileup_params,
+        germline_params,
+    )?;
+    Ok(sites)
 }
 
 /// Call somatic SNVs by co-walking a tumor and a normal pileup over `region` of

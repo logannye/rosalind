@@ -15,6 +15,65 @@ use rust_htslib::bam::{self, Read as BamRead};
 use crate::core::{AlignedRead, CigarOp, CigarOpKind, ContigSet, CoreError, Position, SamFlags};
 use crate::pileup::ReadSource;
 
+/// Map one BAM `Record` to a canonical `AlignedRead`, or `None` if it is
+/// unmapped, has no tid, a negative pos, or a reference name absent from
+/// `contigs`. Shared by `read_bam_as_core_reads` and `StreamingBamSource`.
+pub(crate) fn record_to_aligned_read(
+    rec: &bam::Record,
+    header: &bam::HeaderView,
+    contigs: &ContigSet,
+) -> Result<Option<AlignedRead>, CoreError> {
+    if rec.is_unmapped() {
+        return Ok(None);
+    }
+    let tid = rec.tid();
+    if tid < 0 {
+        return Ok(None);
+    }
+    let name = std::str::from_utf8(header.tid2name(tid as u32))
+        .map_err(|_| CoreError::MalformedRecord("BAM reference name is not UTF-8".into()))?;
+    let contig = match contigs.by_name(name) {
+        Some(c) => c.id,
+        None => return Ok(None),
+    };
+    let pos0 = rec.pos();
+    if pos0 < 0 {
+        return Ok(None);
+    }
+
+    let mut cigar = Vec::new();
+    for c in rec.cigar().iter() {
+        let (kind, len) = match *c {
+            BamCigar::Match(l) | BamCigar::Equal(l) | BamCigar::Diff(l) => (CigarOpKind::Match, l),
+            BamCigar::Ins(l) => (CigarOpKind::Insertion, l),
+            BamCigar::Del(l) => (CigarOpKind::Deletion, l),
+            BamCigar::RefSkip(l) => (CigarOpKind::RefSkip, l),
+            BamCigar::SoftClip(l) => (CigarOpKind::SoftClip, l),
+            BamCigar::HardClip(l) => (CigarOpKind::HardClip, l),
+            BamCigar::Pad(l) => (CigarOpKind::Pad, l),
+        };
+        cigar.push(CigarOp::new(kind, len));
+    }
+
+    let seq: Vec<u8> = rec
+        .seq()
+        .as_bytes()
+        .iter()
+        .map(|b| b.to_ascii_uppercase())
+        .collect();
+    let qual: Vec<u8> = rec.qual().to_vec();
+
+    Ok(Some(AlignedRead {
+        contig,
+        pos: Position(pos0 as u32),
+        mapq: rec.mapq(),
+        flags: SamFlags(rec.flags()),
+        cigar,
+        seq: Arc::from(seq.into_boxed_slice()),
+        qual: Arc::from(qual.into_boxed_slice()),
+    }))
+}
+
 /// Read all mapped records of a BAM into canonical `core::AlignedRead`s, mapping
 /// each record's reference name to a contig id via `contigs`. Records that are
 /// unmapped, have no tid, or whose reference is absent from `contigs` are
@@ -27,61 +86,12 @@ pub fn read_bam_as_core_reads(
     let mut reader = bam::Reader::from_path(path)
         .map_err(|e| CoreError::MalformedRecord(format!("open BAM {}: {e}", path.display())))?;
     let header = reader.header().to_owned();
-
     let mut out = Vec::new();
     for rec in reader.records() {
         let rec = rec.map_err(|e| CoreError::MalformedRecord(e.to_string()))?;
-        if rec.is_unmapped() {
-            continue;
+        if let Some(read) = record_to_aligned_read(&rec, &header, contigs)? {
+            out.push(read);
         }
-        let tid = rec.tid();
-        if tid < 0 {
-            continue;
-        }
-        let name = std::str::from_utf8(header.tid2name(tid as u32))
-            .map_err(|_| CoreError::MalformedRecord("BAM reference name is not UTF-8".into()))?;
-        let contig = match contigs.by_name(name) {
-            Some(c) => c.id,
-            None => continue,
-        };
-        let pos0 = rec.pos();
-        if pos0 < 0 {
-            continue;
-        }
-
-        let mut cigar = Vec::new();
-        for c in rec.cigar().iter() {
-            let (kind, len) = match *c {
-                BamCigar::Match(l) | BamCigar::Equal(l) | BamCigar::Diff(l) => {
-                    (CigarOpKind::Match, l)
-                }
-                BamCigar::Ins(l) => (CigarOpKind::Insertion, l),
-                BamCigar::Del(l) => (CigarOpKind::Deletion, l),
-                BamCigar::RefSkip(l) => (CigarOpKind::RefSkip, l),
-                BamCigar::SoftClip(l) => (CigarOpKind::SoftClip, l),
-                BamCigar::HardClip(l) => (CigarOpKind::HardClip, l),
-                BamCigar::Pad(l) => (CigarOpKind::Pad, l),
-            };
-            cigar.push(CigarOp::new(kind, len));
-        }
-
-        let seq: Vec<u8> = rec
-            .seq()
-            .as_bytes()
-            .iter()
-            .map(|b| b.to_ascii_uppercase())
-            .collect();
-        let qual: Vec<u8> = rec.qual().to_vec();
-
-        out.push(AlignedRead {
-            contig,
-            pos: Position(pos0 as u32),
-            mapq: rec.mapq(),
-            flags: SamFlags(rec.flags()),
-            cigar,
-            seq: Arc::from(seq.into_boxed_slice()),
-            qual: Arc::from(qual.into_boxed_slice()),
-        });
     }
     Ok(out)
 }
@@ -111,6 +121,61 @@ impl ReadSource for BamSource {
     }
 }
 
+/// A bounded `ReadSource` over a **coordinate-sorted** BAM: pulls one record at a
+/// time (never materialises the file). Enforces sort order via a `(contig_id, pos)`
+/// monotonicity guard — `next_read` errors if a read arrives out of order (an
+/// unsorted BAM, or one whose `@SQ` order disagrees with `contigs`).
+#[derive(Debug)]
+pub struct StreamingBamSource<'a> {
+    reader: bam::Reader,
+    header: bam::HeaderView,
+    contigs: &'a ContigSet,
+    last: Option<(u32, u32)>,
+}
+
+impl<'a> StreamingBamSource<'a> {
+    /// Open `path` for streaming, mapping reference names via `contigs`.
+    pub fn new(path: &Path, contigs: &'a ContigSet) -> Result<Self, CoreError> {
+        let reader = bam::Reader::from_path(path)
+            .map_err(|e| CoreError::MalformedRecord(format!("open BAM {}: {e}", path.display())))?;
+        let header = reader.header().to_owned();
+        Ok(Self {
+            reader,
+            header,
+            contigs,
+            last: None,
+        })
+    }
+}
+
+impl ReadSource for StreamingBamSource<'_> {
+    fn next_read(&mut self) -> Result<Option<AlignedRead>, CoreError> {
+        loop {
+            let mut record = bam::Record::new();
+            match self.reader.read(&mut record) {
+                None => return Ok(None),
+                Some(Err(e)) => return Err(CoreError::MalformedRecord(e.to_string())),
+                Some(Ok(())) => {}
+            }
+            let Some(read) = record_to_aligned_read(&record, &self.header, self.contigs)? else {
+                continue; // unmapped / absent contig / etc. — skip
+            };
+            let key = (read.contig, read.pos.0);
+            if let Some(prev) = self.last {
+                if key < prev {
+                    return Err(CoreError::MalformedRecord(format!(
+                        "alignments are not coordinate-sorted (or @SQ order disagrees with the \
+                         index): read at contig {} pos {} follows contig {} pos {}",
+                        key.0, key.1, prev.0, prev.1
+                    )));
+                }
+            }
+            self.last = Some(key);
+            return Ok(Some(read));
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -129,6 +194,108 @@ mod tests {
         let mut c = ContigSet::new();
         c.push("chr1", 1000);
         c
+    }
+
+    fn test_header(contigs: &[(&str, usize)]) -> bam::Header {
+        let mut header = bam::Header::new();
+        for (name, len) in contigs {
+            let mut rec = bam::header::HeaderRecord::new(b"SQ");
+            rec.push_tag(b"SN", name);
+            rec.push_tag(b"LN", &(*len as i64));
+            header.push_record(&rec);
+        }
+        header
+    }
+
+    fn push_record(
+        writer: &mut bam::Writer,
+        _header: &bam::HeaderView,
+        tid: i32,
+        pos: i64,
+        seq: &[u8],
+    ) {
+        let mut rec = Record::new();
+        let cigar = CigarString(vec![Cigar::Match(seq.len() as u32)]);
+        let qual = vec![30u8; seq.len()];
+        rec.set(b"r", Some(&cigar), seq, &qual);
+        rec.set_tid(tid);
+        rec.set_pos(pos);
+        rec.set_mapq(60);
+        writer.write(&rec).unwrap();
+    }
+
+    fn write_sorted_test_bam(path: &Path) {
+        let header = test_header(&[("chr1", 1000), ("chr2", 1000)]);
+        let mut writer = bam::Writer::from_path(path, &header, bam::Format::Bam).unwrap();
+        let hv = writer.header().clone();
+        push_record(&mut writer, &hv, 0, 10, b"ACGT");
+        push_record(&mut writer, &hv, 0, 20, b"ACGT");
+        push_record(&mut writer, &hv, 1, 5, b"ACGT");
+    }
+
+    fn write_unsorted_test_bam(path: &Path) {
+        let header = test_header(&[("chr1", 1000)]);
+        let mut writer = bam::Writer::from_path(path, &header, bam::Format::Bam).unwrap();
+        let hv = writer.header().clone();
+        push_record(&mut writer, &hv, 0, 50, b"ACGT");
+        push_record(&mut writer, &hv, 0, 10, b"ACGT"); // out of order
+    }
+
+    #[test]
+    fn streaming_source_yields_same_reads_as_materializing() {
+        // Build a tiny coordinate-sorted BAM with 2 contigs, read it both ways.
+        let dir = std::env::temp_dir().join(format!(
+            "rosalind-stream-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let bam_path = dir.join("reads.bam");
+        write_sorted_test_bam(&bam_path); // helper below
+
+        let mut contigs = ContigSet::new();
+        contigs.push("chr1", 1000);
+        contigs.push("chr2", 1000);
+
+        let materialized = read_bam_as_core_reads(&bam_path, &contigs).unwrap();
+        let mut streamed = Vec::new();
+        let mut src = StreamingBamSource::new(&bam_path, &contigs).unwrap();
+        while let Some(r) = src.next_read().unwrap() {
+            streamed.push(r);
+        }
+        assert_eq!(streamed.len(), materialized.len());
+        for (a, b) in streamed.iter().zip(materialized.iter()) {
+            assert_eq!((a.contig, a.pos), (b.contig, b.pos));
+        }
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn streaming_source_rejects_out_of_order() {
+        let dir = std::env::temp_dir().join(format!(
+            "rosalind-stream-bad-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let bam_path = dir.join("unsorted.bam");
+        write_unsorted_test_bam(&bam_path); // two reads, descending pos on one contig
+
+        let mut contigs = ContigSet::new();
+        contigs.push("chr1", 1000);
+
+        let mut src = StreamingBamSource::new(&bam_path, &contigs).unwrap();
+        // First read OK; the second (lower pos) must error.
+        let _ = src.next_read().unwrap();
+        assert!(
+            src.next_read().is_err(),
+            "out-of-order read must be rejected"
+        );
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
