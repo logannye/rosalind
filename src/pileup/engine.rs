@@ -240,6 +240,15 @@ impl<S: ReadSource> PileupEngine<S> {
                     if read.end() <= pos {
                         continue; // does not reach the cursor
                     }
+                    // Deterministic max-depth cap: once `max_depth` reads already
+                    // cover the cursor, drop arrivals (counted) so the active set —
+                    // and thus the working set — is bounded by the declared depth.
+                    if let Some(max) = self.params.max_depth {
+                        if self.active.len() as u32 >= max {
+                            self.skips.over_max_depth += 1;
+                            continue;
+                        }
+                    }
                     self.ingest(read);
                 }
             }
@@ -690,5 +699,51 @@ mod tests {
         // reference (10) + map(4*16=64) + seq(4) + qual(4) + per-read(64) + fixed(256)
         // = 10 + 64 + 4 + 4 + 64 + 256 = 402.
         assert_eq!(ws, 402);
+    }
+
+    #[test]
+    fn max_depth_caps_active_set_deterministically() {
+        // 5 reads all covering pos 0..4; cap at 2. Only the first 2 (arrival order)
+        // are kept; the other 3 are counted over_max_depth. Capped output is
+        // identical regardless of input order (SliceSource sorts on construction).
+        let reference = b"AAAA";
+        let params = PileupParams {
+            max_depth: Some(2),
+            ..PileupParams::default()
+        };
+        let run = |reads: Vec<AlignedRead>| -> (Vec<u32>, u64) {
+            let mut e = PileupEngine::new(
+                SliceSource::new(reads),
+                Arc::from(reference.to_vec().into_boxed_slice()),
+                0,
+                0..4,
+                params.clone(),
+            );
+            let mut depths = Vec::new();
+            while let Some(c) = e.next() {
+                depths.push(c.unwrap().raw_depth);
+            }
+            (depths, e.skip_counts().over_max_depth)
+        };
+        let reads_a = vec![
+            mread(0, b"CCCC", false),
+            mread(0, b"CCCC", false),
+            mread(0, b"CCCC", false),
+            mread(0, b"CCCC", false),
+            mread(0, b"CCCC", false),
+        ];
+        let mut reads_b = reads_a.clone();
+        reads_b.reverse();
+        let (depths_a, over_a) = run(reads_a);
+        let (depths_b, over_b) = run(reads_b);
+        // Capped: every position sees at most 2 reads.
+        assert!(
+            depths_a.iter().all(|&d| d <= 2),
+            "raw depth must be capped at 2"
+        );
+        assert_eq!(over_a, 3, "3 of 5 reads dropped over max_depth");
+        // Deterministic regardless of input order.
+        assert_eq!(depths_a, depths_b);
+        assert_eq!(over_a, over_b);
     }
 }
