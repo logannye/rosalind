@@ -141,15 +141,23 @@ impl<S: ReadSource> PileupEngine<S> {
     /// Current working-set estimate: bounded by the active read set (local
     /// coverage), independent of total input size. Foundation for `rosalind plan`.
     pub fn current_working_set(&self) -> WorkingSet {
-        // Each active read costs roughly its projection map (16 B/entry) plus a
-        // small constant for handles; plus a fixed engine overhead.
+        // The decoded reference for this contig is resident in the engine.
+        let reference_bytes = self.reference.len() as u64;
+        // Each active read holds its projection map (16 B/entry) plus its seq and
+        // qual byte buffers; count all three (the map alone is a large undercount,
+        // especially for long reads).
         let active_bytes: u64 = self
             .active
             .iter()
-            .map(|r| (r.ref_to_read.len() as u64) * 16 + 64)
+            .map(|r| {
+                (r.ref_to_read.len() as u64) * 16
+                    + r.seq.len() as u64
+                    + r.qual.len() as u64
+                    + 64
+            })
             .sum();
         WorkingSet {
-            bytes: active_bytes + 256,
+            bytes: reference_bytes + active_bytes + 256,
         }
     }
 
@@ -666,5 +674,21 @@ mod tests {
             over_max_depth: 7,
         };
         assert_eq!(s.total(), 28);
+    }
+
+    #[test]
+    fn working_set_counts_reference_and_read_byte_buffers() {
+        // One 4-base read fully covering a 10-base reference. After advancing to
+        // pos 0 the active set holds that read; the working set must include the
+        // reference bytes (10) AND the read's seq+qual buffers (4+4), not just the
+        // projection map.
+        let reference = b"ACGTACGTAC"; // 10 bytes
+        let mut e = engine(vec![mread(0, b"ACGT", false)], reference);
+        let first = e.next().expect("a column").expect("ok"); // drives advance_to(0)
+        assert_eq!(first.locus.pos.0, 0);
+        let ws = e.current_working_set().bytes;
+        // reference (10) + map(4*16=64) + seq(4) + qual(4) + per-read(64) + fixed(256)
+        // = 10 + 64 + 4 + 4 + 64 + 256 = 402.
+        assert_eq!(ws, 402);
     }
 }
