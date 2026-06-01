@@ -22,6 +22,10 @@ pub struct PileupParams {
     pub skip_supplementary: bool,
     /// Skip PCR/optical duplicates (SAM flag 0x400).
     pub skip_duplicate: bool,
+    /// Cap on the active read set per position (deterministic downsampling).
+    /// `None` = uncapped (default). When `Some(d)`, reads arriving at a position
+    /// already covered by `d` active reads are dropped (counted `over_max_depth`).
+    pub max_depth: Option<u32>,
 }
 
 impl Default for PileupParams {
@@ -32,6 +36,7 @@ impl Default for PileupParams {
             skip_secondary: true,
             skip_supplementary: true,
             skip_duplicate: true,
+            max_depth: None,
         }
     }
 }
@@ -51,6 +56,8 @@ pub struct SkipCounts {
     pub duplicate: u64,
     /// Reads below the MAPQ threshold.
     pub low_mapq: u64,
+    /// Reads dropped because the position was already at `max_depth`.
+    pub over_max_depth: u64,
 }
 
 impl SkipCounts {
@@ -62,6 +69,7 @@ impl SkipCounts {
             + self.supplementary
             + self.duplicate
             + self.low_mapq
+            + self.over_max_depth
     }
 }
 
@@ -394,6 +402,7 @@ mod tests {
             supplementary: 4,
             duplicate: 5,
             low_mapq: 6,
+            over_max_depth: 0,
         };
         assert_eq!(s.total(), 21);
     }
@@ -642,5 +651,20 @@ mod tests {
         assert_eq!(at0.depth(), 1); // only the callable 'C'
         assert_eq!(at0.allele_counts(), [0, 1, 0, 0]);
         assert_eq!(at0.raw_depth, 2); // both reads cover the position
+    }
+
+    #[test]
+    fn params_default_max_depth_is_none_and_skipcounts_total_includes_over_max_depth() {
+        assert_eq!(PileupParams::default().max_depth, None);
+        let s = SkipCounts {
+            unmapped: 1,
+            wrong_contig: 2,
+            secondary: 3,
+            supplementary: 4,
+            duplicate: 5,
+            low_mapq: 6,
+            over_max_depth: 7,
+        };
+        assert_eq!(s.total(), 28);
     }
 }
