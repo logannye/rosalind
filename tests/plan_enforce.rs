@@ -671,3 +671,56 @@ fn features_governor_aborts_loud_and_records_residual() {
     assert!(m.contains("\"contract_verdict\":\"over\""), "manifest: {m}");
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn near_saturation_margin_holds_on_a_larger_contig() {
+    // Soundness of the 8 MiB prediction margin at a bigger scale than the 4 MiB
+    // sibling test: on an ~8 MB contig (reference-decode dominates), the predicted
+    // peak must still upper-bound the realized peak — the fixed I/O+slack margin
+    // covers the real residual — AND the recorded residual is within that margin.
+    // (Governor no-false-fire on fitting runs is covered by the existing --enforce
+    // tests, which now run with the governor armed and still exit 0.)
+    let (dir, idx, bam) = build_big_contig_fixture(8 * 1024 * 1024);
+    let vcf = dir.join("calls.vcf");
+    let manifest = dir.join("calls.vcf.manifest.json");
+    let out = Command::new(bin())
+        .args(["variants", "--index"])
+        .arg(&idx)
+        .arg("--alignments")
+        .arg(&bam)
+        .args(["--max-depth", "1000", "--max-read-len", "250", "-o"])
+        .arg(&vcf)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "run failed: {out:?}");
+
+    let m = rosalind::provenance::RunManifest::from_canonical_json(
+        &std::fs::read_to_string(&manifest).unwrap(),
+    )
+    .unwrap();
+    let predicted: u64 = m
+        .params
+        .get("predicted_peak_rss_bytes")
+        .unwrap()
+        .parse()
+        .unwrap();
+    let realized: u64 = m.params.get("peak_rss_bytes").unwrap().parse().unwrap();
+    let residual: u64 = m.params.get("rss_residual_bytes").unwrap().parse().unwrap();
+    let assumed: u64 = m
+        .params
+        .get("io_rss_overhead_assumed_bytes")
+        .unwrap()
+        .parse()
+        .unwrap();
+    assert!(
+        predicted >= realized,
+        "8 MB contig: predicted {predicted} must be >= realized {realized}"
+    );
+    assert!(
+        residual <= assumed,
+        "recorded residual {residual} should be within the assumed margin {assumed} \
+         (if not, the 8 MiB constant is too small for this workload — a REAL finding, \
+          not a test to silence)"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
