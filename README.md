@@ -48,6 +48,27 @@ What makes this different:
 
 ---
 
+## Quickstart (60 seconds)
+
+Grab a prebuilt binary and watch the contract fire on the bundled data — no toolchain, no build:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/logannye/rosalind/main/install.sh | sh
+cd rosalind-*/
+
+# Build a portable index, sort the bundled BAM, then declare a budget and honor it.
+./rosalind index --reference examples/data/illumina_toy/reference.fa --output ref.idx
+./rosalind sort  --input examples/data/illumina_toy/alignments.bam --output sorted.bam
+./rosalind plan  --index ref.idx --budget-mb 512                       # FITS?  predicted peak
+./rosalind variants --index ref.idx --alignments sorted.bam \
+    --memory-budget-mb 512 --enforce -o calls.vcf                      # honors it (exit 3/4)
+./rosalind verify --manifest calls.vcf.manifest.json                   # re-checks the receipt
+```
+
+You'll see `plan` predict `[FITS]`, `variants --enforce` print `contract: OK — realized peak … within`, and `verify: OK`. Tighten `--budget-mb` to `1` and `variants --enforce` *refuses up front* (exit 3, no VCF). That is the whole differentiator, in one minute. (Releases are cut from tags; if none is published yet, build from source below.)
+
+---
+
 ## What it does today
 
 - **Bounded whole-genome germline calling** — `rosalind variants --index` streams a coordinate-sorted BAM over all contigs of a persisted index, calling SNVs to a multi-contig VCF with a working set bounded by coverage. Calls are calibrated and **abstention-aware** (no confident call → no row, rather than a guess).
@@ -83,6 +104,22 @@ The contract is real today: `rosalind plan` predicts before you commit, `--enfor
 - **Single-contig:** Rosalind's own **aligner** (`rosalind align`) and the FASTA-based `variants --reference` path operate on one reference contig per run. For whole-genome calling, align with any standard aligner and bring the coordinate-sorted BAM to `variants --index`. (Wiring the *aligner* onto the persisted multi-contig index is a later phase — see the roadmap.)
 - Variant calling is **single-sample** (germline) or a **tumor/normal pair** (somatic); calling is SNV-focused, with simple indels in the somatic path.
 - The engine runs **single-threaded** today. `--memory-budget-mb` is record-only by default; add `--enforce` to honor it (refuse up front / fail loud — see [CONTRACT.md](CONTRACT.md)).
+
+## The memory contract in *your* CI
+
+Drop the `rosalind-budget` Action into any pipeline to make a declared memory budget a **gate** — the build fails if a whole-genome calling step would breach it. No toolchain on your runner; the Action fetches a prebuilt binary.
+
+```yaml
+- uses: logannye/rosalind-budget@v1
+  with:
+    index: ref.idx          # built by `rosalind index`
+    alignments: sorted.bam  # coordinate-sorted
+    budget-mb: 4096         # refuse up front (exit 3) / fail after (exit 4) on breach
+    max-depth: 1000         # optional (default 1000)
+    max-read-len: 250       # optional (default 250)
+```
+
+It runs `plan` (predicts the peak), then `variants --index --enforce` (honors the budget), and uploads the BLAKE3 receipt as a build artifact. This is the one thing a `--max-mem` flag on another caller can't give you: a portable, declarative, **verifiable** memory budget that fails a stranger's build loudly — the contract, enforced where your pipeline already lives. (Available once a release is published; see Quickstart.)
 
 ## Roadmap
 

@@ -1,0 +1,104 @@
+name: Release
+
+# Cut a release by pushing a tag: `git tag v0.1.0 && git push origin v0.1.0`.
+# `workflow_dispatch` builds the same artifacts WITHOUT publishing a release
+# (uploaded as workflow artifacts) — a safe dry run before tagging.
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write # required to create/attach a GitHub Release
+
+jobs:
+  build:
+    name: build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Fully static Linux binary (no glibc/bzip2/lzma runtime dependency):
+          # the -sys crates build htslib/bzip2/lzma/zlib from bundled C source.
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+          # Native macOS builds (link only system libs present on every Mac).
+          - target: aarch64-apple-darwin
+            os: macos-14
+          - target: x86_64-apple-darwin
+            os: macos-13
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install musl toolchain (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          target: ${{ matrix.target }}
+          profile: minimal
+          override: true
+
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-release-${{ matrix.target }}-${{ hashFiles('Cargo.lock') }}
+
+      - name: Build (release, ${{ matrix.target }})
+        env:
+          # musl needs the musl C compiler for the bundled htslib/bzip2/lzma builds.
+          CC_x86_64_unknown_linux_musl: musl-gcc
+        run: cargo build --release --target ${{ matrix.target }} --bin rosalind
+
+      - name: Stage the bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          name="rosalind-${{ matrix.target }}"
+          stage="dist/$name"
+          mkdir -p "$stage"
+          cp "target/${{ matrix.target }}/release/rosalind" "$stage/"
+          cp README.md CONTRACT.md LICENSE-APACHE LICENSE-MIT "$stage/"
+          mkdir -p "$stage/examples/data"
+          cp -R examples/data/illumina_toy "$stage/examples/data/"
+          tar -C dist -czf "dist/$name.tar.gz" "$name"
+          # Portable checksum (shasum on macOS, sha256sum on Linux).
+          if command -v sha256sum >/dev/null 2>&1; then
+            (cd dist && sha256sum "$name.tar.gz" > "$name.tar.gz.sha256")
+          else
+            (cd dist && shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256")
+          fi
+
+      - name: Upload workflow artifact (dry run)
+        uses: actions/upload-artifact@v4
+        with:
+          name: rosalind-${{ matrix.target }}
+          path: |
+            dist/rosalind-${{ matrix.target }}.tar.gz
+            dist/rosalind-${{ matrix.target }}.tar.gz.sha256
+
+      - name: Attach to the GitHub Release (tag builds only)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/rosalind-${{ matrix.target }}.tar.gz
+            dist/rosalind-${{ matrix.target }}.tar.gz.sha256
+          fail_on_unmatched_files: true
+          body: |
+            Prebuilt `rosalind` binaries — the memory contract, runnable in 60 seconds.
+
+            ```sh
+            curl -fsSL https://raw.githubusercontent.com/logannye/rosalind/main/install.sh | sh
+            ```
+
+            Each tarball bundles the binary, the `illumina_toy` contract-demo fixtures, and the
+            licenses. See the README "Quickstart (60 seconds)".

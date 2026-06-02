@@ -1,0 +1,99 @@
+name: 'Rosalind memory budget'
+description: 'Honor a declared memory budget for whole-genome germline calling — fail CI on a breach (exit 3 refuse / exit 4 over).'
+author: 'logannye'
+branding:
+  icon: 'shield'
+  color: 'green'
+
+inputs:
+  index:
+    description: 'Path to the rosalind index (.idx) built by `rosalind index`.'
+    required: true
+  alignments:
+    description: 'Path to a coordinate-sorted BAM.'
+    required: true
+  budget-mb:
+    description: 'Declared memory budget in MiB. The run is refused up front (exit 3) or fails after (exit 4) if the realized peak exceeds it.'
+    required: true
+  max-depth:
+    description: 'Active-set depth cap (the bound the contract relies on). 0 = uncapped (then --enforce is rejected).'
+    required: false
+    default: '1000'
+  max-read-len:
+    description: 'Maximum read length assumed and enforced at ingest under --enforce.'
+    required: false
+    default: '250'
+  output:
+    description: 'Output VCF path.'
+    required: false
+    default: 'calls.vcf'
+  version:
+    description: 'Rosalind release to download (e.g. v0.1.0), or "latest". Ignored if binary-path is set.'
+    required: false
+    default: 'latest'
+  binary-path:
+    description: 'Optional path to an existing rosalind binary (skips the download — for air-gapped runners or testing the action against a from-source build).'
+    required: false
+    default: ''
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Resolve the rosalind binary
+      id: bin
+      shell: bash
+      env:
+        VER: ${{ inputs.version }}
+        BINPATH: ${{ inputs.binary-path }}
+      run: |
+        set -euo pipefail
+        if [ -n "$BINPATH" ]; then
+          echo "Using provided binary: $BINPATH"
+          echo "bin=$BINPATH" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        tarball="rosalind-x86_64-unknown-linux-musl.tar.gz"
+        if [ "$VER" = "latest" ]; then
+          url="https://github.com/logannye/rosalind/releases/latest/download/$tarball"
+        else
+          url="https://github.com/logannye/rosalind/releases/download/$VER/$tarball"
+        fi
+        echo "Downloading $url"
+        curl -fsSL -o "$tarball" "$url"
+        tar -xzf "$tarball"
+        echo "bin=$PWD/rosalind-x86_64-unknown-linux-musl/rosalind" >> "$GITHUB_OUTPUT"
+
+    - name: Predict the peak (plan)
+      shell: bash
+      env:
+        BIN: ${{ steps.bin.outputs.bin }}
+        IDX: ${{ inputs.index }}
+        BUDGET: ${{ inputs.budget-mb }}
+      run: |
+        set -euo pipefail
+        "$BIN" plan --index "$IDX" --budget-mb "$BUDGET"
+
+    - name: Honor the memory contract (fails CI on breach)
+      shell: bash
+      env:
+        BIN: ${{ steps.bin.outputs.bin }}
+        IDX: ${{ inputs.index }}
+        BAM: ${{ inputs.alignments }}
+        BUDGET: ${{ inputs.budget-mb }}
+        MAXDEPTH: ${{ inputs.max-depth }}
+        MAXREADLEN: ${{ inputs.max-read-len }}
+        OUT: ${{ inputs.output }}
+      run: |
+        set -euo pipefail
+        "$BIN" variants --index "$IDX" --alignments "$BAM" \
+          --memory-budget-mb "$BUDGET" \
+          --max-depth "$MAXDEPTH" --max-read-len "$MAXREADLEN" \
+          --enforce -o "$OUT"
+
+    - name: Upload the memory receipt
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: rosalind-receipt
+        path: ${{ inputs.output }}.manifest.json
+        if-no-files-found: ignore

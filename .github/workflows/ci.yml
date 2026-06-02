@@ -160,3 +160,11 @@ jobs:
           test "$code" -eq 3
           grep -q "REFUSE" refuse.log
           test ! -f examples/data/illumina_toy/refused.vcf
+      - name: Exercise the rosalind-budget Action (local, from-source binary)
+        uses: ./
+        with:
+          index: examples/data/illumina_toy/reference.idx
+          alignments: examples/data/illumina_toy/sorted.bam
+          budget-mb: 4096
+          binary-path: target/release/rosalind
+          output: examples/data/illumina_toy/action.vcf
