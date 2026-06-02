@@ -607,3 +607,37 @@ fn governor_aborts_loud_when_live_rss_exceeds_budget() {
     assert!(m.contains("\"contract_verdict\":\"over\""), "manifest: {m}");
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn receipt_records_residual_and_governor_fields_on_a_fitting_run() {
+    let (dir, idx, bam) = build_sorted_bam_fixture();
+    let vcf = dir.join("calls.vcf");
+    let manifest = dir.join("calls.vcf.manifest.json");
+    let out = Command::new(bin())
+        .args(["variants", "--index"])
+        .arg(&idx)
+        .arg("--alignments")
+        .arg(&bam)
+        .args(["--memory-budget-mb", "4096", "--enforce", "-o"])
+        .arg(&vcf)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "a fitting run should exit 0: {out:?}");
+
+    let text = std::fs::read_to_string(&manifest).expect("manifest");
+    for key in [
+        "\"baseline_rss_bytes\":",
+        "\"rss_residual_bytes\":",
+        "\"io_rss_overhead_assumed_bytes\":",
+        "\"governor\":\"enforced\"",
+    ] {
+        assert!(text.contains(key), "manifest missing {key}: {text}");
+    }
+    // The receipt round-trips through the canonical parser.
+    let m = rosalind::provenance::RunManifest::from_canonical_json(&text).expect("parse");
+    assert_eq!(
+        m.params.get("governor").map(String::as_str),
+        Some("enforced")
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}

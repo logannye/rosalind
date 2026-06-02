@@ -1812,6 +1812,7 @@ fn run_variants_index(
         call_germline_whole_genome, stream_gvcf_whole_genome, write_gvcf_header, GermlineParams,
     };
     use rosalind::core::governor::MemoryGovernor;
+    use rosalind::core::PILEUP_IO_RSS_OVERHEAD;
     use rosalind::genomics::IndexReader;
     use rosalind::io::bam::StreamingBamSource;
     use rosalind::io::vcf::{write_germline_header, write_germline_row, GermlineRow};
@@ -2039,6 +2040,13 @@ fn run_variants_index(
     } else {
         "record-only"
     };
+    // Measured RSS residual telemetry: the real I/O + allocator slack this run
+    // incurred above the modeled working set, recorded so the fixed 8 MiB
+    // prediction margin can later be re-tuned with evidence (Sprint 1.1).
+    let baseline_rss_bytes = baseline;
+    let rss_residual_bytes = peak_rss
+        .saturating_sub(max_ws.bytes)
+        .saturating_sub(baseline_rss_bytes);
 
     // Reproducibility + memory receipt. Written when there is a destination — an
     // explicit --manifest path, or a sidecar next to a `-o` VCF. A stdout run
@@ -2099,6 +2107,18 @@ fn run_variants_index(
         manifest
             .params
             .insert("governor".to_string(), governor_state.to_string());
+        manifest.params.insert(
+            "baseline_rss_bytes".to_string(),
+            baseline_rss_bytes.to_string(),
+        );
+        manifest.params.insert(
+            "rss_residual_bytes".to_string(),
+            rss_residual_bytes.to_string(),
+        );
+        manifest.params.insert(
+            "io_rss_overhead_assumed_bytes".to_string(),
+            PILEUP_IO_RSS_OVERHEAD.to_string(),
+        );
         manifest.params.insert(
             "over_max_depth".to_string(),
             skips.over_max_depth.to_string(),
