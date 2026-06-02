@@ -1,9 +1,10 @@
 use rosalind::genomics::{compare_callsets, read_vcf_variants, BedIndex};
+use std::collections::BTreeMap;
 
 #[test]
 fn eval_compare_smoke_and_thresholds() {
-    // Small deterministic reference.
-    let reference = vec![b'A'; 100];
+    // Small deterministic reference (single contig 'chr1').
+    let references = BTreeMap::from([("chr1".to_string(), vec![b'A'; 100])]);
 
     let calls_vcf = "\
 ##fileformat=VCFv4.3
@@ -23,7 +24,7 @@ chr1\t31\t.\tA\tT\t50\tPASS\t.
 
     // Mask to only evaluate positions 0..40.
     let bed = BedIndex::from_str("chr1\t0\t40\n").unwrap();
-    let rep = compare_callsets(&reference, &calls, &truth, Some(&bed)).unwrap();
+    let rep = compare_callsets(&references, &calls, &truth, Some(&bed)).unwrap();
 
     // TP: pos11 A>C
     // FP: pos21 A>G

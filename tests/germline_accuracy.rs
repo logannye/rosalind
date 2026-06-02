@@ -251,8 +251,10 @@ fn run_accuracy(coverage: usize, error_rate: f64, cap: u32, seed: u64) -> Accura
         })
         .collect();
 
-    let report_all = compare_callsets(&reference, &calls_all, &truth_vcf, None).unwrap();
-    let report_pass = compare_callsets(&reference, &calls_pass, &truth_vcf, None).unwrap();
+    // Single-contig harness: all variants are on 'chr1'.
+    let references = BTreeMap::from([("chr1".to_string(), reference.clone())]);
+    let report_all = compare_callsets(&references, &calls_all, &truth_vcf, None).unwrap();
+    let report_pass = compare_callsets(&references, &calls_pass, &truth_vcf, None).unwrap();
     let deep_called = calls_pass.iter().any(|c| c.pos0 as usize == deep_site);
 
     std::fs::remove_dir_all(&dir).ok();

@@ -484,9 +484,8 @@ fn run_eval(
     truth_path: PathBuf,
     regions_path: Option<PathBuf>,
 ) -> Result<()> {
-    let fasta = read_fasta(&reference_path)
+    let references = read_fasta_map(&reference_path)
         .with_context(|| format!("failed to read reference from {}", reference_path.display()))?;
-    let reference = fasta.sequence;
 
     let calls_txt = std::fs::read_to_string(&calls_path)
         .with_context(|| format!("failed to read calls VCF {}", calls_path.display()))?;
@@ -506,7 +505,7 @@ fn run_eval(
         None
     };
 
-    let report = compare_callsets(&reference, &calls, &truth, bed.as_ref())?;
+    let report = compare_callsets(&references, &calls, &truth, bed.as_ref())?;
     println!("truth_total={}", report.total_truth);
     println!("calls_total={}", report.total_calls);
     println!("tp={}", report.true_positive);
@@ -1398,8 +1397,13 @@ fn run_features(
     let source = StreamingBamSource::new(&alignments_path, contigs)
         .map_err(|e| anyhow!("failed to open BAM {}: {e}", alignments_path.display()))?;
 
-    // Same `--enforce` admission as `variants` — it is the same pileup engine, so
-    // the predicted working set is identical.
+    // Same prediction + `--enforce` admission as `variants` — it is the same
+    // pileup engine, so the predicted working set is identical. Computed
+    // unconditionally and recorded in the receipt.
+    let largest = contigs.iter().map(|c| c.length as u64).max().unwrap_or(0);
+    let baseline = peak_rss_bytes();
+    let predicted_peak =
+        rosalind::call::plan::predicted_peak_rss_bytes(largest, max_depth, max_read_len, baseline);
     if enforce {
         if memory_budget_mb.is_none() {
             bail!("--enforce requires --memory-budget-mb");
@@ -1410,21 +1414,13 @@ fn run_features(
             );
         }
         let mb = memory_budget_mb.unwrap();
-        let largest = contigs.iter().map(|c| c.length as u64).max().unwrap_or(0);
-        let baseline = peak_rss_bytes();
-        let predicted = rosalind::call::plan::predicted_peak_rss_bytes(
-            largest,
-            max_depth,
-            max_read_len,
-            baseline,
-        );
-        if !MemoryBudget::from_mb(mb).admits(predicted) {
+        if !MemoryBudget::from_mb(mb).admits(predicted_peak) {
             eprintln!(
                 "contract: REFUSE — declared {} MiB, predicted peak ~{} MiB (largest contig {} MiB \
                  + active @ max-depth {} / max-read-len {} atop a {} MiB baseline). Raise \
                  --memory-budget-mb, lower --max-depth, or drop --enforce.",
                 mb,
-                predicted / (1 << 20),
+                predicted_peak / (1 << 20),
                 largest / (1 << 20),
                 max_depth,
                 max_read_len,
@@ -1529,6 +1525,10 @@ fn run_features(
         manifest
             .params
             .insert("peak_rss_bytes".to_string(), peak_rss.to_string());
+        manifest.params.insert(
+            "predicted_peak_rss_bytes".to_string(),
+            predicted_peak.to_string(),
+        );
         manifest.params.insert(
             "max_working_set_bytes".to_string(),
             max_ws.bytes.to_string(),
@@ -1658,9 +1658,16 @@ fn run_variants_index(
     let source = StreamingBamSource::new(&alignments_path, contigs)
         .map_err(|e| anyhow!("failed to open BAM {}: {e}", alignments_path.display()))?;
 
-    // `--enforce` contract: predict the peak RSS up front (measured baseline +
-    // the depth-capped working set) and refuse cleanly if it won't fit — before
-    // doing any work. Never a silent OOM.
+    // Predict the peak RSS up front: a measured baseline (binary + libs + index/
+    // BAM open) plus the depth-capped working set plus an RSS margin. Computed
+    // unconditionally and recorded in the receipt — it is the contract's up-front
+    // claim, which the post-run check and `verify` assert the realized peak honors.
+    // Under `--enforce` it also gates the run: refuse cleanly before any work,
+    // never a silent OOM.
+    let largest = contigs.iter().map(|c| c.length as u64).max().unwrap_or(0);
+    let baseline = peak_rss_bytes();
+    let predicted_peak =
+        rosalind::call::plan::predicted_peak_rss_bytes(largest, max_depth, max_read_len, baseline);
     if enforce {
         if memory_budget_mb.is_none() {
             bail!("--enforce requires --memory-budget-mb");
@@ -1671,22 +1678,14 @@ fn run_variants_index(
             );
         }
         let mb = memory_budget_mb.unwrap();
-        let largest = contigs.iter().map(|c| c.length as u64).max().unwrap_or(0);
-        let baseline = peak_rss_bytes();
-        let predicted = rosalind::call::plan::predicted_peak_rss_bytes(
-            largest,
-            max_depth,
-            max_read_len,
-            baseline,
-        );
-        if !MemoryBudget::from_mb(mb).admits(predicted) {
+        if !MemoryBudget::from_mb(mb).admits(predicted_peak) {
             eprintln!(
                 "contract: REFUSE — declared {} MiB, predicted peak ~{} MiB \
                  (largest contig {} MiB + active @ max-depth {} / max-read-len {} \
                  atop a {} MiB baseline). Raise --memory-budget-mb, lower --max-depth, \
                  or drop --enforce.",
                 mb,
-                predicted / (1 << 20),
+                predicted_peak / (1 << 20),
                 largest / (1 << 20),
                 max_depth,
                 max_read_len,
@@ -1821,6 +1820,10 @@ fn run_variants_index(
             .params
             .insert("peak_rss_bytes".to_string(), peak_rss.to_string());
         manifest.params.insert(
+            "predicted_peak_rss_bytes".to_string(),
+            predicted_peak.to_string(),
+        );
+        manifest.params.insert(
             "max_working_set_bytes".to_string(),
             max_ws.bytes.to_string(),
         );
@@ -1916,6 +1919,29 @@ fn read_fasta(path: &PathBuf) -> Result<FastaRecord> {
         );
     }
     Ok(first)
+}
+
+/// Read ALL FASTA records into a contig-name → sequence map. Used by `eval-*`,
+/// which must normalize each variant against its OWN contig — loading only the
+/// first record (the single-contig `read_fasta` policy) silently miscompares or
+/// crashes on any multi-contig benchmark.
+fn read_fasta_map(path: &PathBuf) -> Result<std::collections::BTreeMap<String, Vec<u8>>> {
+    let reader = open_input(path).with_context(|| format!("failed to open {}", path.display()))?;
+    let mut map = std::collections::BTreeMap::new();
+    for rec in FastaReader::new(reader) {
+        let rec = rec.with_context(|| format!("failed to parse FASTA {}", path.display()))?;
+        if map.insert(rec.name.clone(), rec.sequence).is_some() {
+            bail!(
+                "FASTA {} has a duplicate contig name '{}'",
+                path.display(),
+                rec.name
+            );
+        }
+    }
+    if map.is_empty() {
+        bail!("FASTA file {} is missing a record", path.display());
+    }
+    Ok(map)
 }
 
 /// Read a FASTQ file (plain or gzip; `-` = stdin) into a vector of records.

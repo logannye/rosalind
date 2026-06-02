@@ -84,10 +84,12 @@ pub(crate) fn validate_contig_lengths(
     header: &bam::HeaderView,
     contigs: &ContigSet,
 ) -> Result<(), CoreError> {
+    let mut matched = 0usize;
     for tid in 0..header.target_count() {
         let name = std::str::from_utf8(header.tid2name(tid))
             .map_err(|_| CoreError::MalformedRecord("BAM reference name is not UTF-8".into()))?;
         if let Some(c) = contigs.by_name(name) {
+            matched += 1;
             let header_len = header.target_len(tid);
             if header_len != Some(c.length as u64) {
                 return Err(CoreError::MalformedRecord(format!(
@@ -100,6 +102,27 @@ pub(crate) fn validate_contig_lengths(
                 )));
             }
         }
+    }
+    // If the BAM names a reference but NONE of its @SQ contigs resolve into the
+    // index, the two use incompatible naming schemes (the classic UCSC 'chr1' vs
+    // Ensembl '1' / GRCh38-vs-hg38 mismatch). Left unchecked, every record is
+    // silently dropped and the run writes an empty VCF with exit 0 — the worst
+    // kind of failure. Refuse up front with an actionable message instead.
+    if header.target_count() > 0 && matched == 0 {
+        let bam_names: Vec<String> = (0..header.target_count())
+            .filter_map(|tid| {
+                std::str::from_utf8(header.tid2name(tid))
+                    .ok()
+                    .map(str::to_string)
+            })
+            .take(3)
+            .collect();
+        return Err(CoreError::MalformedRecord(format!(
+            "no BAM @SQ contig name matches the index — the alignments and the index use \
+             incompatible naming schemes (e.g. UCSC 'chr1' vs Ensembl '1'). BAM names start \
+             with [{}]; check the reference/assembly used for alignment.",
+            bam_names.join(", ")
+        )));
     }
     Ok(())
 }
@@ -303,6 +326,29 @@ mod tests {
             assert_eq!((a.contig, a.pos), (b.contig, b.pos));
         }
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn streaming_source_rejects_disjoint_contig_naming() {
+        // BAM @SQ uses Ensembl '1'; the index uses UCSC 'chr1'. No name resolves,
+        // so opening must refuse up front rather than silently dropping every read
+        // into an empty VCF.
+        let bam_path = tmp("naming-mismatch");
+        let header = test_header(&[("1", 1000)]); // Ensembl-style
+        {
+            let mut writer = bam::Writer::from_path(&bam_path, &header, bam::Format::Bam).unwrap();
+            let hv = writer.header().clone();
+            push_record(&mut writer, &hv, 0, 10, b"ACGT");
+        }
+        let contigs = one_contig(); // UCSC-style 'chr1'
+        let err = StreamingBamSource::new(&bam_path, &contigs)
+            .expect_err("disjoint naming must be rejected");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("no BAM @SQ contig name matches the index"),
+            "unexpected error: {msg}"
+        );
+        std::fs::remove_file(&bam_path).ok();
     }
 
     #[test]

@@ -426,10 +426,23 @@ fn sanitize_reference(reference: &[u8]) -> Result<Vec<u8>, FMIndexError> {
                 clean.push(uppercase);
             }
             None => {
-                return Err(FMIndexError::UnsupportedCharacter {
-                    ch: ch as char,
-                    position: idx,
-                });
+                // IUPAC ambiguity codes (R,Y,S,W,K,M,B,D,H,V) appear in real
+                // assemblies (GRCh38's primary assembly, many bacterial/viral
+                // references). Map them to N — matching bwa/bowtie — so the index
+                // step ingests a stock reference instead of aborting; the N-mask
+                // carries the ambiguity, and these positions never match an
+                // A/C/G/T query. Genuinely non-sequence bytes still error loudly.
+                if matches!(
+                    ch.to_ascii_uppercase(),
+                    b'R' | b'Y' | b'S' | b'W' | b'K' | b'M' | b'B' | b'D' | b'H' | b'V'
+                ) {
+                    clean.push(b'N');
+                } else {
+                    return Err(FMIndexError::UnsupportedCharacter {
+                        ch: ch as char,
+                        position: idx,
+                    });
+                }
             }
         }
     }
@@ -559,6 +572,21 @@ mod tests {
         let (bwt, _, _) = build_bwt_and_sa_samples(&clean, 1).unwrap();
         let bounded = position.min(bwt.len());
         bwt[..bounded].iter().filter(|&&ch| ch == base).count() as u32
+    }
+
+    #[test]
+    fn sanitize_maps_iupac_ambiguity_codes_to_n() {
+        // Real references carry IUPAC degeneracy codes; the index must ingest
+        // them (mapped to N) rather than aborting. Genuinely invalid bytes still
+        // error loudly.
+        let clean = sanitize_reference(b"ACGTRYSWKMryswkmBDHV").unwrap();
+        assert_eq!(&clean, b"ACGTNNNNNNNNNNNNNNNN");
+        // A stock-reference-shaped sequence with ambiguity codes builds an index.
+        let index = BlockedFMIndex::build(b"ACGTRYSWKMACGTACGTAC", 4)
+            .expect("index build must succeed over IUPAC codes");
+        let _ = index;
+        // A non-sequence byte is still rejected.
+        assert!(sanitize_reference(b"ACGT@CGT").is_err());
     }
 
     #[test]
