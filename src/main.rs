@@ -1123,7 +1123,11 @@ fn run_variants_index(
         min_mapq: mapq_threshold,
         // `--max-depth 0` opts out of the cap (then the working set is unbounded
         // and `--enforce` is rejected below).
-        max_depth: if max_depth == 0 { None } else { Some(max_depth) },
+        max_depth: if max_depth == 0 {
+            None
+        } else {
+            Some(max_depth)
+        },
         ..PileupParams::default()
     };
     let germline_params = GermlineParams {
@@ -1157,13 +1161,19 @@ fn run_variants_index(
             bail!("--enforce requires --memory-budget-mb");
         }
         if max_depth == 0 {
-            bail!("--enforce requires --max-depth > 0 (an uncapped active set has no a-priori bound)");
+            bail!(
+                "--enforce requires --max-depth > 0 (an uncapped active set has no a-priori bound)"
+            );
         }
         let mb = memory_budget_mb.unwrap();
         let largest = contigs.iter().map(|c| c.length as u64).max().unwrap_or(0);
         let baseline = peak_rss_bytes();
-        let predicted =
-            rosalind::call::plan::predicted_peak_rss_bytes(largest, max_depth, max_read_len, baseline);
+        let predicted = rosalind::call::plan::predicted_peak_rss_bytes(
+            largest,
+            max_depth,
+            max_read_len,
+            baseline,
+        );
         if !MemoryBudget::from_mb(mb).admits(predicted) {
             eprintln!(
                 "contract: REFUSE — declared {} MiB, predicted peak ~{} MiB \

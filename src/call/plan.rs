@@ -62,8 +62,12 @@ pub fn render_variants_plan(
         .saturating_mul(PILEUP_MAP_BYTES_PER_BASE + PILEUP_SEQQUAL_BYTES_PER_BASE)
         .saturating_add(PILEUP_PER_READ_OVERHEAD);
     let active = (max_depth as u64).saturating_mul(per_read);
-    let predicted =
-        predicted_peak_rss_bytes(largest_contig_len, max_depth, max_read_len, baseline_rss_bytes);
+    let predicted = predicted_peak_rss_bytes(
+        largest_contig_len,
+        max_depth,
+        max_read_len,
+        baseline_rss_bytes,
+    );
     let verdict = match budget_mb {
         Some(mb) => {
             if MemoryBudget::from_mb(mb).admits(predicted) {
@@ -119,10 +123,16 @@ mod tests {
     fn render_reports_fits_and_refuse() {
         // Tiny working set; generous budget → FITS.
         let fits = render_variants_plan(1_000, 100, 150, 1_000_000, Some(4096));
-        assert!(fits.contains("[FITS]"), "generous budget should fit: {fits}");
+        assert!(
+            fits.contains("[FITS]"),
+            "generous budget should fit: {fits}"
+        );
         // 248 MiB contig + baseline 50 MiB ≫ 64 MiB budget → REFUSE.
         let refuse = render_variants_plan(248 * (1 << 20), 1000, 250, 50 * (1 << 20), Some(64));
-        assert!(refuse.contains("[REFUSE]"), "tight budget should refuse: {refuse}");
+        assert!(
+            refuse.contains("[REFUSE]"),
+            "tight budget should refuse: {refuse}"
+        );
         // No budget → advisory.
         assert!(render_variants_plan(1_000, 100, 150, 0, None).contains("[no budget]"));
     }

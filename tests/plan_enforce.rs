@@ -49,7 +49,10 @@ fn plan_index_reports_a_breakdown_and_fits_a_generous_budget() {
         stdout.contains("predicted peak"),
         "missing breakdown: {stdout}"
     );
-    assert!(stdout.contains("[FITS]"), "generous budget should FIT: {stdout}");
+    assert!(
+        stdout.contains("[FITS]"),
+        "generous budget should FIT: {stdout}"
+    );
     std::fs::remove_dir_all(&dir).ok();
 }
 
@@ -65,14 +68,20 @@ fn plan_reference_reports_build_estimate() {
         .unwrap();
     assert!(out.status.success());
     let stdout = String::from_utf8_lossy(&out.stdout);
-    assert!(stdout.contains("plan:"), "missing build plan line: {stdout}");
+    assert!(
+        stdout.contains("plan:"),
+        "missing build plan line: {stdout}"
+    );
     std::fs::remove_dir_all(&dir).ok();
 }
 
 // ---- enforce tests: need a real coordinate-sorted BAM via the CLI pipeline ----
 
 fn run(args: &[&str]) -> std::process::Output {
-    Command::new(bin()).args(args).output().expect("spawn rosalind")
+    Command::new(bin())
+        .args(args)
+        .output()
+        .expect("spawn rosalind")
 }
 
 // `index` -> `align --format bam` -> `sort`, mirroring tests/variants_index.rs.
@@ -99,18 +108,33 @@ fn build_sorted_bam_fixture() -> (PathBuf, PathBuf, PathBuf) {
     let raw = dir.join("raw.bam");
     let bam = dir.join("sorted.bam");
     assert!(run(&[
-        "index", "--reference", fa.to_str().unwrap(), "--output", idx.to_str().unwrap()
+        "index",
+        "--reference",
+        fa.to_str().unwrap(),
+        "--output",
+        idx.to_str().unwrap()
     ])
     .status
     .success());
     assert!(run(&[
-        "align", "--reference", fa.to_str().unwrap(), "--reads", fq.to_str().unwrap(),
-        "--format", "bam", "--output", raw.to_str().unwrap()
+        "align",
+        "--reference",
+        fa.to_str().unwrap(),
+        "--reads",
+        fq.to_str().unwrap(),
+        "--format",
+        "bam",
+        "--output",
+        raw.to_str().unwrap()
     ])
     .status
     .success());
     assert!(run(&[
-        "sort", "--input", raw.to_str().unwrap(), "--output", bam.to_str().unwrap()
+        "sort",
+        "--input",
+        raw.to_str().unwrap(),
+        "--output",
+        bam.to_str().unwrap()
     ])
     .status
     .success());
@@ -130,9 +154,16 @@ fn enforce_refuses_up_front_when_budget_below_predicted() {
         .args(["--memory-budget-mb", "1", "--enforce"])
         .output()
         .unwrap();
-    assert_eq!(out.status.code(), Some(3), "expected refuse exit 3: {out:?}");
+    assert_eq!(
+        out.status.code(),
+        Some(3),
+        "expected refuse exit 3: {out:?}"
+    );
     let stderr = String::from_utf8_lossy(&out.stderr);
-    assert!(stderr.contains("REFUSE"), "missing refuse message: {stderr}");
+    assert!(
+        stderr.contains("REFUSE"),
+        "missing refuse message: {stderr}"
+    );
     std::fs::remove_dir_all(&dir).ok();
 }
 
