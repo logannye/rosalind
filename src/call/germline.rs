@@ -136,6 +136,119 @@ pub fn call_germline(column: &PileupColumn, params: &GermlineParams) -> Option<G
     })
 }
 
+/// A per-column genotype for gVCF: unlike [`call_germline`] (which abstains on
+/// hom-ref), this classifies EVERY callable column, so reference blocks can carry
+/// a real confidence. The bander turns a stream of these into a banded gVCF.
+#[derive(Debug, Clone, PartialEq)]
+pub enum GvcfGenotype {
+    /// Confident-enough reference (GT 0/0) with a genotype quality and depth.
+    HomRef {
+        /// Genotype quality (Phred, capped 99).
+        gq: u8,
+        /// Callable depth.
+        dp: u32,
+    },
+    /// A variant call (het or hom-alt) — the same call `variants` would emit.
+    Variant(GermlineCall),
+    /// Non-callable: no coverage, or the reference base is not A/C/G/T.
+    NoCall {
+        /// Callable depth (0 when uncovered).
+        dp: u32,
+    },
+}
+
+/// Genotype one pileup column for gVCF — never abstains. All-reference columns
+/// (no alt observed) still get a hom-ref GQ from the depth/quality evidence,
+/// using a nominal alt allele so the het/hom-alt likelihoods are well-defined.
+pub fn genotype_column_gvcf(column: &PileupColumn, params: &GermlineParams) -> GvcfGenotype {
+    let Some(ref_idx) = allele_index(column.ref_base) else {
+        return GvcfGenotype::NoCall { dp: column.depth() };
+    };
+    let dp = column.depth();
+    if dp == 0 {
+        return GvcfGenotype::NoCall { dp: 0 };
+    }
+    let counts = column.allele_counts();
+
+    // Alt = most-supported non-reference allele; if none observed (a pure
+    // reference column), pick a nominal alt so the het/hom-alt likelihoods —
+    // which no alt read supports — are still defined and penalize away from 0/0.
+    let mut alt_idx = (ref_idx + 1) % 4;
+    let mut best = 0u32;
+    for (i, &cnt) in counts.iter().enumerate() {
+        if i != ref_idx && cnt > best {
+            best = cnt;
+            alt_idx = i;
+        }
+    }
+
+    let mut log_l = [0.0f64; 3];
+    for o in &column.obs {
+        let eps = (10f64.powf(-(o.base_qual as f64) / 10.0)).min(0.75);
+        let a = o.allele as usize;
+        let p_ref = if a == ref_idx { 1.0 - eps } else { eps / 3.0 };
+        let p_alt = if a == alt_idx { 1.0 - eps } else { eps / 3.0 };
+        log_l[0] += p_ref.ln();
+        log_l[1] += (0.5 * p_ref + 0.5 * p_alt).ln();
+        log_l[2] += p_alt.ln();
+    }
+
+    let theta = params.heterozygosity;
+    let log_prior = [(1.0 - 1.5 * theta).ln(), theta.ln(), (theta / 2.0).ln()];
+    let log_post = [
+        log_l[0] + log_prior[0],
+        log_l[1] + log_prior[1],
+        log_l[2] + log_prior[2],
+    ];
+
+    // PL re-normalized to the max-likelihood genotype; GQ = second-smallest PL.
+    let max_log_l = log_l.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    let mut pl = [0u32; 3];
+    for (g, &ll) in log_l.iter().enumerate() {
+        pl[g] = (-10.0 * (ll - max_log_l) / LN10).round().min(255.0) as u32;
+    }
+    let mut sorted = pl;
+    sorted.sort_unstable();
+    let gq = sorted[1].min(99) as u8;
+
+    let gt_idx = argmax3(&log_post);
+    if gt_idx == 0 {
+        return GvcfGenotype::HomRef { gq, dp };
+    }
+
+    // QUAL = −10·log10 P(0/0 | data), numerically stable.
+    let max_lp = log_post.iter().copied().fold(f64::NEG_INFINITY, f64::max);
+    let log_z = max_lp
+        + log_post
+            .iter()
+            .map(|lp| (lp - max_lp).exp())
+            .sum::<f64>()
+            .ln();
+    let qual = (-10.0 * (log_post[0] - log_z) / LN10).max(0.0);
+    let filter = if dp < params.min_depth {
+        Filter::LowDepth
+    } else if qual < params.min_qual {
+        Filter::LowQual
+    } else {
+        Filter::Pass
+    };
+
+    GvcfGenotype::Variant(GermlineCall {
+        genotype: if gt_idx == 1 {
+            Genotype::Het
+        } else {
+            Genotype::HomAlt
+        },
+        alt_base: ACGT[alt_idx],
+        qual,
+        gq,
+        pl,
+        ad: [counts[ref_idx], counts[alt_idx]],
+        dp,
+        filter,
+    })
+}
+
 /// Index of the maximum of three values; ties resolve to the lowest index.
 fn argmax3(v: &[f64; 3]) -> usize {
     let mut best = 0;
@@ -205,6 +318,40 @@ mod tests {
         assert!(site_likelihoods(&col(b'A', &allref)).is_none());
         // Non-callable reference base.
         assert!(site_likelihoods(&col(b'N', &[(1, 30), (1, 30)])).is_none());
+    }
+
+    #[test]
+    fn gvcf_genotype_classifies_every_column() {
+        let params = GermlineParams::default();
+        // All-reference depth → a confident hom-ref with a real GQ (unlike
+        // call_germline, which abstains here).
+        let allref: Vec<(u8, u8)> = (0..20).map(|_| (0u8, 30u8)).collect();
+        match genotype_column_gvcf(&col(b'A', &allref), &params) {
+            GvcfGenotype::HomRef { gq, dp } => {
+                assert_eq!(dp, 20);
+                assert!(gq > 0, "deep all-ref should be confident hom-ref, gq={gq}");
+            }
+            other => panic!("expected HomRef, got {other:?}"),
+        }
+        // Clear het → a Variant.
+        let het: Vec<(u8, u8)> = (0..15)
+            .map(|_| (0u8, 30u8))
+            .chain((0..15).map(|_| (1u8, 30u8)))
+            .collect();
+        assert!(matches!(
+            genotype_column_gvcf(&col(b'A', &het), &params),
+            GvcfGenotype::Variant(_)
+        ));
+        // Non-callable reference base → NoCall.
+        assert!(matches!(
+            genotype_column_gvcf(&col(b'N', &[(1, 30)]), &params),
+            GvcfGenotype::NoCall { .. }
+        ));
+        // No coverage → NoCall with dp 0.
+        assert!(matches!(
+            genotype_column_gvcf(&col(b'A', &[]), &params),
+            GvcfGenotype::NoCall { dp: 0 }
+        ));
     }
 
     #[test]

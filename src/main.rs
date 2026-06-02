@@ -118,6 +118,11 @@ enum Commands {
         /// for file output, or `./rosalind.variants.manifest.json` for stdout output.
         #[arg(long)]
         manifest: Option<PathBuf>,
+        /// Emit a banded gVCF (every callable locus → a variant or a `<NON_REF>`
+        /// reference block) instead of a sites-only VCF — cohort-ready
+        /// (GLnexus/GATK), bounded, byte-reproducible. (`--index` path.)
+        #[arg(long)]
+        gvcf: bool,
     },
     /// Stream a bounded, deterministic per-locus FEATURE table (TSV) over a
     /// persisted index — the same memory contract as `variants`, but every
@@ -385,6 +390,7 @@ fn main() -> Result<()> {
             max_read_len,
             enforce,
             manifest,
+            gvcf,
         } => {
             if let Some(index) = index {
                 if chrom.is_some() || region_start != 0 {
@@ -401,8 +407,12 @@ fn main() -> Result<()> {
                     max_read_len,
                     enforce,
                     manifest,
+                    gvcf,
                 )?
             } else {
+                if gvcf {
+                    bail!("--gvcf requires --index (the bounded whole-genome path)");
+                }
                 let reference = reference.expect("clap guarantees one of --index/--reference");
                 run_variants(
                     reference,
@@ -1796,8 +1806,11 @@ fn run_variants_index(
     max_read_len: u32,
     enforce: bool,
     manifest_out: Option<PathBuf>,
+    gvcf: bool,
 ) -> Result<()> {
-    use rosalind::call::{call_germline_whole_genome, GermlineParams};
+    use rosalind::call::{
+        call_germline_whole_genome, stream_gvcf_whole_genome, write_gvcf_header, GermlineParams,
+    };
     use rosalind::genomics::IndexReader;
     use rosalind::io::bam::StreamingBamSource;
     use rosalind::io::vcf::{write_germline_header, write_germline_row, GermlineRow};
@@ -1888,64 +1901,63 @@ fn run_variants_index(
         }
     }
 
-    // Stream calls straight to the VCF writer (header once, then one row per
-    // emitted call) so no genome-wide row buffer accumulates. The returned
-    // WorkingSet is the high-water (reference + active set), captured per contig.
+    // Stream straight to the writer (header once, then one record per callable
+    // locus in gVCF mode, or per variant otherwise) so no genome-wide row buffer
+    // accumulates. The returned WorkingSet is the high-water (reference + active
+    // set), captured per contig — the gVCF banding state is O(1), so the bound
+    // holds for both modes. A small macro keeps the file/stdout arms DRY while
+    // each passes a concrete (sized) writer.
+    macro_rules! drive {
+        ($writer:expr) => {{
+            let w = $writer;
+            let r = if gvcf {
+                write_gvcf_header(&mut *w, contigs, "SAMPLE")?;
+                stream_gvcf_whole_genome(
+                    source,
+                    &ref_view,
+                    contigs,
+                    pileup_params,
+                    &germline_params,
+                    &mut *w,
+                )
+            } else {
+                write_germline_header(&mut *w, contigs, "SAMPLE")?;
+                call_germline_whole_genome(
+                    source,
+                    &ref_view,
+                    contigs,
+                    pileup_params,
+                    &germline_params,
+                    &mut |(locus, ref_base, call)| {
+                        write_germline_row(
+                            &mut *w,
+                            contigs,
+                            &GermlineRow {
+                                locus,
+                                ref_base,
+                                call,
+                            },
+                        )
+                        .map_err(rosalind::core::CoreError::from)
+                    },
+                )
+            }
+            .map_err(|e| anyhow!("variant calling failed: {e}"))?;
+            w.flush()?;
+            r
+        }};
+    }
     let (max_ws, skips) = match &output {
         Some(path) => {
             let file = File::create(path)
                 .with_context(|| format!("failed to create VCF file {}", path.display()))?;
             let mut writer = io::BufWriter::new(file);
-            write_germline_header(&mut writer, contigs, "SAMPLE")?;
-            let (ws, sk) = call_germline_whole_genome(
-                source,
-                &ref_view,
-                contigs,
-                pileup_params,
-                &germline_params,
-                &mut |(locus, ref_base, call)| {
-                    write_germline_row(
-                        &mut writer,
-                        contigs,
-                        &GermlineRow {
-                            locus,
-                            ref_base,
-                            call,
-                        },
-                    )
-                    .map_err(rosalind::core::CoreError::from)
-                },
-            )
-            .map_err(|e| anyhow!("variant calling failed: {e}"))?;
-            writer.flush()?;
-            (ws, sk)
+            drive!(&mut writer)
         }
         None => {
             let stdout = io::stdout();
             let mut handle = stdout.lock();
-            write_germline_header(&mut handle, contigs, "SAMPLE")?;
-            let (ws, sk) = call_germline_whole_genome(
-                source,
-                &ref_view,
-                contigs,
-                pileup_params,
-                &germline_params,
-                &mut |(locus, ref_base, call)| {
-                    write_germline_row(
-                        &mut handle,
-                        contigs,
-                        &GermlineRow {
-                            locus,
-                            ref_base,
-                            call,
-                        },
-                    )
-                    .map_err(rosalind::core::CoreError::from)
-                },
-            )
-            .map_err(|e| anyhow!("variant calling failed: {e}"))?;
-            handle.flush()?;
-            (ws, sk)
+            drive!(&mut handle)
         }
     };
     // Realized peak (monotonic high-water mark) captured after the calling pass.
