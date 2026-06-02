@@ -484,9 +484,8 @@ fn run_eval(
     truth_path: PathBuf,
     regions_path: Option<PathBuf>,
 ) -> Result<()> {
-    let fasta = read_fasta(&reference_path)
+    let references = read_fasta_map(&reference_path)
         .with_context(|| format!("failed to read reference from {}", reference_path.display()))?;
-    let reference = fasta.sequence;
 
     let calls_txt = std::fs::read_to_string(&calls_path)
         .with_context(|| format!("failed to read calls VCF {}", calls_path.display()))?;
@@ -506,7 +505,7 @@ fn run_eval(
         None
     };
 
-    let report = compare_callsets(&reference, &calls, &truth, bed.as_ref())?;
+    let report = compare_callsets(&references, &calls, &truth, bed.as_ref())?;
     println!("truth_total={}", report.total_truth);
     println!("calls_total={}", report.total_calls);
     println!("tp={}", report.true_positive);
@@ -1879,6 +1878,29 @@ fn read_fasta(path: &PathBuf) -> Result<FastaRecord> {
         );
     }
     Ok(first)
+}
+
+/// Read ALL FASTA records into a contig-name → sequence map. Used by `eval-*`,
+/// which must normalize each variant against its OWN contig — loading only the
+/// first record (the single-contig `read_fasta` policy) silently miscompares or
+/// crashes on any multi-contig benchmark.
+fn read_fasta_map(path: &PathBuf) -> Result<std::collections::BTreeMap<String, Vec<u8>>> {
+    let reader = open_input(path).with_context(|| format!("failed to open {}", path.display()))?;
+    let mut map = std::collections::BTreeMap::new();
+    for rec in FastaReader::new(reader) {
+        let rec = rec.with_context(|| format!("failed to parse FASTA {}", path.display()))?;
+        if map.insert(rec.name.clone(), rec.sequence).is_some() {
+            bail!(
+                "FASTA {} has a duplicate contig name '{}'",
+                path.display(),
+                rec.name
+            );
+        }
+    }
+    if map.is_empty() {
+        bail!("FASTA file {} is missing a record", path.display());
+    }
+    Ok(map)
 }
 
 /// Read a FASTQ file (plain or gzip; `-` = stdin) into a vector of records.
