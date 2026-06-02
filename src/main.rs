@@ -1357,8 +1357,13 @@ fn run_features(
     let source = StreamingBamSource::new(&alignments_path, contigs)
         .map_err(|e| anyhow!("failed to open BAM {}: {e}", alignments_path.display()))?;
 
-    // Same `--enforce` admission as `variants` — it is the same pileup engine, so
-    // the predicted working set is identical.
+    // Same prediction + `--enforce` admission as `variants` — it is the same
+    // pileup engine, so the predicted working set is identical. Computed
+    // unconditionally and recorded in the receipt.
+    let largest = contigs.iter().map(|c| c.length as u64).max().unwrap_or(0);
+    let baseline = peak_rss_bytes();
+    let predicted_peak =
+        rosalind::call::plan::predicted_peak_rss_bytes(largest, max_depth, max_read_len, baseline);
     if enforce {
         if memory_budget_mb.is_none() {
             bail!("--enforce requires --memory-budget-mb");
@@ -1369,21 +1374,13 @@ fn run_features(
             );
         }
         let mb = memory_budget_mb.unwrap();
-        let largest = contigs.iter().map(|c| c.length as u64).max().unwrap_or(0);
-        let baseline = peak_rss_bytes();
-        let predicted = rosalind::call::plan::predicted_peak_rss_bytes(
-            largest,
-            max_depth,
-            max_read_len,
-            baseline,
-        );
-        if !MemoryBudget::from_mb(mb).admits(predicted) {
+        if !MemoryBudget::from_mb(mb).admits(predicted_peak) {
             eprintln!(
                 "contract: REFUSE — declared {} MiB, predicted peak ~{} MiB (largest contig {} MiB \
                  + active @ max-depth {} / max-read-len {} atop a {} MiB baseline). Raise \
                  --memory-budget-mb, lower --max-depth, or drop --enforce.",
                 mb,
-                predicted / (1 << 20),
+                predicted_peak / (1 << 20),
                 largest / (1 << 20),
                 max_depth,
                 max_read_len,
@@ -1488,6 +1485,10 @@ fn run_features(
         manifest
             .params
             .insert("peak_rss_bytes".to_string(), peak_rss.to_string());
+        manifest.params.insert(
+            "predicted_peak_rss_bytes".to_string(),
+            predicted_peak.to_string(),
+        );
         manifest.params.insert(
             "max_working_set_bytes".to_string(),
             max_ws.bytes.to_string(),
@@ -1617,9 +1618,16 @@ fn run_variants_index(
     let source = StreamingBamSource::new(&alignments_path, contigs)
         .map_err(|e| anyhow!("failed to open BAM {}: {e}", alignments_path.display()))?;
 
-    // `--enforce` contract: predict the peak RSS up front (measured baseline +
-    // the depth-capped working set) and refuse cleanly if it won't fit — before
-    // doing any work. Never a silent OOM.
+    // Predict the peak RSS up front: a measured baseline (binary + libs + index/
+    // BAM open) plus the depth-capped working set plus an RSS margin. Computed
+    // unconditionally and recorded in the receipt — it is the contract's up-front
+    // claim, which the post-run check and `verify` assert the realized peak honors.
+    // Under `--enforce` it also gates the run: refuse cleanly before any work,
+    // never a silent OOM.
+    let largest = contigs.iter().map(|c| c.length as u64).max().unwrap_or(0);
+    let baseline = peak_rss_bytes();
+    let predicted_peak =
+        rosalind::call::plan::predicted_peak_rss_bytes(largest, max_depth, max_read_len, baseline);
     if enforce {
         if memory_budget_mb.is_none() {
             bail!("--enforce requires --memory-budget-mb");
@@ -1630,22 +1638,14 @@ fn run_variants_index(
             );
         }
         let mb = memory_budget_mb.unwrap();
-        let largest = contigs.iter().map(|c| c.length as u64).max().unwrap_or(0);
-        let baseline = peak_rss_bytes();
-        let predicted = rosalind::call::plan::predicted_peak_rss_bytes(
-            largest,
-            max_depth,
-            max_read_len,
-            baseline,
-        );
-        if !MemoryBudget::from_mb(mb).admits(predicted) {
+        if !MemoryBudget::from_mb(mb).admits(predicted_peak) {
             eprintln!(
                 "contract: REFUSE — declared {} MiB, predicted peak ~{} MiB \
                  (largest contig {} MiB + active @ max-depth {} / max-read-len {} \
                  atop a {} MiB baseline). Raise --memory-budget-mb, lower --max-depth, \
                  or drop --enforce.",
                 mb,
-                predicted / (1 << 20),
+                predicted_peak / (1 << 20),
                 largest / (1 << 20),
                 max_depth,
                 max_read_len,
@@ -1779,6 +1779,10 @@ fn run_variants_index(
         manifest
             .params
             .insert("peak_rss_bytes".to_string(), peak_rss.to_string());
+        manifest.params.insert(
+            "predicted_peak_rss_bytes".to_string(),
+            predicted_peak.to_string(),
+        );
         manifest.params.insert(
             "max_working_set_bytes".to_string(),
             max_ws.bytes.to_string(),

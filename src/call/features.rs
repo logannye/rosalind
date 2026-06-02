@@ -109,11 +109,12 @@ pub fn stream_features_whole_genome<S: ReadSource>(
     let mut peeked: Option<AlignedRead> = None;
 
     for c in contigs.iter() {
+        // Decode straight into the Arc (no intermediate Vec) — one resident copy,
+        // not the transient two, so the predicted-peak bound holds (same as the
+        // germline whole-genome driver).
         let start = c.global_offset as usize;
         let end = c.global_offset as usize + c.length as usize;
-        let mut decoded = Vec::new();
-        ref_view.decode_window(start, end, &mut decoded);
-        let reference: Arc<[u8]> = Arc::from(decoded);
+        let reference: Arc<[u8]> = ref_view.decode_window_arc(start, end);
 
         let per = PerContig {
             source: &mut source,
