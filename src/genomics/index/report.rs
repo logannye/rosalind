@@ -25,6 +25,79 @@ pub fn estimate_build_working_set(reference_len: u64) -> WorkingSet {
     }
 }
 
+/// A code-grounded model of the **peak simultaneously-live n-scale memory** of the
+/// SA-IS index build, broken down by the arrays `sais_impl`/`induce_sort`/the
+/// FM-index actually allocate. Element sizes are the real Rust types: the SA-IS
+/// input text and the suffix array are `u32`/`i32` (4 B); the LMS index vectors
+/// are `usize` (8 B); `types` is one byte. `#LMS ≤ n/2` is modeled at n/2. The
+/// recursion (`sais_impl(&reduced, …)`) keeps the parent's text/types/lms arrays
+/// live while a ~n/2-size child runs, so its overhead is modeled as a geometric
+/// tail (~1× the parent's live n-scale arrays). This is a peak-SET estimate, not a
+/// sum of every allocation ever made — D0 MEASURES whether it captures the
+/// realized peak (the gate); it is not tuned to the gate.
+#[derive(Debug, Clone)]
+pub struct BuildMemoryModel {
+    /// Per-component `(name, bytes)` of the modeled peak set.
+    pub components: Vec<(String, u64)>,
+    /// Sum of the components.
+    pub total_bytes: u64,
+}
+
+impl BuildMemoryModel {
+    /// Model the peak n-scale build memory for a reference of `n` bases.
+    pub fn from_reference_len(n: u64) -> Self {
+        const SA_ELEM: u64 = 4; // u32 / i32 suffix-array + text element
+        const USIZE: u64 = 8; // LMS index vectors are Vec<usize>
+        let lms = n / 2; // #LMS ≤ n/2 (upper-ish)
+        let comps: Vec<(&str, u64)> = vec![
+            ("text(u32)", n.saturating_mul(SA_ELEM)),
+            ("types(1B)", n),
+            ("lms_positions(usize)", lms.saturating_mul(USIZE)),
+            ("induce-sort suffix array(i32)", n.saturating_mul(SA_ELEM)),
+            ("lms_in_sa_order(usize)", lms.saturating_mul(USIZE)),
+            ("lms_name(u32)", n.saturating_mul(SA_ELEM)),
+            ("reduced string(u32)", lms.saturating_mul(SA_ELEM)),
+            ("returned suffix array(u32)", n.saturating_mul(SA_ELEM)),
+            ("fm-index (bwt + rank + C-table)", n.saturating_mul(3)),
+        ];
+        let level0: u64 = comps
+            .iter()
+            .fold(0u64, |acc, (_, b)| acc.saturating_add(*b));
+        // Recursion: parent text/types/lms_positions/lms_name/reduced stay live
+        // (~text 4n + types 1n + lms_positions 4n + lms_name 4n + reduced 2n = 15n)
+        // while a ~n/2 child runs; the geometric tail ≈ that parent-live amount.
+        let recursion = n.saturating_mul(15);
+        let mut components: Vec<(String, u64)> =
+            comps.into_iter().map(|(s, b)| (s.to_string(), b)).collect();
+        components.push(("recursion (geometric tail)".to_string(), recursion));
+        let total_bytes = level0.saturating_add(recursion);
+        Self {
+            components,
+            total_bytes,
+        }
+    }
+
+    /// Render the model as a deterministic multi-line breakdown (bytes + per-base).
+    pub fn render(&self, total_bp: u64) -> String {
+        let mut out = String::from("build memory model (n-scale peak set):\n");
+        let denom = total_bp.max(1);
+        for (name, bytes) in &self.components {
+            out.push_str(&format!(
+                "  {name:<34} {:>6} MiB  ({} B/base)\n",
+                bytes / (1 << 20),
+                bytes / denom
+            ));
+        }
+        out.push_str(&format!(
+            "  {:-<34} {:>6} MiB  ({} B/base)\n",
+            "total ",
+            self.total_bytes / (1 << 20),
+            self.total_bytes / denom
+        ));
+        out
+    }
+}
+
 /// The deterministic build receipt for a persisted index. Per-run fields (e.g.
 /// realized RSS) are intentionally excluded — the caller prints those separately.
 #[derive(Debug, Clone)]
@@ -131,5 +204,34 @@ mod tests {
         assert!(render_plan_line(under, budget).ends_with("[OK]"));
         assert!(render_plan_line(over, budget).ends_with("[OVER]"));
         assert!(render_plan_line(under, budget).contains("budget 100 MiB"));
+    }
+
+    #[test]
+    fn build_model_breaks_down_and_sums() {
+        let m = BuildMemoryModel::from_reference_len(1_000_000);
+        let sum: u64 = m.components.iter().map(|(_, b)| b).sum();
+        assert_eq!(sum, m.total_bytes, "components must sum to total");
+        let names: Vec<&str> = m.components.iter().map(|(n, _)| n.as_str()).collect();
+        for needed in ["text(u32)", "suffix array", "lms_name"] {
+            assert!(
+                names.iter().any(|n| n.contains(needed)),
+                "missing component {needed}: {names:?}"
+            );
+        }
+        // Honest sanity: SA-IS over a u32 text is many bytes/base, not a handful.
+        assert!(
+            m.total_bytes >= 20_000_000,
+            "model must be ≥20 B/base (~{} B/base)",
+            m.total_bytes / 1_000_000
+        );
+    }
+
+    #[test]
+    fn build_model_is_monotonic_and_overflow_safe() {
+        assert!(
+            BuildMemoryModel::from_reference_len(2_000_000).total_bytes
+                > BuildMemoryModel::from_reference_len(1_000_000).total_bytes
+        );
+        let _ = BuildMemoryModel::from_reference_len(u64::MAX); // must not panic
     }
 }
