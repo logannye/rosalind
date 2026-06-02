@@ -1353,7 +1353,13 @@ fn run_variants_index(
         }
     };
     // Realized peak (monotonic high-water mark) captured after the calling pass.
-    let peak_rss = peak_rss_bytes();
+    // Test-only seam: ROSALIND_FORCE_PEAK_RSS_BYTES overrides ONLY this post-run
+    // realized peak (never the pre-run baseline at the --enforce gate), so the
+    // exit-4 breach branch can be exercised deterministically without allocating.
+    let peak_rss = std::env::var("ROSALIND_FORCE_PEAK_RSS_BYTES")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or_else(peak_rss_bytes);
 
     // Compute the contract verdict before writing the receipt (so it records it).
     let verdict = match memory_budget_mb.map(|mb| MemoryBudget::from_mb(mb).admits(peak_rss)) {
