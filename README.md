@@ -44,7 +44,7 @@ What makes this different:
 - **A contract, honored.** `rosalind plan` predicts the peak *before you commit a byte*; `--enforce` honors the budget — refusing up front (exit 3) or failing loud (exit 4) rather than silently OOM-killing you; `rosalind verify` re-checks the receipt without re-running. Without `--enforce`, the budget is record-only. The full story: [the memory contract](CONTRACT.md).
 - **Reproducible + auditable.** Identical inputs produce a byte-identical VCF; a BLAKE3 manifest records the index, the BAM, the output, and the memory used.
 
-**Proof — the contract on a real genome.** On the real *E. coli* K-12 MG1655 chromosome (4,641,652 bp, 30× simulated reads), a declared **256 MiB** budget *fits* — `plan` → `variants --enforce` → `verify: OK`, **realized peak 22 MiB** — while an **8 MiB** budget is *refused up front* (exit 3, no work). The contract honored both ways; the claim is memory, not calling accuracy. Full numbers + one-command reproduction (`bash scripts/flagship_ecoli_demo.sh`): [`docs/findings/2026-06-01-flagship-ecoli-contract.md`](docs/findings/2026-06-01-flagship-ecoli-contract.md).
+**Proof — the contract on a real genome.** On the real *E. coli* K-12 MG1655 chromosome (4,641,652 bp, 30× simulated reads), a declared **256 MiB** budget *fits* — `plan` → `variants --enforce` → `verify: OK`, **realized peak 22 MiB** — while an **8 MiB** budget is *refused up front* (exit 3, no work). The contract honored both ways; this demo's claim is *memory* (the reads are simulated) — calling accuracy is measured separately ([Accuracy](#accuracy)). Full numbers + one-command reproduction (`bash scripts/flagship_ecoli_demo.sh`): [`docs/findings/2026-06-01-flagship-ecoli-contract.md`](docs/findings/2026-06-01-flagship-ecoli-contract.md).
 
 ---
 
@@ -71,13 +71,14 @@ You'll see `plan` predict `[FITS]`, `variants --enforce` print `contract: OK —
 
 ## What it does today
 
-- **Bounded whole-genome germline calling** — `rosalind variants --index` streams a coordinate-sorted BAM over all contigs of a persisted index, calling SNVs to a multi-contig VCF with a working set bounded by coverage. Calls are calibrated and **abstention-aware** (no confident call → no row, rather than a guess).
+- **Bounded whole-genome germline calling** — `rosalind variants --index` streams a coordinate-sorted BAM over all contigs of a persisted index, calling SNVs to a multi-contig VCF with a working set bounded by coverage. Calls are calibrated and **abstention-aware** (no confident call → no row, rather than a guess). Detection accuracy is measured against simulated diploid truth (precision/recall 1.00/1.00 on clean data — see [Accuracy](#accuracy)).
+- **A reproducible ML feature substrate** — `rosalind features --index` emits the same bounded pileup stream as a per-locus feature **table** (TSV) instead of variant calls — byte-identical run-to-run, with a hash receipt, for **bit-reproducible** training inputs (see below).
 - **Build-once, query-many index** — `rosalind index` builds a portable, memory-mapped FM-index over a (multi-contig) reference; `rosalind locate` answers exact-match queries against it in milliseconds. The index is **never rebuilt on load** and is **byte-identical across builds** of the same reference.
 - **Alignment** — `rosalind align` builds a Burrows–Wheeler / FM-index over a reference contig and aligns reads via exact-match seeding, deterministic diagonal chaining, and banded affine-gap refinement. Emits SAM or BGZF-compressed BAM.
 - **Streaming I/O** — Reads plain or gzip/bgzf-compressed FASTA/FASTQ, auto-detected from the magic bytes; FASTQ can stream from stdin (`-`).
 - **Deterministic coordinate sort** — `rosalind sort`: an external merge sort (spills to disk) that orders a BAM by position within a configurable memory budget.
 - **Somatic (tumor/normal) calling** — `rosalind somatic` calls somatic SNVs and simple indels from a paired tumor/normal BAM set using a deterministic binomial log-likelihood-ratio model with explicit depth and allele-fraction filters.
-- **Truth-set evaluation** — `rosalind eval-somatic` compares a call set against a truth VCF over confident regions (BED), with variant normalization (left-align + trim) and precision / recall / F1.
+- **Truth-set evaluation** — `rosalind eval-germline` / `rosalind eval-somatic` compare a call set against a truth VCF over confident regions (BED), with variant normalization (left-align + trim) and precision / recall / F1. `eval-germline` is the drop-in interface for a GIAB benchmark.
 - **Extensibility** — Build custom bounded per-locus analytics over the `PileupColumn` iterator substrate (see [`examples/custom_pileup_analytics.rs`](examples/custom_pileup_analytics.rs)), inheriting bounded memory + determinism for free. *(The legacy `GenomicPlugin` trait + PyO3 RNA-seq demo still work but are **not** memory-bounded — see [CONTRACT.md](CONTRACT.md).)*
 - **Determinism by design** — Primary artifacts are emitted in a canonical, stable order, byte-for-byte identical across repeated runs given identical inputs. See [`docs/determinism.md`](docs/determinism.md).
 
@@ -90,6 +91,15 @@ Three properties, treated as first-class guarantees rather than nice-to-haves:
 3. **Honest uncertainty.** Calibrated, abstention-aware calling refuses to emit a call where the evidence is insufficient, instead of papering over it.
 
 The contract is real today: `rosalind plan` predicts before you commit, `--enforce` honors the budget, and `rosalind verify` re-checks the receipt (see [CONTRACT.md](CONTRACT.md)). Under the hood, Rosalind is *also* a research vehicle for **space-bounded genomics**: a `~√t` (square-root-space) evaluation framework as a continuous space/time knob, aimed at **sublinear-space index *construction*** — the future Phase-D direction that would extend the contract to the index build step. That layer is not yet load-bearing; the bounded streaming engine you use today is the practical foundation it builds on.
+
+## Accuracy
+
+The contract wraps a real caller, and its detection accuracy is **measured, not assumed.** Against simulated diploid truth (known het/hom SNVs, reads sampled from both haplotypes, the BAM built directly so this isolates the *caller*, not alignment):
+
+- **40× / 0.5% error (clean):** precision **1.00**, recall **1.00**, F1 **1.00** — every het/hom SNV recovered, zero false positives.
+- **12× / 1.5% error (stress):** the caller still finds *every* true variant (unfiltered recall 1.00); the default `min_qual` / `min_depth` PASS filter then trades a little recall for precision under noise (0.90 / 0.68).
+
+Scope is honest: simulated (not yet GIAB), detection-only (position + ref + alt), SNV-only. A real **GIAB HG002** benchmark plugs into the same comparator via `rosalind eval-germline --reference … --calls … --truth … --regions highconf.bed`. Full numbers + the gated harness: [`docs/findings/2026-06-02-germline-accuracy.md`](docs/findings/2026-06-02-germline-accuracy.md).
 
 ## Who it's for
 
@@ -146,7 +156,8 @@ The core primitive is a streaming, CIGAR-aware pileup column stream; variant cal
 
 - **Phase A (done):** the streaming pileup engine; calibrated, abstention-aware germline SNV calling; tumor/normal somatic calling; spec-valid VCF; a BLAKE3 reproducibility receipt per run.
 - **Phase B (done):** streaming gzip/bgzf input; a multi-contig FM-index over the concatenated genome with `(contig, position)` resolution; a build-once, memory-mapped, byte-reproducible persisted index (`rosalind index`/`locate`); zero-copy reference access from the index; and **bounded whole-genome germline calling over a sorted BAM** (`rosalind variants --index`) with a realized-memory receipt.
-- **Phase C (done — in review):** memory as a *verifiable contract* — `rosalind plan` (a checkable envelope before you commit), `--enforce` (honor-or-refuse: refuse up front / fail loud, never a silent OOM-kill), and `rosalind verify`. See [CONTRACT.md](CONTRACT.md).
+- **Phase C (done):** memory as a *verifiable contract* — `rosalind plan` (a checkable envelope before you commit), `--enforce` (honor-or-refuse: refuse up front / fail loud, never a silent OOM-kill), and `rosalind verify`. See [CONTRACT.md](CONTRACT.md).
+- **Hardening & reach (done):** unbiased depth-cap downsampling (no silent variant drops) and a CI-enforced memory gate; **measured** germline detection accuracy ([Accuracy](#accuracy)); the **`rosalind features`** reproducible ML feature substrate; and a one-command adoption on-ramp — prebuilt binaries (`install.sh`) plus the **`rosalind-budget` GitHub Action** that enforces the contract in *your* CI.
 - **Phase D (research):** sublinear-space index construction — the `~√t` space/time knob across the full curve — extending the contract to the index *build* step (today's build is O(reference)). The headline space-complexity bet; see [`docs/OPEN_PROBLEMS.md`](docs/OPEN_PROBLEMS.md).
 - **Later:** the aligner over the persisted multi-contig index (`align --index`, whole-genome alignment); germline indels and richer read QC; deterministic multithreading; a Python/tensor binding over the pileup stream.
 
@@ -159,7 +170,7 @@ Target architecture and per-phase specs/plans live in [`docs/superpowers/specs/`
 ### Prerequisites
 - Rust 1.72+ (`rustup` recommended)
 - Native compression headers for BAM I/O: `libbz2-dev` & `liblzma-dev` on Debian/Ubuntu, `brew install bzip2 xz` on macOS
-- Python 3.9+ (only for the PyO3 bindings; set `PYO3_PYTHON=/path/to/python` if the default interpreter is unsuitable)
+- Python 3.9+ with `numpy` for the feature-substrate boundary (`python/rosalind.py`); the optional legacy PyO3 bindings additionally need `maturin` (set `PYO3_PYTHON=/path/to/python` if the default interpreter is unsuitable)
 
 ### Build
 ```bash
@@ -238,10 +249,11 @@ Run `rosalind <subcommand> --help` for exact flags.
 
 - `rosalind plan` — predict a job's peak memory vs a declared budget *before* committing (`--index` for the variants peak, `--reference` for the index build).
 - `rosalind verify` — re-check a reproducibility receipt without re-running: re-hash its inputs/outputs and confirm the realized peak landed within budget.
+- `rosalind features --index genome.idx --alignments sorted.bam -o features.tsv` — stream a bounded, byte-identical per-locus feature table (TSV) under the same memory contract (see [the ML substrate](#a-reproducible-feature-substrate-for-ml)).
 - `rosalind locate --index genome.idx --pattern GATTACA` — exact-match positions in a prebuilt index (memory-mapped, never rebuilt). Exact-match only; seed/chain/extend alignment against the persisted index is a later phase.
 - `rosalind sort` — deterministic coordinate sort of a BAM within a memory budget.
 - `rosalind somatic` — tumor/normal somatic SNV + simple-indel calling from a paired BAM set over a region.
-- `rosalind eval-somatic` — compare a call set to a truth VCF over confident regions.
+- `rosalind eval-germline` / `rosalind eval-somatic` — compare a germline / somatic call set to a truth VCF over confident regions (BED), reporting precision / recall / F1.
 
 ### Rust API
 
@@ -300,24 +312,20 @@ The bounded whole-genome drive (`rosalind::call::call_germline_whole_genome`) wr
 
 ### Python
 
-```bash
-pip install maturin
-maturin develop --release
-```
+The dependency-light boundary ([`python/rosalind.py`](python/rosalind.py), stdlib + numpy, no build) runs `rosalind features` and loads the per-locus table into numpy:
+
 ```python
-from rosalind_py import PyGenomicEngine
+import sys; sys.path.insert(0, "python")
+from rosalind import features
 
-engine = PyGenomicEngine()
-print(engine.list_plugins())
-
-# Per-base coverage over a region via the example plugin.
-depth = engine.run_rna_seq_plugin(
-    region_start=100_000,
-    region_end=101_000,
-    reads=[(100_020, "ACGTACGT"), (100_050, "TTTACGT")],
-    block_size=512,
-)
+ft = features("genome.idx", "sample.sorted.bam", binary="rosalind")
+X = ft.data            # (n_loci, n_numeric_features) float64, ready for a model
+print(len(ft), "loci,", X.shape[1], "features; receipt:", ft.manifest_path)
 ```
+
+The binary streams the whole-genome table in bounded memory; this just loads the result. [`examples/reproducible_features_demo.py`](examples/reproducible_features_demo.py) is a runnable demo that trains a model and *proves* the inputs are bit-reproducible. A zero-copy in-process `pyarrow` binding is the next step.
+
+> **Legacy.** A PyO3 extension (`maturin develop --release` → `rosalind_py.PyGenomicEngine`) exposes an older plugin demo; it is **not** memory-bounded and does not use the feature substrate. Prefer `python/rosalind.py` above.
 
 ---
 
