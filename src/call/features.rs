@@ -19,14 +19,14 @@ pub const FEATURE_HEADER: &str = "#contig\tpos\tref\tdepth\traw_depth\ta\tc\tg\t
 a_fwd\ta_rev\tc_fwd\tc_rev\tg_fwd\tg_rev\tt_fwd\tt_rev\tmean_bq\tmean_mapq";
 
 /// Write the feature header line.
-pub fn write_feature_header<W: Write>(out: &mut W) -> io::Result<()> {
+pub fn write_feature_header<W: Write + ?Sized>(out: &mut W) -> io::Result<()> {
     writeln!(out, "{FEATURE_HEADER}")
 }
 
 /// Write one feature row for a callable pileup column. `pos` is 1-based (VCF POS).
 /// Means are integer sums over observations divided by callable depth, formatted
 /// to 2 decimals so the row is byte-stable across runs.
-pub fn write_feature_row<W: Write>(
+pub fn write_feature_row<W: Write + ?Sized>(
     out: &mut W,
     contig_name: &str,
     col: &PileupColumn,

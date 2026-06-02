@@ -168,6 +168,27 @@ Two properties no other pileup gives you together: it is **bounded** (the whole-
 
 A dependency-light Python boundary ([`python/rosalind.py`](python/rosalind.py), stdlib + numpy) loads the table directly, and [`examples/reproducible_features_demo.py`](examples/reproducible_features_demo.py) trains a small model on it and *proves* the inputs are bit-reproducible (two independent extractions → matching receipt hashes → bit-identical trained weights; see [`docs/findings/2026-06-02-reproducible-features-demo.md`](docs/findings/2026-06-02-reproducible-features-demo.md)). *(TSV today; an Arrow/Parquet egress and a zero-copy `pyarrow` in-process binding are the next step.)*
 
+## ColumnKit: implement one trait, inherit the contract
+
+Want your *own* per-locus metric — methylation, a coverage/QC track, custom ML features, a star-allele genotyper? Implement one trait and run it through the driver; you inherit the **same** bounded whole-genome walk, the **same** working-set bound that `plan`/`--enforce` admit, and the **same** verifiable receipt the shipped subcommands enjoy — without re-deriving any of it.
+
+```rust
+use rosalind::{ColumnAnalyzer, run_bounded_whole_genome, PileupColumn};
+use std::io::{self, Write};
+
+struct CoverageTrack;
+impl ColumnAnalyzer for CoverageTrack {
+    fn header(&self) -> Option<String> { Some("#contig\tpos\tdepth\n".into()) }
+    fn on_column(&mut self, col: &PileupColumn, contig: &str, out: &mut dyn Write) -> io::Result<()> {
+        writeln!(out, "{contig}\t{}\t{}", col.locus.pos.0 + 1, col.depth())
+    }
+}
+// run_bounded_whole_genome(&mut CoverageTrack, source, &ref_view, contigs, params, &mut out)
+//   → returns the bounded WorkingSet `plan`/`--enforce` reason about.
+```
+
+The trait is *welded* to the bounded kernel — `run_bounded_whole_genome` drives the exact same column stream as the shipped `features` egress (which is itself just the first `ColumnAnalyzer`), so the estimator that admits a run provably upper-bounds the realized working set of *your* analyzer too. No other genomics library can offer "implement this trait, inherit a machine-checkable memory budget + a hash-verifiable receipt," because no other library has a memory contract to inherit. See [`examples/columnkit_coverage.rs`](examples/columnkit_coverage.rs).
+
 ## Roadmap
 
 The core primitive is a streaming, CIGAR-aware pileup column stream; variant calling and custom plugins consume it. Performance work deliberately *follows* the unique capability — the target user needs "it fits and is predictable" before "it's fastest."
@@ -177,6 +198,7 @@ The core primitive is a streaming, CIGAR-aware pileup column stream; variant cal
 - **Phase C (done):** memory as a *verifiable contract* — `rosalind plan` (a checkable envelope before you commit), `--enforce` (honor-or-refuse: refuse up front / fail loud, never a silent OOM-kill), and `rosalind verify`. See [CONTRACT.md](CONTRACT.md).
 - **Hardening & reach (done):** unbiased depth-cap downsampling (no silent variant drops) and a CI-enforced memory gate; **measured** germline detection accuracy ([Accuracy](#accuracy)); the **`rosalind features`** reproducible ML feature substrate; and a one-command adoption on-ramp — prebuilt binaries (`install.sh`, with checksum verification) plus the **Rosalind budget GitHub Action** (`action.yml`, used as `logannye/rosalind@v0.1.0`) that enforces the contract in *your* CI.
 - **Fleet scheduling (done):** [prediction → placement](#pack-a-fleet-prediction--placement) — `rosalind pack` proves a co-location of N calling jobs fits a node before launching a byte (predicted peaks are additive and read from the index header); `plan --index --json` for a scheduler to read.
+- **ColumnKit SDK (done):** [implement one trait, inherit the contract](#columnkit-implement-one-trait-inherit-the-contract) — a `ColumnAnalyzer` trait + `run_bounded_whole_genome` driver so a builder's own per-locus analyzer inherits bounded memory, determinism, and a verifiable receipt. The shipped `features` egress is the first impl.
 - **Phase D (research):** sublinear-space index construction — the `~√t` space/time knob across the full curve — extending the contract to the index *build* step (today's build is O(reference)). The headline space-complexity bet; see [`docs/OPEN_PROBLEMS.md`](docs/OPEN_PROBLEMS.md).
 - **Later:** the aligner over the persisted multi-contig index (`align --index`, whole-genome alignment); germline indels and richer read QC; deterministic multithreading; a Python/tensor binding over the pileup stream.
 
