@@ -1001,7 +1001,7 @@ fn run_variants_index(
     use rosalind::call::{call_germline_whole_genome, GermlineParams};
     use rosalind::genomics::IndexReader;
     use rosalind::io::bam::StreamingBamSource;
-    use rosalind::io::vcf::{write_germline_vcf, GermlineRow};
+    use rosalind::io::vcf::{write_germline_header, write_germline_row, GermlineRow};
     use rosalind::pileup::PileupParams;
     use rosalind::provenance::{blake3_file, write_manifest, FileHash, RunManifest};
 
@@ -1041,64 +1041,85 @@ fn run_variants_index(
     }
     let source = StreamingBamSource::new(&alignments_path, contigs)
         .map_err(|e| anyhow!("failed to open BAM {}: {e}", alignments_path.display()))?;
-    let (sites, max_ws) =
-        call_germline_whole_genome(source, &ref_view, contigs, pileup_params, &germline_params)
-            .map_err(|e| anyhow!("variant calling failed: {e}"))?;
-    // Realized peak (monotonic high-water mark) captured after the calling pass.
-    let peak_rss = peak_rss_bytes();
 
-    let rows: Vec<GermlineRow> = sites
-        .into_iter()
-        .map(|(locus, ref_base, call)| GermlineRow {
-            locus,
-            ref_base,
-            call,
-        })
-        .collect();
-
-    match output {
+    // Stream calls straight to the VCF writer (header once, then one row per
+    // emitted call) so no genome-wide row buffer accumulates. The returned
+    // WorkingSet is the high-water (reference + active set), captured per contig.
+    let max_ws = match &output {
         Some(path) => {
-            let file = File::create(&path)
+            let file = File::create(path)
                 .with_context(|| format!("failed to create VCF file {}", path.display()))?;
             let mut writer = io::BufWriter::new(file);
-            write_germline_vcf(&mut writer, contigs, "SAMPLE", &rows)?;
+            write_germline_header(&mut writer, contigs, "SAMPLE")?;
+            let ws = call_germline_whole_genome(
+                source,
+                &ref_view,
+                contigs,
+                pileup_params,
+                &germline_params,
+                &mut |(locus, ref_base, call)| {
+                    write_germline_row(&mut writer, contigs, &GermlineRow { locus, ref_base, call })
+                        .map_err(rosalind::core::CoreError::from)
+                },
+            )
+            .map_err(|e| anyhow!("variant calling failed: {e}"))?;
             writer.flush()?;
-            drop(writer);
-            let mut manifest = RunManifest::new("variants");
-            manifest.inputs.push(FileHash {
-                path: index_path.display().to_string(),
-                blake3: blake3_file(&index_path)?,
-            });
-            manifest.inputs.push(FileHash {
-                path: alignments_path.display().to_string(),
-                blake3: blake3_file(&alignments_path)?,
-            });
-            manifest.outputs.push(FileHash {
-                path: path.display().to_string(),
-                blake3: blake3_file(&path)?,
-            });
-            manifest
-                .params
-                .insert("mapq_threshold".to_string(), mapq_threshold.to_string());
-            manifest.params.insert(
-                "min_qual".to_string(),
-                (quality_threshold as f64).to_string(),
-            );
-            manifest
-                .params
-                .insert("peak_rss_bytes".to_string(), peak_rss.to_string());
-            manifest.params.insert(
-                "max_working_set_bytes".to_string(),
-                max_ws.bytes.to_string(),
-            );
-            let manifest_path = write_manifest(&path, &manifest)?;
-            eprintln!("wrote reproducibility receipt: {}", manifest_path.display());
+            ws
         }
         None => {
             let stdout = io::stdout();
             let mut handle = stdout.lock();
-            write_germline_vcf(&mut handle, contigs, "SAMPLE", &rows)?;
+            write_germline_header(&mut handle, contigs, "SAMPLE")?;
+            let ws = call_germline_whole_genome(
+                source,
+                &ref_view,
+                contigs,
+                pileup_params,
+                &germline_params,
+                &mut |(locus, ref_base, call)| {
+                    write_germline_row(&mut handle, contigs, &GermlineRow { locus, ref_base, call })
+                        .map_err(rosalind::core::CoreError::from)
+                },
+            )
+            .map_err(|e| anyhow!("variant calling failed: {e}"))?;
+            handle.flush()?;
+            ws
         }
+    };
+    // Realized peak (monotonic high-water mark) captured after the calling pass.
+    let peak_rss = peak_rss_bytes();
+
+    // Reproducibility + memory receipt (file output only; stdout receipt is C3).
+    if let Some(path) = &output {
+        let mut manifest = RunManifest::new("variants");
+        manifest.inputs.push(FileHash {
+            path: index_path.display().to_string(),
+            blake3: blake3_file(&index_path)?,
+        });
+        manifest.inputs.push(FileHash {
+            path: alignments_path.display().to_string(),
+            blake3: blake3_file(&alignments_path)?,
+        });
+        manifest.outputs.push(FileHash {
+            path: path.display().to_string(),
+            blake3: blake3_file(path)?,
+        });
+        manifest
+            .params
+            .insert("mapq_threshold".to_string(), mapq_threshold.to_string());
+        manifest.params.insert(
+            "min_qual".to_string(),
+            (quality_threshold as f64).to_string(),
+        );
+        manifest
+            .params
+            .insert("peak_rss_bytes".to_string(), peak_rss.to_string());
+        manifest.params.insert(
+            "max_working_set_bytes".to_string(),
+            max_ws.bytes.to_string(),
+        );
+        let manifest_path = write_manifest(path, &manifest)?;
+        eprintln!("wrote reproducibility receipt: {}", manifest_path.display());
     }
     // Memory receipt: the bounded contract, made visible + verifiable.
     eprintln!(
