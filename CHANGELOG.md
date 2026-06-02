@@ -2,6 +2,38 @@
 
 All notable changes to Rosalind are recorded here. Versions follow [Semantic Versioning](https://semver.org).
 
+## [Unreleased]
+
+A contract-hardening pass followed by moat-compounding capabilities, all on the
+canonical bounded-memory substrate.
+
+### Contract hardening (true & trusted on real genomes)
+- **Predicted peak is a true upper bound.** The per-contig reference decode no longer holds a
+  transient second copy (`decode_window_arc`); the prediction is recorded in the receipt and carries an
+  honest I/O margin. The contract's core inequality (predicted peak ≥ realized peak RSS) is now tested.
+- **Real-genome correctness.** `eval-germline`/`eval-somatic` normalize each variant against its own
+  contig (multi-contig benchmarks no longer miscompare or crash); a contig-naming mismatch (UCSC `chr1`
+  vs Ensembl `1`) is refused up front instead of silently writing an empty VCF; `index` maps IUPAC
+  ambiguity codes to `N` (stock references ingest).
+- **Trust on-ramp.** The GitHub Action snippet resolves (`logannye/rosalind@v0.1.0`); `install.sh`
+  verifies the `.sha256` it advertises; the CI fixture check is a real pinned hash, not a tautology;
+  `verify` cross-checks the receipt's internal consistency; `Cargo.lock` is tracked.
+
+### Fleet scheduling — prediction → placement
+- **`rosalind pack`** packs many bounded `variants` jobs onto fixed-size nodes by their predicted peaks
+  (read from each index header, additive) and *proves* a co-location fits before launching a byte, or
+  refuses (exit 3). `plan --index --json` emits the predicted peak for a scheduler to read.
+
+### ColumnKit SDK — implement one trait, inherit the contract
+- **`ColumnAnalyzer` trait + `run_bounded_whole_genome` driver.** A builder's own per-locus analyzer
+  inherits the bounded whole-genome walk, the working-set bound, and the verifiable receipt. The shipped
+  `features` egress is the first impl (the SDK is the production path, not a parallel one).
+
+### Cohort-ready gVCF
+- **`variants --index --gvcf`** emits a banded gVCF (every callable locus → a variant or a `<NON_REF>`
+  reference block with an `END=` span), so per-sample output joins into GLnexus/GATK — bounded (O(1)
+  banding state) and byte-reproducible.
+
 ## [0.1.0] — 2026-06-02
 
 First tagged release: a deterministic, low-memory genomics engine where **memory is a verifiable
@@ -44,4 +76,5 @@ contract** — predict it before you commit, honor it during the run, and verify
   construction** (Phase D); today's index build is `O(reference)` and the contract covers call/query.
   See [`docs/OPEN_PROBLEMS.md`](docs/OPEN_PROBLEMS.md).
 
+[Unreleased]: https://github.com/logannye/rosalind/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/logannye/rosalind/releases/tag/v0.1.0
