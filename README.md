@@ -105,6 +105,22 @@ The contract is real today: `rosalind plan` predicts before you commit, `--enfor
 - Variant calling is **single-sample** (germline) or a **tumor/normal pair** (somatic); calling is SNV-focused, with simple indels in the somatic path.
 - The engine runs **single-threaded** today. `--memory-budget-mb` is record-only by default; add `--enforce` to honor it (refuse up front / fail loud — see [CONTRACT.md](CONTRACT.md)).
 
+## The memory contract in *your* CI
+
+Drop the `rosalind-budget` Action into any pipeline to make a declared memory budget a **gate** — the build fails if a whole-genome calling step would breach it. No toolchain on your runner; the Action fetches a prebuilt binary.
+
+```yaml
+- uses: logannye/rosalind-budget@v1
+  with:
+    index: ref.idx          # built by `rosalind index`
+    alignments: sorted.bam  # coordinate-sorted
+    budget-mb: 4096         # refuse up front (exit 3) / fail after (exit 4) on breach
+    max-depth: 1000         # optional (default 1000)
+    max-read-len: 250       # optional (default 250)
+```
+
+It runs `plan` (predicts the peak), then `variants --index --enforce` (honors the budget), and uploads the BLAKE3 receipt as a build artifact. This is the one thing a `--max-mem` flag on another caller can't give you: a portable, declarative, **verifiable** memory budget that fails a stranger's build loudly — the contract, enforced where your pipeline already lives. (Available once a release is published; see Quickstart.)
+
 ## Roadmap
 
 The core primitive is a streaming, CIGAR-aware pileup column stream; variant calling and custom plugins consume it. Performance work deliberately *follows* the unique capability — the target user needs "it fits and is predictable" before "it's fastest."
