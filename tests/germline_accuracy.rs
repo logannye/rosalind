@@ -146,34 +146,33 @@ fn run_accuracy(coverage: usize, error_rate: f64, cap: u32, seed: u64) -> Accura
     {
         let mut w = bam::Writer::from_path(&raw_bam, &header, bam::Format::Bam).unwrap();
         let mut rid = 0u64;
-        let mut emit =
-            |w: &mut bam::Writer, start: usize, hap: &[u8], rng: &mut Lcg, rid: &mut u64| {
-                let end = (start + READ_LEN).min(N);
-                if end <= start + 20 {
-                    return;
-                }
-                let len = end - start;
-                let mut seq: Vec<u8> = hap[start..end].to_vec();
-                for b in seq.iter_mut() {
-                    if rng.frac() < error_rate {
-                        let mut nb = NUCS[rng.below(4) as usize];
-                        while nb == *b {
-                            nb = NUCS[rng.below(4) as usize];
-                        }
-                        *b = nb;
+        let emit = |w: &mut bam::Writer, start: usize, hap: &[u8], rng: &mut Lcg, rid: &mut u64| {
+            let end = (start + READ_LEN).min(N);
+            if end <= start + 20 {
+                return;
+            }
+            let len = end - start;
+            let mut seq: Vec<u8> = hap[start..end].to_vec();
+            for b in seq.iter_mut() {
+                if rng.frac() < error_rate {
+                    let mut nb = NUCS[rng.below(4) as usize];
+                    while nb == *b {
+                        nb = NUCS[rng.below(4) as usize];
                     }
+                    *b = nb;
                 }
-                let cigar = CigarString(vec![Cigar::Match(len as u32)]);
-                let qual = vec![40u8; len];
-                let mut rec = Record::new();
-                let name = format!("r{}", *rid);
-                *rid += 1;
-                rec.set(name.as_bytes(), Some(&cigar), &seq, &qual);
-                rec.set_tid(0);
-                rec.set_pos(start as i64);
-                rec.set_mapq(60);
-                w.write(&rec).unwrap();
-            };
+            }
+            let cigar = CigarString(vec![Cigar::Match(len as u32)]);
+            let qual = vec![40u8; len];
+            let mut rec = Record::new();
+            let name = format!("r{}", *rid);
+            *rid += 1;
+            rec.set(name.as_bytes(), Some(&cigar), &seq, &qual);
+            rec.set_tid(0);
+            rec.set_pos(start as i64);
+            rec.set_mapq(60);
+            w.write(&rec).unwrap();
+        };
 
         // 4a. Genome-wide ~coverage x at random starts, random haplotype.
         let n_reads = coverage * N / READ_LEN;
