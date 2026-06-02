@@ -118,6 +118,38 @@ enum Commands {
         #[arg(long)]
         manifest: Option<PathBuf>,
     },
+    /// Stream a bounded, deterministic per-locus FEATURE table (TSV) over a
+    /// persisted index — the same memory contract as `variants`, but every
+    /// callable locus is emitted as ML-ready features. Byte-identical run-to-run.
+    Features {
+        /// Persisted index (`rosalind index`); features over all contigs.
+        #[arg(long)]
+        index: PathBuf,
+        /// Coordinate-sorted alignments (BAM).
+        #[arg(long)]
+        alignments: PathBuf,
+        /// Minimum MAPQ required for a read to be considered.
+        #[arg(long, default_value_t = 0)]
+        mapq_threshold: u8,
+        /// Declared memory budget (MiB). With `--enforce` it is honored (exit 3/4).
+        #[arg(long)]
+        memory_budget_mb: Option<u64>,
+        /// Active-set depth cap (unbiased downsampling). `0` = uncapped.
+        #[arg(long, default_value_t = 1000)]
+        max_depth: u32,
+        /// Max read length assumed by the `--enforce` estimate and enforced at ingest.
+        #[arg(long, default_value_t = 250)]
+        max_read_len: u32,
+        /// Honor the budget: refuse up front (exit 3) / fail after (exit 4).
+        #[arg(long, default_value_t = false)]
+        enforce: bool,
+        /// Output TSV path (stdout if omitted).
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+        /// Where to write the reproducibility receipt (default: `<output>.manifest.json`).
+        #[arg(long)]
+        manifest: Option<PathBuf>,
+    },
     /// Deterministically coordinate-sort a BAM file using bounded memory.
     Sort {
         /// Input BAM path.
@@ -354,6 +386,27 @@ fn main() -> Result<()> {
                 )?
             }
         }
+        Commands::Features {
+            index,
+            alignments,
+            mapq_threshold,
+            memory_budget_mb,
+            max_depth,
+            max_read_len,
+            enforce,
+            output,
+            manifest,
+        } => run_features(
+            index,
+            alignments,
+            mapq_threshold,
+            memory_budget_mb,
+            max_depth,
+            max_read_len,
+            enforce,
+            output,
+            manifest,
+        )?,
         Commands::Sort {
             input,
             output,
@@ -1250,6 +1303,253 @@ fn run_variants(
 
 /// Call germline variants across all contigs of a persisted index (B4), reading
 /// the reference from the index and streaming the (coordinate-sorted) BAM.
+/// Stream a bounded, deterministic per-locus FEATURE table (TSV) over a persisted
+/// index. Same engine + memory contract as `run_variants_index`, but every callable
+/// locus is emitted as ML-ready features. Byte-identical run-to-run.
+#[allow(clippy::too_many_arguments)]
+fn run_features(
+    index_path: PathBuf,
+    alignments_path: PathBuf,
+    mapq_threshold: u8,
+    memory_budget_mb: Option<u64>,
+    max_depth: u32,
+    max_read_len: u32,
+    enforce: bool,
+    output: Option<PathBuf>,
+    manifest_out: Option<PathBuf>,
+) -> Result<()> {
+    use rosalind::call::{stream_features_whole_genome, write_feature_header, write_feature_row};
+    use rosalind::genomics::IndexReader;
+    use rosalind::io::bam::StreamingBamSource;
+    use rosalind::pileup::PileupParams;
+    use rosalind::provenance::{blake3_file, FileHash, RunManifest};
+
+    let loaded = IndexReader::open(&index_path)
+        .with_context(|| format!("failed to open index {}", index_path.display()))?;
+    let ref_view = loaded.reference_view().with_context(|| {
+        format!(
+            "failed to read reference from index {}",
+            index_path.display()
+        )
+    })?;
+    let contigs = loaded.contigs();
+
+    let pileup_params = PileupParams {
+        min_mapq: mapq_threshold,
+        max_depth: if max_depth == 0 {
+            None
+        } else {
+            Some(max_depth)
+        },
+        max_read_len: if enforce { Some(max_read_len) } else { None },
+        ..PileupParams::default()
+    };
+
+    let is_bam = alignments_path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.eq_ignore_ascii_case("bam"))
+        .unwrap_or(false);
+    if !is_bam {
+        bail!("features --index requires a coordinate-sorted BAM (use `rosalind sort`)");
+    }
+    let source = StreamingBamSource::new(&alignments_path, contigs)
+        .map_err(|e| anyhow!("failed to open BAM {}: {e}", alignments_path.display()))?;
+
+    // Same `--enforce` admission as `variants` — it is the same pileup engine, so
+    // the predicted working set is identical.
+    if enforce {
+        if memory_budget_mb.is_none() {
+            bail!("--enforce requires --memory-budget-mb");
+        }
+        if max_depth == 0 {
+            bail!(
+                "--enforce requires --max-depth > 0 (an uncapped active set has no a-priori bound)"
+            );
+        }
+        let mb = memory_budget_mb.unwrap();
+        let largest = contigs.iter().map(|c| c.length as u64).max().unwrap_or(0);
+        let baseline = peak_rss_bytes();
+        let predicted = rosalind::call::plan::predicted_peak_rss_bytes(
+            largest,
+            max_depth,
+            max_read_len,
+            baseline,
+        );
+        if !MemoryBudget::from_mb(mb).admits(predicted) {
+            eprintln!(
+                "contract: REFUSE — declared {} MiB, predicted peak ~{} MiB (largest contig {} MiB \
+                 + active @ max-depth {} / max-read-len {} atop a {} MiB baseline). Raise \
+                 --memory-budget-mb, lower --max-depth, or drop --enforce.",
+                mb,
+                predicted / (1 << 20),
+                largest / (1 << 20),
+                max_depth,
+                max_read_len,
+                baseline / (1 << 20),
+            );
+            std::process::exit(3);
+        }
+    }
+
+    // Stream feature rows straight to the writer (header once, one row per callable
+    // locus) — no genome-wide buffer accumulates.
+    let mut feature_rows: u64 = 0;
+    let (max_ws, skips) = match &output {
+        Some(path) => {
+            let file = File::create(path)
+                .with_context(|| format!("failed to create features file {}", path.display()))?;
+            let mut writer = io::BufWriter::new(file);
+            write_feature_header(&mut writer)?;
+            let (ws, sk) = stream_features_whole_genome(
+                source,
+                &ref_view,
+                contigs,
+                pileup_params,
+                &mut |col, name| {
+                    feature_rows += 1;
+                    write_feature_row(&mut writer, name, col)
+                        .map_err(rosalind::core::CoreError::from)
+                },
+            )
+            .map_err(|e| anyhow!("feature streaming failed: {e}"))?;
+            writer.flush()?;
+            (ws, sk)
+        }
+        None => {
+            let stdout = io::stdout();
+            let mut handle = stdout.lock();
+            write_feature_header(&mut handle)?;
+            let (ws, sk) = stream_features_whole_genome(
+                source,
+                &ref_view,
+                contigs,
+                pileup_params,
+                &mut |col, name| {
+                    feature_rows += 1;
+                    write_feature_row(&mut handle, name, col)
+                        .map_err(rosalind::core::CoreError::from)
+                },
+            )
+            .map_err(|e| anyhow!("feature streaming failed: {e}"))?;
+            handle.flush()?;
+            (ws, sk)
+        }
+    };
+
+    let peak_rss = std::env::var("ROSALIND_FORCE_PEAK_RSS_BYTES")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or_else(peak_rss_bytes);
+    let verdict = match memory_budget_mb.map(|mb| MemoryBudget::from_mb(mb).admits(peak_rss)) {
+        None => "unset",
+        Some(true) => "within",
+        Some(false) => "over",
+    };
+
+    let receipt_dest: Option<PathBuf> = match (&manifest_out, &output) {
+        (Some(m), _) => Some(m.clone()),
+        (None, Some(path)) => {
+            let mut s = path.as_os_str().to_os_string();
+            s.push(".manifest.json");
+            Some(PathBuf::from(s))
+        }
+        (None, None) => None,
+    };
+    if let Some(dest) = receipt_dest {
+        let mut manifest = RunManifest::new("features");
+        manifest.inputs.push(FileHash {
+            path: index_path.display().to_string(),
+            blake3: blake3_file(&index_path)?,
+        });
+        manifest.inputs.push(FileHash {
+            path: alignments_path.display().to_string(),
+            blake3: blake3_file(&alignments_path)?,
+        });
+        if let Some(path) = &output {
+            manifest.outputs.push(FileHash {
+                path: path.display().to_string(),
+                blake3: blake3_file(path)?,
+            });
+        }
+        manifest
+            .params
+            .insert("mapq_threshold".to_string(), mapq_threshold.to_string());
+        manifest
+            .params
+            .insert("max_depth".to_string(), max_depth.to_string());
+        manifest
+            .params
+            .insert("max_read_len".to_string(), max_read_len.to_string());
+        manifest
+            .params
+            .insert("enforced".to_string(), enforce.to_string());
+        manifest
+            .params
+            .insert("peak_rss_bytes".to_string(), peak_rss.to_string());
+        manifest.params.insert(
+            "max_working_set_bytes".to_string(),
+            max_ws.bytes.to_string(),
+        );
+        manifest
+            .params
+            .insert("feature_rows".to_string(), feature_rows.to_string());
+        manifest.params.insert(
+            "over_max_depth".to_string(),
+            skips.over_max_depth.to_string(),
+        );
+        manifest
+            .params
+            .insert("reads_skipped_total".to_string(), skips.total().to_string());
+        if let Some(mb) = memory_budget_mb {
+            manifest
+                .params
+                .insert("memory_budget_mb".to_string(), mb.to_string());
+        }
+        manifest
+            .params
+            .insert("contract_verdict".to_string(), verdict.to_string());
+        std::fs::write(&dest, manifest.to_canonical_json())
+            .with_context(|| format!("failed to write manifest {}", dest.display()))?;
+        eprintln!("wrote reproducibility receipt: {}", dest.display());
+    } else {
+        eprintln!(
+            "no receipt written (stdout output) — pass --manifest <path> or -o <tsv> to persist one"
+        );
+    }
+    eprintln!(
+        "features: wrote {feature_rows} rows; peak RSS {} MiB; max pileup working set {} KiB",
+        peak_rss / (1 << 20),
+        max_ws.bytes / 1024
+    );
+    if skips.over_max_depth > 0 {
+        eprintln!(
+            "pileup: dropped {} reads at --max-depth {} (deep-site downsampling — \
+             feature counts at those sites use a bounded unbiased sample)",
+            skips.over_max_depth, max_depth
+        );
+    }
+    if let Some(mb) = memory_budget_mb {
+        let budget = MemoryBudget::from_mb(mb);
+        let within = budget.admits(peak_rss);
+        if enforce {
+            if within {
+                eprintln!(
+                    "contract: OK — realized peak {} MiB within declared {mb} MiB",
+                    peak_rss / (1 << 20)
+                );
+            } else {
+                eprintln!(
+                    "contract: VIOLATED — realized peak {} MiB exceeded declared {mb} MiB (output + receipt written)",
+                    peak_rss / (1 << 20)
+                );
+                std::process::exit(4);
+            }
+        }
+    }
+    Ok(())
+}
+
 fn run_variants_index(
     index_path: PathBuf,
     alignments_path: PathBuf,
