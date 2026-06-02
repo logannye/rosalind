@@ -45,6 +45,11 @@ With `--enforce`:
   message (raise the budget, lower `--max-depth`, or drop `--enforce`);
 - **realized peak > budget → fail loud** (exit **4**) *after* writing the VCF + receipt (you keep the data
   and the proof it overran) — never a silent overrun;
+- a **runtime governor** polls process RSS *during* the run and fails loud the moment the realized peak
+  crosses the budget — exit **4** with the partial output + a `governor=tripped`, `contract_verdict=over`
+  receipt — so a misprediction is caught mid-run instead of by a silent kernel OOM. The receipt also
+  records the realized RSS residual (`rss_residual_bytes`) against the assumed margin
+  (`io_rss_overhead_assumed_bytes`);
 - otherwise the run completes within budget.
 
 Without `--enforce`, the budget is **record-only**: the run always completes and the verdict is recorded in

@@ -575,3 +575,152 @@ fn verify_rejects_an_internally_inconsistent_manifest() {
     );
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn governor_aborts_loud_when_live_rss_exceeds_budget() {
+    let (dir, idx, bam) = build_sorted_bam_fixture();
+    let vcf = dir.join("calls.vcf");
+    let manifest = dir.join("calls.vcf.manifest.json");
+    // 4096 MiB passes the pre-run exit-3 gate, but the live-RSS seam reports
+    // 5000 MiB > budget, so the governor trips mid-run -> exit 4.
+    let out = Command::new(bin())
+        .args(["variants", "--index"])
+        .arg(&idx)
+        .arg("--alignments")
+        .arg(&bam)
+        .args(["--memory-budget-mb", "4096", "--enforce", "-o"])
+        .arg(&vcf)
+        .env(
+            "ROSALIND_FORCE_LIVE_RSS_BYTES",
+            (5_000u64 * 1024 * 1024).to_string(),
+        )
+        .env("ROSALIND_GOVERNOR_POLL_MS", "1")
+        .output()
+        .unwrap();
+    assert_eq!(
+        out.status.code(),
+        Some(4),
+        "governor breach must exit 4: {out:?}"
+    );
+    let m = std::fs::read_to_string(&manifest).expect("manifest written on breach");
+    assert!(m.contains("\"governor\":\"tripped\""), "manifest: {m}");
+    assert!(m.contains("\"contract_verdict\":\"over\""), "manifest: {m}");
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn receipt_records_residual_and_governor_fields_on_a_fitting_run() {
+    let (dir, idx, bam) = build_sorted_bam_fixture();
+    let vcf = dir.join("calls.vcf");
+    let manifest = dir.join("calls.vcf.manifest.json");
+    let out = Command::new(bin())
+        .args(["variants", "--index"])
+        .arg(&idx)
+        .arg("--alignments")
+        .arg(&bam)
+        .args(["--memory-budget-mb", "4096", "--enforce", "-o"])
+        .arg(&vcf)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "a fitting run should exit 0: {out:?}");
+
+    let text = std::fs::read_to_string(&manifest).expect("manifest");
+    for key in [
+        "\"baseline_rss_bytes\":",
+        "\"rss_residual_bytes\":",
+        "\"io_rss_overhead_assumed_bytes\":",
+        "\"governor\":\"enforced\"",
+    ] {
+        assert!(text.contains(key), "manifest missing {key}: {text}");
+    }
+    // The receipt round-trips through the canonical parser.
+    let m = rosalind::provenance::RunManifest::from_canonical_json(&text).expect("parse");
+    assert_eq!(
+        m.params.get("governor").map(String::as_str),
+        Some("enforced")
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn features_governor_aborts_loud_and_records_residual() {
+    let (dir, idx, bam) = build_sorted_bam_fixture();
+    let tsv = dir.join("feats.tsv");
+    let manifest = dir.join("feats.tsv.manifest.json");
+    let out = Command::new(bin())
+        .args(["features", "--index"])
+        .arg(&idx)
+        .arg("--alignments")
+        .arg(&bam)
+        .args(["--memory-budget-mb", "4096", "--enforce", "-o"])
+        .arg(&tsv)
+        .env(
+            "ROSALIND_FORCE_LIVE_RSS_BYTES",
+            (5_000u64 * 1024 * 1024).to_string(),
+        )
+        .env("ROSALIND_GOVERNOR_POLL_MS", "1")
+        .output()
+        .unwrap();
+    assert_eq!(
+        out.status.code(),
+        Some(4),
+        "features breach must exit 4: {out:?}"
+    );
+    let m = std::fs::read_to_string(&manifest).expect("manifest on breach");
+    assert!(m.contains("\"governor\":\"tripped\""), "manifest: {m}");
+    assert!(m.contains("\"contract_verdict\":\"over\""), "manifest: {m}");
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn near_saturation_margin_holds_on_a_larger_contig() {
+    // Soundness of the 8 MiB prediction margin at a bigger scale than the 4 MiB
+    // sibling test: on an ~8 MB contig (reference-decode dominates), the predicted
+    // peak must still upper-bound the realized peak — the fixed I/O+slack margin
+    // covers the real residual — AND the recorded residual is within that margin.
+    // (Governor no-false-fire on fitting runs is covered by the existing --enforce
+    // tests, which now run with the governor armed and still exit 0.)
+    let (dir, idx, bam) = build_big_contig_fixture(8 * 1024 * 1024);
+    let vcf = dir.join("calls.vcf");
+    let manifest = dir.join("calls.vcf.manifest.json");
+    let out = Command::new(bin())
+        .args(["variants", "--index"])
+        .arg(&idx)
+        .arg("--alignments")
+        .arg(&bam)
+        .args(["--max-depth", "1000", "--max-read-len", "250", "-o"])
+        .arg(&vcf)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "run failed: {out:?}");
+
+    let m = rosalind::provenance::RunManifest::from_canonical_json(
+        &std::fs::read_to_string(&manifest).unwrap(),
+    )
+    .unwrap();
+    let predicted: u64 = m
+        .params
+        .get("predicted_peak_rss_bytes")
+        .unwrap()
+        .parse()
+        .unwrap();
+    let realized: u64 = m.params.get("peak_rss_bytes").unwrap().parse().unwrap();
+    let residual: u64 = m.params.get("rss_residual_bytes").unwrap().parse().unwrap();
+    let assumed: u64 = m
+        .params
+        .get("io_rss_overhead_assumed_bytes")
+        .unwrap()
+        .parse()
+        .unwrap();
+    assert!(
+        predicted >= realized,
+        "8 MB contig: predicted {predicted} must be >= realized {realized}"
+    );
+    assert!(
+        residual <= assumed,
+        "recorded residual {residual} should be within the assumed margin {assumed} \
+         (if not, the 8 MiB constant is too small for this workload — a REAL finding, \
+          not a test to silence)"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}

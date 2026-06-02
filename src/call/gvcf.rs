@@ -19,7 +19,7 @@ use std::sync::Arc;
 use crate::call::germline::{genotype_column_gvcf, GvcfGenotype};
 use crate::call::types::{Filter, Genotype, GermlineCall, GermlineParams};
 use crate::call::whole_genome::PerContig;
-use crate::core::{AlignedRead, ContigSet, CoreError, Locus, WorkingSet};
+use crate::core::{governor, AlignedRead, ContigSet, CoreError, Locus, WorkingSet};
 use crate::genomics::ReferenceView;
 use crate::pileup::{PileupEngine, PileupParams, ReadSource, SkipCounts};
 
@@ -225,6 +225,7 @@ fn stream_gvcf_region<S: ReadSource, W: Write>(
     let mut max_ws = WorkingSet { bytes: 0 };
     while let Some(column) = engine.next() {
         let column = column?;
+        governor::checkpoint()?;
         let ws = engine.current_working_set();
         if ws.bytes > max_ws.bytes {
             max_ws = ws;
@@ -257,6 +258,9 @@ pub fn stream_gvcf_whole_genome<S: ReadSource, W: Write>(
     let mut peeked: Option<AlignedRead> = None;
 
     for c in contigs.iter() {
+        // Cooperative budget check (no-op unless an --enforce governor is armed):
+        // catch a breach before decoding the next contig's reference.
+        governor::checkpoint()?;
         let start = c.global_offset as usize;
         let end = c.global_offset as usize + c.length as usize;
         let reference: Arc<[u8]> = ref_view.decode_window_arc(start, end);

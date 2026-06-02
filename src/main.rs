@@ -1566,6 +1566,8 @@ fn run_features(
     manifest_out: Option<PathBuf>,
 ) -> Result<()> {
     use rosalind::call::run_bounded_whole_genome;
+    use rosalind::core::governor::MemoryGovernor;
+    use rosalind::core::PILEUP_IO_RSS_OVERHEAD;
     use rosalind::genomics::IndexReader;
     use rosalind::io::bam::StreamingBamSource;
     use rosalind::pileup::PileupParams;
@@ -1636,6 +1638,33 @@ fn run_features(
         }
     }
 
+    // Live RSS source for the governor (test seam ROSALIND_FORCE_LIVE_RSS_BYTES, else
+    // the real high-water). Under --enforce the governor fails the run LOUD the moment
+    // live RSS crosses the budget — never a silent kernel OOM.
+    let live_rss = || {
+        std::env::var("ROSALIND_FORCE_LIVE_RSS_BYTES")
+            .ok()
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or_else(peak_rss_bytes)
+    };
+    let poll_ms = std::env::var("ROSALIND_GOVERNOR_POLL_MS")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(100);
+    let _governor_guard = if enforce {
+        let mb = memory_budget_mb.expect("--enforce requires --memory-budget-mb (checked above)");
+        Some(
+            MemoryGovernor::start(
+                MemoryBudget::from_mb(mb).bytes,
+                std::time::Duration::from_millis(poll_ms),
+                live_rss,
+            )
+            .map_err(|e| anyhow!("failed to start memory governor: {e}"))?,
+        )
+    } else {
+        None
+    };
+
     // Stream feature rows straight to the writer (header once, one row per callable
     // locus) — no genome-wide buffer accumulates.
     // `features` is the first ColumnKit analyzer: the FeatureAnalyzer drives the
@@ -1643,7 +1672,13 @@ fn run_features(
     // shipped path and the SDK are one and the same (not parallel). Byte-identical
     // output is pinned by the golden feature test.
     let mut analyzer = rosalind::call::FeatureAnalyzer::default();
-    let (max_ws, skips) = match &output {
+    // Inline both arms (match arms are exclusive, so moving source/pileup_params in
+    // each is fine). Flush on BOTH paths so partial output survives a governed abort;
+    // inspect the Result rather than `?`-propagating it.
+    let drive_result: Result<
+        (rosalind::core::WorkingSet, rosalind::pileup::SkipCounts),
+        rosalind::core::CoreError,
+    > = match &output {
         Some(path) => {
             let file = File::create(path)
                 .with_context(|| format!("failed to create features file {}", path.display()))?;
@@ -1655,9 +1690,12 @@ fn run_features(
                 contigs,
                 pileup_params,
                 &mut writer,
-            )
-            .map_err(|e| anyhow!("feature streaming failed: {e}"))?;
-            writer.flush()?;
+            );
+            if r.is_ok() {
+                writer.flush()?;
+            } else {
+                let _ = writer.flush();
+            }
             r
         }
         None => {
@@ -1670,23 +1708,51 @@ fn run_features(
                 contigs,
                 pileup_params,
                 &mut handle,
-            )
-            .map_err(|e| anyhow!("feature streaming failed: {e}"))?;
-            handle.flush()?;
+            );
+            if r.is_ok() {
+                handle.flush()?;
+            } else {
+                let _ = handle.flush();
+            }
             r
         }
     };
+    let (max_ws, skips, breached, breach_peak) = match drive_result {
+        Ok((ws, sk)) => (ws, sk, false, 0u64),
+        Err(rosalind::core::CoreError::BudgetExceeded { needed, .. }) => (
+            rosalind::core::WorkingSet { bytes: 0 },
+            rosalind::pileup::SkipCounts::default(),
+            true,
+            needed,
+        ),
+        Err(e) => return Err(anyhow!("feature streaming failed: {e}")),
+    };
     let feature_rows = analyzer.rows();
 
-    let peak_rss = std::env::var("ROSALIND_FORCE_PEAK_RSS_BYTES")
-        .ok()
-        .and_then(|v| v.parse::<u64>().ok())
-        .unwrap_or_else(peak_rss_bytes);
+    let peak_rss = if breached {
+        breach_peak
+    } else {
+        std::env::var("ROSALIND_FORCE_PEAK_RSS_BYTES")
+            .ok()
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or_else(peak_rss_bytes)
+    };
     let verdict = match memory_budget_mb.map(|mb| MemoryBudget::from_mb(mb).admits(peak_rss)) {
         None => "unset",
         Some(true) => "within",
         Some(false) => "over",
     };
+    let governor_state = if breached {
+        "tripped"
+    } else if enforce {
+        "enforced"
+    } else {
+        "record-only"
+    };
+    let baseline_rss_bytes = baseline;
+    let rss_residual_bytes = peak_rss
+        .saturating_sub(max_ws.bytes)
+        .saturating_sub(baseline_rss_bytes);
 
     let receipt_dest: Option<PathBuf> = match (&manifest_out, &output) {
         (Some(m), _) => Some(m.clone()),
@@ -1735,6 +1801,21 @@ fn run_features(
         manifest.params.insert(
             "max_working_set_bytes".to_string(),
             max_ws.bytes.to_string(),
+        );
+        manifest
+            .params
+            .insert("governor".to_string(), governor_state.to_string());
+        manifest.params.insert(
+            "baseline_rss_bytes".to_string(),
+            baseline_rss_bytes.to_string(),
+        );
+        manifest.params.insert(
+            "rss_residual_bytes".to_string(),
+            rss_residual_bytes.to_string(),
+        );
+        manifest.params.insert(
+            "io_rss_overhead_assumed_bytes".to_string(),
+            PILEUP_IO_RSS_OVERHEAD.to_string(),
         );
         manifest
             .params
@@ -1811,6 +1892,8 @@ fn run_variants_index(
     use rosalind::call::{
         call_germline_whole_genome, stream_gvcf_whole_genome, write_gvcf_header, GermlineParams,
     };
+    use rosalind::core::governor::MemoryGovernor;
+    use rosalind::core::PILEUP_IO_RSS_OVERHEAD;
     use rosalind::genomics::IndexReader;
     use rosalind::io::bam::StreamingBamSource;
     use rosalind::io::vcf::{write_germline_header, write_germline_row, GermlineRow};
@@ -1901,6 +1984,36 @@ fn run_variants_index(
         }
     }
 
+    // Live RSS source for the governor: a test seam (ROSALIND_FORCE_LIVE_RSS_BYTES)
+    // standing in for live RSS, else the real getrusage high-water mark. Distinct
+    // from ROSALIND_FORCE_PEAK_RSS_BYTES, which overrides only the POST-run peak.
+    let live_rss = || {
+        std::env::var("ROSALIND_FORCE_LIVE_RSS_BYTES")
+            .ok()
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or_else(peak_rss_bytes)
+    };
+    let poll_ms = std::env::var("ROSALIND_GOVERNOR_POLL_MS")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(100);
+    // Under --enforce, the governor fails the run LOUD the moment live RSS crosses
+    // the budget (exit 4 with output + receipt) — never a silent kernel OOM. Held
+    // for the duration of the calling pass; dropped (thread stopped) at scope end.
+    let _governor_guard = if enforce {
+        let mb = memory_budget_mb.expect("--enforce requires --memory-budget-mb (checked above)");
+        Some(
+            MemoryGovernor::start(
+                MemoryBudget::from_mb(mb).bytes,
+                std::time::Duration::from_millis(poll_ms),
+                live_rss,
+            )
+            .map_err(|e| anyhow!("failed to start memory governor: {e}"))?,
+        )
+    } else {
+        None
+    };
+
     // Stream straight to the writer (header once, then one record per callable
     // locus in gVCF mode, or per variant otherwise) so no genome-wide row buffer
     // accumulates. The returned WorkingSet is the high-water (reference + active
@@ -1941,13 +2054,21 @@ fn run_variants_index(
                         .map_err(rosalind::core::CoreError::from)
                     },
                 )
+            };
+            // Flush even on a governed abort so partial output survives; surface a
+            // genuine flush failure only when the calling pass itself succeeded.
+            if r.is_ok() {
+                w.flush()?;
+            } else {
+                let _ = w.flush();
             }
-            .map_err(|e| anyhow!("variant calling failed: {e}"))?;
-            w.flush()?;
             r
         }};
     }
-    let (max_ws, skips) = match &output {
+    let drive_result: Result<
+        (rosalind::core::WorkingSet, rosalind::pileup::SkipCounts),
+        rosalind::core::CoreError,
+    > = match &output {
         Some(path) => {
             let file = File::create(path)
                 .with_context(|| format!("failed to create VCF file {}", path.display()))?;
@@ -1960,14 +2081,31 @@ fn run_variants_index(
             drive!(&mut handle)
         }
     };
-    // Realized peak (monotonic high-water mark) captured after the calling pass.
-    // Test-only seam: ROSALIND_FORCE_PEAK_RSS_BYTES overrides ONLY this post-run
-    // realized peak (never the pre-run baseline at the --enforce gate), so the
-    // exit-4 breach branch can be exercised deterministically without allocating.
-    let peak_rss = std::env::var("ROSALIND_FORCE_PEAK_RSS_BYTES")
-        .ok()
-        .and_then(|v| v.parse::<u64>().ok())
-        .unwrap_or_else(peak_rss_bytes);
+    // A governor trip is the one error we do NOT bail on: we still write the proof
+    // receipt (verdict=over, governor=tripped) and exit 4 via the existing post-run
+    // check. Any other error is a genuine failure.
+    let (max_ws, skips, breached, breach_peak) = match drive_result {
+        Ok((ws, sk)) => (ws, sk, false, 0u64),
+        Err(rosalind::core::CoreError::BudgetExceeded { needed, .. }) => (
+            rosalind::core::WorkingSet { bytes: 0 },
+            rosalind::pileup::SkipCounts::default(),
+            true,
+            needed,
+        ),
+        Err(e) => return Err(anyhow!("variant calling failed: {e}")),
+    };
+    // Realized peak: the governor's tripping peak on a live breach, else the
+    // post-run high-water (monotonic). Test-only seam: ROSALIND_FORCE_PEAK_RSS_BYTES
+    // overrides ONLY this post-run realized peak (never the pre-run baseline at the
+    // --enforce gate), so the exit-4 backstop can be exercised without allocating.
+    let peak_rss = if breached {
+        breach_peak
+    } else {
+        std::env::var("ROSALIND_FORCE_PEAK_RSS_BYTES")
+            .ok()
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or_else(peak_rss_bytes)
+    };
 
     // Compute the contract verdict before writing the receipt (so it records it).
     let verdict = match memory_budget_mb.map(|mb| MemoryBudget::from_mb(mb).admits(peak_rss)) {
@@ -1975,6 +2113,21 @@ fn run_variants_index(
         Some(true) => "within",
         Some(false) => "over",
     };
+    // Distinguish a live-governed abort from a post-run-detected overrun in the receipt.
+    let governor_state = if breached {
+        "tripped"
+    } else if enforce {
+        "enforced"
+    } else {
+        "record-only"
+    };
+    // Measured RSS residual telemetry: the real I/O + allocator slack this run
+    // incurred above the modeled working set, recorded so the fixed 8 MiB
+    // prediction margin can later be re-tuned with evidence (Sprint 1.1).
+    let baseline_rss_bytes = baseline;
+    let rss_residual_bytes = peak_rss
+        .saturating_sub(max_ws.bytes)
+        .saturating_sub(baseline_rss_bytes);
 
     // Reproducibility + memory receipt. Written when there is a destination — an
     // explicit --manifest path, or a sidecar next to a `-o` VCF. A stdout run
@@ -2031,6 +2184,21 @@ fn run_variants_index(
         manifest.params.insert(
             "max_working_set_bytes".to_string(),
             max_ws.bytes.to_string(),
+        );
+        manifest
+            .params
+            .insert("governor".to_string(), governor_state.to_string());
+        manifest.params.insert(
+            "baseline_rss_bytes".to_string(),
+            baseline_rss_bytes.to_string(),
+        );
+        manifest.params.insert(
+            "rss_residual_bytes".to_string(),
+            rss_residual_bytes.to_string(),
+        );
+        manifest.params.insert(
+            "io_rss_overhead_assumed_bytes".to_string(),
+            PILEUP_IO_RSS_OVERHEAD.to_string(),
         );
         manifest.params.insert(
             "over_max_depth".to_string(),
