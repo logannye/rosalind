@@ -14,8 +14,6 @@ mod fm_index;
 mod genome_index;
 mod index;
 mod io;
-mod pileup;
-mod pileup_stream;
 mod rank_select;
 mod sampled_sa;
 mod sort;
@@ -38,8 +36,6 @@ pub use index::{
     IndexBuildReport, IndexHeader, IndexReader, IndexWriter, ReferenceIndex, ReferenceView,
 };
 pub use io::create_bam_writer;
-pub use pileup::{PileupNode, PileupProcessor, PileupSummary, PileupWorkload};
-pub use pileup_stream::BamPileupStream;
 pub(crate) use rank_select::popcount_range;
 pub use rank_select::{
     BaseCode, RankSelectCheckpoint, RankSelectIndex, ALPHABET_SIZE, CHECKPOINT_STRIDE,

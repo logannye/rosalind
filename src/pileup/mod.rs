@@ -3,9 +3,9 @@
 //! `PileupEngine` consumes coordinate-sorted reads and yields one `PileupColumn`
 //! per covered reference position. It is the single bounded-memory substrate the
 //! germline/somatic callers build on; build your own bounded per-locus analytics
-//! over the same stream (see `examples/custom_pileup_analytics.rs`). The legacy
-//! `GenomicPlugin`/`framework` lineage is separate and NOT memory-bounded.
-//! Reference as `crate::pileup::…`.
+//! over the same stream via the `ColumnAnalyzer` trait (see
+//! `examples/columnkit_coverage.rs`) or by iterating it directly
+//! (`examples/custom_pileup_analytics.rs`). Reference as `crate::pileup::…`.
 
 pub mod column;
 pub mod engine;
