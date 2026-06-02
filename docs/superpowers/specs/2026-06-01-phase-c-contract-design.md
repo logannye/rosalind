@@ -213,8 +213,13 @@ record-only path unchanged without `--enforce`.
 
 ### 7.1 Persist a receipt on stdout runs (`main.rs:1097-1101`)
 Today the stdout branch writes no manifest, so "every run emits a receipt" is false on the default path.
-Fix: stdout output → write a `rosalind.variants.manifest.json` sidecar in the cwd + announce it on stderr;
-`--manifest <path>` redirects (works for both stdout and file output). Document the cwd-sidecar behavior.
+Fix: persist a receipt whenever there is a destination — an explicit `--manifest <path>` (exact path) or a
+`<vcf>.manifest.json` sidecar next to a `-o` VCF. **REVISED during C3 implementation (2026-06-01):** a
+stdout run *without* `--manifest` writes **no file** but prints a notice on how to persist one — the
+originally-specced "write a `rosalind.variants.manifest.json` sidecar in the cwd" was dropped because
+silently writing an unrequested file into a pipe user's cwd pollutes their directory and races on a fixed
+filename across concurrent stdout runs. This still kills the silent-no-receipt footgun (the notice is loud)
+without the pollution; any run that wants a receipt uses `-o` or `--manifest`.
 
 ### 7.2 Self-describing manifest params
 Extend the params written at `main.rs:1083-1094` with `memory_budget_mb` (if declared), `contract_verdict`
