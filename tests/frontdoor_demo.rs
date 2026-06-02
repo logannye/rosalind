@@ -35,7 +35,11 @@ fn readme_inhouse_contract_demo_runs_end_to_end() {
     let fa = root.join("examples/data/illumina_toy/reference.fa");
     let bam = root.join("examples/data/illumina_toy/alignments.bam");
     assert!(fa.exists(), "bundled reference missing: {}", fa.display());
-    assert!(bam.exists(), "bundled alignments missing: {}", bam.display());
+    assert!(
+        bam.exists(),
+        "bundled alignments missing: {}",
+        bam.display()
+    );
 
     let dir = unique_dir();
     let idx = dir.join("toy.idx");
@@ -50,7 +54,11 @@ fn readme_inhouse_contract_demo_runs_end_to_end() {
         "--output",
         idx.to_str().unwrap(),
     ]);
-    assert!(out.status.success(), "index: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "index: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
 
     let out = run(&[
         "sort",
@@ -59,10 +67,24 @@ fn readme_inhouse_contract_demo_runs_end_to_end() {
         "--output",
         sorted.to_str().unwrap(),
     ]);
-    assert!(out.status.success(), "sort: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "sort: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
 
-    let out = run(&["plan", "--index", idx.to_str().unwrap(), "--budget-mb", "512"]);
-    assert!(out.status.success(), "plan: {}", String::from_utf8_lossy(&out.stderr));
+    let out = run(&[
+        "plan",
+        "--index",
+        idx.to_str().unwrap(),
+        "--budget-mb",
+        "512",
+    ]);
+    assert!(
+        out.status.success(),
+        "plan: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     assert!(String::from_utf8_lossy(&out.stdout).contains("predicted peak"));
 
     let out = run(&[
@@ -85,7 +107,11 @@ fn readme_inhouse_contract_demo_runs_end_to_end() {
     assert!(manifest.exists(), "receipt sidecar must be written");
 
     let out = run(&["verify", "--manifest", manifest.to_str().unwrap()]);
-    assert!(out.status.success(), "verify: {}", String::from_utf8_lossy(&out.stderr));
+    assert!(
+        out.status.success(),
+        "verify: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
     assert!(String::from_utf8_lossy(&out.stdout).contains("verify: OK"));
 
     std::fs::remove_dir_all(&dir).ok();

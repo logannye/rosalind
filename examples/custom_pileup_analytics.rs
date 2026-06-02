@@ -39,7 +39,12 @@ fn main() {
     for column in engine {
         let col: PileupColumn = column.expect("pileup column");
         total_depth += col.depth() as u64;
-        println!("{}\t{}\t{}", col.locus.pos.0, col.ref_base as char, col.depth());
+        println!(
+            "{}\t{}\t{}",
+            col.locus.pos.0,
+            col.ref_base as char,
+            col.depth()
+        );
     }
     println!("# total observed depth across covered positions: {total_depth}");
 }
