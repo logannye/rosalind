@@ -5,6 +5,7 @@
 
 pub mod budget;
 pub mod error;
+pub mod governor;
 pub mod locus;
 pub mod record;
 pub mod sequence;
@@ -15,5 +16,6 @@ pub use budget::{
     PILEUP_MAP_BYTES_PER_BASE, PILEUP_PER_READ_OVERHEAD, PILEUP_SEQQUAL_BYTES_PER_BASE,
 };
 pub use error::CoreError;
+pub use governor::{checkpoint, GovernorError, MemoryGovernor};
 pub use locus::{Contig, ContigSet, Locus, Position};
 pub use record::{AlignedRead, CigarOp, CigarOpKind, RefBase, SamFlags};
