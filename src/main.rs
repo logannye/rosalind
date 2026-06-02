@@ -1204,7 +1204,7 @@ fn run_variants_index(
     use rosalind::io::bam::StreamingBamSource;
     use rosalind::io::vcf::{write_germline_header, write_germline_row, GermlineRow};
     use rosalind::pileup::PileupParams;
-    use rosalind::provenance::{blake3_file, write_manifest, FileHash, RunManifest};
+    use rosalind::provenance::{blake3_file, FileHash, RunManifest};
 
     let loaded = IndexReader::open(&index_path)
         .with_context(|| format!("failed to open index {}", index_path.display()))?;
@@ -1358,70 +1358,74 @@ fn run_variants_index(
         Some(false) => "over",
     };
 
-    // Reproducibility + memory receipt — ALWAYS written (every run is verifiable):
-    // an explicit --manifest path wins; else a sidecar next to the VCF; else cwd.
-    let mut manifest = RunManifest::new("variants");
-    manifest.inputs.push(FileHash {
-        path: index_path.display().to_string(),
-        blake3: blake3_file(&index_path)?,
-    });
-    manifest.inputs.push(FileHash {
-        path: alignments_path.display().to_string(),
-        blake3: blake3_file(&alignments_path)?,
-    });
-    if let Some(path) = &output {
-        manifest.outputs.push(FileHash {
-            path: path.display().to_string(),
-            blake3: blake3_file(path)?,
+    // Reproducibility + memory receipt. Written when there is a destination — an
+    // explicit --manifest path, or a sidecar next to a `-o` VCF. A stdout run
+    // without --manifest writes NO file (no surprise cwd write, no race on a fixed
+    // filename) but says how to persist one.
+    let receipt_dest: Option<PathBuf> = match (&manifest_out, &output) {
+        (Some(m), _) => Some(m.clone()),
+        (None, Some(path)) => {
+            let mut s = path.as_os_str().to_os_string();
+            s.push(".manifest.json");
+            Some(PathBuf::from(s))
+        }
+        (None, None) => None,
+    };
+    if let Some(dest) = receipt_dest {
+        let mut manifest = RunManifest::new("variants");
+        manifest.inputs.push(FileHash {
+            path: index_path.display().to_string(),
+            blake3: blake3_file(&index_path)?,
         });
-    }
-    manifest
-        .params
-        .insert("mapq_threshold".to_string(), mapq_threshold.to_string());
-    manifest.params.insert(
-        "min_qual".to_string(),
-        (quality_threshold as f64).to_string(),
-    );
-    manifest
-        .params
-        .insert("max_depth".to_string(), max_depth.to_string());
-    manifest
-        .params
-        .insert("max_read_len".to_string(), max_read_len.to_string());
-    manifest
-        .params
-        .insert("enforced".to_string(), enforce.to_string());
-    manifest
-        .params
-        .insert("peak_rss_bytes".to_string(), peak_rss.to_string());
-    manifest.params.insert(
-        "max_working_set_bytes".to_string(),
-        max_ws.bytes.to_string(),
-    );
-    if let Some(mb) = memory_budget_mb {
+        manifest.inputs.push(FileHash {
+            path: alignments_path.display().to_string(),
+            blake3: blake3_file(&alignments_path)?,
+        });
+        if let Some(path) = &output {
+            manifest.outputs.push(FileHash {
+                path: path.display().to_string(),
+                blake3: blake3_file(path)?,
+            });
+        }
         manifest
             .params
-            .insert("memory_budget_mb".to_string(), mb.to_string());
+            .insert("mapq_threshold".to_string(), mapq_threshold.to_string());
+        manifest.params.insert(
+            "min_qual".to_string(),
+            (quality_threshold as f64).to_string(),
+        );
+        manifest
+            .params
+            .insert("max_depth".to_string(), max_depth.to_string());
+        manifest
+            .params
+            .insert("max_read_len".to_string(), max_read_len.to_string());
+        manifest
+            .params
+            .insert("enforced".to_string(), enforce.to_string());
+        manifest
+            .params
+            .insert("peak_rss_bytes".to_string(), peak_rss.to_string());
+        manifest.params.insert(
+            "max_working_set_bytes".to_string(),
+            max_ws.bytes.to_string(),
+        );
+        if let Some(mb) = memory_budget_mb {
+            manifest
+                .params
+                .insert("memory_budget_mb".to_string(), mb.to_string());
+        }
+        manifest
+            .params
+            .insert("contract_verdict".to_string(), verdict.to_string());
+        std::fs::write(&dest, manifest.to_canonical_json())
+            .with_context(|| format!("failed to write manifest {}", dest.display()))?;
+        eprintln!("wrote reproducibility receipt: {}", dest.display());
+    } else {
+        eprintln!(
+            "no receipt written (stdout output) — pass --manifest <path> or -o <vcf> to persist one"
+        );
     }
-    manifest
-        .params
-        .insert("contract_verdict".to_string(), verdict.to_string());
-
-    let manifest_path: PathBuf = match (&manifest_out, &output) {
-        (Some(m), _) => {
-            std::fs::write(m, manifest.to_canonical_json())
-                .with_context(|| format!("failed to write manifest {}", m.display()))?;
-            m.clone()
-        }
-        (None, Some(path)) => write_manifest(path, &manifest)?,
-        (None, None) => {
-            let p = PathBuf::from("rosalind.variants.manifest.json");
-            std::fs::write(&p, manifest.to_canonical_json())
-                .with_context(|| format!("failed to write manifest {}", p.display()))?;
-            p
-        }
-    };
-    eprintln!("wrote reproducibility receipt: {}", manifest_path.display());
     // Memory receipt: the bounded contract, made visible + verifiable.
     eprintln!(
         "memory: peak RSS {} MiB; max pileup working set {} KiB",
