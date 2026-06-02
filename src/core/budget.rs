@@ -21,6 +21,14 @@ pub const PILEUP_ENGINE_OVERHEAD: u64 = 256;
 /// than a steady-state live-bytes count. The reference-decode transient is
 /// eliminated at the source (`decode_window_arc`), so this margin covers only
 /// fixed I/O buffers + slack, not a per-contig reference copy.
+///
+/// Reframe (Sprint 1.1): this margin's correctness is no longer load-bearing for
+/// *safety*. Under `--enforce` a runtime [`MemoryGovernor`](crate::core::MemoryGovernor)
+/// fails the run loud (exit 4, output + receipt written) the moment realized peak
+/// RSS crosses the budget, so an under-prediction here is caught live rather than
+/// silently OOM-killed. The realized residual (`peak − working_set − baseline`) is
+/// now recorded in every receipt (`rss_residual_bytes`) so a future, evidence-based
+/// re-tuning of this constant is possible — it stays fixed and conservative for now.
 pub const PILEUP_IO_RSS_OVERHEAD: u64 = 8 * 1024 * 1024;
 
 /// A declared cap on a streaming stage's working set.

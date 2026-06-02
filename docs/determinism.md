@@ -62,4 +62,15 @@ Rosalind should maintain:
 - **Repeat-run tests**: run the same pipeline twice and compare output bytes.
 - **Thread-count invariance tests** (when multithreading is added): `--threads 1` vs `--threads N` must match.
 
+### The memory governor and determinism
+
+Under `--enforce`, a background governor thread reads process RSS and, on a breach,
+cooperatively aborts the run (exit 4). This does **not** weaken determinism: the guard
+never touches output bytes, and a run that fits never fires it — identical inputs still
+produce a byte-identical VCF/feature table. A *breach* is a non-deterministic abort
+(which locus trips depends on timing), but a breach exits non-zero and is a failure, not
+a reproducible artifact, so no determinism guarantee is affected. (The receipt's
+`peak_rss_bytes` / `baseline_rss_bytes` / `rss_residual_bytes` are machine-dependent
+measurements, like any realized-memory field — the primary output stays byte-identical.)
+
 
