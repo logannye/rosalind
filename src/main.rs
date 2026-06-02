@@ -1058,8 +1058,16 @@ fn run_variants_index(
                 pileup_params,
                 &germline_params,
                 &mut |(locus, ref_base, call)| {
-                    write_germline_row(&mut writer, contigs, &GermlineRow { locus, ref_base, call })
-                        .map_err(rosalind::core::CoreError::from)
+                    write_germline_row(
+                        &mut writer,
+                        contigs,
+                        &GermlineRow {
+                            locus,
+                            ref_base,
+                            call,
+                        },
+                    )
+                    .map_err(rosalind::core::CoreError::from)
                 },
             )
             .map_err(|e| anyhow!("variant calling failed: {e}"))?;
@@ -1077,8 +1085,16 @@ fn run_variants_index(
                 pileup_params,
                 &germline_params,
                 &mut |(locus, ref_base, call)| {
-                    write_germline_row(&mut handle, contigs, &GermlineRow { locus, ref_base, call })
-                        .map_err(rosalind::core::CoreError::from)
+                    write_germline_row(
+                        &mut handle,
+                        contigs,
+                        &GermlineRow {
+                            locus,
+                            ref_base,
+                            call,
+                        },
+                    )
+                    .map_err(rosalind::core::CoreError::from)
                 },
             )
             .map_err(|e| anyhow!("variant calling failed: {e}"))?;

@@ -150,10 +150,7 @@ impl<S: ReadSource> PileupEngine<S> {
             .active
             .iter()
             .map(|r| {
-                (r.ref_to_read.len() as u64) * 16
-                    + r.seq.len() as u64
-                    + r.qual.len() as u64
-                    + 64
+                (r.ref_to_read.len() as u64) * 16 + r.seq.len() as u64 + r.qual.len() as u64 + 64
             })
             .sum();
         WorkingSet {
