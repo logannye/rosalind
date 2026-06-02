@@ -136,7 +136,9 @@ import pandas as pd
 df = pd.read_csv("features.tsv", sep="\t")   # one line; ready for sklearn/PyTorch/JAX
 ```
 
-Two properties no other pileup gives you together: it is **bounded** (the whole-genome table streams to disk; peak memory tracks coverage, not genome size — a 1 Mbp toy genome's ~983k-row table is produced in ~6 MiB), and it is **byte-identical run-to-run**, with a BLAKE3 receipt over the output. That means **bit-reproducible training inputs**: hash your feature file, and you can prove this quarter's model saw exactly the same data as last quarter's. `features` honors the same `plan`/`--enforce`/`verify` memory contract as `variants`. *(TSV today; an Arrow/Parquet egress and a zero-copy `pyarrow` Python binding are on the roadmap.)*
+Two properties no other pileup gives you together: it is **bounded** (the whole-genome table streams to disk; peak memory tracks coverage, not genome size — a 1 Mbp toy genome's ~983k-row table is produced in ~6 MiB), and it is **byte-identical run-to-run**, with a BLAKE3 receipt over the output. That means **bit-reproducible training inputs**: hash your feature file, and you can prove this quarter's model saw exactly the same data as last quarter's. `features` honors the same `plan`/`--enforce`/`verify` memory contract as `variants`.
+
+A dependency-light Python boundary ([`python/rosalind.py`](python/rosalind.py), stdlib + numpy) loads the table directly, and [`examples/reproducible_features_demo.py`](examples/reproducible_features_demo.py) trains a small model on it and *proves* the inputs are bit-reproducible (two independent extractions → matching receipt hashes → bit-identical trained weights; see [`docs/findings/2026-06-02-reproducible-features-demo.md`](docs/findings/2026-06-02-reproducible-features-demo.md)). *(TSV today; an Arrow/Parquet egress and a zero-copy `pyarrow` in-process binding are the next step.)*
 
 ## Roadmap
 
