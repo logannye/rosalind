@@ -290,6 +290,18 @@ impl<S: ReadSource> PileupEngine<S> {
                 }
             }
         }
+        // Emit observations in a canonical total order so the downstream diploid
+        // log-likelihood accumulation (germline.rs, an order-sensitive f64 sum) is
+        // order-independent and the VCF stays byte-identical regardless of the
+        // active set's internal order (which the depth-cap reservoir may permute).
+        obs.sort_by(|a, b| {
+            (a.allele, a.base_qual, a.mapq, a.reverse as u8).cmp(&(
+                b.allele,
+                b.base_qual,
+                b.mapq,
+                b.reverse as u8,
+            ))
+        });
         PileupColumn {
             locus: Locus {
                 contig: self.contig,
@@ -362,6 +374,26 @@ mod tests {
             out.push(c.expect("pileup column"));
         }
         out
+    }
+
+    #[test]
+    fn obs_are_emitted_in_canonical_order() {
+        // A column with mixed alleles must emit obs sorted by
+        // (allele, base_qual, mapq, reverse) — independent of read arrival order,
+        // so the downstream f64 likelihood sum is order-stable.
+        let reference = b"AAAA";
+        // Three reads covering pos 0 with different alleles at offset 0:
+        // C (allele 1), A (allele 0, ref), G (allele 2). Arrival order C, A, G.
+        let reads = vec![
+            mread(0, b"C", false),
+            mread(0, b"A", false),
+            mread(0, b"G", false),
+        ];
+        let cols = columns(engine(reads, reference));
+        let at0 = cols.iter().find(|c| c.locus.pos.0 == 0).unwrap();
+        let alleles: Vec<u8> = at0.obs.iter().map(|o| o.allele).collect();
+        // Canonical: ascending by allele (0, 1, 2) regardless of C, A, G arrival.
+        assert_eq!(alleles, vec![0, 1, 2]);
     }
 
     #[test]
