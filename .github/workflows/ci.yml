@@ -55,13 +55,23 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('pyproject.toml') }}
           restore-keys: |
             ${{ runner.os }}-pip-
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
       - uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-      - name: Install maturin and cffi
-        run: pip install maturin cffi
-      - name: Build python bindings
-        run: maturin build --features python-bindings
+      - name: Install numpy
+        run: pip install numpy
+      - name: Build the rosalind binary
+        run: cargo build --release --bin rosalind
+      - name: Exercise the Python boundary (bit-reproducible feature substrate)
+        # Runs the documented entry point (python/rosalind.py) end-to-end: builds a
+        # toy index + BAM, extracts features twice, and proves the inputs are
+        # byte-identical with matching BLAKE3 receipts.
+        run: python3 examples/reproducible_features_demo.py target/release/rosalind
 
   cli-e2e:
     runs-on: ubuntu-latest
