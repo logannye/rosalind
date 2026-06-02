@@ -163,7 +163,7 @@ enum Commands {
         #[arg(long, default_value_t = 1024)]
         memory_mb: usize,
     },
-    /// Compare a called VCF against a truth VCF (optionally masked by BED).
+    /// Compare a called somatic VCF against a truth VCF (optionally masked by BED).
     EvalSomatic {
         /// Reference FASTA (single contig slice used by the VCFs).
         #[arg(long)]
@@ -175,6 +175,22 @@ enum Commands {
         #[arg(long)]
         truth: PathBuf,
         /// Optional BED mask (0-based half-open).
+        #[arg(long)]
+        regions: Option<PathBuf>,
+    },
+    /// Compare a called germline VCF against a truth VCF (e.g. a GIAB benchmark),
+    /// optionally masked by a high-confidence BED. Reports precision/recall/F1.
+    EvalGermline {
+        /// Reference FASTA (the contigs the VCFs use).
+        #[arg(long)]
+        reference: PathBuf,
+        /// Called VCF path.
+        #[arg(long)]
+        calls: PathBuf,
+        /// Truth VCF path.
+        #[arg(long)]
+        truth: PathBuf,
+        /// Optional high-confidence BED mask (0-based half-open).
         #[arg(long)]
         regions: Option<PathBuf>,
     },
@@ -369,7 +385,15 @@ fn main() -> Result<()> {
             truth,
             regions,
         } => {
-            run_eval_somatic(reference, calls, truth, regions)?;
+            run_eval(reference, calls, truth, regions)?;
+        }
+        Commands::EvalGermline {
+            reference,
+            calls,
+            truth,
+            regions,
+        } => {
+            run_eval(reference, calls, truth, regions)?;
         }
         Commands::Index {
             reference,
@@ -397,7 +421,10 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn run_eval_somatic(
+/// Compare a called VCF against a truth VCF over a reference, optionally masked by
+/// a BED. VCF-agnostic — used by both `eval-somatic` and `eval-germline` (and the
+/// drop-in interface for a real GIAB germline benchmark).
+fn run_eval(
     reference_path: PathBuf,
     calls_path: PathBuf,
     truth_path: PathBuf,
@@ -431,8 +458,15 @@ fn run_eval_somatic(
     println!("tp={}", report.true_positive);
     println!("fp={}", report.false_positive);
     println!("fn={}", report.false_negative);
-    println!("precision={:.6}", report.precision());
-    println!("recall={:.6}", report.recall());
+    let (p, r) = (report.precision(), report.recall());
+    let f1 = if p + r == 0.0 {
+        0.0
+    } else {
+        2.0 * p * r / (p + r)
+    };
+    println!("precision={p:.6}");
+    println!("recall={r:.6}");
+    println!("f1={f1:.6}");
     for (ty, (tp, fp, fn_)) in report.by_type.iter() {
         println!("type={:?} tp={} fp={} fn={}", ty, tp, fp, fn_);
     }
