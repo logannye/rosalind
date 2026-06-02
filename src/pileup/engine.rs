@@ -12,6 +12,34 @@ use crate::core::{
 use crate::pileup::column::{Obs, PileupColumn};
 use crate::pileup::source::ReadSource;
 
+/// Fixed-seed FNV-1a-64 over a read's identity (position, end, flags, CIGAR, seq,
+/// qual). Deterministic across runs and processes (NOT `DefaultHasher`, whose seed
+/// is per-process). The hash is uncorrelated with the allele a read carries at any
+/// single column — the basis of the unbiased depth-cap sample.
+fn read_priority(read: &AlignedRead) -> u64 {
+    const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
+    const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
+    #[inline]
+    fn fold(mut h: u64, bytes: &[u8]) -> u64 {
+        for &b in bytes {
+            h ^= b as u64;
+            h = h.wrapping_mul(FNV_PRIME);
+        }
+        h
+    }
+    let mut h = FNV_OFFSET;
+    h = fold(h, &read.pos.0.to_le_bytes());
+    h = fold(h, &read.end().to_le_bytes());
+    h = fold(h, &read.flags.0.to_le_bytes());
+    for op in &read.cigar {
+        h = fold(h, &[op.kind as u8]);
+        h = fold(h, &op.len.to_le_bytes());
+    }
+    h = fold(h, &read.seq);
+    h = fold(h, &read.qual);
+    h
+}
+
 /// Read-level filters applied as reads enter the pileup.
 #[derive(Debug, Clone)]
 pub struct PileupParams {
@@ -91,6 +119,8 @@ struct ActiveRead {
     mapq: u8,
     /// Reverse-strand flag (metadata only — never applied to `seq`).
     reverse: bool,
+    /// Fixed-seed content hash — the depth-cap reservoir admission/eviction key.
+    priority: u64,
 }
 
 /// Streaming, CIGAR-aware, bounded-memory pileup over one contig region.
@@ -188,7 +218,8 @@ impl<S: ReadSource> PileupEngine<S> {
     }
 
     /// Precompute a read's reference→read-offset map and add it to the active set.
-    fn ingest(&mut self, read: AlignedRead) {
+    /// `priority` is the precomputed reservoir key (see `read_priority`).
+    fn ingest(&mut self, read: AlignedRead, priority: u64) {
         let end = read.end();
         let mut ref_to_read = HashMap::new();
         for rb in read.projected_bases() {
@@ -201,6 +232,7 @@ impl<S: ReadSource> PileupEngine<S> {
             qual: Arc::clone(&read.qual),
             mapq: read.mapq,
             reverse: read.flags.is_reverse(),
+            priority,
         });
     }
 
@@ -243,16 +275,33 @@ impl<S: ReadSource> PileupEngine<S> {
                     if read.end() <= pos {
                         continue; // does not reach the cursor
                     }
-                    // Deterministic max-depth cap: once `max_depth` reads already
-                    // cover the cursor, drop arrivals (counted) so the active set —
-                    // and thus the working set — is bounded by the declared depth.
+                    let prio = read_priority(&read);
                     if let Some(max) = self.params.max_depth {
                         if self.active.len() as u32 >= max {
+                            // Unbiased min-hash reservoir: keep the `max`
+                            // smallest-priority reads covering the cursor. Evict the
+                            // greatest-priority resident iff the newcomer ranks below
+                            // it; otherwise refuse. Either way the cap removed one
+                            // read (counted). Priority is a fixed-seed content hash,
+                            // so selection is independent of start position / allele
+                            // (the leftmost-arrival bias that silently dropped deep
+                            // variants is gone). The active set stays bounded by
+                            // `max`, preserving the working-set guarantee.
+                            let mut worst = 0usize;
+                            for i in 1..self.active.len() {
+                                if self.active[i].priority > self.active[worst].priority {
+                                    worst = i;
+                                }
+                            }
                             self.skips.over_max_depth += 1;
+                            if prio < self.active[worst].priority {
+                                self.active.swap_remove(worst);
+                                self.ingest(read, prio);
+                            }
                             continue;
                         }
                     }
-                    self.ingest(read);
+                    self.ingest(read, prio);
                 }
             }
         }
@@ -394,6 +443,56 @@ mod tests {
         let alleles: Vec<u8> = at0.obs.iter().map(|o| o.allele).collect();
         // Canonical: ascending by allele (0, 1, 2) regardless of C, A, G arrival.
         assert_eq!(alleles, vec![0, 1, 2]);
+    }
+
+    #[test]
+    fn unbiased_cap_keeps_downstream_starting_reads() {
+        // The biased (leftmost-arrival) cap dropped reads that START at a deep
+        // variant, zeroing the alt allele. The min-hash reservoir keeps a
+        // start-position-independent sample, so a variant carried only by reads
+        // that begin AT the variant column survives. Reads must be DISTINCT
+        // (real reads are) — identical content shares one hash and degenerates.
+        let reference = vec![b'A'; 64];
+        let v = 32u32; // variant column
+        let cap = 30u32;
+        let mut reads = Vec::new();
+        // 30 ref reads starting upstream (pos 0), distinct lengths -> distinct
+        // hashes, all carrying A (ref) at v.
+        for i in 0..30u32 {
+            let len = 33 + i as usize; // covers v=32 (len>32); 33..62 < 64
+            reads.push(mread(0, &vec![b'A'; len], false));
+        }
+        // 30 alt reads starting AT v, distinct lengths, carrying C at v (offset 0).
+        for j in 0..30u32 {
+            let len = 1 + j as usize; // start v, covers v
+            let mut seq = vec![b'A'; len];
+            seq[0] = b'C';
+            reads.push(mread(v, &seq, false));
+        }
+        let params = PileupParams {
+            max_depth: Some(cap),
+            ..PileupParams::default()
+        };
+        let mut e = PileupEngine::new(
+            SliceSource::new(reads),
+            Arc::from(reference.into_boxed_slice()),
+            0,
+            0..64,
+            params,
+        );
+        let mut at_v = None;
+        while let Some(c) = e.next() {
+            let col = c.unwrap();
+            if col.locus.pos.0 == v {
+                at_v = Some(col);
+            }
+        }
+        let counts = at_v.expect("a column at v").allele_counts();
+        // Both alleles present: ref (A=0) AND alt (C=1) — the biased cap gave alt==0.
+        assert!(counts[1] > 0, "alt allele must survive the cap: {counts:?}");
+        assert!(counts[0] > 0, "ref allele must remain too: {counts:?}");
+        // Capped: total observed at v <= cap.
+        assert!(counts.iter().sum::<u32>() <= cap, "depth must be capped");
     }
 
     #[test]
