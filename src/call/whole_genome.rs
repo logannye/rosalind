@@ -12,11 +12,12 @@ use crate::genomics::ReferenceView;
 use crate::pileup::{PileupParams, ReadSource, SkipCounts};
 
 /// Per-contig view over a shared sorted stream: yields contig `contig`'s reads,
-/// then stops at (and buffers) the first read of a later contig.
-struct PerContig<'s, S: ReadSource> {
-    source: &'s mut S,
-    contig: u32,
-    peeked: &'s mut Option<AlignedRead>,
+/// then stops at (and buffers) the first read of a later contig. Shared by the
+/// germline-calling and feature-egress whole-genome drivers.
+pub(crate) struct PerContig<'s, S: ReadSource> {
+    pub(crate) source: &'s mut S,
+    pub(crate) contig: u32,
+    pub(crate) peeked: &'s mut Option<AlignedRead>,
 }
 
 impl<S: ReadSource> ReadSource for PerContig<'_, S> {
