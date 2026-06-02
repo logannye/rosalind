@@ -402,3 +402,126 @@ fn estimator_upper_bounds_the_realized_working_set() {
     );
     std::fs::remove_dir_all(&dir).ok();
 }
+
+// Deterministic pseudo-random ACGT reference (no external rng): a multi-MiB
+// contig so the reference-decode step is the RSS high-water — exactly where the
+// `Arc::from(Vec)` reallocation transient lives.
+fn pseudo_ref(n: usize) -> Vec<u8> {
+    const BASES: [u8; 4] = [b'A', b'C', b'G', b'T'];
+    let mut state: u64 = 0x9E37_79B9_7F4A_7C15;
+    (0..n)
+        .map(|_| {
+            state = state
+                .wrapping_mul(6_364_136_223_846_793_005)
+                .wrapping_add(1_442_695_040_888_963_407);
+            BASES[((state >> 33) & 0b11) as usize]
+        })
+        .collect()
+}
+
+// Build a single big contig + a handful of reads → index/align/sort, returning
+// (dir, index_path, sorted_bam_path). The reads are 60 bp substrings of the
+// reference at known offsets (unique in a random sequence → fast, unambiguous
+// alignment); coverage is shallow so the reference decode, not the active set,
+// dominates RSS.
+fn build_big_contig_fixture(ref_len: usize) -> (PathBuf, PathBuf, PathBuf) {
+    let dir = unique_dir("rosalind-peak");
+    let seq = pseudo_ref(ref_len);
+    let fa = dir.join("ref.fa");
+    let mut fasta = String::with_capacity(ref_len + ref_len / 70 + 16);
+    fasta.push_str(">chr1\n");
+    for chunk in seq.chunks(70) {
+        fasta.push_str(std::str::from_utf8(chunk).unwrap());
+        fasta.push('\n');
+    }
+    std::fs::write(&fa, &fasta).unwrap();
+
+    let fq = dir.join("reads.fq");
+    let mut fastq = String::new();
+    for (i, &off) in [1000usize, ref_len / 4, ref_len / 2, ref_len - 2000, 100_000]
+        .iter()
+        .enumerate()
+    {
+        let read = std::str::from_utf8(&seq[off..off + 60]).unwrap();
+        let qual: String = std::iter::repeat('I').take(60).collect();
+        fastq.push_str(&format!("@r{i}\n{read}\n+\n{qual}\n"));
+    }
+    std::fs::write(&fq, fastq).unwrap();
+
+    let idx = dir.join("ref.idx");
+    let raw = dir.join("raw.bam");
+    let bam = dir.join("sorted.bam");
+    assert!(run(&[
+        "index",
+        "--reference",
+        fa.to_str().unwrap(),
+        "--output",
+        idx.to_str().unwrap()
+    ])
+    .status
+    .success());
+    assert!(run(&[
+        "align",
+        "--reference",
+        fa.to_str().unwrap(),
+        "--reads",
+        fq.to_str().unwrap(),
+        "--format",
+        "bam",
+        "--output",
+        raw.to_str().unwrap()
+    ])
+    .status
+    .success());
+    assert!(run(&[
+        "sort",
+        "--input",
+        raw.to_str().unwrap(),
+        "--output",
+        bam.to_str().unwrap()
+    ])
+    .status
+    .success());
+    (dir, idx, bam)
+}
+
+#[test]
+fn predicted_peak_rss_upper_bounds_realized_peak() {
+    // THE contract's core inequality: predicted peak RSS >= realized peak RSS.
+    // No other test exercises it — the working-set tests compare working-set vs
+    // working-set, both modeling the reference exactly once, so they are blind by
+    // construction to the `Arc::from(decoded)` reference-decode transient (two
+    // copies of the largest contig briefly co-resident). A 4 MiB contig with
+    // shallow coverage makes that transient the RSS high-water; before the fix the
+    // realized peak exceeds the prediction by ~one contig copy.
+    let (dir, idx, bam) = build_big_contig_fixture(4 * 1024 * 1024);
+    let vcf = dir.join("calls.vcf");
+    let manifest = dir.join("calls.vcf.manifest.json");
+    let out = Command::new(bin())
+        .args(["variants", "--index"])
+        .arg(&idx)
+        .arg("--alignments")
+        .arg(&bam)
+        .args(["--max-depth", "1000", "--max-read-len", "250", "-o"])
+        .arg(&vcf)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "run failed: {out:?}");
+
+    let text = std::fs::read_to_string(&manifest).unwrap();
+    let m = rosalind::provenance::RunManifest::from_canonical_json(&text).unwrap();
+    let predicted: u64 = m
+        .params
+        .get("predicted_peak_rss_bytes")
+        .expect("receipt must record predicted_peak_rss_bytes")
+        .parse()
+        .unwrap();
+    let realized: u64 = m.params.get("peak_rss_bytes").unwrap().parse().unwrap();
+    assert!(
+        predicted >= realized,
+        "predicted peak RSS {predicted} must be >= realized peak RSS {realized} \
+         (gap = {} bytes of unmodeled reference-decode transient)",
+        realized.saturating_sub(predicted)
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}

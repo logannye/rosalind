@@ -59,14 +59,13 @@ pub fn call_germline_whole_genome<S: ReadSource>(
     let mut peeked: Option<AlignedRead> = None;
 
     for c in contigs.iter() {
-        // Decode this contig's reference into a fresh Vec and MOVE it into the
-        // Arc — no persistent second copy (the steady-state reference resident is
-        // one contig, not two). Peak = the largest contig; bounded.
+        // Decode this contig's reference straight into the Arc — no intermediate
+        // Vec, so peak resident reference memory is ONE copy, not the transient
+        // two that `Arc::from(decoded)` (a reallocation) would briefly hold. Peak
+        // = the largest contig; bounded, and the predicted-peak bound holds.
         let start = c.global_offset as usize;
         let end = c.global_offset as usize + c.length as usize;
-        let mut decoded = Vec::new();
-        ref_view.decode_window(start, end, &mut decoded);
-        let reference: Arc<[u8]> = Arc::from(decoded);
+        let reference: Arc<[u8]> = ref_view.decode_window_arc(start, end);
 
         let per = PerContig {
             source: &mut source,

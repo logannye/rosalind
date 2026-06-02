@@ -9,8 +9,8 @@
 //! prediction is comparable to the realized `peak_rss` the post-run check uses.
 
 use crate::core::{
-    MemoryBudget, WorkingSet, PILEUP_ENGINE_OVERHEAD, PILEUP_MAP_BYTES_PER_BASE,
-    PILEUP_PER_READ_OVERHEAD, PILEUP_SEQQUAL_BYTES_PER_BASE,
+    MemoryBudget, WorkingSet, PILEUP_ENGINE_OVERHEAD, PILEUP_IO_RSS_OVERHEAD,
+    PILEUP_MAP_BYTES_PER_BASE, PILEUP_PER_READ_OVERHEAD, PILEUP_SEQQUAL_BYTES_PER_BASE,
 };
 
 /// Estimate the peak streaming working set of a whole-genome germline call: the
@@ -37,16 +37,23 @@ pub fn estimate_variants_working_set(
 }
 
 /// Predicted peak process RSS = a measured process baseline + the estimated
-/// working set. Comparable to the realized `peak_rss` the post-run check uses.
+/// working set + a fixed I/O-buffer + allocator-slack margin
+/// (`PILEUP_IO_RSS_OVERHEAD`). Comparable to — and a conservative upper bound on
+/// — the realized `peak_rss` the post-run check uses. The margin is at the RSS
+/// level only (the working-set estimate stays comparable to the realized
+/// accountant); the reference-decode transient is eliminated at the source, so
+/// the margin need not scale with the reference.
 pub fn predicted_peak_rss_bytes(
     largest_contig_len: u64,
     max_depth: u32,
     max_read_len: u32,
     baseline_rss_bytes: u64,
 ) -> u64 {
-    baseline_rss_bytes.saturating_add(
-        estimate_variants_working_set(largest_contig_len, max_depth, max_read_len).bytes,
-    )
+    baseline_rss_bytes
+        .saturating_add(
+            estimate_variants_working_set(largest_contig_len, max_depth, max_read_len).bytes,
+        )
+        .saturating_add(PILEUP_IO_RSS_OVERHEAD)
 }
 
 /// Render the `rosalind plan --index` breakdown: a measured baseline + the
@@ -86,6 +93,7 @@ pub fn render_variants_plan(
          reference decode (largest contig):  {} MiB\n  \
          active set @ max-depth {}:           {} MiB\n  \
          engine overhead:                    {} MiB\n  \
+         I/O buffers + allocator slack:      {} MiB\n  \
          -------------------------------------------------\n  \
          predicted peak: ~{} MiB {}\n",
         baseline_rss_bytes / MIB,
@@ -93,6 +101,7 @@ pub fn render_variants_plan(
         max_depth,
         active / MIB,
         PILEUP_ENGINE_OVERHEAD / MIB,
+        PILEUP_IO_RSS_OVERHEAD / MIB,
         predicted / MIB,
         verdict,
     )
@@ -115,10 +124,10 @@ mod tests {
     }
 
     #[test]
-    fn predicted_peak_is_baseline_plus_working_set() {
+    fn predicted_peak_is_baseline_plus_working_set_plus_io_margin() {
         let ws = estimate_variants_working_set(248_000_000, 1_000, 250).bytes;
         let predicted = predicted_peak_rss_bytes(248_000_000, 1_000, 250, 50_000_000);
-        assert_eq!(predicted, 50_000_000 + ws);
+        assert_eq!(predicted, 50_000_000 + ws + PILEUP_IO_RSS_OVERHEAD);
     }
 
     #[test]

@@ -13,6 +13,15 @@ pub const PILEUP_SEQQUAL_BYTES_PER_BASE: u64 = 2;
 pub const PILEUP_PER_READ_OVERHEAD: u64 = 64;
 /// Fixed per-engine overhead.
 pub const PILEUP_ENGINE_OVERHEAD: u64 = 256;
+/// Peak-RSS overhead the streaming *working set* does not model: htslib/BGZF
+/// decompression buffers, the VCF `BufWriter`, and allocator slack between RSS
+/// and live bytes. Added to the *predicted peak RSS* (not the working-set
+/// estimate, which stays comparable to the realized accountant) so the
+/// contract's up-front claim is a conservative upper bound on real RSS rather
+/// than a steady-state live-bytes count. The reference-decode transient is
+/// eliminated at the source (`decode_window_arc`), so this margin covers only
+/// fixed I/O buffers + slack, not a per-contig reference copy.
+pub const PILEUP_IO_RSS_OVERHEAD: u64 = 8 * 1024 * 1024;
 
 /// A declared cap on a streaming stage's working set.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

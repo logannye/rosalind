@@ -869,6 +869,9 @@ mod tests {
                 &reference[s..e.min(n)],
                 "decode_window {s}..{e}"
             );
+            // The transient-free Arc decoder must be byte-identical to decode_window.
+            let arc = rv.decode_window_arc(s, e);
+            assert_eq!(&*arc, buf.as_slice(), "decode_window_arc {s}..{e}");
         }
         let _ = std::fs::remove_file(path);
     }

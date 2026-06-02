@@ -397,6 +397,19 @@ impl<'a> ReferenceView<'a> {
             out.push(self.base_at(i));
         }
     }
+
+    /// Decode `[start, end.min(len))` directly into an `Arc<[u8]>`, with no
+    /// separate owned `Vec` materialized first. `Arc::from(Vec<u8>)` REALLOCATES
+    /// — source and Arc buffers are both fully resident during the copy, so a
+    /// per-contig decode briefly holds two copies of the contig (the reference-
+    /// decode transient that broke the predicted-peak bound). Collecting a
+    /// `TrustedLen` range straight into the `Arc` writes into its allocation in
+    /// place, so peak resident reference memory is ONE copy. Byte-identical to
+    /// `decode_window`; bounded by the window size.
+    pub fn decode_window_arc(&self, start: usize, end: usize) -> std::sync::Arc<[u8]> {
+        let end = end.min(self.len);
+        (start..end).map(|i| self.base_at(i)).collect()
+    }
 }
 
 /// Validate that every block record (at the directory's offsets) lies fully
