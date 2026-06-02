@@ -575,3 +575,35 @@ fn verify_rejects_an_internally_inconsistent_manifest() {
     );
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn governor_aborts_loud_when_live_rss_exceeds_budget() {
+    let (dir, idx, bam) = build_sorted_bam_fixture();
+    let vcf = dir.join("calls.vcf");
+    let manifest = dir.join("calls.vcf.manifest.json");
+    // 4096 MiB passes the pre-run exit-3 gate, but the live-RSS seam reports
+    // 5000 MiB > budget, so the governor trips mid-run -> exit 4.
+    let out = Command::new(bin())
+        .args(["variants", "--index"])
+        .arg(&idx)
+        .arg("--alignments")
+        .arg(&bam)
+        .args(["--memory-budget-mb", "4096", "--enforce", "-o"])
+        .arg(&vcf)
+        .env(
+            "ROSALIND_FORCE_LIVE_RSS_BYTES",
+            (5_000u64 * 1024 * 1024).to_string(),
+        )
+        .env("ROSALIND_GOVERNOR_POLL_MS", "1")
+        .output()
+        .unwrap();
+    assert_eq!(
+        out.status.code(),
+        Some(4),
+        "governor breach must exit 4: {out:?}"
+    );
+    let m = std::fs::read_to_string(&manifest).expect("manifest written on breach");
+    assert!(m.contains("\"governor\":\"tripped\""), "manifest: {m}");
+    assert!(m.contains("\"contract_verdict\":\"over\""), "manifest: {m}");
+    std::fs::remove_dir_all(&dir).ok();
+}

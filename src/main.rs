@@ -1811,6 +1811,7 @@ fn run_variants_index(
     use rosalind::call::{
         call_germline_whole_genome, stream_gvcf_whole_genome, write_gvcf_header, GermlineParams,
     };
+    use rosalind::core::governor::MemoryGovernor;
     use rosalind::genomics::IndexReader;
     use rosalind::io::bam::StreamingBamSource;
     use rosalind::io::vcf::{write_germline_header, write_germline_row, GermlineRow};
@@ -1901,6 +1902,36 @@ fn run_variants_index(
         }
     }
 
+    // Live RSS source for the governor: a test seam (ROSALIND_FORCE_LIVE_RSS_BYTES)
+    // standing in for live RSS, else the real getrusage high-water mark. Distinct
+    // from ROSALIND_FORCE_PEAK_RSS_BYTES, which overrides only the POST-run peak.
+    let live_rss = || {
+        std::env::var("ROSALIND_FORCE_LIVE_RSS_BYTES")
+            .ok()
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or_else(peak_rss_bytes)
+    };
+    let poll_ms = std::env::var("ROSALIND_GOVERNOR_POLL_MS")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(100);
+    // Under --enforce, the governor fails the run LOUD the moment live RSS crosses
+    // the budget (exit 4 with output + receipt) — never a silent kernel OOM. Held
+    // for the duration of the calling pass; dropped (thread stopped) at scope end.
+    let _governor_guard = if enforce {
+        let mb = memory_budget_mb.expect("--enforce requires --memory-budget-mb (checked above)");
+        Some(
+            MemoryGovernor::start(
+                MemoryBudget::from_mb(mb).bytes,
+                std::time::Duration::from_millis(poll_ms),
+                live_rss,
+            )
+            .map_err(|e| anyhow!("failed to start memory governor: {e}"))?,
+        )
+    } else {
+        None
+    };
+
     // Stream straight to the writer (header once, then one record per callable
     // locus in gVCF mode, or per variant otherwise) so no genome-wide row buffer
     // accumulates. The returned WorkingSet is the high-water (reference + active
@@ -1941,13 +1972,21 @@ fn run_variants_index(
                         .map_err(rosalind::core::CoreError::from)
                     },
                 )
+            };
+            // Flush even on a governed abort so partial output survives; surface a
+            // genuine flush failure only when the calling pass itself succeeded.
+            if r.is_ok() {
+                w.flush()?;
+            } else {
+                let _ = w.flush();
             }
-            .map_err(|e| anyhow!("variant calling failed: {e}"))?;
-            w.flush()?;
             r
         }};
     }
-    let (max_ws, skips) = match &output {
+    let drive_result: Result<
+        (rosalind::core::WorkingSet, rosalind::pileup::SkipCounts),
+        rosalind::core::CoreError,
+    > = match &output {
         Some(path) => {
             let file = File::create(path)
                 .with_context(|| format!("failed to create VCF file {}", path.display()))?;
@@ -1960,20 +1999,45 @@ fn run_variants_index(
             drive!(&mut handle)
         }
     };
-    // Realized peak (monotonic high-water mark) captured after the calling pass.
-    // Test-only seam: ROSALIND_FORCE_PEAK_RSS_BYTES overrides ONLY this post-run
-    // realized peak (never the pre-run baseline at the --enforce gate), so the
-    // exit-4 breach branch can be exercised deterministically without allocating.
-    let peak_rss = std::env::var("ROSALIND_FORCE_PEAK_RSS_BYTES")
-        .ok()
-        .and_then(|v| v.parse::<u64>().ok())
-        .unwrap_or_else(peak_rss_bytes);
+    // A governor trip is the one error we do NOT bail on: we still write the proof
+    // receipt (verdict=over, governor=tripped) and exit 4 via the existing post-run
+    // check. Any other error is a genuine failure.
+    let (max_ws, skips, breached, breach_peak) = match drive_result {
+        Ok((ws, sk)) => (ws, sk, false, 0u64),
+        Err(rosalind::core::CoreError::BudgetExceeded { needed, .. }) => (
+            rosalind::core::WorkingSet { bytes: 0 },
+            rosalind::pileup::SkipCounts::default(),
+            true,
+            needed,
+        ),
+        Err(e) => return Err(anyhow!("variant calling failed: {e}")),
+    };
+    // Realized peak: the governor's tripping peak on a live breach, else the
+    // post-run high-water (monotonic). Test-only seam: ROSALIND_FORCE_PEAK_RSS_BYTES
+    // overrides ONLY this post-run realized peak (never the pre-run baseline at the
+    // --enforce gate), so the exit-4 backstop can be exercised without allocating.
+    let peak_rss = if breached {
+        breach_peak
+    } else {
+        std::env::var("ROSALIND_FORCE_PEAK_RSS_BYTES")
+            .ok()
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or_else(peak_rss_bytes)
+    };
 
     // Compute the contract verdict before writing the receipt (so it records it).
     let verdict = match memory_budget_mb.map(|mb| MemoryBudget::from_mb(mb).admits(peak_rss)) {
         None => "unset",
         Some(true) => "within",
         Some(false) => "over",
+    };
+    // Distinguish a live-governed abort from a post-run-detected overrun in the receipt.
+    let governor_state = if breached {
+        "tripped"
+    } else if enforce {
+        "enforced"
+    } else {
+        "record-only"
     };
 
     // Reproducibility + memory receipt. Written when there is a destination — an
@@ -2032,6 +2096,9 @@ fn run_variants_index(
             "max_working_set_bytes".to_string(),
             max_ws.bytes.to_string(),
         );
+        manifest
+            .params
+            .insert("governor".to_string(), governor_state.to_string());
         manifest.params.insert(
             "over_max_depth".to_string(),
             skips.over_max_depth.to_string(),
