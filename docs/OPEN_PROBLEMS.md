@@ -69,6 +69,22 @@ things this framework will magically solve.
 
 ### 3.2 The beachhead: sublinear-space full-text index construction
 
+> **Pivot — Phase D mechanism (2026-06-02; see [`findings/2026-06-02-d0-build-memory-probe.md`](findings/2026-06-02-d0-build-memory-probe.md)).**
+> A scoping study established that the literal √t / Cook–Mertz machinery is **theoretical framing**, not the
+> construction *kernel*: SA-IS produces a permutation (random-access induced sorting) whose memory is the
+> suffix array itself — there is no low-degree-extension structure to compress, the in-repo combiner is a
+> stub whose output is discarded on the correctness path, and Cook–Mertz is super-polynomial with no systems
+> realization. So Phase D's **mechanism** is a **native, polynomial-time, budget-tunable external-memory
+> SA/BWT constructor** (pSAscan/eSAIS/Big-BWT-style: SA-IS each budget-sized block in RAM → exact disk-backed
+> merge) that honors a declared `MemoryBudget` along a **measured** space/time curve, **degrading to disk
+> rather than refusing**, wrapped in the shipped `plan`/`--enforce`/`verify` contract. The √t bound (Williams
+> 2025; Cook–Mertz 2024) is kept as the asymptotic *justification* for "recomputation along a √-shaped
+> curve" — **not** as the runtime kernel, and Rosalind makes **no new space-complexity claim** (prior
+> succinct-construction work already hits low-space fixed points). The defensible contribution is the
+> **declared-budget contract + measured curve + verifiable receipt over a real memory-bound build.** The D0
+> probe (above link) confirmed the build is intermediate-state-bound by the SA workspace (41 B/base, constant
+> across E. coli and yeast), greenlighting this path.
+
 Building the FM-index/BWT is Rosalind's own headline memory limitation ("the FM-index is built in
 memory at the start of each run; memory proportional to the reference"). It is the ideal first
 target because it is:
