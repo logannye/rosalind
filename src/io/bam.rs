@@ -74,6 +74,36 @@ pub(crate) fn record_to_aligned_read(
     }))
 }
 
+/// Cross-check the BAM header's `@SQ` contig lengths against the index `ContigSet`.
+/// For every header contig whose name is also in the index, the lengths must match;
+/// a mismatch means the alignments were built against a different reference (a
+/// different assembly/patch), which would silently produce coordinate-shifted or
+/// truncated calls. Names present in the header but absent from the index are left
+/// alone (their records are skipped downstream).
+pub(crate) fn validate_contig_lengths(
+    header: &bam::HeaderView,
+    contigs: &ContigSet,
+) -> Result<(), CoreError> {
+    for tid in 0..header.target_count() {
+        let name = std::str::from_utf8(header.tid2name(tid))
+            .map_err(|_| CoreError::MalformedRecord("BAM reference name is not UTF-8".into()))?;
+        if let Some(c) = contigs.by_name(name) {
+            let header_len = header.target_len(tid);
+            if header_len != Some(c.length as u64) {
+                return Err(CoreError::MalformedRecord(format!(
+                    "BAM @SQ length for contig '{name}' ({}) disagrees with the index ({}); \
+                     the alignments were built against a different reference",
+                    header_len
+                        .map(|l| l.to_string())
+                        .unwrap_or_else(|| "missing".into()),
+                    c.length
+                )));
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Read all mapped records of a BAM into canonical `core::AlignedRead`s, mapping
 /// each record's reference name to a contig id via `contigs`. Records that are
 /// unmapped, have no tid, or whose reference is absent from `contigs` are
@@ -139,6 +169,9 @@ impl<'a> StreamingBamSource<'a> {
         let reader = bam::Reader::from_path(path)
             .map_err(|e| CoreError::MalformedRecord(format!("open BAM {}: {e}", path.display())))?;
         let header = reader.header().to_owned();
+        // Reject a BAM aligned to a different-length reference up front — names
+        // matching the index must agree on length, or every coordinate is suspect.
+        validate_contig_lengths(&header, contigs)?;
         Ok(Self {
             reader,
             header,
@@ -294,6 +327,37 @@ mod tests {
         assert!(
             src.next_read().is_err(),
             "out-of-order read must be rejected"
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn streaming_source_rejects_sq_length_mismatch() {
+        // BAM header says chr1 is 2000 bp; the index ContigSet says 1000 bp — the
+        // alignments were built against a different reference. Reject at open.
+        let dir = std::env::temp_dir().join(format!(
+            "rosalind-stream-sqlen-{}",
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let bam_path = dir.join("wrongref.bam");
+        let header = test_header(&[("chr1", 2000)]);
+        {
+            let mut writer = bam::Writer::from_path(&bam_path, &header, bam::Format::Bam).unwrap();
+            let hv = writer.header().clone();
+            push_record(&mut writer, &hv, 0, 10, b"ACGT");
+        }
+        let mut contigs = ContigSet::new();
+        contigs.push("chr1", 1000);
+        let err = StreamingBamSource::new(&bam_path, &contigs);
+        assert!(err.is_err(), "length mismatch must be rejected at open");
+        let msg = format!("{}", err.err().unwrap());
+        assert!(
+            msg.contains("disagrees with the index"),
+            "clear message: {msg}"
         );
         std::fs::remove_dir_all(&dir).ok();
     }

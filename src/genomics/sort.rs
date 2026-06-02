@@ -181,13 +181,22 @@ impl Eq for HeapItem {}
 
 impl PartialEq for HeapItem {
     fn eq(&self, other: &Self) -> bool {
-        self.key == other.key
+        // Consistent with the now-total `Ord` (key + source_idx).
+        self.key == other.key && self.source_idx == other.source_idx
     }
 }
 
 impl Ord for HeapItem {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.key.cmp(&other.key)
+        // Total order: key first (reversed for the min-key-first max-heap, as
+        // `SortKey::cmp` already is), then `source_idx` — also reversed so the
+        // LOWER source_idx pops first. Records are read in input order and
+        // assigned to chunks sequentially, so equal-key records pop in input
+        // order regardless of how they were partitioned into chunks — making the
+        // merge output independent of the `--memory-mb` budget.
+        self.key
+            .cmp(&other.key)
+            .then_with(|| other.source_idx.cmp(&self.source_idx))
     }
 }
 
@@ -203,4 +212,46 @@ fn sort_key_cmp(a: &Record, b: &Record) -> Ordering {
         .then_with(|| a.pos().cmp(&b.pos()))
         .then_with(|| a.is_reverse().cmp(&b.is_reverse()))
         .then_with(|| a.qname().cmp(b.qname()))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rust_htslib::bam::record::{Cigar, CigarString};
+
+    fn rec(qname: &[u8], tid: i32, pos: i64) -> Record {
+        let mut r = Record::new();
+        let cigar = CigarString(vec![Cigar::Match(1)]);
+        r.set(qname, Some(&cigar), b"A", &[30u8]);
+        r.set_tid(tid);
+        r.set_pos(pos);
+        r
+    }
+
+    #[test]
+    fn merge_tie_break_pops_equal_key_records_in_source_index_order() {
+        // Two records with a fully-equal sort key (same tid/pos/strand/qname) must
+        // pop in ascending source_idx (= input order), independent of push order —
+        // this is what makes the merge output independent of the chunk partition
+        // (--memory-mb). A record with a smaller pos pops before both.
+        let a = HeapItem::new(0, rec(b"dup", 0, 100));
+        let b = HeapItem::new(3, rec(b"dup", 0, 100)); // equal key, higher source_idx
+        let early = HeapItem::new(2, rec(b"dup", 0, 50)); // smaller pos -> pops first
+
+        let mut heap: BinaryHeap<HeapItem> = BinaryHeap::new();
+        // Push in an order that does NOT match the desired pop order.
+        heap.push(b);
+        heap.push(early);
+        heap.push(a);
+
+        let p1 = heap.pop().unwrap();
+        let p2 = heap.pop().unwrap();
+        let p3 = heap.pop().unwrap();
+        assert_eq!(p1.record.pos(), 50, "smallest key pops first");
+        assert_eq!(
+            p2.source_idx, 0,
+            "equal-key tie: lower source_idx pops first"
+        );
+        assert_eq!(p3.source_idx, 3, "then the higher source_idx");
+    }
 }

@@ -104,4 +104,5 @@ A complete, runnable example: [`examples/custom_pileup_analytics.rs`](examples/c
 Every receipt is canonical JSON (sorted keys, no timestamps) with BLAKE3 content hashes of the index, the
 alignments, and the output VCF, plus the realized `peak_rss_bytes` / `max_working_set_bytes` and the
 contract params (`memory_budget_mb`, `contract_verdict`, `enforced`, `max_depth`, `max_read_len`). Identical
-inputs produce a byte-identical VCF and a byte-identical manifest — and `rosalind verify` proves it.
+inputs produce a byte-identical VCF, and a manifest identical except for the realized `peak_rss_bytes` (a
+machine-dependent measurement) — `rosalind verify` re-checks the recorded hashes and peak against the budget.
