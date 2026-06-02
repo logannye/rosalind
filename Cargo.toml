@@ -9,21 +9,14 @@ license = "MIT OR Apache-2.0"
 keywords = ["genomics", "alignment", "variant-calling", "bioinformatics", "bwt", "fm-index"]
 categories = ["science::bioinformatics", "algorithms"]
 
-[lib]
-crate-type = ["rlib", "cdylib"]
-
 [dependencies]
-# OS bindings (used for read-only mmap of large reference/index files)
+# OS bindings (read-only mmap of large reference/index files; peak-RSS readout)
 libc = "0.2"
-# Finite field arithmetic - for constant-size field 𝔽_{2^c}
-ff = "0.13"
-# Polynomial operations - for low-degree extensions
-ark-poly = "0.4"
-# Fast hashing for advisory fingerprints
+# Fast hashing for the reproducibility receipts
 blake3 = "1.5"
 # Transparent gzip/bgzf-sequential decompression for FASTA/FASTQ ingestion
 flate2 = "1.0"
-# Bit manipulation - for compact ledger representation
+# Bit manipulation - compact rank/select bitvectors in the FM-index
 bitvec = "1.0"
 # Error handling
 thiserror = "1.0"
@@ -33,27 +26,11 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # CLI
 clap = { version = "4.5", features = ["derive"] }
-# Serialization (optional, for debugging/visualization)
-serde = { version = "1.0", features = ["derive"], optional = true }
-# Python bindings
-pyo3 = { version = "0.23.2", features = ["extension-module", "abi3-py39"], optional = true }
 # BAM/VCF output
 rust-htslib = { version = "0.44", default-features = false, features = ["bzip2", "lzma"] }
 
 [dev-dependencies]
-criterion = { version = "0.5", features = ["html_reports"] }
 proptest = "1.4"
-test-case = "3.3"
-
-[features]
-default = []
-visualize = ["serde"]
-profiling = []
-python-bindings = ["dep:pyo3"]
-
-[[bench]]
-name = "simulation_bench"
-harness = false
 
 [profile.release]
 opt-level = 3

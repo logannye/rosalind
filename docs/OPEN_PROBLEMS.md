@@ -26,10 +26,12 @@ where RAM is fixed, swap is death, and an unpredictable OOM at hour 20 of a buil
 
 ## 2. The mechanism: a space/time *curve*, not an operating point
 
-The enabling machinery is the square-root-space evaluation framework Rosalind is built over
-(Williams 2025, *Simulating Time with Square-Root Space*; Cook–Mertz 2024 tree evaluation). The
-space bound is **~√t** — the square root of the running time, up to lower-order (sub-polynomial)
-factors. (The "O(√t)" in the source headers denotes the same bound.)
+The theoretical justification is the square-root-space result (Williams 2025, *Simulating Time with
+Square-Root Space*; Cook–Mertz 2024 tree evaluation): the space bound is **~√t** — the square root of
+the running time, up to lower-order (sub-polynomial) factors. This is *framing*, not a complexity claim
+Rosalind makes; the Phase-D mechanism is a native, budget-tunable **external-memory blocked SA/BWT
+constructor** (build budget-sized blocks in RAM, spill, merge on disk along the curve), not a literal
+simulation of the √t theorem.
 
 The key reframing — and what makes this a *systems* contribution rather than a theory citation —
 is that this is **not a single low-space operating point.** Block-respecting simulation with a

@@ -79,7 +79,7 @@ You'll see `plan` predict `[FITS]`, `variants --enforce` print `contract: OK —
 - **Deterministic coordinate sort** — `rosalind sort`: an external merge sort (spills to disk) that orders a BAM by position within a configurable memory budget.
 - **Somatic (tumor/normal) calling** — `rosalind somatic` calls somatic SNVs and simple indels from a paired tumor/normal BAM set using a deterministic binomial log-likelihood-ratio model with explicit depth and allele-fraction filters.
 - **Truth-set evaluation** — `rosalind eval-germline` / `rosalind eval-somatic` compare a call set against a truth VCF over confident regions (BED), with variant normalization (left-align + trim) and precision / recall / F1. `eval-germline` is the drop-in interface for a GIAB benchmark.
-- **Extensibility** — Build custom bounded per-locus analytics over the `PileupColumn` iterator substrate (see [`examples/custom_pileup_analytics.rs`](examples/custom_pileup_analytics.rs)), inheriting bounded memory + determinism for free. *(The legacy `GenomicPlugin` trait + PyO3 RNA-seq demo still work but are **not** memory-bounded — see [CONTRACT.md](CONTRACT.md).)*
+- **Extensibility** — Build custom bounded per-locus analytics by implementing one trait ([ColumnKit](#columnkit-implement-one-trait-inherit-the-contract); see [`examples/columnkit_coverage.rs`](examples/columnkit_coverage.rs)) — inheriting bounded memory, determinism, and a verifiable receipt for free. Or iterate the raw `PileupColumn` substrate directly ([`examples/custom_pileup_analytics.rs`](examples/custom_pileup_analytics.rs)).
 - **Determinism by design** — Primary artifacts are emitted in a canonical, stable order, byte-for-byte identical across repeated runs given identical inputs. See [`docs/determinism.md`](docs/determinism.md).
 
 ## Why it matters
@@ -90,7 +90,7 @@ Three properties, treated as first-class guarantees rather than nice-to-haves:
 2. **Reproducibility.** Byte-identical outputs and a per-run BLAKE3 manifest make results auditable — a hard requirement for clinical and regulated pipelines, and a sanity-saver for everyone else.
 3. **Honest uncertainty.** Calibrated, abstention-aware calling refuses to emit a call where the evidence is insufficient, instead of papering over it.
 
-The contract is real today: `rosalind plan` predicts before you commit, `--enforce` honors the budget, and `rosalind verify` re-checks the receipt (see [CONTRACT.md](CONTRACT.md)). Under the hood, Rosalind is *also* a research vehicle for **space-bounded genomics**: a `~√t` (square-root-space) evaluation framework as a continuous space/time knob, aimed at **sublinear-space index *construction*** — the future Phase-D direction that would extend the contract to the index build step. That layer is not yet load-bearing; the bounded streaming engine you use today is the practical foundation it builds on.
+The contract is real today: `rosalind plan` predicts before you commit, `--enforce` honors the budget, and `rosalind verify` re-checks the receipt (see [CONTRACT.md](CONTRACT.md)). Looking ahead, Rosalind is *also* a research vehicle for **space-bounded genomics**: **sublinear-space index *construction*** along a `~√t` (square-root-space) space/time curve — the future Phase-D direction that would extend the contract to the index build step (today's build is `O(reference)`). That is a direction, not yet shipped; the bounded streaming engine you use today is the practical foundation it builds on.
 
 ## Accuracy
 
@@ -367,18 +367,14 @@ print(len(ft), "loci,", X.shape[1], "features; receipt:", ft.manifest_path)
 
 The binary streams the whole-genome table in bounded memory; this just loads the result. [`examples/reproducible_features_demo.py`](examples/reproducible_features_demo.py) is a runnable demo that trains a model and *proves* the inputs are bit-reproducible. A zero-copy in-process `pyarrow` binding is the next step.
 
-> **Legacy.** A PyO3 extension (`maturin develop --release` → `rosalind_py.PyGenomicEngine`) exposes an older plugin demo; it is **not** memory-bounded and does not use the feature substrate. Prefer `python/rosalind.py` above.
-
 ---
 
 ## Extend
 
 Rosalind's kernel is a **bounded, deterministic `PileupColumn` stream** — build your own per-locus analytics (coverage, QC, methylation, ML features) over it and inherit bounded memory + determinism for free:
 
-- **Rust (recommended)** — consume the `PileupEngine` iterator over any `ReadSource`. See [`examples/custom_pileup_analytics.rs`](examples/custom_pileup_analytics.rs) (`cargo run --example custom_pileup_analytics`) for a non-caller consumer computing per-locus coverage. The contract verbs and the substrate are re-exported at the crate root (`use rosalind::{PileupEngine, PileupColumn, ReadSource, …}`).
+- **The ColumnKit SDK (recommended)** — implement the `ColumnAnalyzer` trait and run it through `run_bounded_whole_genome` to inherit the bounded contract for your own per-locus metric ([above](#columnkit-implement-one-trait-inherit-the-contract)). Or consume the `PileupEngine` iterator over any `ReadSource` directly ([`examples/custom_pileup_analytics.rs`](examples/custom_pileup_analytics.rs)). The contract verbs and the substrate are re-exported at the crate root (`use rosalind::{PileupEngine, PileupColumn, ReadSource, ColumnAnalyzer, …}`).
 - **CLI subcommands** — add workflows in `src/main.rs`; compose subcommands over pipes.
-
-> **Legacy / non-bounded.** The `GenomicPlugin` trait (`src/plugin/`), the `framework/` evaluator, and the Python `rosalind_py.PyGenomicEngine` RNA-seq demo still work but do **not** inherit the memory contract. Prefer the `PileupColumn` substrate above for bounded work. See [CONTRACT.md](CONTRACT.md).
 
 ---
 

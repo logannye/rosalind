@@ -96,11 +96,9 @@ for column in PileupEngine::new(source, reference, contig, region, PileupParams:
 ```
 
 A complete, runnable example: [`examples/custom_pileup_analytics.rs`](examples/custom_pileup_analytics.rs)
-(`cargo run --example custom_pileup_analytics`).
-
-> **Legacy / non-bounded.** The `GenomicPlugin` trait (`src/plugin/`), the `framework/` evaluator, and the
-> Python `run_rna_seq_plugin` demo still work but do **not** inherit the memory contract. Prefer the
-> `PileupColumn` substrate above for bounded work.
+(`cargo run --example custom_pileup_analytics`). For a first-class SDK that inherits the bounded contract,
+implement the `ColumnAnalyzer` trait and run it through `run_bounded_whole_genome` (ColumnKit) —
+[`examples/columnkit_coverage.rs`](examples/columnkit_coverage.rs).
 
 ## Reproducibility
 
