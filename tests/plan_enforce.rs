@@ -183,3 +183,32 @@ fn enforce_passes_within_a_generous_budget() {
     assert!(stderr.contains("contract: OK"), "missing OK line: {stderr}");
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn stdout_run_persists_a_self_describing_receipt() {
+    let (dir, idx, bam) = build_sorted_bam_fixture();
+    let manifest = dir.join("run.manifest.json");
+    // stdout output (no -o), explicit --manifest so we know where to look.
+    let out = Command::new(bin())
+        .args(["variants", "--index"])
+        .arg(&idx)
+        .arg("--alignments")
+        .arg(&bam)
+        .args(["--memory-budget-mb", "4096", "--enforce", "--manifest"])
+        .arg(&manifest)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "run failed: {out:?}");
+    let json = std::fs::read_to_string(&manifest).expect("manifest written");
+    for needle in [
+        "\"contract_verdict\":\"within\"",
+        "\"enforced\":\"true\"",
+        "\"max_depth\":\"1000\"",
+        "\"memory_budget_mb\":\"4096\"",
+        "\"peak_rss_bytes\":",
+        "\"max_working_set_bytes\":",
+    ] {
+        assert!(json.contains(needle), "manifest missing {needle}: {json}");
+    }
+    std::fs::remove_dir_all(&dir).ok();
+}

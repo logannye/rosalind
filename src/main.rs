@@ -109,6 +109,10 @@ enum Commands {
         /// `--memory-budget-mb` and `--max-depth > 0`.
         #[arg(long, default_value_t = false)]
         enforce: bool,
+        /// Where to write the reproducibility receipt. Default: `<output>.manifest.json`
+        /// for file output, or `./rosalind.variants.manifest.json` for stdout output.
+        #[arg(long)]
+        manifest: Option<PathBuf>,
     },
     /// Deterministically coordinate-sort a BAM file using bounded memory.
     Sort {
@@ -287,6 +291,7 @@ fn main() -> Result<()> {
             max_depth,
             max_read_len,
             enforce,
+            manifest,
         } => {
             if let Some(index) = index {
                 if chrom.is_some() || region_start != 0 {
@@ -302,6 +307,7 @@ fn main() -> Result<()> {
                     max_depth,
                     max_read_len,
                     enforce,
+                    manifest,
                 )?
             } else {
                 let reference = reference.expect("clap guarantees one of --index/--reference");
@@ -1101,6 +1107,7 @@ fn run_variants_index(
     max_depth: u32,
     max_read_len: u32,
     enforce: bool,
+    manifest_out: Option<PathBuf>,
 ) -> Result<()> {
     use rosalind::call::{call_germline_whole_genome, GermlineParams};
     use rosalind::genomics::IndexReader;
@@ -1254,38 +1261,77 @@ fn run_variants_index(
     // Realized peak (monotonic high-water mark) captured after the calling pass.
     let peak_rss = peak_rss_bytes();
 
-    // Reproducibility + memory receipt (file output only; stdout receipt is C3).
+    // Compute the contract verdict before writing the receipt (so it records it).
+    let verdict = match memory_budget_mb.map(|mb| MemoryBudget::from_mb(mb).admits(peak_rss)) {
+        None => "unset",
+        Some(true) => "within",
+        Some(false) => "over",
+    };
+
+    // Reproducibility + memory receipt — ALWAYS written (every run is verifiable):
+    // an explicit --manifest path wins; else a sidecar next to the VCF; else cwd.
+    let mut manifest = RunManifest::new("variants");
+    manifest.inputs.push(FileHash {
+        path: index_path.display().to_string(),
+        blake3: blake3_file(&index_path)?,
+    });
+    manifest.inputs.push(FileHash {
+        path: alignments_path.display().to_string(),
+        blake3: blake3_file(&alignments_path)?,
+    });
     if let Some(path) = &output {
-        let mut manifest = RunManifest::new("variants");
-        manifest.inputs.push(FileHash {
-            path: index_path.display().to_string(),
-            blake3: blake3_file(&index_path)?,
-        });
-        manifest.inputs.push(FileHash {
-            path: alignments_path.display().to_string(),
-            blake3: blake3_file(&alignments_path)?,
-        });
         manifest.outputs.push(FileHash {
             path: path.display().to_string(),
             blake3: blake3_file(path)?,
         });
-        manifest
-            .params
-            .insert("mapq_threshold".to_string(), mapq_threshold.to_string());
-        manifest.params.insert(
-            "min_qual".to_string(),
-            (quality_threshold as f64).to_string(),
-        );
-        manifest
-            .params
-            .insert("peak_rss_bytes".to_string(), peak_rss.to_string());
-        manifest.params.insert(
-            "max_working_set_bytes".to_string(),
-            max_ws.bytes.to_string(),
-        );
-        let manifest_path = write_manifest(path, &manifest)?;
-        eprintln!("wrote reproducibility receipt: {}", manifest_path.display());
     }
+    manifest
+        .params
+        .insert("mapq_threshold".to_string(), mapq_threshold.to_string());
+    manifest.params.insert(
+        "min_qual".to_string(),
+        (quality_threshold as f64).to_string(),
+    );
+    manifest
+        .params
+        .insert("max_depth".to_string(), max_depth.to_string());
+    manifest
+        .params
+        .insert("max_read_len".to_string(), max_read_len.to_string());
+    manifest
+        .params
+        .insert("enforced".to_string(), enforce.to_string());
+    manifest
+        .params
+        .insert("peak_rss_bytes".to_string(), peak_rss.to_string());
+    manifest.params.insert(
+        "max_working_set_bytes".to_string(),
+        max_ws.bytes.to_string(),
+    );
+    if let Some(mb) = memory_budget_mb {
+        manifest
+            .params
+            .insert("memory_budget_mb".to_string(), mb.to_string());
+    }
+    manifest
+        .params
+        .insert("contract_verdict".to_string(), verdict.to_string());
+
+    let manifest_path: PathBuf = match (&manifest_out, &output) {
+        (Some(m), _) => {
+            std::fs::write(m, manifest.to_canonical_json())
+                .with_context(|| format!("failed to write manifest {}", m.display()))?;
+            m.clone()
+        }
+        (None, Some(path)) => write_manifest(path, &manifest)?,
+        (None, None) => {
+            let p = PathBuf::from("rosalind.variants.manifest.json");
+            std::fs::write(&p, manifest.to_canonical_json())
+                .with_context(|| format!("failed to write manifest {}", p.display()))?;
+            p
+        }
+    };
+    eprintln!("wrote reproducibility receipt: {}", manifest_path.display());
     // Memory receipt: the bounded contract, made visible + verifiable.
     eprintln!(
         "memory: peak RSS {} MiB; max pileup working set {} KiB",
