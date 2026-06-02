@@ -48,6 +48,27 @@ What makes this different:
 
 ---
 
+## Quickstart (60 seconds)
+
+Grab a prebuilt binary and watch the contract fire on the bundled data — no toolchain, no build:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/logannye/rosalind/main/install.sh | sh
+cd rosalind-*/
+
+# Build a portable index, sort the bundled BAM, then declare a budget and honor it.
+./rosalind index --reference examples/data/illumina_toy/reference.fa --output ref.idx
+./rosalind sort  --input examples/data/illumina_toy/alignments.bam --output sorted.bam
+./rosalind plan  --index ref.idx --budget-mb 512                       # FITS?  predicted peak
+./rosalind variants --index ref.idx --alignments sorted.bam \
+    --memory-budget-mb 512 --enforce -o calls.vcf                      # honors it (exit 3/4)
+./rosalind verify --manifest calls.vcf.manifest.json                   # re-checks the receipt
+```
+
+You'll see `plan` predict `[FITS]`, `variants --enforce` print `contract: OK — realized peak … within`, and `verify: OK`. Tighten `--budget-mb` to `1` and `variants --enforce` *refuses up front* (exit 3, no VCF). That is the whole differentiator, in one minute. (Releases are cut from tags; if none is published yet, build from source below.)
+
+---
+
 ## What it does today
 
 - **Bounded whole-genome germline calling** — `rosalind variants --index` streams a coordinate-sorted BAM over all contigs of a persisted index, calling SNVs to a multi-contig VCF with a working set bounded by coverage. Calls are calibrated and **abstention-aware** (no confident call → no row, rather than a guess).
