@@ -1555,7 +1555,7 @@ fn run_features(
     output: Option<PathBuf>,
     manifest_out: Option<PathBuf>,
 ) -> Result<()> {
-    use rosalind::call::{stream_features_whole_genome, write_feature_header, write_feature_row};
+    use rosalind::call::run_bounded_whole_genome;
     use rosalind::genomics::IndexReader;
     use rosalind::io::bam::StreamingBamSource;
     use rosalind::pileup::PileupParams;
@@ -1628,48 +1628,45 @@ fn run_features(
 
     // Stream feature rows straight to the writer (header once, one row per callable
     // locus) — no genome-wide buffer accumulates.
-    let mut feature_rows: u64 = 0;
+    // `features` is the first ColumnKit analyzer: the FeatureAnalyzer drives the
+    // SAME bounded whole-genome column walk a builder's own analyzer would, so the
+    // shipped path and the SDK are one and the same (not parallel). Byte-identical
+    // output is pinned by the golden feature test.
+    let mut analyzer = rosalind::call::FeatureAnalyzer::default();
     let (max_ws, skips) = match &output {
         Some(path) => {
             let file = File::create(path)
                 .with_context(|| format!("failed to create features file {}", path.display()))?;
             let mut writer = io::BufWriter::new(file);
-            write_feature_header(&mut writer)?;
-            let (ws, sk) = stream_features_whole_genome(
+            let r = run_bounded_whole_genome(
+                &mut analyzer,
                 source,
                 &ref_view,
                 contigs,
                 pileup_params,
-                &mut |col, name| {
-                    feature_rows += 1;
-                    write_feature_row(&mut writer, name, col)
-                        .map_err(rosalind::core::CoreError::from)
-                },
+                &mut writer,
             )
             .map_err(|e| anyhow!("feature streaming failed: {e}"))?;
             writer.flush()?;
-            (ws, sk)
+            r
         }
         None => {
             let stdout = io::stdout();
             let mut handle = stdout.lock();
-            write_feature_header(&mut handle)?;
-            let (ws, sk) = stream_features_whole_genome(
+            let r = run_bounded_whole_genome(
+                &mut analyzer,
                 source,
                 &ref_view,
                 contigs,
                 pileup_params,
-                &mut |col, name| {
-                    feature_rows += 1;
-                    write_feature_row(&mut handle, name, col)
-                        .map_err(rosalind::core::CoreError::from)
-                },
+                &mut handle,
             )
             .map_err(|e| anyhow!("feature streaming failed: {e}"))?;
             handle.flush()?;
-            (ws, sk)
+            r
         }
     };
+    let feature_rows = analyzer.rows();
 
     let peak_rss = std::env::var("ROSALIND_FORCE_PEAK_RSS_BYTES")
         .ok()

@@ -79,8 +79,13 @@ pub use pileup::{Obs, PileupColumn, PileupEngine, PileupParams, ReadSource, Slic
 pub use call::{
     call_germline_region_streaming, call_germline_whole_genome, GermlineCall, GermlineParams,
 };
-// The memory contract (declare → plan → honor → verify):
-pub use call::{estimate_variants_working_set, predicted_peak_rss_bytes};
+// ColumnKit: implement one trait, inherit the bounded contract (SDK front door).
+pub use call::{run_bounded_whole_genome, ColumnAnalyzer, FeatureAnalyzer};
+// The memory contract (declare → plan → honor → verify), incl. fleet packing:
+pub use call::{
+    estimate_variants_working_set, first_fit_decreasing, predicted_peak_rss_bytes, PackJob,
+    PackOutcome,
+};
 pub use core::{MemoryBudget, WorkingSet};
 // Build-once → mmap index + the reproducibility receipt:
 pub use genomics::{GenomeIndex, IndexReader, ReferenceView};
