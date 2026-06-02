@@ -22,7 +22,10 @@ use rust_htslib::bam::{
 };
 
 #[derive(Parser, Debug)]
-#[command(name = "rosalind", about = "Genomic analysis engine using O(√t) space")]
+#[command(
+    name = "rosalind",
+    about = "Deterministic low-memory genomics engine with a verifiable memory contract"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
