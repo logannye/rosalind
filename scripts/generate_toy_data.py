@@ -7,7 +7,7 @@ import argparse
 import hashlib
 import random
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 NUCLEOTIDES = "ACGT"
 DEFAULT_REF_LENGTH = 1_000_000
@@ -35,6 +35,21 @@ def revcomp(seq: str) -> str:
     return seq.translate(complement)[::-1]
 
 
+def read_fasta_sequence(path: Path) -> str:
+    """Concatenate the FIRST FASTA record's sequence, uppercased (single-contig use)."""
+    parts: list[str] = []
+    started = False
+    with path.open("r", encoding="ascii", errors="replace") as handle:
+        for line in handle:
+            if line.startswith(">"):
+                if started:
+                    break  # only the first record (the chromosome)
+                started = True
+                continue
+            parts.append(line.strip().upper())
+    return "".join(parts)
+
+
 def format_fastq(name: str, sequence: str, quality: str) -> str:
     return f"@{name}\n{sequence}\n+\n{quality}\n"
 
@@ -47,18 +62,30 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def generate_dataset(output_dir: Path, ref_length: int, coverage: int, seed: int) -> Tuple[Path, Path, Path]:
+def generate_dataset(
+    output_dir: Path,
+    ref_length: int,
+    coverage: int,
+    seed: int,
+    reference_fa: Optional[Path] = None,
+) -> Tuple[Path, Path, Path]:
     rng = random.Random(seed)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    reference = random_dna(ref_length, rng)
-    reference_path = output_dir / "reference.fa"
-    with reference_path.open("w", encoding="ascii") as handle:
-        handle.write(">chrToy\n")
-        for i in range(0, len(reference), 80):
-            handle.write(reference[i : i + 80] + "\n")
+    if reference_fa is not None:
+        # Simulate reads FROM a given (e.g. real, downloaded) reference; do not
+        # invent or overwrite one.
+        reference = read_fasta_sequence(reference_fa)
+        reference_path = reference_fa
+    else:
+        reference = random_dna(ref_length, rng)
+        reference_path = output_dir / "reference.fa"
+        with reference_path.open("w", encoding="ascii") as handle:
+            handle.write(">chrToy\n")
+            for i in range(0, len(reference), 80):
+                handle.write(reference[i : i + 80] + "\n")
 
-    total_reads = max(1, int((ref_length * coverage) / READ_LENGTH))
+    total_reads = max(1, int((len(reference) * coverage) / READ_LENGTH))
     pair_count = max(1, total_reads // 2)
 
     r1_path = output_dir / "reads_R1.fastq"
@@ -88,9 +115,17 @@ def main() -> None:
     parser.add_argument("--length", type=int, default=DEFAULT_REF_LENGTH, help="Reference length (bp)")
     parser.add_argument("--coverage", type=int, default=COVERAGE, help="Approximate paired depth")
     parser.add_argument("--seed", type=int, default=SEED, help="Random seed")
+    parser.add_argument(
+        "--reference",
+        type=Path,
+        default=None,
+        help="Simulate reads from this FASTA's sequence (do not invent/overwrite a reference)",
+    )
     args = parser.parse_args()
 
-    reference_path, r1_path, r2_path = generate_dataset(args.output, args.length, args.coverage, args.seed)
+    reference_path, r1_path, r2_path = generate_dataset(
+        args.output, args.length, args.coverage, args.seed, args.reference
+    )
 
     checksums = {
         reference_path.name: sha256_file(reference_path),
