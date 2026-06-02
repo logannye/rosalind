@@ -60,7 +60,9 @@ impl BuildMemoryModel {
             ("returned suffix array(u32)", n.saturating_mul(SA_ELEM)),
             ("fm-index (bwt + rank + C-table)", n.saturating_mul(3)),
         ];
-        let level0: u64 = comps.iter().fold(0u64, |acc, (_, b)| acc.saturating_add(*b));
+        let level0: u64 = comps
+            .iter()
+            .fold(0u64, |acc, (_, b)| acc.saturating_add(*b));
         // Recursion: parent text/types/lms_positions/lms_name/reduced stay live
         // (~text 4n + types 1n + lms_positions 4n + lms_name 4n + reduced 2n = 15n)
         // while a ~n/2 child runs; the geometric tail ≈ that parent-live amount.

@@ -505,7 +505,11 @@ fn run_index(reference: PathBuf, output: PathBuf, memory_budget_mb: Option<u64>)
     eprintln!(
         "build: model/realized attribution = {:.2} [{}]",
         ratio,
-        if ratio >= 0.70 { "CONFIRM ≥0.70" } else { "below 0.70" }
+        if ratio >= 0.70 {
+            "CONFIRM ≥0.70"
+        } else {
+            "below 0.70"
+        }
     );
     Ok(())
 }
