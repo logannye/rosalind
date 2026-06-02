@@ -121,6 +121,23 @@ Drop the `rosalind-budget` Action into any pipeline to make a declared memory bu
 
 It runs `plan` (predicts the peak), then `variants --index --enforce` (honors the budget), and uploads the BLAKE3 receipt as a build artifact. This is the one thing a `--max-mem` flag on another caller can't give you: a portable, declarative, **verifiable** memory budget that fails a stranger's build loudly — the contract, enforced where your pipeline already lives. (Available once a release is published; see Quickstart.)
 
+## A reproducible feature substrate for ML
+
+The same bounded streaming engine that calls variants can emit **per-locus features** instead — one tabular row per callable position, ready for a model:
+
+```sh
+rosalind features --index ref.idx --alignments sorted.bam -o features.tsv
+# columns: contig, pos, ref, depth, raw_depth, A/C/G/T counts,
+#          per-allele fwd/rev strand counts, mean base-qual, mean mapq
+```
+
+```python
+import pandas as pd
+df = pd.read_csv("features.tsv", sep="\t")   # one line; ready for sklearn/PyTorch/JAX
+```
+
+Two properties no other pileup gives you together: it is **bounded** (the whole-genome table streams to disk; peak memory tracks coverage, not genome size — a 1 Mbp toy genome's ~983k-row table is produced in ~6 MiB), and it is **byte-identical run-to-run**, with a BLAKE3 receipt over the output. That means **bit-reproducible training inputs**: hash your feature file, and you can prove this quarter's model saw exactly the same data as last quarter's. `features` honors the same `plan`/`--enforce`/`verify` memory contract as `variants`. *(TSV today; an Arrow/Parquet egress and a zero-copy `pyarrow` Python binding are on the roadmap.)*
+
 ## Roadmap
 
 The core primitive is a streaming, CIGAR-aware pileup column stream; variant calling and custom plugins consume it. Performance work deliberately *follows* the unique capability — the target user needs "it fits and is predictable" before "it's fastest."
