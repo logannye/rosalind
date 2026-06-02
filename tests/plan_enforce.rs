@@ -525,3 +525,53 @@ fn predicted_peak_rss_upper_bounds_realized_peak() {
     );
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn verify_rejects_an_internally_inconsistent_manifest() {
+    // A generous budget → a real run records contract_verdict 'within'. Flip the
+    // recorded verdict to 'over' (a tampered/corrupt receipt) and `verify` must
+    // reject it on internal consistency — even though the file hashes still match
+    // (the manifest has no self-hash yet; these cross-checks are the first line).
+    let (dir, idx, bam) = build_sorted_bam_fixture();
+    let vcf = dir.join("calls.vcf");
+    let manifest = dir.join("calls.vcf.manifest.json");
+    let out = Command::new(bin())
+        .args(["variants", "--index"])
+        .arg(&idx)
+        .arg("--alignments")
+        .arg(&bam)
+        .args(["--memory-budget-mb", "512", "--enforce", "-o"])
+        .arg(&vcf)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "run failed: {out:?}");
+
+    let text = std::fs::read_to_string(&manifest).unwrap();
+    assert!(
+        text.contains("\"contract_verdict\":\"within\""),
+        "expected a 'within' verdict to flip: {text}"
+    );
+    let tampered = text.replace(
+        "\"contract_verdict\":\"within\"",
+        "\"contract_verdict\":\"over\"",
+    );
+    std::fs::write(&manifest, tampered).unwrap();
+
+    let v = Command::new(bin())
+        .args(["verify", "--manifest"])
+        .arg(&manifest)
+        .args(["--budget-mb", "512"])
+        .output()
+        .unwrap();
+    assert_eq!(
+        v.status.code(),
+        Some(5),
+        "an inconsistent manifest must fail verify: {v:?}"
+    );
+    let stderr = String::from_utf8_lossy(&v.stderr);
+    assert!(
+        stderr.contains("inconsistent"),
+        "expected an internal-inconsistency error: {stderr}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}

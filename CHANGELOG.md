@@ -12,7 +12,8 @@ contract** — predict it before you commit, honor it during the run, and verify
 - `rosalind variants … --enforce` — honor the budget: refuse up front (exit 3) or fail loud (exit 4),
   never a silent OOM-kill. Record-only without `--enforce`.
 - `rosalind verify` — re-check a run's BLAKE3 receipt without re-running.
-- The **`rosalind-budget` GitHub Action** — enforce the contract in *your* CI (fail the build on breach).
+- The **Rosalind budget GitHub Action** (`action.yml`, used as `logannye/rosalind@v0.1.0`) — enforce the
+  contract in *your* CI (fail the build on breach).
 
 ### Variant calling
 - **Bounded whole-genome germline SNV calling** (`variants --index`) over a coordinate-sorted BAM and a

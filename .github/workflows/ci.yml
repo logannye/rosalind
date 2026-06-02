@@ -94,11 +94,20 @@ jobs:
           toolchain: stable
           profile: minimal
           override: true
-      - name: Generate toy dataset
-        run: python3 scripts/generate_toy_data.py examples/data/illumina_toy
-      - name: Verify checksums
-        run: sha256sum --check SHA256SUMS
-        working-directory: examples/data/illumina_toy
+      - name: Verify the committed toy reference is intact (pinned hash)
+        # A real anti-corruption gate, not the old self-referential check: pin the
+        # COMMITTED reference.fa (the one the release bundle + every other job
+        # ships) to a known hash. The previous step regenerated reference.fa at
+        # 1 Mbp without --length, overwriting the committed 4 kbp fixture and
+        # checking freshly-generated files against freshly-generated sums (a
+        # tautology that also tested a different reference than ships).
+        run: |
+          echo "ce8a6df801e836f4eda0b7661a68dcd7b7a9ab247c66d4582a89dbc207554efa  examples/data/illumina_toy/reference.fa" \
+            | sha256sum --check
+      - name: Generate reads from the committed toy reference
+        # --reference simulates reads FROM the committed reference (does not invent
+        # or overwrite one), so cli-e2e exercises exactly the fixture that ships.
+        run: python3 scripts/generate_toy_data.py examples/data/illumina_toy --reference examples/data/illumina_toy/reference.fa
       - name: Align to SAM
         run: |
           cargo run --release -- align \
