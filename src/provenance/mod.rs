@@ -8,6 +8,18 @@ use std::collections::BTreeMap;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 
+/// Failure parsing a canonical run manifest.
+#[derive(Debug)]
+pub struct ManifestError(pub String);
+
+impl std::fmt::Display for ManifestError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "malformed manifest: {}", self.0)
+    }
+}
+
+impl std::error::Error for ManifestError {}
+
 /// A file referenced by a run, with its content hash.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FileHash {
@@ -76,6 +88,171 @@ impl RunManifest {
         out.push_str("\"}");
 
         out
+    }
+
+    /// Parse a manifest from its canonical JSON form (the exact shape
+    /// `to_canonical_json` emits; all values are strings). A small hand-parser —
+    /// no general JSON dependency. Round-trips with `to_canonical_json`.
+    pub fn from_canonical_json(s: &str) -> Result<RunManifest, ManifestError> {
+        let mut p = Parser {
+            b: s.as_bytes(),
+            i: 0,
+        };
+        p.parse_manifest()
+    }
+}
+
+/// Minimal recursive parser for the fixed canonical-manifest shape. Every value
+/// is a JSON string (inputs/outputs are arrays of `{blake3, path}` objects;
+/// params is an object of string→string), so the parser only needs strings,
+/// arrays, and objects — no numbers/bools/null.
+struct Parser<'a> {
+    b: &'a [u8],
+    i: usize,
+}
+
+impl Parser<'_> {
+    fn err(&self, m: &str) -> ManifestError {
+        ManifestError(format!("{m} at byte {}", self.i))
+    }
+
+    fn expect(&mut self, c: u8) -> Result<(), ManifestError> {
+        if self.i < self.b.len() && self.b[self.i] == c {
+            self.i += 1;
+            Ok(())
+        } else {
+            Err(self.err(&format!("expected '{}'", c as char)))
+        }
+    }
+
+    fn parse_string(&mut self) -> Result<String, ManifestError> {
+        self.expect(b'"')?;
+        let mut buf: Vec<u8> = Vec::new();
+        while self.i < self.b.len() {
+            let c = self.b[self.i];
+            self.i += 1;
+            match c {
+                b'"' => {
+                    return String::from_utf8(buf).map_err(|_| self.err("invalid utf-8"));
+                }
+                b'\\' => {
+                    let e = *self.b.get(self.i).ok_or_else(|| self.err("trailing escape"))?;
+                    self.i += 1;
+                    match e {
+                        b'"' => buf.push(b'"'),
+                        b'\\' => buf.push(b'\\'),
+                        b'n' => buf.push(b'\n'),
+                        b'r' => buf.push(b'\r'),
+                        b't' => buf.push(b'\t'),
+                        b'u' => {
+                            let hex = self
+                                .b
+                                .get(self.i..self.i + 4)
+                                .ok_or_else(|| self.err("short \\u"))?;
+                            let cp = u32::from_str_radix(
+                                std::str::from_utf8(hex).map_err(|_| self.err("bad \\u"))?,
+                                16,
+                            )
+                            .map_err(|_| self.err("bad \\u"))?;
+                            let ch =
+                                char::from_u32(cp).ok_or_else(|| self.err("bad codepoint"))?;
+                            let mut tmp = [0u8; 4];
+                            buf.extend_from_slice(ch.encode_utf8(&mut tmp).as_bytes());
+                            self.i += 4;
+                        }
+                        _ => return Err(self.err("bad escape")),
+                    }
+                }
+                _ => buf.push(c),
+            }
+        }
+        Err(self.err("unterminated string"))
+    }
+
+    fn expect_key(&mut self, key: &str) -> Result<(), ManifestError> {
+        let k = self.parse_string()?;
+        if k != key {
+            return Err(self.err(&format!("expected key \"{key}\", got \"{k}\"")));
+        }
+        self.expect(b':')
+    }
+
+    fn parse_file_array(&mut self) -> Result<Vec<FileHash>, ManifestError> {
+        self.expect(b'[')?;
+        let mut out = Vec::new();
+        if self.i < self.b.len() && self.b[self.i] == b']' {
+            self.i += 1;
+            return Ok(out);
+        }
+        loop {
+            self.expect(b'{')?;
+            self.expect_key("blake3")?;
+            let blake3 = self.parse_string()?;
+            self.expect(b',')?;
+            self.expect_key("path")?;
+            let path = self.parse_string()?;
+            self.expect(b'}')?;
+            out.push(FileHash { path, blake3 });
+            match self.b.get(self.i) {
+                Some(b',') => self.i += 1,
+                Some(b']') => {
+                    self.i += 1;
+                    break;
+                }
+                _ => return Err(self.err("expected ',' or ']' in array")),
+            }
+        }
+        Ok(out)
+    }
+
+    fn parse_params(&mut self) -> Result<BTreeMap<String, String>, ManifestError> {
+        self.expect(b'{')?;
+        let mut map = BTreeMap::new();
+        if self.i < self.b.len() && self.b[self.i] == b'}' {
+            self.i += 1;
+            return Ok(map);
+        }
+        loop {
+            let k = self.parse_string()?;
+            self.expect(b':')?;
+            let v = self.parse_string()?;
+            map.insert(k, v);
+            match self.b.get(self.i) {
+                Some(b',') => self.i += 1,
+                Some(b'}') => {
+                    self.i += 1;
+                    break;
+                }
+                _ => return Err(self.err("expected ',' or '}' in object")),
+            }
+        }
+        Ok(map)
+    }
+
+    fn parse_manifest(&mut self) -> Result<RunManifest, ManifestError> {
+        self.expect(b'{')?;
+        self.expect_key("inputs")?;
+        let inputs = self.parse_file_array()?;
+        self.expect(b',')?;
+        self.expect_key("outputs")?;
+        let outputs = self.parse_file_array()?;
+        self.expect(b',')?;
+        self.expect_key("params")?;
+        let params = self.parse_params()?;
+        self.expect(b',')?;
+        self.expect_key("subcommand")?;
+        let subcommand = self.parse_string()?;
+        self.expect(b',')?;
+        self.expect_key("tool_version")?;
+        let tool_version = self.parse_string()?;
+        self.expect(b'}')?;
+        Ok(RunManifest {
+            tool_version,
+            subcommand,
+            inputs,
+            params,
+            outputs,
+        })
     }
 }
 
@@ -240,5 +417,44 @@ mod tests {
         assert_eq!(written, m.to_canonical_json());
 
         std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn parse_round_trips_canonical_json_including_escapes() {
+        let mut m = RunManifest::new("variants");
+        m.tool_version = "9.9.9".to_string();
+        m.inputs.push(FileHash {
+            path: "weird \"path\"\twith\\escapes/和.fa".to_string(),
+            blake3: "aa".to_string(),
+        });
+        m.inputs.push(FileHash {
+            path: "a.idx".to_string(),
+            blake3: "bb".to_string(),
+        });
+        m.outputs.push(FileHash {
+            path: "out.vcf".to_string(),
+            blake3: "cc".to_string(),
+        });
+        m.params
+            .insert("contract_verdict".to_string(), "within".to_string());
+        m.params
+            .insert("peak_rss_bytes".to_string(), "12345".to_string());
+        m.params
+            .insert("note".to_string(), "line1\nline2".to_string());
+
+        let json = m.to_canonical_json();
+        let parsed = RunManifest::from_canonical_json(&json).expect("parse");
+        // serialize → parse → serialize is the identity on the canonical form.
+        assert_eq!(parsed.to_canonical_json(), json);
+        assert_eq!(parsed.tool_version, "9.9.9");
+        assert_eq!(parsed.subcommand, "variants");
+        assert_eq!(parsed.params.get("note").unwrap(), "line1\nline2");
+        assert_eq!(parsed.params.get("contract_verdict").unwrap(), "within");
+    }
+
+    #[test]
+    fn parse_rejects_malformed() {
+        assert!(RunManifest::from_canonical_json("not json").is_err());
+        assert!(RunManifest::from_canonical_json("{\"inputs\":[}").is_err());
     }
 }
