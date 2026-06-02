@@ -4,6 +4,7 @@
 
 pub mod features;
 pub mod germline;
+pub mod pack;
 pub mod pipeline;
 pub mod plan;
 pub mod somatic;
@@ -14,6 +15,7 @@ pub use features::{
     stream_features_region, stream_features_whole_genome, write_feature_header, write_feature_row,
 };
 pub use germline::call_germline;
+pub use pack::{first_fit_decreasing, NodeAssignment, PackJob, PackOutcome};
 pub use pipeline::{
     call_germline_region, call_germline_region_streaming, call_germline_region_tracked,
     call_somatic_region,

@@ -275,6 +275,35 @@ enum Commands {
         /// Declared memory budget (MiB) to check feasibility against.
         #[arg(long)]
         budget_mb: Option<u64>,
+        /// Emit the predicted-peak breakdown as one-line JSON (for a scheduler/CI
+        /// to read), instead of the human-readable table. `--index` only.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Pack many bounded `variants` jobs onto fixed-size nodes by their PREDICTED
+    /// peaks — prove a co-location fits before launching a byte. Each job's peak
+    /// is read from its index header (no run); peaks are additive, so the sum is a
+    /// conservative bound a scheduler can refuse on. Exit 3 if no packing fits.
+    Pack {
+        /// A jobs file: one job per line, `<index_path>[\t<max_depth>[\t<max_read_len>]]`
+        /// (TSV or whitespace; blank lines and `#` comments ignored).
+        #[arg(long)]
+        jobs: PathBuf,
+        /// Per-node memory capacity, in MiB (the RAM each node can give a co-located batch).
+        #[arg(long)]
+        node_mb: u64,
+        /// Cap on the number of nodes; refuse (exit 3) if the jobs need more. Unset = as many as needed.
+        #[arg(long)]
+        nodes: Option<usize>,
+        /// Default max active depth for jobs that do not specify one.
+        #[arg(long, default_value_t = 1000)]
+        max_depth: u32,
+        /// Default max read length for jobs that do not specify one.
+        #[arg(long, default_value_t = 250)]
+        max_read_len: u32,
+        /// Emit the schedule as JSON instead of the human-readable plan.
+        #[arg(long)]
+        json: bool,
     },
     /// Re-check a reproducibility receipt without re-running: re-hash its inputs
     /// and outputs and confirm the realized peak landed within the budget.
@@ -465,7 +494,16 @@ fn main() -> Result<()> {
             max_depth,
             max_read_len,
             budget_mb,
-        } => run_plan(index, reference, max_depth, max_read_len, budget_mb)?,
+            json,
+        } => run_plan(index, reference, max_depth, max_read_len, budget_mb, json)?,
+        Commands::Pack {
+            jobs,
+            node_mb,
+            nodes,
+            max_depth,
+            max_read_len,
+            json,
+        } => run_pack(jobs, node_mb, nodes, max_depth, max_read_len, json)?,
         Commands::Verify {
             manifest,
             budget_mb,
@@ -615,8 +653,9 @@ fn run_plan(
     max_depth: u32,
     max_read_len: u32,
     budget_mb: Option<u64>,
+    json: bool,
 ) -> Result<()> {
-    use rosalind::call::plan::render_variants_plan;
+    use rosalind::call::plan::{predicted_peak_rss_bytes, render_variants_plan};
     use rosalind::genomics::IndexReader;
 
     if let Some(index_path) = index {
@@ -631,10 +670,41 @@ fn run_plan(
         // Measure the process baseline now (binary + libs + index mmap header);
         // the per-contig reference decode + active set are modeled on top.
         let baseline = peak_rss_bytes();
-        print!(
-            "{}",
-            render_variants_plan(largest, max_depth, max_read_len, baseline, budget_mb)
-        );
+        if json {
+            // Machine-readable: the predicted-peak fields a scheduler/CI reads.
+            let predicted = predicted_peak_rss_bytes(largest, max_depth, max_read_len, baseline);
+            let verdict = match budget_mb {
+                Some(mb) => {
+                    if MemoryBudget::from_mb(mb).admits(predicted) {
+                        "fits"
+                    } else {
+                        "refuse"
+                    }
+                }
+                None => "none",
+            };
+            let budget_field = budget_mb
+                .map(|mb| mb.to_string())
+                .unwrap_or_else(|| "null".to_string());
+            println!(
+                "{{\"index\":\"{}\",\"predicted_peak_rss_bytes\":{},\"baseline_rss_bytes\":{},\
+                 \"largest_contig_len\":{},\"max_depth\":{},\"max_read_len\":{},\
+                 \"budget_mb\":{},\"verdict\":\"{}\"}}",
+                index_path.display(),
+                predicted,
+                baseline,
+                largest,
+                max_depth,
+                max_read_len,
+                budget_field,
+                verdict,
+            );
+        } else {
+            print!(
+                "{}",
+                render_variants_plan(largest, max_depth, max_read_len, baseline, budget_mb)
+            );
+        }
     } else {
         let reference = reference.expect("clap guarantees one of --index/--reference");
         let fasta_reader = open_input(&reference)
@@ -655,6 +725,132 @@ fn run_plan(
         }
     }
     Ok(())
+}
+
+/// Pack many bounded `variants` jobs onto fixed-size nodes by their PREDICTED
+/// peaks — each read from the job's index header (no run, no read I/O). Peaks are
+/// conservative upper bounds and additive, so the printed schedule PROVES every
+/// node fits before a single job launches — the contract turned into a placement
+/// decision. Exits 3 when no safe packing exists.
+fn run_pack(
+    jobs_path: PathBuf,
+    node_mb: u64,
+    nodes: Option<usize>,
+    default_max_depth: u32,
+    default_max_read_len: u32,
+    json: bool,
+) -> Result<()> {
+    use rosalind::call::plan::predicted_peak_rss_bytes;
+    use rosalind::call::{first_fit_decreasing, PackJob, PackOutcome};
+    use rosalind::genomics::IndexReader;
+
+    let text = std::fs::read_to_string(&jobs_path)
+        .with_context(|| format!("failed to read jobs file {}", jobs_path.display()))?;
+
+    // A nominal per-process baseline (binary + libs + index header): each
+    // co-located job runs in its own process with roughly this floor. Measured
+    // once and applied per job, so the per-job predicted peaks are comparable.
+    let baseline = peak_rss_bytes();
+
+    let mut pack_jobs: Vec<PackJob> = Vec::new();
+    for (lineno, raw) in text.lines().enumerate() {
+        let line = raw.trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let mut fields = line.split_whitespace();
+        let index_path = fields.next().expect("a non-empty line has a first field");
+        let max_depth = match fields.next() {
+            Some(s) => s.parse::<u32>().with_context(|| {
+                format!(
+                    "jobs file {}:{}: invalid max_depth '{s}'",
+                    jobs_path.display(),
+                    lineno + 1
+                )
+            })?,
+            None => default_max_depth,
+        };
+        let max_read_len = match fields.next() {
+            Some(s) => s.parse::<u32>().with_context(|| {
+                format!(
+                    "jobs file {}:{}: invalid max_read_len '{s}'",
+                    jobs_path.display(),
+                    lineno + 1
+                )
+            })?,
+            None => default_max_read_len,
+        };
+        let loaded = IndexReader::open(std::path::Path::new(index_path)).with_context(|| {
+            format!(
+                "jobs file {}:{}: failed to open index {index_path}",
+                jobs_path.display(),
+                lineno + 1
+            )
+        })?;
+        let largest = loaded
+            .contigs()
+            .iter()
+            .map(|c| c.length as u64)
+            .max()
+            .unwrap_or(0);
+        let predicted = predicted_peak_rss_bytes(largest, max_depth, max_read_len, baseline);
+        pack_jobs.push(PackJob {
+            label: index_path.to_string(),
+            predicted_peak_bytes: predicted,
+        });
+    }
+
+    if pack_jobs.is_empty() {
+        bail!("jobs file {} has no jobs", jobs_path.display());
+    }
+
+    let node_cap = node_mb.saturating_mul(1 << 20);
+    const MIB: u64 = 1 << 20;
+    match first_fit_decreasing(&pack_jobs, node_cap, nodes) {
+        PackOutcome::Packed(assignments) => {
+            if json {
+                let mut s = format!("{{\"node_mb\":{node_mb},\"nodes\":[");
+                for (i, n) in assignments.iter().enumerate() {
+                    if i > 0 {
+                        s.push(',');
+                    }
+                    let labels = n
+                        .job_labels
+                        .iter()
+                        .map(|l| format!("\"{l}\""))
+                        .collect::<Vec<_>>()
+                        .join(",");
+                    s.push_str(&format!(
+                        "{{\"node\":{},\"used_bytes\":{},\"jobs\":[{}]}}",
+                        n.node, n.used_bytes, labels
+                    ));
+                }
+                s.push_str("]}");
+                println!("{s}");
+            } else {
+                println!(
+                    "pack: {} job(s) → {} node(s) of {} MiB — every node proven within capacity",
+                    pack_jobs.len(),
+                    assignments.len(),
+                    node_mb
+                );
+                for n in &assignments {
+                    println!(
+                        "  node {}: {} / {} MiB  [{}]",
+                        n.node,
+                        n.used_bytes / MIB,
+                        node_mb,
+                        n.job_labels.join(", ")
+                    );
+                }
+            }
+            Ok(())
+        }
+        PackOutcome::NoFit { reason } => {
+            eprintln!("pack: REFUSE — {reason}");
+            std::process::exit(3);
+        }
+    }
 }
 
 /// Re-check a reproducibility receipt without re-running: parse it, re-hash each

@@ -131,6 +131,24 @@ Drop the Rosalind budget Action (this repo's [`action.yml`](action.yml)) into an
 
 It runs `plan` (predicts the peak), then `variants --index --enforce` (honors the budget), and uploads the BLAKE3 receipt as a build artifact. This is the one thing a `--max-mem` flag on another caller can't give you: a portable, declarative, **verifiable** memory budget that fails a stranger's build loudly — the contract, enforced where your pipeline already lives. (Available once a release is published; see Quickstart.)
 
+## Pack a fleet: prediction → placement
+
+Because the predicted peak is computed from the **index header alone** — no run, no read I/O, milliseconds — and is a conservative, *additive* upper bound, you can turn the prediction into a scheduling decision: **prove** that N calling jobs co-located on one node will all fit, before launching a single read.
+
+```sh
+# jobs.tsv: one job per line — <index>[\t<max-depth>[\t<max-read-len>]]
+rosalind pack --jobs jobs.tsv --node-mb 64000          # pack onto 64 GB nodes
+rosalind pack --jobs jobs.tsv --node-mb 64000 --nodes 4 # …or refuse (exit 3) if it needs more than 4
+```
+
+```
+pack: 37 job(s) → 3 node(s) of 64000 MiB — every node proven within capacity
+  node 0: 61920 / 64000 MiB  [sampleA.idx, sampleB.idx, …]
+  ...
+```
+
+`rosalind plan --index ref.idx --budget-mb 64000 --json` emits the same predicted peak as one line of JSON for a workflow engine to read. This is what an emergent-peak caller (GATK, DeepVariant) structurally cannot do: their peak is only known *after* a possible OOM-kill, so every co-location is a gamble. Here, `Packed` is a proof — each node's summed predicted peak is `≤` its capacity, established up front, and the schedule is deterministic.
+
 ## A reproducible feature substrate for ML
 
 The same bounded streaming engine that calls variants can emit **per-locus features** instead — one tabular row per callable position, ready for a model:
@@ -158,6 +176,7 @@ The core primitive is a streaming, CIGAR-aware pileup column stream; variant cal
 - **Phase B (done):** streaming gzip/bgzf input; a multi-contig FM-index over the concatenated genome with `(contig, position)` resolution; a build-once, memory-mapped, byte-reproducible persisted index (`rosalind index`/`locate`); zero-copy reference access from the index; and **bounded whole-genome germline calling over a sorted BAM** (`rosalind variants --index`) with a realized-memory receipt.
 - **Phase C (done):** memory as a *verifiable contract* — `rosalind plan` (a checkable envelope before you commit), `--enforce` (honor-or-refuse: refuse up front / fail loud, never a silent OOM-kill), and `rosalind verify`. See [CONTRACT.md](CONTRACT.md).
 - **Hardening & reach (done):** unbiased depth-cap downsampling (no silent variant drops) and a CI-enforced memory gate; **measured** germline detection accuracy ([Accuracy](#accuracy)); the **`rosalind features`** reproducible ML feature substrate; and a one-command adoption on-ramp — prebuilt binaries (`install.sh`, with checksum verification) plus the **Rosalind budget GitHub Action** (`action.yml`, used as `logannye/rosalind@v0.1.0`) that enforces the contract in *your* CI.
+- **Fleet scheduling (done):** [prediction → placement](#pack-a-fleet-prediction--placement) — `rosalind pack` proves a co-location of N calling jobs fits a node before launching a byte (predicted peaks are additive and read from the index header); `plan --index --json` for a scheduler to read.
 - **Phase D (research):** sublinear-space index construction — the `~√t` space/time knob across the full curve — extending the contract to the index *build* step (today's build is O(reference)). The headline space-complexity bet; see [`docs/OPEN_PROBLEMS.md`](docs/OPEN_PROBLEMS.md).
 - **Later:** the aligner over the persisted multi-contig index (`align --index`, whole-genome alignment); germline indels and richer read QC; deterministic multithreading; a Python/tensor binding over the pileup stream.
 
