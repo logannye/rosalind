@@ -45,55 +45,76 @@ future increment can re-tune the constant with evidence rather than a guess.
 
 ## 3. Design
 
-### 3.1 The governor (`src/core/governor.rs`, new)
+### 3.1 The governor (`src/core/governor.rs`, new) — process-global
+
+RSS is a **process-global** resource (the budget is on the whole process, not one call), so the
+governor's cancellation is process-global state, not a value threaded through every call. This keeps
+the entire public streaming API — including the `run_bounded_whole_genome` ColumnKit SDK entry point
+and every crate-root re-export — **signature-stable**: a breach is observed by a one-line
+`governor::checkpoint()?` at the hot-loop sites, with no parameter changes anywhere.
+
+Process-global cancellation state (private to `core::governor`), read on the hot path with a single
+relaxed atomic load:
 
 ```text
-MemoryGovernor::start(budget_bytes: u64, poll: Duration, rss_source: fn() -> u64) -> MemoryGovernor
-  - spawns ONE background thread:
-      loop { if rss_source() > budget_bytes { tripped.store(true, Release); break }
-             if stop.load(Acquire) { break }
-             sleep(poll) }
-  - holds: Arc<AtomicBool> tripped, Arc<AtomicBool> stop, JoinHandle
-MemoryGovernor::tripped() -> &AtomicBool        // the cancel token the drivers observe
-MemoryGovernor::stop(self)                       // sets stop, joins the thread
-impl Drop                                        // stop-and-join if not already stopped
+static ARMED: AtomicBool         // is a governor active? (one per process)
+static TRIPPED: AtomicBool       // has the budget been breached?
+static PEAK_AT_TRIP: AtomicU64   // realized peak at the breach (for the error / receipt)
+static BUDGET: AtomicU64         // declared budget in bytes (for the error)
+
+pub fn checkpoint() -> Result<(), CoreError>
+  // if TRIPPED (relaxed load) -> Err(CoreError::BudgetExceeded { needed: PEAK_AT_TRIP, budget: BUDGET })
+  // else Ok(())   — a single relaxed load when no governor is armed (library callers, record-only)
 ```
 
-- `rss_source` defaults to `rosalind::util::rss::peak_rss_bytes` (getrusage `ru_maxrss`, a
-  monotonic high-water mark — exactly "did peak ever cross the budget"). It is injectable purely as
-  the **test seam** (§3.5): a test feeds a rising sequence with no real memory pressure.
+The RAII handle owns the poll thread and arms/disarms the global state:
+
+```text
+MemoryGovernor::start(budget_bytes, poll, rss_source: impl Fn() -> u64 + Send + 'static)
+    -> Result<MemoryGovernor, GovernorError>
+  - ARMED.swap(true) == true  -> Err(AlreadyActive)   (one governor per process)
+  - reset TRIPPED=false, PEAK_AT_TRIP=0, BUDGET=budget_bytes
+  - spawn ONE thread: loop { let r = rss_source();
+                             if r > budget_bytes { PEAK_AT_TRIP=r; TRIPPED=true; break }
+                             if stop { break } sleep(poll) }
+impl Drop  // stop + join the thread, then ARMED=false, TRIPPED=false (clean for the next run)
+```
+
+- `rss_source` is `impl Fn() -> u64 + Send + 'static`. Production passes `|| peak_rss_bytes()`
+  (getrusage `ru_maxrss`, a monotonic high-water mark — exactly "did peak ever cross the budget").
+  It is injectable purely as the **unit-test seam** (§3.6): a closure capturing a rising counter
+  trips the governor with no real memory pressure.
 - `poll` defaults to **100 ms**; `run_variants_index`/`run_features` read an override from
   `ROSALIND_GOVERNOR_POLL_MS` (tests use a small value for responsiveness).
-- The governor is **started only under `--enforce`**. Record-only runs construct **no** governor and
-  pass `None` as the cancel token (telemetry in §3.3 is still recorded — it is pure measurement).
+- The governor is **constructed only under `--enforce`** (held in a local; dropped at function end).
+  Record-only runs never arm it, so `checkpoint()` is always `Ok` — the telemetry in §3.3 is still
+  recorded (it is pure measurement, independent of the governor).
 
 ### 3.2 Cooperative cancellation (the abort path)
 
 The guard never interrupts the main thread mid-allocation (that would corrupt the
-*"you keep the data and the proof it overran"* property). It sets `tripped`; the bounded drivers
-observe it cooperatively and return an error that flows through the **existing** exit-4 machinery.
+*"you keep the data and the proof it overran"* property). The poll thread sets `TRIPPED`; the bounded
+drivers observe it cooperatively at `checkpoint()` calls and return an error that the CLI routes into
+the exit-4 machinery.
 
-- **Signature change:** add `cancel: Option<&AtomicBool>` to:
-  - `call_germline_whole_genome` (`call/whole_genome.rs:49`) and the per-region caller it drives,
-    `call_germline_region_streaming` (`call/pipeline.rs:20`).
-  - `run_bounded_whole_genome` (`call/columnkit.rs:61`).
-  - the features region helpers `stream_features_whole_genome` (`call/features.rs:100`) /
-    `stream_features_region` (`call/features.rs:74`).
-  - `None` preserves today's behavior; **all existing call sites and tests pass `None`** and are
-    unchanged.
-- **Two check points** (each a single `Relaxed` atomic load — negligible):
-  1. **Top of the per-contig loop, before `decode_window_arc`** (`whole_genome.rs:61`,
-     `features.rs:111`, the columnkit driver loop). This catches the *dominant* breach mode — decoding
-     the next large contig's reference — **before** the allocation happens.
-  2. **Once per column** in the region loop (`call_germline_region_streaming` `pipeline.rs:31`;
-     `stream_features_region` `features.rs:84`). Catches within-contig drift (I/O buffers, allocator
-     growth).
-- **On `tripped`** → the driver returns `Err(CoreError::BudgetExceeded { .. })`, reusing the existing
-  (currently unraised) variant (`core/error.rs:12`). The driver needs to know only *that* it was
-  cancelled, not the budget; `run_variants_index` / `run_features` **catch the error and populate the
-  authoritative numbers** for the loud message + receipt — `budget` = the declared budget, `needed` =
-  the post-trip `peak_rss_bytes()`. (Field population by the caller keeps the driver decoupled from
-  the budget it does not otherwise hold.)
+- **No signature changes.** Insert `governor::checkpoint()?;` at six hot-loop sites (one line each):
+  1. **Top of each per-contig loop, before `decode_window_arc`** — `call_germline_whole_genome`
+     (`whole_genome.rs:61`), `stream_features_whole_genome` (`features.rs:111`),
+     `stream_gvcf_whole_genome` (`gvcf.rs:259`). Catches the *dominant* breach mode — decoding the
+     next large contig's reference — **before** the allocation happens.
+  2. **Once per column** in each region loop — `call_germline_region_streaming` (`pipeline.rs:31`),
+     `stream_features_region` (`features.rs:84`), `stream_gvcf_region` (`gvcf.rs:226`). Catches
+     within-contig drift (I/O buffers, allocator growth). `run_bounded_whole_genome` inherits the
+     features checks (it delegates to `stream_features_whole_genome`).
+  - Each call is a single relaxed atomic load when no governor is armed — negligible, and a no-op for
+    every library caller and existing test (no behavior change).
+- **The gVCF path is covered too** — `variants --index --gvcf --enforce` is a real path; omitting it
+  would leave a governor gap in the very feature being built.
+- **On `TRIPPED`** → `checkpoint()` returns `Err(CoreError::BudgetExceeded { needed, budget })` with
+  **authoritative numbers** carried in the global state (`needed` = `PEAK_AT_TRIP`, `budget` =
+  `BUDGET`), so the driver stays decoupled (it raises the error without holding the budget). The CLI
+  catches it (§3.5). The existing (currently unraised) `BudgetExceeded` variant (`core/error.rs:12`)
+  is reused unchanged.
 
 ### 3.3 Receipt — the measured residual (telemetry)
 
@@ -106,7 +127,7 @@ the receipt's existing convention:
 | `baseline_rss_bytes` | the baseline measured at `main.rs:1610` (already computed, just not recorded) |
 | `rss_residual_bytes` | `peak_rss.saturating_sub(max_working_set).saturating_sub(baseline)` — the real I/O+slack overhead this run incurred |
 | `io_rss_overhead_assumed_bytes` | the `PILEUP_IO_RSS_OVERHEAD` constant (assumed-vs-realized, side by side) |
-| `governor` | `"enforced"` when `--enforce`, else `"record-only"` |
+| `governor` | `"enforced"` (ran under `--enforce`, fit) · `"tripped"` (governor aborted the run mid-stream) · `"record-only"` (no `--enforce`) |
 
 > Determinism note: `baseline_rss_bytes` and `rss_residual_bytes` are machine-dependent
 > measurements, exactly like the already-present `peak_rss_bytes`. The VCF/feature output stays
@@ -125,26 +146,39 @@ doc-comment and the `CONTRACT.md` "honor" section.
 
 ### 3.5 Error handling, exit codes, determinism
 
-- `Err(CoreError::BudgetExceeded)` propagates to `run_variants_index` / `run_features`, which route it
-  into the **existing exit-4 path**: write the partial output, write the receipt with
-  `contract_verdict = "over"`, print the loud breach message, `std::process::exit(4)`. A live breach
-  now yields the *same* artifacts a post-run breach does.
-- The **post-run check stays** as a backstop, covering the ≤ `poll` sampling gap between the last
-  poll and a breach.
-- **Determinism for fitting runs is preserved.** The guard only reads RSS and sets a flag; it never
-  touches output bytes, and in a run that fits it never fires. A breach is by nature a
-  nondeterministic abort (which column trips depends on timing) — but a breach exits non-zero and is
-  a *failure*, not a reproducible artifact, so no determinism guarantee is weakened. Stated
-  explicitly in `docs/determinism.md`.
+- The driver call in `run_variants_index` / `run_features` is wrapped so its `Result` is **inspected,
+  not `?`-propagated**, and the writer is **flushed unconditionally** (so partial output survives a
+  breach):
+  - `Ok((max_ws, skips))` → today's path unchanged (post-run peak, verdict, receipt, backstop exit 4).
+  - `Err(CoreError::BudgetExceeded { needed, .. })` (governor abort) → record `peak_rss = needed`,
+    `governor = "tripped"`, `contract_verdict = "over"`, `max_working_set_bytes = 0` (the run did not
+    complete, so no working-set high-water was returned — `0` is the honest sentinel), the residual
+    fields best-effort; **write the receipt**, print the loud `VIOLATED` message, `std::process::exit(4)`.
+  - `Err(other)` → `bail!` as today.
+- This keeps the promise: a live breach yields the **proof** (a `verdict=over`, `governor=tripped`
+  receipt) plus whatever partial output was flushed — never a silent OOM.
+- The **post-run check stays** as a backstop on the `Ok` path, covering the ≤ `poll` sampling gap
+  between the last poll and a breach that the kernel did not preempt.
+- **Determinism for fitting runs is preserved.** The poll thread only reads RSS and sets a flag; it
+  never touches output bytes, and in a run that fits it never fires (every `checkpoint()` is `Ok`). A
+  breach is by nature a nondeterministic abort (which column trips depends on timing) — but a breach
+  exits non-zero and is a *failure*, not a reproducible artifact, so no determinism guarantee is
+  weakened. Stated explicitly in `docs/determinism.md`.
 
 ### 3.6 Testing
 
-1. **Governor abort (integration, deterministic).** Inject an `rss_source` that returns a rising
-   sequence crossing the budget after a few polls; run a small `variants --index --enforce`; assert:
-   exit 4, `contract_verdict=over` in the receipt, and the partial VCF **and** manifest exist. No real
-   memory pressure → CI-safe and fast.
-2. **Governor unit test.** `MemoryGovernor` with a stub `rss_source` trips `tripped` once the stub
-   crosses the budget and not before; `stop()` joins cleanly; below-budget never trips.
+1. **Governor abort (integration, deterministic).** The CLI's `rss_source` closure reads an env seam
+   `ROSALIND_FORCE_LIVE_RSS_BYTES` (a fixed value standing in for live RSS; falls back to
+   `peak_rss_bytes()`). The test runs `variants --index --enforce` with a budget *above* the predicted
+   peak (so the exit-3 gate passes) but with `ROSALIND_FORCE_LIVE_RSS_BYTES` set *above* the budget, so
+   the governor trips on the first poll; assert: exit 4, `governor=tripped` + `contract_verdict=over`
+   in the receipt, and the manifest exists. No real memory pressure → CI-safe and fast. (This seam is
+   distinct from `ROSALIND_FORCE_PEAK_RSS_BYTES`, which overrides only the *post-run* peak.)
+2. **Governor unit test.** `MemoryGovernor::start` with a closure `rss_source` capturing a rising
+   counter: `governor::checkpoint()` returns `Ok` before the counter crosses the budget and
+   `Err(BudgetExceeded { needed, budget })` after; `Drop` joins cleanly and disarms (a second
+   `start` then succeeds); a below-budget source never trips. A second `start` while one is active
+   returns `GovernorError::AlreadyActive`.
 3. **Near-saturation soundness.** Extend `predicted_peak_rss_upper_bounds_realized_peak`: build a
    larger synthetic contig (a few MB — large enough that reference-decode dominates), run with
    `budget == predicted_peak` (zero extra headroom), assert the run completes within budget (the
@@ -159,15 +193,16 @@ doc-comment and the `CONTRACT.md` "honor" section.
 
 | File | Change |
 |---|---|
-| `src/core/governor.rs` (new) | `MemoryGovernor` (poll thread, injectable `rss_source`, `tripped`/`stop`/`Drop`). |
-| `src/core/mod.rs` | Export `governor` + `MemoryGovernor`. |
-| `src/core/budget.rs` | Doc-comment: the prediction-margin reframe (governor is the safety net, not the constant). No value change. |
-| `src/call/whole_genome.rs` | `cancel: Option<&AtomicBool>` param; check at per-contig top (pre-decode); thread into the region caller. |
-| `src/call/pipeline.rs` | `cancel` param on `call_germline_region_streaming` (+ `_tracked` wrapper); per-column check in the `while let Some(column)` loop. |
-| `src/call/columnkit.rs` | `cancel: Option<&AtomicBool>` param on `run_bounded_whole_genome`; per-contig + per-column checks. |
-| `src/call/features.rs` | `cancel` threaded into `stream_features_region` / `stream_features_whole_genome`; per-column check. |
-| `src/main.rs` | `run_variants_index` + `run_features`: under `--enforce` start a `MemoryGovernor`, pass `governor.tripped()` as `cancel`, stop on completion; map `Err(BudgetExceeded)` to the exit-4 path; record the four new receipt fields (`baseline_rss_bytes`, `rss_residual_bytes`, `io_rss_overhead_assumed_bytes`, `governor`). |
-| `tests/plan_enforce.rs` | Governor-abort integration test; near-saturation soundness; residual-recorded assertions. |
+| `src/core/governor.rs` (new) | Process-global `ARMED`/`TRIPPED`/`PEAK_AT_TRIP`/`BUDGET` statics; `pub fn checkpoint() -> Result<(), CoreError>`; `MemoryGovernor::start(budget, poll, rss_source)` (poll thread) + `Drop` (stop/join/disarm); `GovernorError::AlreadyActive`; unit tests. **No signature changes anywhere else.** |
+| `src/core/mod.rs` | `pub mod governor;` + re-export `checkpoint`, `MemoryGovernor`, `GovernorError`. |
+| `src/core/budget.rs` | Doc-comment: the prediction-margin reframe (the governor is the safety net, not the constant). No value change. |
+| `src/call/whole_genome.rs` | One line: `governor::checkpoint()?;` at the top of the `for c in contigs.iter()` loop (`:61`), before `decode_window_arc`. |
+| `src/call/pipeline.rs` | One line: `governor::checkpoint()?;` at the top of the `while let Some(column)` loop in `call_germline_region_streaming` (`:31`). |
+| `src/call/features.rs` | Two lines: `checkpoint()?` at the per-contig loop top (`:111`) and the per-column loop top in `stream_features_region` (`:84`). |
+| `src/call/gvcf.rs` | Two lines: `checkpoint()?` at the per-contig loop top (`:259`) and the per-column loop top in `stream_gvcf_region` (`:226`). |
+| `src/call/columnkit.rs` | No change — `run_bounded_whole_genome` delegates to `stream_features_whole_genome`, inheriting its checks. Public SDK signature **unchanged**. |
+| `src/main.rs` | `run_variants_index` + `run_features`: under `--enforce`, hold a `MemoryGovernor` (rss_source = the `ROSALIND_FORCE_LIVE_RSS_BYTES`-aware closure); flush the writer unconditionally and **inspect** the driver `Result` instead of `?`-propagating it; on `Err(BudgetExceeded)` write the `governor=tripped`/`verdict=over` receipt and `exit(4)`; record the four new receipt fields (`baseline_rss_bytes`, `rss_residual_bytes`, `io_rss_overhead_assumed_bytes`, `governor`) on both paths. |
+| `tests/plan_enforce.rs` | Governor-abort integration test (env seam); near-saturation soundness; residual-recorded assertions. |
 | `CONTRACT.md`, `docs/determinism.md` | Document the live governor + the breach-determinism note. |
 
 ## 5. Risks & mitigations
@@ -176,10 +211,15 @@ doc-comment and the `CONTRACT.md` "honor" section.
   working set grows gradually with coverage (depth-capped), the dominant breach (reference decode) is
   caught pre-allocation at the contig boundary, and the post-run check remains a backstop. 100 ms is
   conservative for genome-scale runs that take seconds-to-minutes per contig.
-- **Thread + determinism.** Covered in §3.5 — guard is read-only w.r.t. output; fitting runs never
-  fire.
-- **Signature churn.** Mitigated by `Option<&AtomicBool>` defaulting to `None`, so every existing
-  caller/test is a one-token change with identical behavior.
+- **Thread + determinism.** Covered in §3.5 — the poll thread is read-only w.r.t. output; fitting runs
+  never fire.
+- **Global mutable state.** The cancellation state is process-global because RSS *is* process-global.
+  It is fully encapsulated in `core::governor` behind `checkpoint()` + the RAII `MemoryGovernor`, armed
+  only while a governor lives, with an `AlreadyActive` guard against two concurrent governors (the CLI
+  is one-job-per-process). This buys a **signature-stable public API** — the ColumnKit SDK and every
+  re-export are untouched — which is worth more than avoiding one well-scoped global.
+- **`checkpoint()` hot-path cost.** A single relaxed atomic load per column; a no-op (always `Ok`) when
+  no governor is armed, so library callers and existing tests pay effectively nothing.
 - **getrusage cost.** A cheap syscall every 100 ms is negligible.
 
 ## 6. References
