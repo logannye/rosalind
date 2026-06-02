@@ -641,3 +641,33 @@ fn receipt_records_residual_and_governor_fields_on_a_fitting_run() {
     );
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn features_governor_aborts_loud_and_records_residual() {
+    let (dir, idx, bam) = build_sorted_bam_fixture();
+    let tsv = dir.join("feats.tsv");
+    let manifest = dir.join("feats.tsv.manifest.json");
+    let out = Command::new(bin())
+        .args(["features", "--index"])
+        .arg(&idx)
+        .arg("--alignments")
+        .arg(&bam)
+        .args(["--memory-budget-mb", "4096", "--enforce", "-o"])
+        .arg(&tsv)
+        .env(
+            "ROSALIND_FORCE_LIVE_RSS_BYTES",
+            (5_000u64 * 1024 * 1024).to_string(),
+        )
+        .env("ROSALIND_GOVERNOR_POLL_MS", "1")
+        .output()
+        .unwrap();
+    assert_eq!(
+        out.status.code(),
+        Some(4),
+        "features breach must exit 4: {out:?}"
+    );
+    let m = std::fs::read_to_string(&manifest).expect("manifest on breach");
+    assert!(m.contains("\"governor\":\"tripped\""), "manifest: {m}");
+    assert!(m.contains("\"contract_verdict\":\"over\""), "manifest: {m}");
+    std::fs::remove_dir_all(&dir).ok();
+}
