@@ -62,10 +62,42 @@ else
   die "need either 'gh' or 'curl' to download"
 fi
 
-# --- verify checksum (best-effort) -------------------------------------------
+# --- verify checksum ---------------------------------------------------------
+# A "verifiable" tool must verify its own download. The release ships a
+# `<tarball>.sha256` sidecar; fetch it and check before unpacking. Abort on a
+# mismatch (corrupt or tampered download); only skip when neither a hash tool
+# nor the sidecar is available, and say so loudly.
 if command -v sha256sum >/dev/null 2>&1; then sha="sha256sum"
 elif command -v shasum >/dev/null 2>&1; then sha="shasum -a 256"
 else sha=""; fi
+
+if [ -n "$sha" ]; then
+  sumfile="${tarball}.sha256"
+  if command -v gh >/dev/null 2>&1; then
+    if [ "$VERSION" = "latest" ]; then
+      gh release download --repo "$REPO" --pattern "$sumfile" --clobber >/dev/null 2>&1 || sumfile=""
+    else
+      gh release download "$VERSION" --repo "$REPO" --pattern "$sumfile" --clobber >/dev/null 2>&1 || sumfile=""
+    fi
+  elif command -v curl >/dev/null 2>&1; then
+    if [ "$VERSION" = "latest" ]; then
+      sumurl="https://github.com/${REPO}/releases/latest/download/${sumfile}"
+    else
+      sumurl="https://github.com/${REPO}/releases/download/${VERSION}/${sumfile}"
+    fi
+    curl -fsSL -o "$sumfile" "$sumurl" 2>/dev/null || sumfile=""
+  fi
+  if [ -n "$sumfile" ] && [ -s "$sumfile" ]; then
+    say "Verifying checksum…"
+    $sha -c "$sumfile" \
+      || die "checksum verification FAILED — refusing to install a corrupt or tampered download"
+    rm -f "$sumfile"
+  else
+    say "warning: could not fetch the .sha256 sidecar — skipping checksum verification"
+  fi
+else
+  say "warning: no sha256 tool found (sha256sum/shasum) — skipping checksum verification"
+fi
 
 # --- unpack ------------------------------------------------------------------
 tar -xzf "$tarball"
@@ -84,4 +116,3 @@ say "  ./rosalind plan  --index ref.idx --budget-mb 512"
 say "  ./rosalind variants --index ref.idx --alignments sorted.bam \\"
 say "      --memory-budget-mb 512 --enforce -o calls.vcf"
 say "  ./rosalind verify --manifest calls.vcf.manifest.json"
-[ -n "$sha" ] || say "(checksum tools not found; skipped verification)"

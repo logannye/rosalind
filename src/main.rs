@@ -718,6 +718,47 @@ fn run_verify(manifest_path: PathBuf, budget_mb: Option<u64>) -> Result<()> {
         (Some(_), None) => problems.push("manifest has no recorded peak_rss_bytes".to_string()),
     }
 
+    // Internal-consistency cross-checks: a receipt's self-reported numbers must
+    // agree with each other. The manifest has no self-hash yet (a signed,
+    // tamper-evident receipt is a separate feature), so these cheap checks are the
+    // first line against a hand-edited or corrupt receipt — e.g. someone lowering
+    // `peak_rss_bytes` to pass `verify` but leaving the other fields behind.
+    let recorded_u64 =
+        |k: &str| -> Option<u64> { manifest.params.get(k).and_then(|v| v.parse::<u64>().ok()) };
+    // The working set is a subset of resident memory; it cannot exceed peak RSS.
+    if let (Some(ws), Some(peak)) = (
+        recorded_u64("max_working_set_bytes"),
+        recorded_u64("peak_rss_bytes"),
+    ) {
+        if ws > peak {
+            problems.push(format!(
+                "internally inconsistent: max_working_set_bytes ({ws}) exceeds peak_rss_bytes ({peak})"
+            ));
+        }
+    }
+    // A recorded verdict must agree with the recorded peak vs the recorded budget.
+    if let (Some(verdict), Some(mb), Some(peak)) = (
+        manifest.params.get("contract_verdict").map(String::as_str),
+        recorded_u64("memory_budget_mb"),
+        recorded_u64("peak_rss_bytes"),
+    ) {
+        let actually_within = rosalind::core::MemoryBudget::from_mb(mb).admits(peak);
+        if verdict == "within" && !actually_within {
+            problems.push(format!(
+                "internally inconsistent: contract_verdict='within' but recorded peak {} MiB \
+                 exceeds recorded budget {mb} MiB",
+                peak / (1 << 20)
+            ));
+        }
+        if verdict == "over" && actually_within {
+            problems.push(format!(
+                "internally inconsistent: contract_verdict='over' but recorded peak {} MiB \
+                 is within recorded budget {mb} MiB",
+                peak / (1 << 20)
+            ));
+        }
+    }
+
     if problems.is_empty() {
         println!(
             "verify: OK — {} input(s), {} output(s) match",
