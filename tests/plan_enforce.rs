@@ -257,3 +257,42 @@ fn verify_passes_on_an_untampered_run_and_fails_on_a_tampered_output() {
     assert!(String::from_utf8_lossy(&bad.stderr).contains("hash mismatch"));
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn estimator_upper_bounds_the_realized_working_set() {
+    // Run the real pipeline, read max_working_set_bytes from the receipt, and
+    // assert the pure estimator (same shared constants) is a true upper bound for
+    // the declared --max-depth / --max-read-len. Deterministic (working-set
+    // numbers, not process RSS).
+    let (dir, idx, bam) = build_sorted_bam_fixture();
+    let vcf = dir.join("calls.vcf");
+    let manifest = dir.join("calls.vcf.manifest.json");
+    let out = Command::new(bin())
+        .args(["variants", "--index"])
+        .arg(&idx)
+        .arg("--alignments")
+        .arg(&bam)
+        .args(["--max-depth", "1000", "--max-read-len", "250", "-o"])
+        .arg(&vcf)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "run failed: {out:?}");
+
+    let text = std::fs::read_to_string(&manifest).unwrap();
+    let m = rosalind::provenance::RunManifest::from_canonical_json(&text).unwrap();
+    let realized: u64 = m
+        .params
+        .get("max_working_set_bytes")
+        .unwrap()
+        .parse()
+        .unwrap();
+
+    // The fixture's single contig is 32 bp; the estimator's bound at the declared
+    // cap must dominate the realized working set.
+    let predicted = rosalind::call::estimate_variants_working_set(32, 1000, 250).bytes;
+    assert!(
+        predicted >= realized,
+        "estimator bound {predicted} must be >= realized working set {realized}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
