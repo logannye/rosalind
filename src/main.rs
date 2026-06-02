@@ -9,8 +9,8 @@ use clap::{Parser, Subcommand, ValueEnum};
 use rosalind::core::MemoryBudget;
 use rosalind::genomics::{
     compare_callsets, create_bam_writer, estimate_build_working_set, read_vcf_variants,
-    render_plan_line, sort_bam_deterministic, AlignedRead, BWTAligner, BedIndex, CigarOp,
-    CigarOpKind, GenomeIndex, IndexBuildReport, IndexReader, IndexWriter,
+    render_plan_line, sort_bam_deterministic, AlignedRead, BWTAligner, BedIndex, BuildMemoryModel,
+    CigarOp, CigarOpKind, GenomeIndex, IndexBuildReport, IndexReader, IndexWriter,
 };
 use rosalind::io::decompress::open_input;
 use rosalind::io::fasta::{FastaReader, FastaRecord};
@@ -484,8 +484,29 @@ fn run_index(reference: PathBuf, output: PathBuf, memory_budget_mb: Option<u64>)
     };
     print!("{}", report.render());
 
-    // Realized peak RSS (per-run, informational) → stderr.
-    eprintln!("build peak RSS: {} MiB", peak_rss_bytes() / (1 << 20));
+    // Build receipt: realized peak RSS vs the modeled n-scale SA-IS build memory —
+    // the D0 measure-first probe. The realized peak is machine-dependent; the
+    // breakdown + attribution ratio are the analysis payload.
+    let peak = peak_rss_bytes();
+    let model = BuildMemoryModel::from_reference_len(total_bp);
+    let denom = total_bp.max(1);
+    eprintln!(
+        "build: realized peak RSS {} MiB ({} B/base) over {} bp",
+        peak / (1 << 20),
+        peak / denom,
+        total_bp
+    );
+    eprint!("{}", model.render(total_bp));
+    let ratio = if peak > 0 {
+        model.total_bytes as f64 / peak as f64
+    } else {
+        0.0
+    };
+    eprintln!(
+        "build: model/realized attribution = {:.2} [{}]",
+        ratio,
+        if ratio >= 0.70 { "CONFIRM ≥0.70" } else { "below 0.70" }
+    );
     Ok(())
 }
 
