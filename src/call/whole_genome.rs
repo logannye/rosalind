@@ -9,7 +9,7 @@ use std::sync::Arc;
 use crate::call::{call_germline_region_streaming, GermlineCall, GermlineParams};
 use crate::core::{AlignedRead, ContigSet, CoreError, Locus, WorkingSet};
 use crate::genomics::ReferenceView;
-use crate::pileup::{PileupParams, ReadSource};
+use crate::pileup::{PileupParams, ReadSource, SkipCounts};
 
 /// Per-contig view over a shared sorted stream: yields contig `contig`'s reads,
 /// then stops at (and buffers) the first read of a later contig.
@@ -52,8 +52,9 @@ pub fn call_germline_whole_genome<S: ReadSource>(
     pileup_params: PileupParams,
     germline_params: &GermlineParams,
     on_row: &mut dyn FnMut((Locus, u8, GermlineCall)) -> Result<(), CoreError>,
-) -> Result<WorkingSet, CoreError> {
+) -> Result<(WorkingSet, SkipCounts), CoreError> {
     let mut max_ws = WorkingSet { bytes: 0 };
+    let mut skips = SkipCounts::default();
     let mut peeked: Option<AlignedRead> = None;
 
     for c in contigs.iter() {
@@ -72,7 +73,7 @@ pub fn call_germline_whole_genome<S: ReadSource>(
             peeked: &mut peeked,
         };
         let region: Range<u32> = 0..c.length;
-        let ws = call_germline_region_streaming(
+        let (ws, contig_skips) = call_germline_region_streaming(
             per,
             reference,
             c.id,
@@ -84,9 +85,10 @@ pub fn call_germline_whole_genome<S: ReadSource>(
         if ws.bytes > max_ws.bytes {
             max_ws = ws;
         }
+        skips.accumulate(&contig_skips);
     }
 
-    Ok(max_ws)
+    Ok((max_ws, skips))
 }
 
 #[cfg(test)]
@@ -149,7 +151,7 @@ mod tests {
         let gp = GermlineParams::default();
 
         let mut rows: Vec<(Locus, u8, GermlineCall)> = Vec::new();
-        let ws = call_germline_whole_genome(
+        let (ws, _skips) = call_germline_whole_genome(
             SliceSource::new(reads.clone()),
             &rv,
             contigs,
@@ -236,6 +238,7 @@ mod tests {
                 &mut |_row| Ok(()),
             )
             .unwrap()
+            .0
             .bytes
         };
 

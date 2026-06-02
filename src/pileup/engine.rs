@@ -102,6 +102,17 @@ impl SkipCounts {
             + self.low_mapq
             + self.over_max_depth
     }
+
+    /// Field-wise add (summing per-contig engines on the whole-genome path).
+    pub fn accumulate(&mut self, other: &SkipCounts) {
+        self.unmapped += other.unmapped;
+        self.wrong_contig += other.wrong_contig;
+        self.secondary += other.secondary;
+        self.supplementary += other.supplementary;
+        self.duplicate += other.duplicate;
+        self.low_mapq += other.low_mapq;
+        self.over_max_depth += other.over_max_depth;
+    }
 }
 
 /// A read currently overlapping the cursor, with its CIGAR projection precomputed.
@@ -542,6 +553,24 @@ mod tests {
         assert!(p.skip_secondary && p.skip_supplementary && p.skip_duplicate);
         assert_eq!(p.min_mapq, 0);
         assert_eq!(p.min_base_qual, 0);
+    }
+
+    #[test]
+    fn skip_counts_accumulate_sums_fieldwise() {
+        let mut a = SkipCounts {
+            over_max_depth: 2,
+            low_mapq: 1,
+            ..SkipCounts::default()
+        };
+        let b = SkipCounts {
+            over_max_depth: 3,
+            duplicate: 4,
+            ..SkipCounts::default()
+        };
+        a.accumulate(&b);
+        assert_eq!(a.over_max_depth, 5);
+        assert_eq!(a.low_mapq, 1);
+        assert_eq!(a.duplicate, 4);
     }
 
     #[test]

@@ -1291,13 +1291,13 @@ fn run_variants_index(
     // Stream calls straight to the VCF writer (header once, then one row per
     // emitted call) so no genome-wide row buffer accumulates. The returned
     // WorkingSet is the high-water (reference + active set), captured per contig.
-    let max_ws = match &output {
+    let (max_ws, skips) = match &output {
         Some(path) => {
             let file = File::create(path)
                 .with_context(|| format!("failed to create VCF file {}", path.display()))?;
             let mut writer = io::BufWriter::new(file);
             write_germline_header(&mut writer, contigs, "SAMPLE")?;
-            let ws = call_germline_whole_genome(
+            let (ws, sk) = call_germline_whole_genome(
                 source,
                 &ref_view,
                 contigs,
@@ -1318,13 +1318,13 @@ fn run_variants_index(
             )
             .map_err(|e| anyhow!("variant calling failed: {e}"))?;
             writer.flush()?;
-            ws
+            (ws, sk)
         }
         None => {
             let stdout = io::stdout();
             let mut handle = stdout.lock();
             write_germline_header(&mut handle, contigs, "SAMPLE")?;
-            let ws = call_germline_whole_genome(
+            let (ws, sk) = call_germline_whole_genome(
                 source,
                 &ref_view,
                 contigs,
@@ -1345,7 +1345,7 @@ fn run_variants_index(
             )
             .map_err(|e| anyhow!("variant calling failed: {e}"))?;
             handle.flush()?;
-            ws
+            (ws, sk)
         }
     };
     // Realized peak (monotonic high-water mark) captured after the calling pass.
@@ -1410,6 +1410,13 @@ fn run_variants_index(
             "max_working_set_bytes".to_string(),
             max_ws.bytes.to_string(),
         );
+        manifest.params.insert(
+            "over_max_depth".to_string(),
+            skips.over_max_depth.to_string(),
+        );
+        manifest
+            .params
+            .insert("reads_skipped_total".to_string(), skips.total().to_string());
         if let Some(mb) = memory_budget_mb {
             manifest
                 .params
@@ -1432,6 +1439,22 @@ fn run_variants_index(
         peak_rss / (1 << 20),
         max_ws.bytes / 1024
     );
+    // Surface depth-cap downsampling: the cap engaging changes calls at deep
+    // sites (an unbiased bounded sample), so it must never be silent.
+    if skips.over_max_depth > 0 {
+        eprintln!(
+            "pileup: dropped {} reads at --max-depth {} (deep-site downsampling — \
+             calls at those sites use a bounded unbiased sample)",
+            skips.over_max_depth, max_depth
+        );
+    }
+    let other_skipped = skips.total() - skips.over_max_depth;
+    if other_skipped > 0 {
+        eprintln!(
+            "pileup: skipped {other_skipped} reads by filter \
+             (unmapped/wrong-contig/secondary/supplementary/duplicate/low-mapq)"
+        );
+    }
     if let Some(mb) = memory_budget_mb {
         let budget = MemoryBudget::from_mb(mb);
         let within = budget.admits(peak_rss);
