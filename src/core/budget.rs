@@ -2,6 +2,18 @@
 //! bound so a run can be checked against a `MemoryBudget` *before* it starts
 //! (the foundation for `rosalind plan`).
 
+/// Per-base cost of a pileup read's reference→read-offset projection map (one
+/// `HashMap<u32, usize>` entry ≈ 16 bytes). Shared by the realized accountant
+/// (`PileupEngine::current_working_set`) and the `rosalind plan` estimator so the
+/// two cannot drift.
+pub const PILEUP_MAP_BYTES_PER_BASE: u64 = 16;
+/// Per-base cost of a read's `seq` + `qual` byte buffers (1 byte each).
+pub const PILEUP_SEQQUAL_BYTES_PER_BASE: u64 = 2;
+/// Fixed per-active-read overhead (handles + struct).
+pub const PILEUP_PER_READ_OVERHEAD: u64 = 64;
+/// Fixed per-engine overhead.
+pub const PILEUP_ENGINE_OVERHEAD: u64 = 256;
+
 /// A declared cap on a streaming stage's working set.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MemoryBudget {

@@ -5,7 +5,10 @@ use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::Arc;
 
-use crate::core::{allele_index, AlignedRead, CoreError, Locus, Position, WorkingSet};
+use crate::core::{
+    allele_index, AlignedRead, CoreError, Locus, Position, WorkingSet, PILEUP_ENGINE_OVERHEAD,
+    PILEUP_MAP_BYTES_PER_BASE, PILEUP_PER_READ_OVERHEAD,
+};
 use crate::pileup::column::{Obs, PileupColumn};
 use crate::pileup::source::ReadSource;
 
@@ -150,11 +153,14 @@ impl<S: ReadSource> PileupEngine<S> {
             .active
             .iter()
             .map(|r| {
-                (r.ref_to_read.len() as u64) * 16 + r.seq.len() as u64 + r.qual.len() as u64 + 64
+                (r.ref_to_read.len() as u64) * PILEUP_MAP_BYTES_PER_BASE
+                    + r.seq.len() as u64
+                    + r.qual.len() as u64
+                    + PILEUP_PER_READ_OVERHEAD
             })
             .sum();
         WorkingSet {
-            bytes: reference_bytes + active_bytes + 256,
+            bytes: reference_bytes + active_bytes + PILEUP_ENGINE_OVERHEAD,
         }
     }
 
