@@ -97,6 +97,18 @@ enum Commands {
         /// not enforce (enforcement is a later phase). (`--index` path.)
         #[arg(long)]
         memory_budget_mb: Option<u64>,
+        /// Cap the active read set per position (deterministic downsampling); the
+        /// bound `plan`/`--enforce` rely on. `0` = uncapped.
+        #[arg(long, default_value_t = 1000)]
+        max_depth: u32,
+        /// Max read length assumed by the pre-run `--enforce` estimate.
+        #[arg(long, default_value_t = 250)]
+        max_read_len: u32,
+        /// Honor the budget: refuse up front if predicted peak exceeds it (exit 3),
+        /// or fail after the run if the realized peak does (exit 4). Requires
+        /// `--memory-budget-mb` and `--max-depth > 0`.
+        #[arg(long, default_value_t = false)]
+        enforce: bool,
     },
     /// Deterministically coordinate-sort a BAM file using bounded memory.
     Sort {
@@ -272,6 +284,9 @@ fn main() -> Result<()> {
             block_size: _,
             quality_threshold,
             memory_budget_mb,
+            max_depth,
+            max_read_len,
+            enforce,
         } => {
             if let Some(index) = index {
                 if chrom.is_some() || region_start != 0 {
@@ -284,6 +299,9 @@ fn main() -> Result<()> {
                     output,
                     quality_threshold,
                     memory_budget_mb,
+                    max_depth,
+                    max_read_len,
+                    enforce,
                 )?
             } else {
                 let reference = reference.expect("clap guarantees one of --index/--reference");
@@ -1080,6 +1098,9 @@ fn run_variants_index(
     output: Option<PathBuf>,
     quality_threshold: f32,
     memory_budget_mb: Option<u64>,
+    max_depth: u32,
+    max_read_len: u32,
+    enforce: bool,
 ) -> Result<()> {
     use rosalind::call::{call_germline_whole_genome, GermlineParams};
     use rosalind::genomics::IndexReader;
@@ -1100,6 +1121,9 @@ fn run_variants_index(
 
     let pileup_params = PileupParams {
         min_mapq: mapq_threshold,
+        // `--max-depth 0` opts out of the cap (then the working set is unbounded
+        // and `--enforce` is rejected below).
+        max_depth: if max_depth == 0 { None } else { Some(max_depth) },
         ..PileupParams::default()
     };
     let germline_params = GermlineParams {
@@ -1124,6 +1148,38 @@ fn run_variants_index(
     }
     let source = StreamingBamSource::new(&alignments_path, contigs)
         .map_err(|e| anyhow!("failed to open BAM {}: {e}", alignments_path.display()))?;
+
+    // `--enforce` contract: predict the peak RSS up front (measured baseline +
+    // the depth-capped working set) and refuse cleanly if it won't fit — before
+    // doing any work. Never a silent OOM.
+    if enforce {
+        if memory_budget_mb.is_none() {
+            bail!("--enforce requires --memory-budget-mb");
+        }
+        if max_depth == 0 {
+            bail!("--enforce requires --max-depth > 0 (an uncapped active set has no a-priori bound)");
+        }
+        let mb = memory_budget_mb.unwrap();
+        let largest = contigs.iter().map(|c| c.length as u64).max().unwrap_or(0);
+        let baseline = peak_rss_bytes();
+        let predicted =
+            rosalind::call::plan::predicted_peak_rss_bytes(largest, max_depth, max_read_len, baseline);
+        if !MemoryBudget::from_mb(mb).admits(predicted) {
+            eprintln!(
+                "contract: REFUSE — declared {} MiB, predicted peak ~{} MiB \
+                 (largest contig {} MiB + active @ max-depth {} / max-read-len {} \
+                 atop a {} MiB baseline). Raise --memory-budget-mb, lower --max-depth, \
+                 or drop --enforce.",
+                mb,
+                predicted / (1 << 20),
+                largest / (1 << 20),
+                max_depth,
+                max_read_len,
+                baseline / (1 << 20),
+            );
+            std::process::exit(3);
+        }
+    }
 
     // Stream calls straight to the VCF writer (header once, then one row per
     // emitted call) so no genome-wide row buffer accumulates. The returned
@@ -1228,12 +1284,25 @@ fn run_variants_index(
     );
     if let Some(mb) = memory_budget_mb {
         let budget = MemoryBudget::from_mb(mb);
-        if budget.admits(peak_rss) {
+        let within = budget.admits(peak_rss);
+        if enforce {
+            if within {
+                eprintln!(
+                    "contract: OK — realized peak {} MiB within declared {mb} MiB",
+                    peak_rss / (1 << 20)
+                );
+            } else {
+                eprintln!(
+                    "contract: VIOLATED — realized peak {} MiB exceeded declared {mb} MiB (output + receipt written)",
+                    peak_rss / (1 << 20)
+                );
+                std::process::exit(4);
+            }
+        } else if within {
             eprintln!("memory: within budget ({mb} MiB)");
         } else {
             eprintln!(
-                "memory: EXCEEDED budget {} MiB (realized peak {} MiB) — record-only, run completed",
-                mb,
+                "memory: EXCEEDED budget {mb} MiB (realized peak {} MiB) — record-only, run completed",
                 peak_rss / (1 << 20)
             );
         }

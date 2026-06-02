@@ -68,3 +68,87 @@ fn plan_reference_reports_build_estimate() {
     assert!(stdout.contains("plan:"), "missing build plan line: {stdout}");
     std::fs::remove_dir_all(&dir).ok();
 }
+
+// ---- enforce tests: need a real coordinate-sorted BAM via the CLI pipeline ----
+
+fn run(args: &[&str]) -> std::process::Output {
+    Command::new(bin()).args(args).output().expect("spawn rosalind")
+}
+
+// `index` -> `align --format bam` -> `sort`, mirroring tests/variants_index.rs.
+// Returns (dir, index_path, sorted_bam_path). Single-contig (aligner is single-contig).
+fn build_sorted_bam_fixture() -> (PathBuf, PathBuf, PathBuf) {
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let dir = std::env::temp_dir().join(format!("rosalind-enforce-{nanos}"));
+    std::fs::create_dir_all(&dir).unwrap();
+    let seq = "ACGTACGTACGTACGTACGTACGTACGTACGT"; // 32 bp
+    let fa = dir.join("ref.fa");
+    std::fs::write(&fa, format!(">chr1\n{seq}\n")).unwrap();
+    let fq = dir.join("reads.fq");
+    let mut s = String::new();
+    for (i, &start) in [0usize, 0, 4, 4, 8].iter().enumerate() {
+        let read = &seq[start..start + 16];
+        let qual: String = std::iter::repeat('I').take(16).collect();
+        s.push_str(&format!("@r{i}\n{read}\n+\n{qual}\n"));
+    }
+    std::fs::write(&fq, s).unwrap();
+    let idx = dir.join("ref.idx");
+    let raw = dir.join("raw.bam");
+    let bam = dir.join("sorted.bam");
+    assert!(run(&[
+        "index", "--reference", fa.to_str().unwrap(), "--output", idx.to_str().unwrap()
+    ])
+    .status
+    .success());
+    assert!(run(&[
+        "align", "--reference", fa.to_str().unwrap(), "--reads", fq.to_str().unwrap(),
+        "--format", "bam", "--output", raw.to_str().unwrap()
+    ])
+    .status
+    .success());
+    assert!(run(&[
+        "sort", "--input", raw.to_str().unwrap(), "--output", bam.to_str().unwrap()
+    ])
+    .status
+    .success());
+    (dir, idx, bam)
+}
+
+#[test]
+fn enforce_refuses_up_front_when_budget_below_predicted() {
+    // A 1 MiB budget is below the process baseline alone, so the pre-run check
+    // refuses with exit 3 before doing any calling — and writes no VCF.
+    let (dir, idx, bam) = build_sorted_bam_fixture();
+    let out = Command::new(bin())
+        .args(["variants", "--index"])
+        .arg(&idx)
+        .arg("--alignments")
+        .arg(&bam)
+        .args(["--memory-budget-mb", "1", "--enforce"])
+        .output()
+        .unwrap();
+    assert_eq!(out.status.code(), Some(3), "expected refuse exit 3: {out:?}");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("REFUSE"), "missing refuse message: {stderr}");
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn enforce_passes_within_a_generous_budget() {
+    let (dir, idx, bam) = build_sorted_bam_fixture();
+    let out = Command::new(bin())
+        .args(["variants", "--index"])
+        .arg(&idx)
+        .arg("--alignments")
+        .arg(&bam)
+        .args(["--memory-budget-mb", "4096", "--enforce"])
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "generous budget should pass: {out:?}");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("contract: OK"), "missing OK line: {stderr}");
+    std::fs::remove_dir_all(&dir).ok();
+}
