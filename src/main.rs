@@ -97,6 +97,22 @@ enum Commands {
         /// not enforce (enforcement is a later phase). (`--index` path.)
         #[arg(long)]
         memory_budget_mb: Option<u64>,
+        /// Cap the active read set per position (deterministic downsampling); the
+        /// bound `plan`/`--enforce` rely on. `0` = uncapped.
+        #[arg(long, default_value_t = 1000)]
+        max_depth: u32,
+        /// Max read length assumed by the pre-run `--enforce` estimate.
+        #[arg(long, default_value_t = 250)]
+        max_read_len: u32,
+        /// Honor the budget: refuse up front if predicted peak exceeds it (exit 3),
+        /// or fail after the run if the realized peak does (exit 4). Requires
+        /// `--memory-budget-mb` and `--max-depth > 0`.
+        #[arg(long, default_value_t = false)]
+        enforce: bool,
+        /// Where to write the reproducibility receipt. Default: `<output>.manifest.json`
+        /// for file output, or `./rosalind.variants.manifest.json` for stdout output.
+        #[arg(long)]
+        manifest: Option<PathBuf>,
     },
     /// Deterministically coordinate-sort a BAM file using bounded memory.
     Sort {
@@ -183,6 +199,41 @@ enum Commands {
         #[arg(long, default_value_t = 1024)]
         max_hits: usize,
     },
+    /// Predict whether a job fits a declared memory budget, before committing.
+    Plan {
+        /// Persisted index (`rosalind index`): predict the bounded whole-genome
+        /// `variants` peak. Mutually exclusive with `--reference`.
+        #[arg(
+            long,
+            conflicts_with = "reference",
+            required_unless_present = "reference"
+        )]
+        index: Option<PathBuf>,
+        /// Reference FASTA: predict the index BUILD peak (advisory — build is
+        /// O(reference); Phase D enforces). Mutually exclusive with `--index`.
+        #[arg(long, required_unless_present = "index")]
+        reference: Option<PathBuf>,
+        /// Max active depth assumed for the `variants` working-set bound.
+        #[arg(long, default_value_t = 1000)]
+        max_depth: u32,
+        /// Max read length assumed for the `variants` working-set bound.
+        #[arg(long, default_value_t = 250)]
+        max_read_len: u32,
+        /// Declared memory budget (MiB) to check feasibility against.
+        #[arg(long)]
+        budget_mb: Option<u64>,
+    },
+    /// Re-check a reproducibility receipt without re-running: re-hash its inputs
+    /// and outputs and confirm the realized peak landed within the budget.
+    Verify {
+        /// Path to a `*.manifest.json` written by a previous run.
+        #[arg(long)]
+        manifest: PathBuf,
+        /// Budget (MiB) to check the recorded peak against (overrides the
+        /// `memory_budget_mb` recorded in the manifest, if any).
+        #[arg(long)]
+        budget_mb: Option<u64>,
+    },
 }
 
 #[derive(Copy, Clone, Debug, ValueEnum, Eq, PartialEq)]
@@ -248,6 +299,10 @@ fn main() -> Result<()> {
             block_size: _,
             quality_threshold,
             memory_budget_mb,
+            max_depth,
+            max_read_len,
+            enforce,
+            manifest,
         } => {
             if let Some(index) = index {
                 if chrom.is_some() || region_start != 0 {
@@ -260,6 +315,10 @@ fn main() -> Result<()> {
                     output,
                     quality_threshold,
                     memory_budget_mb,
+                    max_depth,
+                    max_read_len,
+                    enforce,
+                    manifest,
                 )?
             } else {
                 let reference = reference.expect("clap guarantees one of --index/--reference");
@@ -318,6 +377,17 @@ fn main() -> Result<()> {
             pattern,
             max_hits,
         } => run_locate(index, pattern, max_hits)?,
+        Commands::Plan {
+            index,
+            reference,
+            max_depth,
+            max_read_len,
+            budget_mb,
+        } => run_plan(index, reference, max_depth, max_read_len, budget_mb)?,
+        Commands::Verify {
+            manifest,
+            budget_mb,
+        } => run_verify(manifest, budget_mb)?,
     }
 
     Ok(())
@@ -417,6 +487,133 @@ fn run_index(reference: PathBuf, output: PathBuf, memory_budget_mb: Option<u64>)
     // Realized peak RSS (per-run, informational) → stderr.
     eprintln!("build peak RSS: {} MiB", peak_rss_bytes() / (1 << 20));
     Ok(())
+}
+
+/// Predict whether a job fits a declared budget, before committing. `--index`
+/// predicts the bounded whole-genome `variants` peak (largest contig + active set
+/// @ the declared cap, atop the measured process baseline). `--reference`
+/// predicts the index build peak (advisory; build is O(reference)).
+fn run_plan(
+    index: Option<PathBuf>,
+    reference: Option<PathBuf>,
+    max_depth: u32,
+    max_read_len: u32,
+    budget_mb: Option<u64>,
+) -> Result<()> {
+    use rosalind::call::plan::render_variants_plan;
+    use rosalind::genomics::IndexReader;
+
+    if let Some(index_path) = index {
+        let loaded = IndexReader::open(&index_path)
+            .with_context(|| format!("failed to open index {}", index_path.display()))?;
+        let largest = loaded
+            .contigs()
+            .iter()
+            .map(|c| c.length as u64)
+            .max()
+            .unwrap_or(0);
+        // Measure the process baseline now (binary + libs + index mmap header);
+        // the per-contig reference decode + active set are modeled on top.
+        let baseline = peak_rss_bytes();
+        print!(
+            "{}",
+            render_variants_plan(largest, max_depth, max_read_len, baseline, budget_mb)
+        );
+    } else {
+        let reference = reference.expect("clap guarantees one of --index/--reference");
+        let fasta_reader = open_input(&reference)
+            .with_context(|| format!("failed to open reference {}", reference.display()))?;
+        let total_bp: u64 = FastaReader::new(fasta_reader)
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .with_context(|| format!("failed to parse FASTA {}", reference.display()))?
+            .iter()
+            .map(|r| r.sequence.len() as u64)
+            .sum();
+        let estimate = estimate_build_working_set(total_bp);
+        match budget_mb {
+            Some(mb) => println!("{}", render_plan_line(estimate, MemoryBudget::from_mb(mb))),
+            None => println!(
+                "plan: est. build peak ~{} MiB (advisory; build is O(reference)) [no budget]",
+                estimate.bytes / (1 << 20)
+            ),
+        }
+    }
+    Ok(())
+}
+
+/// Re-check a reproducibility receipt without re-running: parse it, re-hash each
+/// listed input/output and confirm the digests match, and confirm the recorded
+/// realized peak RSS landed within the budget (supplied, or recorded in the
+/// manifest). Exits non-zero with a per-check report on any mismatch.
+fn run_verify(manifest_path: PathBuf, budget_mb: Option<u64>) -> Result<()> {
+    use rosalind::provenance::{blake3_file, RunManifest};
+
+    let text = std::fs::read_to_string(&manifest_path)
+        .with_context(|| format!("failed to read manifest {}", manifest_path.display()))?;
+    let manifest = RunManifest::from_canonical_json(&text)
+        .map_err(|e| anyhow!("failed to parse manifest {}: {e}", manifest_path.display()))?;
+
+    let mut problems: Vec<String> = Vec::new();
+
+    // Re-hash inputs + outputs against the recorded digests.
+    for (kind, files) in [("input", &manifest.inputs), ("output", &manifest.outputs)] {
+        for f in files {
+            match blake3_file(std::path::Path::new(&f.path)) {
+                Ok(h) if h == f.blake3 => {}
+                Ok(h) => problems.push(format!(
+                    "{kind} {} hash mismatch: recorded {}, now {}",
+                    f.path, f.blake3, h
+                )),
+                Err(e) => problems.push(format!("{kind} {} unreadable: {e}", f.path)),
+            }
+        }
+    }
+
+    // Re-check the recorded realized peak against the budget (CLI overrides manifest).
+    let budget_mb = budget_mb.or_else(|| {
+        manifest
+            .params
+            .get("memory_budget_mb")
+            .and_then(|v| v.parse::<u64>().ok())
+    });
+    match (
+        budget_mb,
+        manifest
+            .params
+            .get("peak_rss_bytes")
+            .and_then(|v| v.parse::<u64>().ok()),
+    ) {
+        (Some(mb), Some(peak)) => {
+            let budget = rosalind::core::MemoryBudget::from_mb(mb);
+            if budget.admits(peak) {
+                println!(
+                    "verify: peak {} MiB within budget {mb} MiB",
+                    peak / (1 << 20)
+                );
+            } else {
+                problems.push(format!(
+                    "recorded peak {} MiB exceeded budget {mb} MiB",
+                    peak / (1 << 20)
+                ));
+            }
+        }
+        (None, _) => println!("verify: no budget to check (none supplied or recorded)"),
+        (Some(_), None) => problems.push("manifest has no recorded peak_rss_bytes".to_string()),
+    }
+
+    if problems.is_empty() {
+        println!(
+            "verify: OK — {} input(s), {} output(s) match",
+            manifest.inputs.len(),
+            manifest.outputs.len()
+        );
+        Ok(())
+    } else {
+        for p in &problems {
+            eprintln!("verify: FAIL — {p}");
+        }
+        std::process::exit(5);
+    }
 }
 
 /// Load a prebuilt index and print exact-match loci for `pattern` (B3c). This is
@@ -997,13 +1194,17 @@ fn run_variants_index(
     output: Option<PathBuf>,
     quality_threshold: f32,
     memory_budget_mb: Option<u64>,
+    max_depth: u32,
+    max_read_len: u32,
+    enforce: bool,
+    manifest_out: Option<PathBuf>,
 ) -> Result<()> {
     use rosalind::call::{call_germline_whole_genome, GermlineParams};
     use rosalind::genomics::IndexReader;
     use rosalind::io::bam::StreamingBamSource;
-    use rosalind::io::vcf::{write_germline_vcf, GermlineRow};
+    use rosalind::io::vcf::{write_germline_header, write_germline_row, GermlineRow};
     use rosalind::pileup::PileupParams;
-    use rosalind::provenance::{blake3_file, write_manifest, FileHash, RunManifest};
+    use rosalind::provenance::{blake3_file, FileHash, RunManifest};
 
     let loaded = IndexReader::open(&index_path)
         .with_context(|| format!("failed to open index {}", index_path.display()))?;
@@ -1017,6 +1218,13 @@ fn run_variants_index(
 
     let pileup_params = PileupParams {
         min_mapq: mapq_threshold,
+        // `--max-depth 0` opts out of the cap (then the working set is unbounded
+        // and `--enforce` is rejected below).
+        max_depth: if max_depth == 0 {
+            None
+        } else {
+            Some(max_depth)
+        },
         ..PileupParams::default()
     };
     let germline_params = GermlineParams {
@@ -1041,64 +1249,182 @@ fn run_variants_index(
     }
     let source = StreamingBamSource::new(&alignments_path, contigs)
         .map_err(|e| anyhow!("failed to open BAM {}: {e}", alignments_path.display()))?;
-    let (sites, max_ws) =
-        call_germline_whole_genome(source, &ref_view, contigs, pileup_params, &germline_params)
-            .map_err(|e| anyhow!("variant calling failed: {e}"))?;
-    // Realized peak (monotonic high-water mark) captured after the calling pass.
-    let peak_rss = peak_rss_bytes();
 
-    let rows: Vec<GermlineRow> = sites
-        .into_iter()
-        .map(|(locus, ref_base, call)| GermlineRow {
-            locus,
-            ref_base,
-            call,
-        })
-        .collect();
+    // `--enforce` contract: predict the peak RSS up front (measured baseline +
+    // the depth-capped working set) and refuse cleanly if it won't fit — before
+    // doing any work. Never a silent OOM.
+    if enforce {
+        if memory_budget_mb.is_none() {
+            bail!("--enforce requires --memory-budget-mb");
+        }
+        if max_depth == 0 {
+            bail!(
+                "--enforce requires --max-depth > 0 (an uncapped active set has no a-priori bound)"
+            );
+        }
+        let mb = memory_budget_mb.unwrap();
+        let largest = contigs.iter().map(|c| c.length as u64).max().unwrap_or(0);
+        let baseline = peak_rss_bytes();
+        let predicted = rosalind::call::plan::predicted_peak_rss_bytes(
+            largest,
+            max_depth,
+            max_read_len,
+            baseline,
+        );
+        if !MemoryBudget::from_mb(mb).admits(predicted) {
+            eprintln!(
+                "contract: REFUSE — declared {} MiB, predicted peak ~{} MiB \
+                 (largest contig {} MiB + active @ max-depth {} / max-read-len {} \
+                 atop a {} MiB baseline). Raise --memory-budget-mb, lower --max-depth, \
+                 or drop --enforce.",
+                mb,
+                predicted / (1 << 20),
+                largest / (1 << 20),
+                max_depth,
+                max_read_len,
+                baseline / (1 << 20),
+            );
+            std::process::exit(3);
+        }
+    }
 
-    match output {
+    // Stream calls straight to the VCF writer (header once, then one row per
+    // emitted call) so no genome-wide row buffer accumulates. The returned
+    // WorkingSet is the high-water (reference + active set), captured per contig.
+    let max_ws = match &output {
         Some(path) => {
-            let file = File::create(&path)
+            let file = File::create(path)
                 .with_context(|| format!("failed to create VCF file {}", path.display()))?;
             let mut writer = io::BufWriter::new(file);
-            write_germline_vcf(&mut writer, contigs, "SAMPLE", &rows)?;
+            write_germline_header(&mut writer, contigs, "SAMPLE")?;
+            let ws = call_germline_whole_genome(
+                source,
+                &ref_view,
+                contigs,
+                pileup_params,
+                &germline_params,
+                &mut |(locus, ref_base, call)| {
+                    write_germline_row(
+                        &mut writer,
+                        contigs,
+                        &GermlineRow {
+                            locus,
+                            ref_base,
+                            call,
+                        },
+                    )
+                    .map_err(rosalind::core::CoreError::from)
+                },
+            )
+            .map_err(|e| anyhow!("variant calling failed: {e}"))?;
             writer.flush()?;
-            drop(writer);
-            let mut manifest = RunManifest::new("variants");
-            manifest.inputs.push(FileHash {
-                path: index_path.display().to_string(),
-                blake3: blake3_file(&index_path)?,
-            });
-            manifest.inputs.push(FileHash {
-                path: alignments_path.display().to_string(),
-                blake3: blake3_file(&alignments_path)?,
-            });
-            manifest.outputs.push(FileHash {
-                path: path.display().to_string(),
-                blake3: blake3_file(&path)?,
-            });
-            manifest
-                .params
-                .insert("mapq_threshold".to_string(), mapq_threshold.to_string());
-            manifest.params.insert(
-                "min_qual".to_string(),
-                (quality_threshold as f64).to_string(),
-            );
-            manifest
-                .params
-                .insert("peak_rss_bytes".to_string(), peak_rss.to_string());
-            manifest.params.insert(
-                "max_working_set_bytes".to_string(),
-                max_ws.bytes.to_string(),
-            );
-            let manifest_path = write_manifest(&path, &manifest)?;
-            eprintln!("wrote reproducibility receipt: {}", manifest_path.display());
+            ws
         }
         None => {
             let stdout = io::stdout();
             let mut handle = stdout.lock();
-            write_germline_vcf(&mut handle, contigs, "SAMPLE", &rows)?;
+            write_germline_header(&mut handle, contigs, "SAMPLE")?;
+            let ws = call_germline_whole_genome(
+                source,
+                &ref_view,
+                contigs,
+                pileup_params,
+                &germline_params,
+                &mut |(locus, ref_base, call)| {
+                    write_germline_row(
+                        &mut handle,
+                        contigs,
+                        &GermlineRow {
+                            locus,
+                            ref_base,
+                            call,
+                        },
+                    )
+                    .map_err(rosalind::core::CoreError::from)
+                },
+            )
+            .map_err(|e| anyhow!("variant calling failed: {e}"))?;
+            handle.flush()?;
+            ws
         }
+    };
+    // Realized peak (monotonic high-water mark) captured after the calling pass.
+    let peak_rss = peak_rss_bytes();
+
+    // Compute the contract verdict before writing the receipt (so it records it).
+    let verdict = match memory_budget_mb.map(|mb| MemoryBudget::from_mb(mb).admits(peak_rss)) {
+        None => "unset",
+        Some(true) => "within",
+        Some(false) => "over",
+    };
+
+    // Reproducibility + memory receipt. Written when there is a destination — an
+    // explicit --manifest path, or a sidecar next to a `-o` VCF. A stdout run
+    // without --manifest writes NO file (no surprise cwd write, no race on a fixed
+    // filename) but says how to persist one.
+    let receipt_dest: Option<PathBuf> = match (&manifest_out, &output) {
+        (Some(m), _) => Some(m.clone()),
+        (None, Some(path)) => {
+            let mut s = path.as_os_str().to_os_string();
+            s.push(".manifest.json");
+            Some(PathBuf::from(s))
+        }
+        (None, None) => None,
+    };
+    if let Some(dest) = receipt_dest {
+        let mut manifest = RunManifest::new("variants");
+        manifest.inputs.push(FileHash {
+            path: index_path.display().to_string(),
+            blake3: blake3_file(&index_path)?,
+        });
+        manifest.inputs.push(FileHash {
+            path: alignments_path.display().to_string(),
+            blake3: blake3_file(&alignments_path)?,
+        });
+        if let Some(path) = &output {
+            manifest.outputs.push(FileHash {
+                path: path.display().to_string(),
+                blake3: blake3_file(path)?,
+            });
+        }
+        manifest
+            .params
+            .insert("mapq_threshold".to_string(), mapq_threshold.to_string());
+        manifest.params.insert(
+            "min_qual".to_string(),
+            (quality_threshold as f64).to_string(),
+        );
+        manifest
+            .params
+            .insert("max_depth".to_string(), max_depth.to_string());
+        manifest
+            .params
+            .insert("max_read_len".to_string(), max_read_len.to_string());
+        manifest
+            .params
+            .insert("enforced".to_string(), enforce.to_string());
+        manifest
+            .params
+            .insert("peak_rss_bytes".to_string(), peak_rss.to_string());
+        manifest.params.insert(
+            "max_working_set_bytes".to_string(),
+            max_ws.bytes.to_string(),
+        );
+        if let Some(mb) = memory_budget_mb {
+            manifest
+                .params
+                .insert("memory_budget_mb".to_string(), mb.to_string());
+        }
+        manifest
+            .params
+            .insert("contract_verdict".to_string(), verdict.to_string());
+        std::fs::write(&dest, manifest.to_canonical_json())
+            .with_context(|| format!("failed to write manifest {}", dest.display()))?;
+        eprintln!("wrote reproducibility receipt: {}", dest.display());
+    } else {
+        eprintln!(
+            "no receipt written (stdout output) — pass --manifest <path> or -o <vcf> to persist one"
+        );
     }
     // Memory receipt: the bounded contract, made visible + verifiable.
     eprintln!(
@@ -1108,12 +1434,25 @@ fn run_variants_index(
     );
     if let Some(mb) = memory_budget_mb {
         let budget = MemoryBudget::from_mb(mb);
-        if budget.admits(peak_rss) {
+        let within = budget.admits(peak_rss);
+        if enforce {
+            if within {
+                eprintln!(
+                    "contract: OK — realized peak {} MiB within declared {mb} MiB",
+                    peak_rss / (1 << 20)
+                );
+            } else {
+                eprintln!(
+                    "contract: VIOLATED — realized peak {} MiB exceeded declared {mb} MiB (output + receipt written)",
+                    peak_rss / (1 << 20)
+                );
+                std::process::exit(4);
+            }
+        } else if within {
             eprintln!("memory: within budget ({mb} MiB)");
         } else {
             eprintln!(
-                "memory: EXCEEDED budget {} MiB (realized peak {} MiB) — record-only, run completed",
-                mb,
+                "memory: EXCEEDED budget {mb} MiB (realized peak {} MiB) — record-only, run completed",
                 peak_rss / (1 << 20)
             );
         }

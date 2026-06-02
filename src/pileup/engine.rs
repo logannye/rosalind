@@ -5,7 +5,10 @@ use std::collections::HashMap;
 use std::ops::Range;
 use std::sync::Arc;
 
-use crate::core::{allele_index, AlignedRead, CoreError, Locus, Position, WorkingSet};
+use crate::core::{
+    allele_index, AlignedRead, CoreError, Locus, Position, WorkingSet, PILEUP_ENGINE_OVERHEAD,
+    PILEUP_MAP_BYTES_PER_BASE, PILEUP_PER_READ_OVERHEAD,
+};
 use crate::pileup::column::{Obs, PileupColumn};
 use crate::pileup::source::ReadSource;
 
@@ -22,6 +25,10 @@ pub struct PileupParams {
     pub skip_supplementary: bool,
     /// Skip PCR/optical duplicates (SAM flag 0x400).
     pub skip_duplicate: bool,
+    /// Cap on the active read set per position (deterministic downsampling).
+    /// `None` = uncapped (default). When `Some(d)`, reads arriving at a position
+    /// already covered by `d` active reads are dropped (counted `over_max_depth`).
+    pub max_depth: Option<u32>,
 }
 
 impl Default for PileupParams {
@@ -32,6 +39,7 @@ impl Default for PileupParams {
             skip_secondary: true,
             skip_supplementary: true,
             skip_duplicate: true,
+            max_depth: None,
         }
     }
 }
@@ -51,6 +59,8 @@ pub struct SkipCounts {
     pub duplicate: u64,
     /// Reads below the MAPQ threshold.
     pub low_mapq: u64,
+    /// Reads dropped because the position was already at `max_depth`.
+    pub over_max_depth: u64,
 }
 
 impl SkipCounts {
@@ -62,6 +72,7 @@ impl SkipCounts {
             + self.supplementary
             + self.duplicate
             + self.low_mapq
+            + self.over_max_depth
     }
 }
 
@@ -133,15 +144,23 @@ impl<S: ReadSource> PileupEngine<S> {
     /// Current working-set estimate: bounded by the active read set (local
     /// coverage), independent of total input size. Foundation for `rosalind plan`.
     pub fn current_working_set(&self) -> WorkingSet {
-        // Each active read costs roughly its projection map (16 B/entry) plus a
-        // small constant for handles; plus a fixed engine overhead.
+        // The decoded reference for this contig is resident in the engine.
+        let reference_bytes = self.reference.len() as u64;
+        // Each active read holds its projection map (16 B/entry) plus its seq and
+        // qual byte buffers; count all three (the map alone is a large undercount,
+        // especially for long reads).
         let active_bytes: u64 = self
             .active
             .iter()
-            .map(|r| (r.ref_to_read.len() as u64) * 16 + 64)
+            .map(|r| {
+                (r.ref_to_read.len() as u64) * PILEUP_MAP_BYTES_PER_BASE
+                    + r.seq.len() as u64
+                    + r.qual.len() as u64
+                    + PILEUP_PER_READ_OVERHEAD
+            })
             .sum();
         WorkingSet {
-            bytes: active_bytes + 256,
+            bytes: reference_bytes + active_bytes + PILEUP_ENGINE_OVERHEAD,
         }
     }
 
@@ -223,6 +242,15 @@ impl<S: ReadSource> PileupEngine<S> {
                     }
                     if read.end() <= pos {
                         continue; // does not reach the cursor
+                    }
+                    // Deterministic max-depth cap: once `max_depth` reads already
+                    // cover the cursor, drop arrivals (counted) so the active set —
+                    // and thus the working set — is bounded by the declared depth.
+                    if let Some(max) = self.params.max_depth {
+                        if self.active.len() as u32 >= max {
+                            self.skips.over_max_depth += 1;
+                            continue;
+                        }
                     }
                     self.ingest(read);
                 }
@@ -394,6 +422,7 @@ mod tests {
             supplementary: 4,
             duplicate: 5,
             low_mapq: 6,
+            over_max_depth: 0,
         };
         assert_eq!(s.total(), 21);
     }
@@ -642,5 +671,82 @@ mod tests {
         assert_eq!(at0.depth(), 1); // only the callable 'C'
         assert_eq!(at0.allele_counts(), [0, 1, 0, 0]);
         assert_eq!(at0.raw_depth, 2); // both reads cover the position
+    }
+
+    #[test]
+    fn params_default_max_depth_is_none_and_skipcounts_total_includes_over_max_depth() {
+        assert_eq!(PileupParams::default().max_depth, None);
+        let s = SkipCounts {
+            unmapped: 1,
+            wrong_contig: 2,
+            secondary: 3,
+            supplementary: 4,
+            duplicate: 5,
+            low_mapq: 6,
+            over_max_depth: 7,
+        };
+        assert_eq!(s.total(), 28);
+    }
+
+    #[test]
+    fn working_set_counts_reference_and_read_byte_buffers() {
+        // One 4-base read fully covering a 10-base reference. After advancing to
+        // pos 0 the active set holds that read; the working set must include the
+        // reference bytes (10) AND the read's seq+qual buffers (4+4), not just the
+        // projection map.
+        let reference = b"ACGTACGTAC"; // 10 bytes
+        let mut e = engine(vec![mread(0, b"ACGT", false)], reference);
+        let first = e.next().expect("a column").expect("ok"); // drives advance_to(0)
+        assert_eq!(first.locus.pos.0, 0);
+        let ws = e.current_working_set().bytes;
+        // reference (10) + map(4*16=64) + seq(4) + qual(4) + per-read(64) + fixed(256)
+        // = 10 + 64 + 4 + 4 + 64 + 256 = 402.
+        assert_eq!(ws, 402);
+    }
+
+    #[test]
+    fn max_depth_caps_active_set_deterministically() {
+        // 5 reads all covering pos 0..4; cap at 2. Only the first 2 (arrival order)
+        // are kept; the other 3 are counted over_max_depth. Capped output is
+        // identical regardless of input order (SliceSource sorts on construction).
+        let reference = b"AAAA";
+        let params = PileupParams {
+            max_depth: Some(2),
+            ..PileupParams::default()
+        };
+        let run = |reads: Vec<AlignedRead>| -> (Vec<u32>, u64) {
+            let mut e = PileupEngine::new(
+                SliceSource::new(reads),
+                Arc::from(reference.to_vec().into_boxed_slice()),
+                0,
+                0..4,
+                params.clone(),
+            );
+            let mut depths = Vec::new();
+            while let Some(c) = e.next() {
+                depths.push(c.unwrap().raw_depth);
+            }
+            (depths, e.skip_counts().over_max_depth)
+        };
+        let reads_a = vec![
+            mread(0, b"CCCC", false),
+            mread(0, b"CCCC", false),
+            mread(0, b"CCCC", false),
+            mread(0, b"CCCC", false),
+            mread(0, b"CCCC", false),
+        ];
+        let mut reads_b = reads_a.clone();
+        reads_b.reverse();
+        let (depths_a, over_a) = run(reads_a);
+        let (depths_b, over_b) = run(reads_b);
+        // Capped: every position sees at most 2 reads.
+        assert!(
+            depths_a.iter().all(|&d| d <= 2),
+            "raw depth must be capped at 2"
+        );
+        assert_eq!(over_a, 3, "3 of 5 reads dropped over max_depth");
+        // Deterministic regardless of input order.
+        assert_eq!(depths_a, depths_b);
+        assert_eq!(over_a, over_b);
     }
 }

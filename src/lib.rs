@@ -1,29 +1,47 @@
-//! # O(√t) Space Simulation via Height Compression
+//! # Rosalind — a deterministic, low-memory genomics engine
 //!
-//! This library implements the breakthrough algorithm for simulating
-//! time-t Turing machine computations in O(√t) space.
+//! Call variants across a whole genome on a laptop, with memory you can **predict
+//! and verify**, and results that are **byte-for-byte reproducible**. Rosalind
+//! treats memory as a *contract*: you declare a RAM budget, `rosalind plan` tells
+//! you up front whether the job fits, the run honors it (fits-or-refuses cleanly —
+//! never a silent OOM-kill), and `rosalind verify` re-checks a BLAKE3 receipt
+//! proving the realized peak landed inside your budget.
 //!
-//! ## Core Algorithm
+//! The kernel is a streaming, CIGAR-aware **pileup column stream** bounded by local
+//! coverage, not input size — a substrate you can compute arbitrary per-locus
+//! analytics on. Variant calling is the first consumer, not the whole product.
 //!
-//! 1. **Block-respecting simulation**: Partition computation into T = ⌈t/b⌉ blocks
-//! 2. **Height compression**: Transform tree from height Θ(T) → O(log T)
-//! 3. **Pointerless evaluation**: O(1) bits per level instead of O(log b)
-//! 4. **Streaming ledger**: Track T merges with constant tokens
-//!
-//! Result: Space = O(b + T + log T) = O(b + t/b), optimal at b = √t. A rolling
-//! boundary is maintained (only the latest block summary), so cached leaf data
-//! never accumulates and total memory stays within O(√t).
-//!
-//! ## Usage Example
-//!
-//! ```text
-//! use rosalind::{TuringMachine, Simulator, SimulationConfig};
-//!
-//! let config = SimulationConfig::optimal_for_time(10_000);
-//! let mut sim = Simulator::new(machine, config);
-//! let result = sim.run(&input)?;
-//! assert!(result.space_used <= O(√10_000));
 //! ```
+//! use std::sync::Arc;
+//! use rosalind::{PileupEngine, PileupParams, SliceSource};
+//! use rosalind::core::{AlignedRead, CigarOp, CigarOpKind, Position, SamFlags};
+//!
+//! // One 4bp read "ACGT" aligned at chr0:0 over the reference "ACGT".
+//! let read = AlignedRead {
+//!     contig: 0,
+//!     pos: Position(0),
+//!     mapq: 60,
+//!     flags: SamFlags(0),
+//!     cigar: vec![CigarOp::new(CigarOpKind::Match, 4)],
+//!     seq: Arc::from(b"ACGT".to_vec().into_boxed_slice()),
+//!     qual: Arc::from(vec![40u8; 4].into_boxed_slice()),
+//! };
+//! let reference: Arc<[u8]> = Arc::from(b"ACGT".to_vec().into_boxed_slice());
+//!
+//! // The bounded pileup substrate: one PileupColumn per covered position.
+//! let mut engine =
+//!     PileupEngine::new(SliceSource::new(vec![read]), reference, 0, 0..4, PileupParams::default());
+//! let first = engine.next().unwrap().unwrap();
+//! assert_eq!(first.depth(), 1);
+//! ```
+//!
+//! ## Research direction (Phase D)
+//!
+//! Rosalind is also a research vehicle for **space-bounded genomics**: a `~√t`
+//! (square-root-space) evaluation framework (Williams 2025; Cook–Mertz 2024) as a
+//! continuous space/time knob, aimed at **sublinear-space index construction**.
+//! That layer is future work — not yet load-bearing — tracked in
+//! `docs/OPEN_PROBLEMS.md`.
 
 #![warn(missing_docs, missing_debug_implementations)]
 #![allow(clippy::new_without_default)]
@@ -53,7 +71,22 @@ pub mod space; // Space accounting utilities
 pub mod tree; // Height-compressed evaluation tree
 pub mod util; // Helper functions
 
-// Re-exports for convenience
+// ── Genomics product surface — what builders compose on ───────────────────────
+// The bounded streaming substrate:
+pub use io::bam::StreamingBamSource;
+pub use pileup::{Obs, PileupColumn, PileupEngine, PileupParams, ReadSource, SliceSource};
+// The bounded whole-genome germline drive + calls:
+pub use call::{
+    call_germline_region_streaming, call_germline_whole_genome, GermlineCall, GermlineParams,
+};
+// The memory contract (declare → plan → honor → verify):
+pub use call::{estimate_variants_working_set, predicted_peak_rss_bytes};
+pub use core::{MemoryBudget, WorkingSet};
+// Build-once → mmap index + the reproducibility receipt:
+pub use genomics::{GenomeIndex, IndexReader, ReferenceView};
+pub use provenance::RunManifest;
+
+// ── Research layer (√t space-bounded simulation; Phase D — see OPEN_PROBLEMS) ──
 pub use algebra::{AlgebraicEngine, FiniteField};
 pub use blocking::{BlockSummary, MovementLog};
 pub use ledger::StreamingLedger;

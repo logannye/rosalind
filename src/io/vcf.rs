@@ -45,13 +45,12 @@ fn write_fileformat_and_contigs<W: Write>(out: &mut W, contigs: &ContigSet) -> i
     Ok(())
 }
 
-/// Write a spec-valid germline (single-sample) VCFv4.2 to `out`. Records are
-/// emitted in canonical (contig, pos, ref, alt) order regardless of input order.
-pub fn write_germline_vcf<W: Write>(
+/// Write the germline VCFv4.2 header (everything up to and including the
+/// `#CHROM` line). Pair with [`write_germline_row`] to stream records.
+pub fn write_germline_header<W: Write>(
     out: &mut W,
     contigs: &ContigSet,
     sample: &str,
-    rows: &[GermlineRow],
 ) -> io::Result<()> {
     write_fileformat_and_contigs(out, contigs)?;
     writeln!(
@@ -93,8 +92,51 @@ pub fn write_germline_vcf<W: Write>(
     writeln!(
         out,
         "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\t{sample}"
-    )?;
+    )
+}
 
+/// Write one germline record line. The caller supplies rows in canonical
+/// (contig, pos, ref, alt) order — this does not sort (use [`write_germline_vcf`]
+/// for an unordered batch).
+pub fn write_germline_row<W: Write>(
+    out: &mut W,
+    contigs: &ContigSet,
+    r: &GermlineRow,
+) -> io::Result<()> {
+    let chrom = contigs
+        .by_id(r.locus.contig)
+        .map(|c| c.name.as_ref())
+        .unwrap_or(".");
+    let pos = r.locus.pos.0 as u64 + 1;
+    let total = (r.call.ad[0] + r.call.ad[1]).max(1);
+    let af = r.call.ad[1] as f64 / total as f64;
+    writeln!(
+        out,
+        "{chrom}\t{pos}\t.\t{ref_b}\t{alt}\t{qual:.1}\t{filt}\tDP={dp};AF={af:.3}\tGT:GQ:DP:AD:PL\t{gt}:{gq}:{dp}:{ad0},{ad1}:{pl0},{pl1},{pl2}",
+        ref_b = r.ref_base as char,
+        alt = r.call.alt_base as char,
+        qual = r.call.qual,
+        filt = filter_str(r.call.filter),
+        dp = r.call.dp,
+        gt = genotype_str(r.call.genotype),
+        gq = r.call.gq,
+        ad0 = r.call.ad[0],
+        ad1 = r.call.ad[1],
+        pl0 = r.call.pl[0],
+        pl1 = r.call.pl[1],
+        pl2 = r.call.pl[2],
+    )
+}
+
+/// Write a spec-valid germline (single-sample) VCFv4.2 to `out`. Records are
+/// emitted in canonical (contig, pos, ref, alt) order regardless of input order.
+pub fn write_germline_vcf<W: Write>(
+    out: &mut W,
+    contigs: &ContigSet,
+    sample: &str,
+    rows: &[GermlineRow],
+) -> io::Result<()> {
+    write_germline_header(out, contigs, sample)?;
     let mut ordered: Vec<&GermlineRow> = rows.iter().collect();
     ordered.sort_by(|a, b| {
         a.locus
@@ -102,31 +144,8 @@ pub fn write_germline_vcf<W: Write>(
             .then_with(|| a.ref_base.cmp(&b.ref_base))
             .then_with(|| a.call.alt_base.cmp(&b.call.alt_base))
     });
-
     for r in ordered {
-        let chrom = contigs
-            .by_id(r.locus.contig)
-            .map(|c| c.name.as_ref())
-            .unwrap_or(".");
-        let pos = r.locus.pos.0 as u64 + 1;
-        let total = (r.call.ad[0] + r.call.ad[1]).max(1);
-        let af = r.call.ad[1] as f64 / total as f64;
-        writeln!(
-            out,
-            "{chrom}\t{pos}\t.\t{ref_b}\t{alt}\t{qual:.1}\t{filt}\tDP={dp};AF={af:.3}\tGT:GQ:DP:AD:PL\t{gt}:{gq}:{dp}:{ad0},{ad1}:{pl0},{pl1},{pl2}",
-            ref_b = r.ref_base as char,
-            alt = r.call.alt_base as char,
-            qual = r.call.qual,
-            filt = filter_str(r.call.filter),
-            dp = r.call.dp,
-            gt = genotype_str(r.call.genotype),
-            gq = r.call.gq,
-            ad0 = r.call.ad[0],
-            ad1 = r.call.ad[1],
-            pl0 = r.call.pl[0],
-            pl1 = r.call.pl[1],
-            pl2 = r.call.pl[2],
-        )?;
+        write_germline_row(out, contigs, r)?;
     }
     out.flush()
 }
@@ -352,6 +371,27 @@ mod tests {
         assert_eq!(
             last,
             "chr1\t201\t.\tA\tT\t55.0\tPASS\tSOMATIC\tGT:DP:AD:AF\t0/1:40:28,12:0.300\t0/0:38:38,0:0.000"
+        );
+    }
+
+    #[test]
+    fn header_then_streamed_rows_equals_batch_write() {
+        let r1 = row(0, 100, b'A', het_call());
+        let r2 = row(0, 50, b'A', het_call());
+        let r3 = row(1, 10, b'A', het_call());
+        // Batch writer (sorts internally).
+        let batch =
+            render_germline_vcf(&contigs(), "S", &[r1.clone(), r2.clone(), r3.clone()]).unwrap();
+        // Streaming: header once, then rows in already-sorted (contig,pos) order.
+        let mut buf = Vec::new();
+        write_germline_header(&mut buf, &contigs(), "S").unwrap();
+        for r in [&r2, &r1, &r3] {
+            write_germline_row(&mut buf, &contigs(), r).unwrap();
+        }
+        let streamed = String::from_utf8(buf).unwrap();
+        assert_eq!(
+            streamed, batch,
+            "streamed header+rows must equal the batch write byte-for-byte"
         );
     }
 }

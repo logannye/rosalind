@@ -11,19 +11,22 @@ use crate::call::{
 use crate::core::{CoreError, Locus, WorkingSet};
 use crate::pileup::{PileupColumn, PileupEngine, PileupParams, ReadSource};
 
-/// Like [`call_germline_region`], but also returns the maximum pileup-engine
-/// working set observed during the pass (the bounded-memory signal — the
-/// foundation for the `variants` memory receipt and `rosalind plan`).
-pub fn call_germline_region_tracked<S: ReadSource>(
+/// Stream germline calls over `region` of `contig` to a sink, returning the
+/// maximum pileup-engine working set observed (the bounded-memory signal behind
+/// the `variants` receipt and `rosalind plan`). The sink receives each emitted
+/// site as `(locus, ref_base, call)` in ascending position order; no
+/// genome-wide buffer accumulates. Hom-ref / no-evidence positions are abstained
+/// on (the sink is not called for them).
+pub fn call_germline_region_streaming<S: ReadSource>(
     source: S,
     reference: Arc<[u8]>,
     contig: u32,
     region: Range<u32>,
     pileup_params: PileupParams,
     germline_params: &GermlineParams,
-) -> Result<(Vec<(Locus, u8, GermlineCall)>, WorkingSet), CoreError> {
+    on_row: &mut dyn FnMut((Locus, u8, GermlineCall)) -> Result<(), CoreError>,
+) -> Result<WorkingSet, CoreError> {
     let mut engine = PileupEngine::new(source, reference, contig, region, pileup_params);
-    let mut out = Vec::new();
     let mut max_ws = WorkingSet { bytes: 0 };
     while let Some(column) = engine.next() {
         let column = column?;
@@ -32,10 +35,37 @@ pub fn call_germline_region_tracked<S: ReadSource>(
             max_ws = ws;
         }
         if let Some(call) = call_germline(&column, germline_params) {
-            out.push((column.locus, column.ref_base, call));
+            on_row((column.locus, column.ref_base, call))?;
         }
     }
-    Ok((out, max_ws))
+    Ok(max_ws)
+}
+
+/// Like [`call_germline_region`], but also returns the maximum pileup-engine
+/// working set observed during the pass. Collects sites into a `Vec` via
+/// [`call_germline_region_streaming`].
+pub fn call_germline_region_tracked<S: ReadSource>(
+    source: S,
+    reference: Arc<[u8]>,
+    contig: u32,
+    region: Range<u32>,
+    pileup_params: PileupParams,
+    germline_params: &GermlineParams,
+) -> Result<(Vec<(Locus, u8, GermlineCall)>, WorkingSet), CoreError> {
+    let mut out = Vec::new();
+    let ws = call_germline_region_streaming(
+        source,
+        reference,
+        contig,
+        region,
+        pileup_params,
+        germline_params,
+        &mut |row| {
+            out.push(row);
+            Ok(())
+        },
+    )?;
+    Ok((out, ws))
 }
 
 /// Call germline variants across `region` of `contig`. Returns one entry per
@@ -212,5 +242,43 @@ mod tests {
         assert_eq!(call.ref_base, b'A');
         assert_eq!(call.alt_base, b'C');
         assert_eq!(call.normal_alt, 0);
+    }
+
+    #[test]
+    fn streaming_emits_same_sites_as_tracked_and_returns_working_set() {
+        let reference: Arc<[u8]> = Arc::from(b"AAAA".to_vec().into_boxed_slice());
+        let reads = vec![
+            read(0, b"ACAA", false),
+            read(0, b"ACAA", false),
+            read(0, b"AAAA", false),
+            read(0, b"ACAA", false),
+        ];
+        // Reference path: the tracked collector.
+        let (collected, _ws) = call_germline_region_tracked(
+            SliceSource::new(reads.clone()),
+            Arc::clone(&reference),
+            0,
+            0..4,
+            PileupParams::default(),
+            &GermlineParams::default(),
+        )
+        .unwrap();
+        // Streaming path: push into a Vec via the sink, capture the working set.
+        let mut streamed = Vec::new();
+        let ws = call_germline_region_streaming(
+            SliceSource::new(reads),
+            reference,
+            0,
+            0..4,
+            PileupParams::default(),
+            &GermlineParams::default(),
+            &mut |row| {
+                streamed.push(row);
+                Ok(())
+            },
+        )
+        .unwrap();
+        assert_eq!(streamed, collected, "streaming sites == tracked sites");
+        assert!(ws.bytes > 0, "working set tracked and non-zero");
     }
 }
