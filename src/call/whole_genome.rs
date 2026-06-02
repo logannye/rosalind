@@ -7,7 +7,7 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use crate::call::{call_germline_region_streaming, GermlineCall, GermlineParams};
-use crate::core::{AlignedRead, ContigSet, CoreError, Locus, WorkingSet};
+use crate::core::{governor, AlignedRead, ContigSet, CoreError, Locus, WorkingSet};
 use crate::genomics::ReferenceView;
 use crate::pileup::{PileupParams, ReadSource, SkipCounts};
 
@@ -59,6 +59,9 @@ pub fn call_germline_whole_genome<S: ReadSource>(
     let mut peeked: Option<AlignedRead> = None;
 
     for c in contigs.iter() {
+        // Cooperative budget check (no-op unless an --enforce governor is armed):
+        // catch a breach before decoding the next contig's reference.
+        governor::checkpoint()?;
         // Decode this contig's reference straight into the Arc — no intermediate
         // Vec, so peak resident reference memory is ONE copy, not the transient
         // two that `Arc::from(decoded)` (a reallocation) would briefly hold. Peak

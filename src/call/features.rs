@@ -10,7 +10,7 @@ use std::ops::Range;
 use std::sync::Arc;
 
 use crate::call::whole_genome::PerContig;
-use crate::core::{AlignedRead, ContigSet, CoreError, WorkingSet};
+use crate::core::{governor, AlignedRead, ContigSet, CoreError, WorkingSet};
 use crate::genomics::ReferenceView;
 use crate::pileup::{PileupColumn, PileupEngine, PileupParams, ReadSource, SkipCounts};
 
@@ -83,6 +83,7 @@ pub fn stream_features_region<S: ReadSource>(
     let mut max_ws = WorkingSet { bytes: 0 };
     while let Some(column) = engine.next() {
         let column = column?;
+        governor::checkpoint()?;
         let ws = engine.current_working_set();
         if ws.bytes > max_ws.bytes {
             max_ws = ws;
@@ -109,6 +110,9 @@ pub fn stream_features_whole_genome<S: ReadSource>(
     let mut peeked: Option<AlignedRead> = None;
 
     for c in contigs.iter() {
+        // Cooperative budget check (no-op unless an --enforce governor is armed):
+        // catch a breach before decoding the next contig's reference.
+        governor::checkpoint()?;
         // Decode straight into the Arc (no intermediate Vec) — one resident copy,
         // not the transient two, so the predicted-peak bound holds (same as the
         // germline whole-genome driver).

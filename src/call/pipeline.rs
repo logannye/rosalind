@@ -8,7 +8,7 @@ use std::sync::Arc;
 use crate::call::{
     call_germline, call_somatic, GermlineCall, GermlineParams, SomaticCall, SomaticParams,
 };
-use crate::core::{CoreError, Locus, WorkingSet};
+use crate::core::{governor, CoreError, Locus, WorkingSet};
 use crate::pileup::{PileupColumn, PileupEngine, PileupParams, ReadSource, SkipCounts};
 
 /// Stream germline calls over `region` of `contig` to a sink, returning the
@@ -30,6 +30,7 @@ pub fn call_germline_region_streaming<S: ReadSource>(
     let mut max_ws = WorkingSet { bytes: 0 };
     while let Some(column) = engine.next() {
         let column = column?;
+        governor::checkpoint()?;
         let ws = engine.current_working_set();
         if ws.bytes > max_ws.bytes {
             max_ws = ws;
