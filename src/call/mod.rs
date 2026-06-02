@@ -4,6 +4,7 @@
 
 pub mod germline;
 pub mod pipeline;
+pub mod plan;
 pub mod somatic;
 pub mod types;
 pub mod whole_genome;
@@ -13,6 +14,7 @@ pub use pipeline::{
     call_germline_region, call_germline_region_streaming, call_germline_region_tracked,
     call_somatic_region,
 };
+pub use plan::{estimate_variants_working_set, predicted_peak_rss_bytes, render_variants_plan};
 pub use somatic::call_somatic;
 pub use types::{Filter, Genotype, GermlineCall, GermlineParams, SomaticCall, SomaticParams};
 pub use whole_genome::call_germline_whole_genome;
