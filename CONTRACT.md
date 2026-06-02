@@ -14,7 +14,7 @@ the Phase-D research direction, not a present claim.)
 
 ## The four verbs
 
-The contract applies to the bounded whole-genome germline path, `rosalind variants --index`.
+The contract applies to the bounded whole-genome paths — `rosalind variants --index` (germline calling) and `rosalind features --index` (per-locus feature egress), which share the same streaming engine and therefore the same `plan`/`--enforce`/`verify` envelope.
 
 ### 1. Declare
 
@@ -48,8 +48,10 @@ With `--enforce`:
 - otherwise the run completes within budget.
 
 Without `--enforce`, the budget is **record-only**: the run always completes and the verdict is recorded in
-the receipt. The active read set is capped at `--max-depth` (default 1000; `0` = uncapped) — deterministic
-downsampling that bounds the working set; output changes only at sites deeper than the cap.
+the receipt. The active read set is capped at `--max-depth` (default 1000; `0` = uncapped) by an
+**unbiased** content-hash reservoir — it bounds the working set without biasing allele balance, so a deep
+variant is *not* silently dropped. Output changes only at sites deeper than the cap, and the dropped-read
+count is surfaced (stderr + the receipt's `over_max_depth`).
 
 ### 4. Verify — `rosalind verify`
 
@@ -66,8 +68,9 @@ auditability story containers can't give you for a non-deterministic caller.
 
 ## What's bounded (honest scope)
 
-- **Germline `variants --index`** is the bounded path: peak ≈ the largest contig's reference + the
-  depth-capped active set, **independent of BAM size**. Reads stream one record at a time.
+- **Germline `variants --index`** and **`features --index`** are the bounded paths: peak ≈ the largest
+  contig's reference + the depth-capped active set, **independent of BAM size**. Reads stream one record at
+  a time; output rows (VCF calls or feature rows) stream straight to disk with no genome-wide buffer.
 - **Somatic** (`somatic`) is **region-bounded**, not whole-genome-bounded (it collects both pileup streams
   for the region).
 - **Index *build*** (`rosalind index`) is **O(reference)** in RAM today; `plan --reference` reports an
