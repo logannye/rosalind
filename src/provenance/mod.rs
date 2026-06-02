@@ -136,7 +136,10 @@ impl Parser<'_> {
                     return String::from_utf8(buf).map_err(|_| self.err("invalid utf-8"));
                 }
                 b'\\' => {
-                    let e = *self.b.get(self.i).ok_or_else(|| self.err("trailing escape"))?;
+                    let e = *self
+                        .b
+                        .get(self.i)
+                        .ok_or_else(|| self.err("trailing escape"))?;
                     self.i += 1;
                     match e {
                         b'"' => buf.push(b'"'),
@@ -154,8 +157,7 @@ impl Parser<'_> {
                                 16,
                             )
                             .map_err(|_| self.err("bad \\u"))?;
-                            let ch =
-                                char::from_u32(cp).ok_or_else(|| self.err("bad codepoint"))?;
+                            let ch = char::from_u32(cp).ok_or_else(|| self.err("bad codepoint"))?;
                             let mut tmp = [0u8; 4];
                             buf.extend_from_slice(ch.encode_utf8(&mut tmp).as_bytes());
                             self.i += 4;

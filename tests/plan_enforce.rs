@@ -3,19 +3,29 @@
 
 use std::path::PathBuf;
 use std::process::Command;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 fn bin() -> &'static str {
     env!("CARGO_BIN_EXE_rosalind")
 }
 
-// Build a tiny 2-contig index in a fresh temp dir; return (dir, index_path).
-fn build_index() -> (PathBuf, PathBuf) {
+// A fresh, collision-free temp dir (atomic counter + nanos — concurrent tests
+// must not share a directory).
+fn unique_dir(prefix: &str) -> PathBuf {
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_nanos();
-    let dir = std::env::temp_dir().join(format!("rosalind-plan-{nanos}"));
-    std::fs::create_dir_all(&dir).unwrap();
+    let d = std::env::temp_dir().join(format!("{prefix}-{nanos}-{n}"));
+    std::fs::create_dir_all(&d).unwrap();
+    d
+}
+
+// Build a tiny 2-contig index in a fresh temp dir; return (dir, index_path).
+fn build_index() -> (PathBuf, PathBuf) {
+    let dir = unique_dir("rosalind-plan");
     let fa = dir.join("ref.fa");
     std::fs::write(
         &fa,
@@ -87,12 +97,7 @@ fn run(args: &[&str]) -> std::process::Output {
 // `index` -> `align --format bam` -> `sort`, mirroring tests/variants_index.rs.
 // Returns (dir, index_path, sorted_bam_path). Single-contig (aligner is single-contig).
 fn build_sorted_bam_fixture() -> (PathBuf, PathBuf, PathBuf) {
-    let nanos = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let dir = std::env::temp_dir().join(format!("rosalind-enforce-{nanos}"));
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = unique_dir("rosalind-enforce");
     let seq = "ACGTACGTACGTACGTACGTACGTACGTACGT"; // 32 bp
     let fa = dir.join("ref.fa");
     std::fs::write(&fa, format!(">chr1\n{seq}\n")).unwrap();
@@ -170,12 +175,16 @@ fn enforce_refuses_up_front_when_budget_below_predicted() {
 #[test]
 fn enforce_passes_within_a_generous_budget() {
     let (dir, idx, bam) = build_sorted_bam_fixture();
+    // --manifest into the temp dir (stdout run would otherwise drop the cwd-default
+    // sidecar into the repo root).
+    let manifest = dir.join("run.manifest.json");
     let out = Command::new(bin())
         .args(["variants", "--index"])
         .arg(&idx)
         .arg("--alignments")
         .arg(&bam)
-        .args(["--memory-budget-mb", "4096", "--enforce"])
+        .args(["--memory-budget-mb", "4096", "--enforce", "--manifest"])
+        .arg(&manifest)
         .output()
         .unwrap();
     assert!(out.status.success(), "generous budget should pass: {out:?}");

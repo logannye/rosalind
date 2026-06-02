@@ -586,7 +586,10 @@ fn run_verify(manifest_path: PathBuf, budget_mb: Option<u64>) -> Result<()> {
         (Some(mb), Some(peak)) => {
             let budget = rosalind::core::MemoryBudget::from_mb(mb);
             if budget.admits(peak) {
-                println!("verify: peak {} MiB within budget {mb} MiB", peak / (1 << 20));
+                println!(
+                    "verify: peak {} MiB within budget {mb} MiB",
+                    peak / (1 << 20)
+                );
             } else {
                 problems.push(format!(
                     "recorded peak {} MiB exceeded budget {mb} MiB",
