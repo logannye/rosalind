@@ -268,6 +268,103 @@ fn verify_passes_on_an_untampered_run_and_fails_on_a_tampered_output() {
 }
 
 #[test]
+fn enforce_breach_exits_4_after_writing_output_and_receipt() {
+    // Budget 4096 MiB passes the pre-run exit-3 gate (tiny fixture), but a forced
+    // realized peak of 8 GiB trips the post-run breach -> exit 4, with the VCF +
+    // receipt still written (the documented "output + receipt written" semantics).
+    let (dir, idx, bam) = build_sorted_bam_fixture();
+    let vcf = dir.join("calls.vcf");
+    let manifest = dir.join("calls.vcf.manifest.json");
+    let out = Command::new(bin())
+        .args(["variants", "--index"])
+        .arg(&idx)
+        .arg("--alignments")
+        .arg(&bam)
+        .args(["--memory-budget-mb", "4096", "--enforce", "-o"])
+        .arg(&vcf)
+        .env("ROSALIND_FORCE_PEAK_RSS_BYTES", "8589934592") // 8 GiB
+        .output()
+        .unwrap();
+    assert_eq!(
+        out.status.code(),
+        Some(4),
+        "expected breach exit 4: {out:?}"
+    );
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("VIOLATED"),
+        "missing VIOLATED line: {stderr}"
+    );
+    // Output + receipt were still written before the breach exit.
+    assert!(vcf.exists(), "VCF must be written before exit 4");
+    let json = std::fs::read_to_string(&manifest).expect("receipt written");
+    assert!(
+        json.contains("\"contract_verdict\":\"over\""),
+        "verdict should be over: {json}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn enforce_aborts_on_a_read_longer_than_declared_max_read_len() {
+    // Standard fixture has 16 bp reads. Declare --max-read-len 8 under --enforce
+    // with a generous budget: the pre-run estimate (using 8) fits, so the run
+    // proceeds to ingest and hits the over-long-read abort.
+    let (dir, idx, bam) = build_sorted_bam_fixture();
+    let out = Command::new(bin())
+        .args(["variants", "--index"])
+        .arg(&idx)
+        .arg("--alignments")
+        .arg(&bam)
+        .args([
+            "--memory-budget-mb",
+            "4096",
+            "--max-read-len",
+            "8",
+            "--max-depth",
+            "1000",
+            "--enforce",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "over-long read must abort: {out:?}");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("exceeds declared --max-read-len"),
+        "missing clear message: {stderr}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn receipt_records_skip_counts() {
+    // The standard fixture (5 reads, well below the default max-depth 1000) drops
+    // nothing → over_max_depth 0. A tight --max-depth 1 forces drops → > 0.
+    let (dir, idx, bam) = build_sorted_bam_fixture();
+    let manifest = dir.join("run.manifest.json");
+    let out = Command::new(bin())
+        .args(["variants", "--index"])
+        .arg(&idx)
+        .arg("--alignments")
+        .arg(&bam)
+        .args(["--max-depth", "1", "--manifest"])
+        .arg(&manifest)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "run failed: {out:?}");
+    let json = std::fs::read_to_string(&manifest).unwrap();
+    assert!(
+        json.contains("\"over_max_depth\":") && json.contains("\"reads_skipped_total\":"),
+        "manifest missing skip fields: {json}"
+    );
+    // At pos 0 the fixture stacks >1 read; --max-depth 1 must drop at least one.
+    let m = rosalind::provenance::RunManifest::from_canonical_json(&json).unwrap();
+    let over: u64 = m.params.get("over_max_depth").unwrap().parse().unwrap();
+    assert!(over > 0, "tight cap should drop reads, got {over}");
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn estimator_upper_bounds_the_realized_working_set() {
     // Run the real pipeline, read max_working_set_bytes from the receipt, and
     // assert the pure estimator (same shared constants) is a true upper bound for

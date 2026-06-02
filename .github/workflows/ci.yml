@@ -126,3 +126,37 @@ jobs:
           test -s examples/data/illumina_toy/alignments.bam
           grep -q '^#CHROM' examples/data/illumina_toy/variants.vcf
           grep -q -v '^#' examples/data/illumina_toy/variants.vcf || echo \"warning: no variant lines emitted\"
+      - name: Build index for the bounded contract path
+        run: |
+          cargo run --release -- index \
+            --reference examples/data/illumina_toy/reference.fa \
+            --output examples/data/illumina_toy/reference.idx
+      - name: Sort the BAM for the contract path
+        run: |
+          cargo run --release -- sort \
+            --input examples/data/illumina_toy/alignments.bam \
+            --output examples/data/illumina_toy/sorted.bam
+      - name: Contract gate — fits / verify / refuse (bounded --index path)
+        run: |
+          set -e
+          # (1) Generous budget fits -> exit 0 + "contract: OK".
+          cargo run --release -- variants --index examples/data/illumina_toy/reference.idx \
+            --alignments examples/data/illumina_toy/sorted.bam \
+            --memory-budget-mb 4096 --enforce \
+            -o examples/data/illumina_toy/contract.vcf 2> ok.log
+          grep -q "contract: OK" ok.log
+          # (2) Verify the receipt without re-running -> exit 0.
+          cargo run --release -- verify \
+            --manifest examples/data/illumina_toy/contract.vcf.manifest.json | grep -q "verify: OK"
+          # (3) 1 MiB budget refuses up front -> exit 3, and writes no VCF.
+          rm -f examples/data/illumina_toy/refused.vcf
+          set +e
+          cargo run --release -- variants --index examples/data/illumina_toy/reference.idx \
+            --alignments examples/data/illumina_toy/sorted.bam \
+            --memory-budget-mb 1 --enforce \
+            -o examples/data/illumina_toy/refused.vcf 2> refuse.log
+          code=$?
+          set -e
+          test "$code" -eq 3
+          grep -q "REFUSE" refuse.log
+          test ! -f examples/data/illumina_toy/refused.vcf

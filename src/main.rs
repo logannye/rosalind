@@ -93,15 +93,16 @@ enum Commands {
         /// Minimum quality threshold for reporting variants.
         #[arg(long, default_value_t = 10.0)]
         quality_threshold: f32,
-        /// Declared memory budget (MiB) for the run — records a plan/peak line; does
-        /// not enforce (enforcement is a later phase). (`--index` path.)
+        /// Declared memory budget (MiB) for the run — records a plan/peak line.
+        /// With `--enforce` it is honored (exit 3 refuse / exit 4 breach). (`--index` path.)
         #[arg(long)]
         memory_budget_mb: Option<u64>,
-        /// Cap the active read set per position (deterministic downsampling); the
-        /// bound `plan`/`--enforce` rely on. `0` = uncapped.
+        /// Cap the active read set per position (unbiased min-hash downsampling);
+        /// the bound `plan`/`--enforce` rely on. `0` = uncapped.
         #[arg(long, default_value_t = 1000)]
         max_depth: u32,
-        /// Max read length assumed by the pre-run `--enforce` estimate.
+        /// Max read length assumed by the pre-run `--enforce` estimate AND enforced
+        /// at ingest under `--enforce` (a longer read aborts the run).
         #[arg(long, default_value_t = 250)]
         max_read_len: u32,
         /// Honor the budget: refuse up front if predicted peak exceeds it (exit 3),
@@ -1225,6 +1226,9 @@ fn run_variants_index(
         } else {
             Some(max_depth)
         },
+        // Under `--enforce` the predicted envelope assumes reads <= max_read_len;
+        // check it at ingest so a longer read aborts loudly instead of voiding it.
+        max_read_len: if enforce { Some(max_read_len) } else { None },
         ..PileupParams::default()
     };
     let germline_params = GermlineParams {
@@ -1291,13 +1295,13 @@ fn run_variants_index(
     // Stream calls straight to the VCF writer (header once, then one row per
     // emitted call) so no genome-wide row buffer accumulates. The returned
     // WorkingSet is the high-water (reference + active set), captured per contig.
-    let max_ws = match &output {
+    let (max_ws, skips) = match &output {
         Some(path) => {
             let file = File::create(path)
                 .with_context(|| format!("failed to create VCF file {}", path.display()))?;
             let mut writer = io::BufWriter::new(file);
             write_germline_header(&mut writer, contigs, "SAMPLE")?;
-            let ws = call_germline_whole_genome(
+            let (ws, sk) = call_germline_whole_genome(
                 source,
                 &ref_view,
                 contigs,
@@ -1318,13 +1322,13 @@ fn run_variants_index(
             )
             .map_err(|e| anyhow!("variant calling failed: {e}"))?;
             writer.flush()?;
-            ws
+            (ws, sk)
         }
         None => {
             let stdout = io::stdout();
             let mut handle = stdout.lock();
             write_germline_header(&mut handle, contigs, "SAMPLE")?;
-            let ws = call_germline_whole_genome(
+            let (ws, sk) = call_germline_whole_genome(
                 source,
                 &ref_view,
                 contigs,
@@ -1345,11 +1349,17 @@ fn run_variants_index(
             )
             .map_err(|e| anyhow!("variant calling failed: {e}"))?;
             handle.flush()?;
-            ws
+            (ws, sk)
         }
     };
     // Realized peak (monotonic high-water mark) captured after the calling pass.
-    let peak_rss = peak_rss_bytes();
+    // Test-only seam: ROSALIND_FORCE_PEAK_RSS_BYTES overrides ONLY this post-run
+    // realized peak (never the pre-run baseline at the --enforce gate), so the
+    // exit-4 breach branch can be exercised deterministically without allocating.
+    let peak_rss = std::env::var("ROSALIND_FORCE_PEAK_RSS_BYTES")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or_else(peak_rss_bytes);
 
     // Compute the contract verdict before writing the receipt (so it records it).
     let verdict = match memory_budget_mb.map(|mb| MemoryBudget::from_mb(mb).admits(peak_rss)) {
@@ -1410,6 +1420,13 @@ fn run_variants_index(
             "max_working_set_bytes".to_string(),
             max_ws.bytes.to_string(),
         );
+        manifest.params.insert(
+            "over_max_depth".to_string(),
+            skips.over_max_depth.to_string(),
+        );
+        manifest
+            .params
+            .insert("reads_skipped_total".to_string(), skips.total().to_string());
         if let Some(mb) = memory_budget_mb {
             manifest
                 .params
@@ -1432,6 +1449,22 @@ fn run_variants_index(
         peak_rss / (1 << 20),
         max_ws.bytes / 1024
     );
+    // Surface depth-cap downsampling: the cap engaging changes calls at deep
+    // sites (an unbiased bounded sample), so it must never be silent.
+    if skips.over_max_depth > 0 {
+        eprintln!(
+            "pileup: dropped {} reads at --max-depth {} (deep-site downsampling — \
+             calls at those sites use a bounded unbiased sample)",
+            skips.over_max_depth, max_depth
+        );
+    }
+    let other_skipped = skips.total() - skips.over_max_depth;
+    if other_skipped > 0 {
+        eprintln!(
+            "pileup: skipped {other_skipped} reads by filter \
+             (unmapped/wrong-contig/secondary/supplementary/duplicate/low-mapq)"
+        );
+    }
     if let Some(mb) = memory_budget_mb {
         let budget = MemoryBudget::from_mb(mb);
         let within = budget.admits(peak_rss);

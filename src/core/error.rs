@@ -21,6 +21,15 @@ pub enum CoreError {
     /// A contig id was not present in the active `ContigSet`.
     #[error("invalid contig id {0}")]
     InvalidContig(u32),
+    /// A read longer than the declared `--max-read-len` voids the predicted
+    /// memory envelope (raised only under `--enforce`).
+    #[error("read length {len} exceeds declared --max-read-len {declared}; raise --max-read-len or drop --enforce")]
+    ReadExceedsDeclaredLength {
+        /// The offending read's sequence length.
+        len: u32,
+        /// The declared cap.
+        declared: u32,
+    },
     /// An underlying I/O failure.
     #[error("io error: {0}")]
     Io(#[from] std::io::Error),

@@ -9,7 +9,7 @@ use crate::call::{
     call_germline, call_somatic, GermlineCall, GermlineParams, SomaticCall, SomaticParams,
 };
 use crate::core::{CoreError, Locus, WorkingSet};
-use crate::pileup::{PileupColumn, PileupEngine, PileupParams, ReadSource};
+use crate::pileup::{PileupColumn, PileupEngine, PileupParams, ReadSource, SkipCounts};
 
 /// Stream germline calls over `region` of `contig` to a sink, returning the
 /// maximum pileup-engine working set observed (the bounded-memory signal behind
@@ -25,7 +25,7 @@ pub fn call_germline_region_streaming<S: ReadSource>(
     pileup_params: PileupParams,
     germline_params: &GermlineParams,
     on_row: &mut dyn FnMut((Locus, u8, GermlineCall)) -> Result<(), CoreError>,
-) -> Result<WorkingSet, CoreError> {
+) -> Result<(WorkingSet, SkipCounts), CoreError> {
     let mut engine = PileupEngine::new(source, reference, contig, region, pileup_params);
     let mut max_ws = WorkingSet { bytes: 0 };
     while let Some(column) = engine.next() {
@@ -38,7 +38,7 @@ pub fn call_germline_region_streaming<S: ReadSource>(
             on_row((column.locus, column.ref_base, call))?;
         }
     }
-    Ok(max_ws)
+    Ok((max_ws, engine.skip_counts()))
 }
 
 /// Like [`call_germline_region`], but also returns the maximum pileup-engine
@@ -53,7 +53,7 @@ pub fn call_germline_region_tracked<S: ReadSource>(
     germline_params: &GermlineParams,
 ) -> Result<(Vec<(Locus, u8, GermlineCall)>, WorkingSet), CoreError> {
     let mut out = Vec::new();
-    let ws = call_germline_region_streaming(
+    let (ws, _skips) = call_germline_region_streaming(
         source,
         reference,
         contig,
@@ -265,7 +265,7 @@ mod tests {
         .unwrap();
         // Streaming path: push into a Vec via the sink, capture the working set.
         let mut streamed = Vec::new();
-        let ws = call_germline_region_streaming(
+        let (ws, _skips) = call_germline_region_streaming(
             SliceSource::new(reads),
             reference,
             0,
