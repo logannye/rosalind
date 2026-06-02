@@ -223,6 +223,17 @@ enum Commands {
         #[arg(long)]
         budget_mb: Option<u64>,
     },
+    /// Re-check a reproducibility receipt without re-running: re-hash its inputs
+    /// and outputs and confirm the realized peak landed within the budget.
+    Verify {
+        /// Path to a `*.manifest.json` written by a previous run.
+        #[arg(long)]
+        manifest: PathBuf,
+        /// Budget (MiB) to check the recorded peak against (overrides the
+        /// `memory_budget_mb` recorded in the manifest, if any).
+        #[arg(long)]
+        budget_mb: Option<u64>,
+    },
 }
 
 #[derive(Copy, Clone, Debug, ValueEnum, Eq, PartialEq)]
@@ -373,6 +384,10 @@ fn main() -> Result<()> {
             max_read_len,
             budget_mb,
         } => run_plan(index, reference, max_depth, max_read_len, budget_mb)?,
+        Commands::Verify {
+            manifest,
+            budget_mb,
+        } => run_verify(manifest, budget_mb)?,
     }
 
     Ok(())
@@ -524,6 +539,78 @@ fn run_plan(
         }
     }
     Ok(())
+}
+
+/// Re-check a reproducibility receipt without re-running: parse it, re-hash each
+/// listed input/output and confirm the digests match, and confirm the recorded
+/// realized peak RSS landed within the budget (supplied, or recorded in the
+/// manifest). Exits non-zero with a per-check report on any mismatch.
+fn run_verify(manifest_path: PathBuf, budget_mb: Option<u64>) -> Result<()> {
+    use rosalind::provenance::{blake3_file, RunManifest};
+
+    let text = std::fs::read_to_string(&manifest_path)
+        .with_context(|| format!("failed to read manifest {}", manifest_path.display()))?;
+    let manifest = RunManifest::from_canonical_json(&text)
+        .map_err(|e| anyhow!("failed to parse manifest {}: {e}", manifest_path.display()))?;
+
+    let mut problems: Vec<String> = Vec::new();
+
+    // Re-hash inputs + outputs against the recorded digests.
+    for (kind, files) in [("input", &manifest.inputs), ("output", &manifest.outputs)] {
+        for f in files {
+            match blake3_file(std::path::Path::new(&f.path)) {
+                Ok(h) if h == f.blake3 => {}
+                Ok(h) => problems.push(format!(
+                    "{kind} {} hash mismatch: recorded {}, now {}",
+                    f.path, f.blake3, h
+                )),
+                Err(e) => problems.push(format!("{kind} {} unreadable: {e}", f.path)),
+            }
+        }
+    }
+
+    // Re-check the recorded realized peak against the budget (CLI overrides manifest).
+    let budget_mb = budget_mb.or_else(|| {
+        manifest
+            .params
+            .get("memory_budget_mb")
+            .and_then(|v| v.parse::<u64>().ok())
+    });
+    match (
+        budget_mb,
+        manifest
+            .params
+            .get("peak_rss_bytes")
+            .and_then(|v| v.parse::<u64>().ok()),
+    ) {
+        (Some(mb), Some(peak)) => {
+            let budget = rosalind::core::MemoryBudget::from_mb(mb);
+            if budget.admits(peak) {
+                println!("verify: peak {} MiB within budget {mb} MiB", peak / (1 << 20));
+            } else {
+                problems.push(format!(
+                    "recorded peak {} MiB exceeded budget {mb} MiB",
+                    peak / (1 << 20)
+                ));
+            }
+        }
+        (None, _) => println!("verify: no budget to check (none supplied or recorded)"),
+        (Some(_), None) => problems.push("manifest has no recorded peak_rss_bytes".to_string()),
+    }
+
+    if problems.is_empty() {
+        println!(
+            "verify: OK — {} input(s), {} output(s) match",
+            manifest.inputs.len(),
+            manifest.outputs.len()
+        );
+        Ok(())
+    } else {
+        for p in &problems {
+            eprintln!("verify: FAIL — {p}");
+        }
+        std::process::exit(5);
+    }
 }
 
 /// Load a prebuilt index and print exact-match loci for `pattern` (B3c). This is

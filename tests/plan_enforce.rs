@@ -212,3 +212,48 @@ fn stdout_run_persists_a_self_describing_receipt() {
     }
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn verify_passes_on_an_untampered_run_and_fails_on_a_tampered_output() {
+    let (dir, idx, bam) = build_sorted_bam_fixture();
+    let vcf = dir.join("calls.vcf");
+    let manifest = dir.join("calls.vcf.manifest.json");
+    let out = Command::new(bin())
+        .args(["variants", "--index"])
+        .arg(&idx)
+        .arg("--alignments")
+        .arg(&bam)
+        .args(["--memory-budget-mb", "4096", "--enforce", "-o"])
+        .arg(&vcf)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "run failed: {out:?}");
+
+    // Untampered → verify OK (exit 0).
+    let ok = Command::new(bin())
+        .args(["verify", "--manifest"])
+        .arg(&manifest)
+        .output()
+        .unwrap();
+    assert!(
+        ok.status.success(),
+        "verify should pass: {}",
+        String::from_utf8_lossy(&ok.stderr)
+    );
+    assert!(String::from_utf8_lossy(&ok.stdout).contains("verify: OK"));
+
+    // Tamper with the output VCF → verify FAILS (exit 5).
+    std::fs::write(&vcf, b"##tampered\n").unwrap();
+    let bad = Command::new(bin())
+        .args(["verify", "--manifest"])
+        .arg(&manifest)
+        .output()
+        .unwrap();
+    assert_eq!(
+        bad.status.code(),
+        Some(5),
+        "tampered output must fail verify: {bad:?}"
+    );
+    assert!(String::from_utf8_lossy(&bad.stderr).contains("hash mismatch"));
+    std::fs::remove_dir_all(&dir).ok();
+}
