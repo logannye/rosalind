@@ -268,6 +268,37 @@ fn verify_passes_on_an_untampered_run_and_fails_on_a_tampered_output() {
 }
 
 #[test]
+fn enforce_aborts_on_a_read_longer_than_declared_max_read_len() {
+    // Standard fixture has 16 bp reads. Declare --max-read-len 8 under --enforce
+    // with a generous budget: the pre-run estimate (using 8) fits, so the run
+    // proceeds to ingest and hits the over-long-read abort.
+    let (dir, idx, bam) = build_sorted_bam_fixture();
+    let out = Command::new(bin())
+        .args(["variants", "--index"])
+        .arg(&idx)
+        .arg("--alignments")
+        .arg(&bam)
+        .args([
+            "--memory-budget-mb",
+            "4096",
+            "--max-read-len",
+            "8",
+            "--max-depth",
+            "1000",
+            "--enforce",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success(), "over-long read must abort: {out:?}");
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        stderr.contains("exceeds declared --max-read-len"),
+        "missing clear message: {stderr}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn receipt_records_skip_counts() {
     // The standard fixture (5 reads, well below the default max-depth 1000) drops
     // nothing → over_max_depth 0. A tight --max-depth 1 forces drops → > 0.

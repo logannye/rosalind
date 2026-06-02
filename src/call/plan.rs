@@ -15,9 +15,11 @@ use crate::core::{
 
 /// Estimate the peak streaming working set of a whole-genome germline call: the
 /// largest contig's reference (decoded, 1×) + the depth-capped active read set +
-/// the fixed engine overhead. A true upper bound when actual reads do not exceed
-/// `max_read_len` and depth is capped at `max_depth` (both enforced at runtime —
-/// `max_read_len` is the one assumption, with the post-run check as backstop).
+/// the fixed engine overhead. An upper bound when actual reads do not exceed
+/// `max_read_len` and depth is capped at `max_depth`. Depth is always enforced at
+/// runtime (the pileup reservoir bounds the active set); `max_read_len` is checked
+/// at ingest under `--enforce` (a longer read aborts the run, so it cannot silently
+/// exceed the bound), with the realized post-run RSS check as the final backstop.
 pub fn estimate_variants_working_set(
     largest_contig_len: u64,
     max_depth: u32,

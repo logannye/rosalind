@@ -54,9 +54,14 @@ pub struct PileupParams {
     /// Skip PCR/optical duplicates (SAM flag 0x400).
     pub skip_duplicate: bool,
     /// Cap on the active read set per position (deterministic downsampling).
-    /// `None` = uncapped (default). When `Some(d)`, reads arriving at a position
-    /// already covered by `d` active reads are dropped (counted `over_max_depth`).
+    /// `None` = uncapped (default). When `Some(d)`, an unbiased min-hash reservoir
+    /// keeps `d` reads covering each position; reads removed are counted
+    /// `over_max_depth`.
     pub max_depth: Option<u32>,
+    /// When `Some(m)` (set only under `--enforce`), a read whose `seq.len()`
+    /// exceeds `m` aborts the run — the predicted memory envelope assumes `<= m`,
+    /// so a longer read would silently void it. `None` = no check (default).
+    pub max_read_len: Option<u32>,
 }
 
 impl Default for PileupParams {
@@ -68,6 +73,7 @@ impl Default for PileupParams {
             skip_supplementary: true,
             skip_duplicate: true,
             max_depth: None,
+            max_read_len: None,
         }
     }
 }
@@ -286,6 +292,17 @@ impl<S: ReadSource> PileupEngine<S> {
                     if read.end() <= pos {
                         continue; // does not reach the cursor
                     }
+                    // --enforce precondition: a read longer than the declared
+                    // --max-read-len voids the predicted envelope. Fail loud here
+                    // rather than silently over-allocate (the would-be OOM path).
+                    if let Some(maxlen) = self.params.max_read_len {
+                        if read.seq.len() as u32 > maxlen {
+                            return Err(CoreError::ReadExceedsDeclaredLength {
+                                len: read.seq.len() as u32,
+                                declared: maxlen,
+                            });
+                        }
+                    }
                     let prio = read_priority(&read);
                     if let Some(max) = self.params.max_depth {
                         if self.active.len() as u32 >= max {
@@ -454,6 +471,38 @@ mod tests {
         let alleles: Vec<u8> = at0.obs.iter().map(|o| o.allele).collect();
         // Canonical: ascending by allele (0, 1, 2) regardless of C, A, G arrival.
         assert_eq!(alleles, vec![0, 1, 2]);
+    }
+
+    #[test]
+    fn read_exceeding_declared_max_read_len_errors() {
+        // Under --enforce (max_read_len Some), a read longer than the declared cap
+        // aborts the run rather than silently voiding the predicted envelope.
+        let reference = b"AAAAAAAA";
+        let params = PileupParams {
+            max_read_len: Some(4),
+            ..PileupParams::default()
+        };
+        let mut e = PileupEngine::new(
+            SliceSource::new(vec![mread(0, b"CCCCCC", false)]), // len 6 > 4
+            Arc::from(reference.to_vec().into_boxed_slice()),
+            0,
+            0..8,
+            params,
+        );
+        let err = loop {
+            match e.next() {
+                Some(Ok(_)) => continue,
+                Some(Err(err)) => break err,
+                None => panic!("expected an error, got clean end"),
+            }
+        };
+        assert!(matches!(
+            err,
+            crate::core::CoreError::ReadExceedsDeclaredLength {
+                len: 6,
+                declared: 4
+            }
+        ));
     }
 
     #[test]

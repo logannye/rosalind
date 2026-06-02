@@ -93,15 +93,16 @@ enum Commands {
         /// Minimum quality threshold for reporting variants.
         #[arg(long, default_value_t = 10.0)]
         quality_threshold: f32,
-        /// Declared memory budget (MiB) for the run — records a plan/peak line; does
-        /// not enforce (enforcement is a later phase). (`--index` path.)
+        /// Declared memory budget (MiB) for the run — records a plan/peak line.
+        /// With `--enforce` it is honored (exit 3 refuse / exit 4 breach). (`--index` path.)
         #[arg(long)]
         memory_budget_mb: Option<u64>,
-        /// Cap the active read set per position (deterministic downsampling); the
-        /// bound `plan`/`--enforce` rely on. `0` = uncapped.
+        /// Cap the active read set per position (unbiased min-hash downsampling);
+        /// the bound `plan`/`--enforce` rely on. `0` = uncapped.
         #[arg(long, default_value_t = 1000)]
         max_depth: u32,
-        /// Max read length assumed by the pre-run `--enforce` estimate.
+        /// Max read length assumed by the pre-run `--enforce` estimate AND enforced
+        /// at ingest under `--enforce` (a longer read aborts the run).
         #[arg(long, default_value_t = 250)]
         max_read_len: u32,
         /// Honor the budget: refuse up front if predicted peak exceeds it (exit 3),
@@ -1225,6 +1226,9 @@ fn run_variants_index(
         } else {
             Some(max_depth)
         },
+        // Under `--enforce` the predicted envelope assumes reads <= max_read_len;
+        // check it at ingest so a longer read aborts loudly instead of voiding it.
+        max_read_len: if enforce { Some(max_read_len) } else { None },
         ..PileupParams::default()
     };
     let germline_params = GermlineParams {
