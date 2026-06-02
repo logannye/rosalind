@@ -183,6 +183,30 @@ enum Commands {
         #[arg(long, default_value_t = 1024)]
         max_hits: usize,
     },
+    /// Predict whether a job fits a declared memory budget, before committing.
+    Plan {
+        /// Persisted index (`rosalind index`): predict the bounded whole-genome
+        /// `variants` peak. Mutually exclusive with `--reference`.
+        #[arg(
+            long,
+            conflicts_with = "reference",
+            required_unless_present = "reference"
+        )]
+        index: Option<PathBuf>,
+        /// Reference FASTA: predict the index BUILD peak (advisory — build is
+        /// O(reference); Phase D enforces). Mutually exclusive with `--index`.
+        #[arg(long, required_unless_present = "index")]
+        reference: Option<PathBuf>,
+        /// Max active depth assumed for the `variants` working-set bound.
+        #[arg(long, default_value_t = 1000)]
+        max_depth: u32,
+        /// Max read length assumed for the `variants` working-set bound.
+        #[arg(long, default_value_t = 250)]
+        max_read_len: u32,
+        /// Declared memory budget (MiB) to check feasibility against.
+        #[arg(long)]
+        budget_mb: Option<u64>,
+    },
 }
 
 #[derive(Copy, Clone, Debug, ValueEnum, Eq, PartialEq)]
@@ -318,6 +342,13 @@ fn main() -> Result<()> {
             pattern,
             max_hits,
         } => run_locate(index, pattern, max_hits)?,
+        Commands::Plan {
+            index,
+            reference,
+            max_depth,
+            max_read_len,
+            budget_mb,
+        } => run_plan(index, reference, max_depth, max_read_len, budget_mb)?,
     }
 
     Ok(())
@@ -416,6 +447,58 @@ fn run_index(reference: PathBuf, output: PathBuf, memory_budget_mb: Option<u64>)
 
     // Realized peak RSS (per-run, informational) → stderr.
     eprintln!("build peak RSS: {} MiB", peak_rss_bytes() / (1 << 20));
+    Ok(())
+}
+
+/// Predict whether a job fits a declared budget, before committing. `--index`
+/// predicts the bounded whole-genome `variants` peak (largest contig + active set
+/// @ the declared cap, atop the measured process baseline). `--reference`
+/// predicts the index build peak (advisory; build is O(reference)).
+fn run_plan(
+    index: Option<PathBuf>,
+    reference: Option<PathBuf>,
+    max_depth: u32,
+    max_read_len: u32,
+    budget_mb: Option<u64>,
+) -> Result<()> {
+    use rosalind::call::plan::render_variants_plan;
+    use rosalind::genomics::IndexReader;
+
+    if let Some(index_path) = index {
+        let loaded = IndexReader::open(&index_path)
+            .with_context(|| format!("failed to open index {}", index_path.display()))?;
+        let largest = loaded
+            .contigs()
+            .iter()
+            .map(|c| c.length as u64)
+            .max()
+            .unwrap_or(0);
+        // Measure the process baseline now (binary + libs + index mmap header);
+        // the per-contig reference decode + active set are modeled on top.
+        let baseline = peak_rss_bytes();
+        print!(
+            "{}",
+            render_variants_plan(largest, max_depth, max_read_len, baseline, budget_mb)
+        );
+    } else {
+        let reference = reference.expect("clap guarantees one of --index/--reference");
+        let fasta_reader = open_input(&reference)
+            .with_context(|| format!("failed to open reference {}", reference.display()))?;
+        let total_bp: u64 = FastaReader::new(fasta_reader)
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .with_context(|| format!("failed to parse FASTA {}", reference.display()))?
+            .iter()
+            .map(|r| r.sequence.len() as u64)
+            .sum();
+        let estimate = estimate_build_working_set(total_bp);
+        match budget_mb {
+            Some(mb) => println!("{}", render_plan_line(estimate, MemoryBudget::from_mb(mb))),
+            None => println!(
+                "plan: est. build peak ~{} MiB (advisory; build is O(reference)) [no budget]",
+                estimate.bytes / (1 << 20)
+            ),
+        }
+    }
     Ok(())
 }
 
