@@ -6,8 +6,13 @@ use super::VcfVariant;
 /// Errors that can occur during variant normalization.
 pub enum NormalizeError {
     /// The variant POS is outside the provided reference slice.
-    #[error("variant position {pos0} out of bounds for reference length {reference_len}")]
+    #[error(
+        "variant on contig '{chrom}' position {pos0} is out of bounds for that contig's \
+         reference length {reference_len}"
+    )]
     OutOfBounds {
+        /// Contig name (so a multi-contig miscompare names the right contig).
+        chrom: String,
         /// 0-based position.
         pos0: u32,
         /// Reference length.
@@ -55,6 +60,7 @@ pub fn normalize_variant(
 
     if pos0 as usize >= reference.len() {
         return Err(NormalizeError::OutOfBounds {
+            chrom: v.chrom.clone(),
             pos0,
             reference_len: reference.len(),
         });

@@ -48,9 +48,13 @@ impl ComparisonReport {
     }
 }
 
-/// Compare two VCF callsets against a reference sequence, optionally masked by BED regions.
+/// Compare two VCF callsets against a per-contig reference map, optionally masked
+/// by BED regions. Each variant is normalized against the sequence of ITS OWN
+/// contig (`references[v.chrom]`) — loading only the first FASTA record and
+/// applying it to every contig silently miscompares (or crashes) on any
+/// multi-contig benchmark, e.g. a real GIAB run.
 pub fn compare_callsets(
-    reference: &[u8],
+    references: &BTreeMap<String, Vec<u8>>,
     calls: &[VcfVariant],
     truth: &[VcfVariant],
     bed: Option<&BedIndex>,
@@ -64,7 +68,7 @@ pub fn compare_callsets(
                 continue;
             }
         }
-        calls_set.insert(normalize_variant(reference, v)?);
+        calls_set.insert(normalize_variant(reference_for(references, v)?, v)?);
     }
     for v in truth {
         if let Some(bed) = bed {
@@ -72,7 +76,7 @@ pub fn compare_callsets(
                 continue;
             }
         }
-        truth_set.insert(normalize_variant(reference, v)?);
+        truth_set.insert(normalize_variant(reference_for(references, v)?, v)?);
     }
 
     let mut tp = 0usize;
@@ -110,6 +114,25 @@ pub fn compare_callsets(
         false_positive: fp,
         false_negative: fn_,
         by_type,
+    })
+}
+
+/// The reference sequence for a variant's contig, or a clear error naming the
+/// missing contig and the available ones (the common contig-naming mismatch).
+fn reference_for<'a>(
+    references: &'a BTreeMap<String, Vec<u8>>,
+    v: &VcfVariant,
+) -> Result<&'a [u8], anyhow::Error> {
+    references.get(&v.chrom).map(Vec::as_slice).ok_or_else(|| {
+        let available: Vec<&str> = references.keys().map(String::as_str).collect();
+        anyhow::anyhow!(
+            "variant on contig '{}' (pos {}) has no matching sequence in the reference FASTA — \
+             check the contig naming scheme (e.g. UCSC 'chr1' vs Ensembl '1'). \
+             Reference contigs: [{}]",
+            v.chrom,
+            v.pos0 + 1,
+            available.join(", ")
+        )
     })
 }
 
