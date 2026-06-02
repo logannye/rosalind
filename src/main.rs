@@ -24,6 +24,7 @@ use rust_htslib::bam::{
 #[derive(Parser, Debug)]
 #[command(
     name = "rosalind",
+    version,
     about = "Deterministic low-memory genomics engine with a verifiable memory contract"
 )]
 struct Cli {
