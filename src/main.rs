@@ -906,20 +906,30 @@ fn run_verify(manifest_path: PathBuf, budget_mb: Option<u64>) -> Result<()> {
         }
     }
 
+    // Strictly parse the numeric fields verify consults. A field that is PRESENT but
+    // unparseable is corruption, not absence — flag it rather than silently skipping
+    // the check it feeds (the closure takes `&mut problems` as an argument so it does
+    // not capture the borrow). `get_recorded` reads measurements (v2) or params
+    // (pre-v2) uniformly.
+    let parse_num = |k: &str, problems: &mut Vec<String>| -> Option<u64> {
+        match manifest.get_recorded(k) {
+            None => None,
+            Some(v) => match v.parse::<u64>() {
+                Ok(n) => Some(n),
+                Err(_) => {
+                    problems.push(format!("malformed numeric field {k}: {v:?}"));
+                    None
+                }
+            },
+        }
+    };
+    let recorded_peak = parse_num("peak_rss_bytes", &mut problems);
+    let recorded_ws = parse_num("max_working_set_bytes", &mut problems);
+    let recorded_budget = parse_num("memory_budget_mb", &mut problems);
+
     // Re-check the recorded realized peak against the budget (CLI overrides manifest).
-    let budget_mb = budget_mb.or_else(|| {
-        manifest
-            .params
-            .get("memory_budget_mb")
-            .and_then(|v| v.parse::<u64>().ok())
-    });
-    match (
-        budget_mb,
-        manifest
-            .params
-            .get("peak_rss_bytes")
-            .and_then(|v| v.parse::<u64>().ok()),
-    ) {
+    let budget_mb = budget_mb.or(recorded_budget);
+    match (budget_mb, recorded_peak) {
         (Some(mb), Some(peak)) => {
             let budget = rosalind::core::MemoryBudget::from_mb(mb);
             if budget.admits(peak) {
@@ -939,17 +949,14 @@ fn run_verify(manifest_path: PathBuf, budget_mb: Option<u64>) -> Result<()> {
     }
 
     // Internal-consistency cross-checks: a receipt's self-reported numbers must
-    // agree with each other. The manifest has no self-hash yet (a signed,
-    // tamper-evident receipt is a separate feature), so these cheap checks are the
-    // first line against a hand-edited or corrupt receipt — e.g. someone lowering
-    // `peak_rss_bytes` to pass `verify` but leaving the other fields behind.
-    let recorded_u64 =
-        |k: &str| -> Option<u64> { manifest.params.get(k).and_then(|v| v.parse::<u64>().ok()) };
+    // agree with each other. The claim self-hash (manifest_blake3) cannot see an
+    // edit to a measured field (the measurement is excluded from the claim by
+    // design), so alongside the measurement self-hash these cheap checks are the
+    // semantic guard against a hand-edited receipt — e.g. someone lowering
+    // `peak_rss_bytes` to pass `verify` but leaving the other fields inconsistent.
+    //
     // The working set is a subset of resident memory; it cannot exceed peak RSS.
-    if let (Some(ws), Some(peak)) = (
-        recorded_u64("max_working_set_bytes"),
-        recorded_u64("peak_rss_bytes"),
-    ) {
+    if let (Some(ws), Some(peak)) = (recorded_ws, recorded_peak) {
         if ws > peak {
             problems.push(format!(
                 "internally inconsistent: max_working_set_bytes ({ws}) exceeds peak_rss_bytes ({peak})"
@@ -958,9 +965,11 @@ fn run_verify(manifest_path: PathBuf, budget_mb: Option<u64>) -> Result<()> {
     }
     // A recorded verdict must agree with the recorded peak vs the recorded budget.
     if let (Some(verdict), Some(mb), Some(peak)) = (
-        manifest.params.get("contract_verdict").map(String::as_str),
-        recorded_u64("memory_budget_mb"),
-        recorded_u64("peak_rss_bytes"),
+        manifest
+            .get_recorded("contract_verdict")
+            .map(String::as_str),
+        recorded_budget,
+        recorded_peak,
     ) {
         let actually_within = rosalind::core::MemoryBudget::from_mb(mb).admits(peak);
         if verdict == "within" && !actually_within {
@@ -979,8 +988,8 @@ fn run_verify(manifest_path: PathBuf, budget_mb: Option<u64>) -> Result<()> {
         }
     }
 
-    // Self-hash: catches any post-write edit (even one that keeps the other fields
-    // mutually consistent). A pre-1.2 receipt has no self-hash — note and skip.
+    // Claim self-hash: catches any post-write edit to the claim (inputs, outputs,
+    // declared params) — cross-machine stable. A pre-1.2 receipt has none — note and skip.
     match manifest.self_hash_ok() {
         Some(true) => {}
         Some(false) => problems.push(
@@ -988,6 +997,30 @@ fn run_verify(manifest_path: PathBuf, budget_mb: Option<u64>) -> Result<()> {
         ),
         None => {
             println!("verify: note — no manifest_blake3 (a pre-1.2 receipt); skipping self-hash")
+        }
+    }
+
+    // Measurement self-hash: catches an edit to a measured field (e.g. lowering
+    // peak_rss_bytes to fake a fit) that the claim hash cannot see by design. This is
+    // an unkeyed self-hash — tamper-EVIDENCE against an accidental edit, not
+    // tamper-resistance against a forger who re-hashes; the cross-checks above are the
+    // semantic backstop.
+    match manifest.measurement_hash_ok() {
+        Some(true) => {}
+        Some(false) => problems.push(
+            "measurement_blake3 mismatch: a measured field was modified after the run".to_string(),
+        ),
+        // No measurement block. Legitimate for a pre-v2 / measurement-free receipt —
+        // but if the (hash-protected) claim records that one must exist, its absence
+        // means the whole block was stripped to evade the budget/consistency checks.
+        None => {
+            if manifest.claims_measurements() {
+                problems.push(
+                    "measurement block missing: the claim records a measurement block but \
+                     the receipt has none (stripped after the run?)"
+                        .to_string(),
+                );
+            }
         }
     }
 

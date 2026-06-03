@@ -1,15 +1,42 @@
 //! A minimal, deterministic reproducibility receipt for a run: tool version,
 //! subcommand, BLAKE3 content hashes of inputs + outputs, and the parameters.
 //! Serialized as canonical JSON (sorted keys, no timestamps) so two identical
-//! runs produce a byte-identical manifest. Full `rosalind verify` is a later
-//! phase; this phase emits the receipt and proves it is deterministic.
+//! runs produce a byte-identical manifest.
+//!
+//! The receipt is split into a deterministic **claim** (inputs, outputs, params,
+//! subcommand, versions) and a machine-/run-dependent **measurement** block (peak
+//! RSS, working set, verdict, …). The self-hash (`manifest_blake3`) covers the
+//! claim only — so the machine-dependent measured *cost* no longer perturbs it —
+//! while a second `measurement_blake3` keeps that cost locally tamper-evident.
+//!
+//! Scope note: this removes the measured *cost* from the claim hash. Recorded
+//! input/output *paths* are still part of the claim, so two machines with the same
+//! data at different paths still hash differently — a separate machine-dependent
+//! axis (path normalization / content-only claim) left to a later phase.
 
 use std::collections::BTreeMap;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 
 /// Current receipt/feature schema version. Bump on any breaking schema change.
-pub const MANIFEST_SCHEMA_VERSION: u32 = 1;
+/// v2: the receipt is split into a deterministic *claim* and a machine-dependent
+/// *measurement* block; the self-hash (`manifest_blake3`) covers the claim only, so
+/// the measured cost no longer perturbs it.
+pub const MANIFEST_SCHEMA_VERSION: u32 = 2;
+
+/// Keys whose values are machine-/run-dependent measurements, not part of the
+/// deterministic claim. `finalize` relocates these out of `params` into the
+/// `measurements` block so the measured cost is excluded from the claim hash. The
+/// single audited source of truth for the claim/measurement split.
+pub const MEASUREMENT_KEYS: &[&str] = &[
+    "peak_rss_bytes",
+    "max_working_set_bytes",
+    "predicted_peak_rss_bytes",
+    "baseline_rss_bytes",
+    "rss_residual_bytes",
+    "governor",
+    "contract_verdict",
+];
 
 /// Failure parsing a canonical run manifest.
 #[derive(Debug)]
@@ -45,6 +72,9 @@ pub struct RunManifest {
     pub params: BTreeMap<String, String>,
     /// Output files and their content hashes.
     pub outputs: Vec<FileHash>,
+    /// Machine-/run-dependent measured cost (peak RSS, working set, verdict, …),
+    /// excluded from the claim hash. Carries its own `measurement_blake3`.
+    pub measurements: BTreeMap<String, String>,
 }
 
 impl RunManifest {
@@ -56,40 +86,51 @@ impl RunManifest {
             inputs: Vec::new(),
             params: BTreeMap::new(),
             outputs: Vec::new(),
+            measurements: BTreeMap::new(),
         }
     }
 
-    /// Serialize to canonical JSON: keys sorted, `inputs`/`outputs` sorted by
-    /// path, no timestamps — so identical runs hash and render identically.
+    /// Record a machine-/run-dependent measurement (excluded from the claim hash).
+    pub fn record_measurement(&mut self, key: impl Into<String>, value: impl Into<String>) {
+        self.measurements.insert(key.into(), value.into());
+    }
+
+    /// Serialize to canonical JSON: keys sorted, arrays sorted by path, no
+    /// timestamps — so identical runs render identically. Includes the measurement
+    /// block (when non-empty). This is the on-disk receipt.
     pub fn to_canonical_json(&self) -> String {
+        self.push_canonical(true)
+    }
+
+    /// The claim-only canonical JSON: never emits the measurement block. This is the
+    /// portion the self-hash commits to, so the measured cost is excluded from the
+    /// claim hash.
+    pub fn to_canonical_claim_json(&self) -> String {
+        self.push_canonical(false)
+    }
+
+    /// Render the canonical JSON, optionally including the measurement block.
+    /// Canonical key order is alphabetical, so `measurements` sits between `inputs`
+    /// and `outputs`; it is emitted only when non-empty (a pre-v2 receipt and a
+    /// measurement-free v2 receipt are byte-identical).
+    fn push_canonical(&self, include_measurements: bool) -> String {
         let mut out = String::new();
         out.push('{');
-
         out.push_str("\"inputs\":");
         push_file_hashes(&mut out, &self.inputs);
-
+        if include_measurements && !self.measurements.is_empty() {
+            out.push_str(",\"measurements\":");
+            push_string_map(&mut out, &self.measurements);
+        }
         out.push_str(",\"outputs\":");
         push_file_hashes(&mut out, &self.outputs);
-
-        out.push_str(",\"params\":{");
-        for (i, (k, v)) in self.params.iter().enumerate() {
-            if i > 0 {
-                out.push(',');
-            }
-            out.push('"');
-            out.push_str(&json_escape(k));
-            out.push_str("\":\"");
-            out.push_str(&json_escape(v));
-            out.push('"');
-        }
-        out.push('}');
-
+        out.push_str(",\"params\":");
+        push_string_map(&mut out, &self.params);
         out.push_str(",\"subcommand\":\"");
         out.push_str(&json_escape(&self.subcommand));
         out.push_str("\",\"tool_version\":\"");
         out.push_str(&json_escape(&self.tool_version));
         out.push_str("\"}");
-
         out
     }
 
@@ -104,17 +145,71 @@ impl RunManifest {
         p.parse_manifest()
     }
 
-    /// BLAKE3 hex of the canonical JSON with the self-hash field excluded — the
-    /// content this manifest commits to. Deterministic; `verify` re-derives it.
+    /// BLAKE3 hex of the **claim** canonical JSON with the self-hash excluded — the
+    /// content this manifest commits to. Excludes the machine-dependent measurement
+    /// block, so the measured cost does not perturb it. Deterministic; `verify`
+    /// re-derives it. (Recorded paths remain in the claim — see the module note.)
     pub fn content_hash(&self) -> String {
         let mut m = self.clone();
         m.params.remove("manifest_blake3");
-        blake3_hex(m.to_canonical_json().as_bytes())
+        blake3_hex(m.to_canonical_claim_json().as_bytes())
     }
 
-    /// Stamp the schema version + the self-hash. Call LAST, immediately before
-    /// serialization, so the hash covers every other field (including the version).
+    /// BLAKE3 hex of the measurement block with `measurement_blake3` excluded — a
+    /// LOCAL attestation of the measured cost. Not cross-machine stable by design
+    /// (it hashes machine-dependent numbers), so it lives inside the measurement
+    /// block rather than the claim.
+    pub fn measurement_hash(&self) -> String {
+        let mut m = self.measurements.clone();
+        m.remove("measurement_blake3");
+        let mut s = String::new();
+        push_string_map(&mut s, &m);
+        blake3_hex(s.as_bytes())
+    }
+
+    /// Look up a recorded value by key, checking `measurements` then `params`. Lets
+    /// `verify` read v2 receipts (measured fields in `measurements`) and pre-v2
+    /// receipts (everything in `params`) uniformly.
+    pub fn get_recorded(&self, key: &str) -> Option<&String> {
+        self.measurements.get(key).or_else(|| self.params.get(key))
+    }
+
+    /// Whether the (hash-protected) claim records that a measurement block exists.
+    /// `verify` uses this to detect a measurement block stripped after the run — a
+    /// claim that says `has_measurements` paired with a receipt that has none.
+    pub fn claims_measurements(&self) -> bool {
+        self.params
+            .get("has_measurements")
+            .map(|v| v == "true")
+            .unwrap_or(false)
+    }
+
+    /// Seal the receipt: partition measured fields out of the claim, stamp the
+    /// measurement hash, the schema version, then the claim self-hash LAST (so it
+    /// covers every other claim field, including the version). Idempotent.
     pub fn finalize(&mut self) {
+        // 1. Partition: relocate machine-dependent fields OUT of the claim so the
+        //    measured cost no longer perturbs the claim hash.
+        for key in MEASUREMENT_KEYS {
+            if let Some(v) = self.params.remove(*key) {
+                self.measurements.insert((*key).to_string(), v);
+            }
+        }
+        // 2. Local measurement attestation (only when a measurement exists), plus a
+        //    DETERMINISTIC marker in the claim recording that a block exists. The
+        //    marker is covered by the claim self-hash and is identical for the same
+        //    logical run on any machine (unlike `measurement_blake3`, which hashes
+        //    machine-dependent numbers and so cannot live in the claim). It lets
+        //    `verify` catch a measurement block stripped to evade the cost checks:
+        //    dropping the block leaves the claim asserting one must exist.
+        if !self.measurements.is_empty() {
+            let mh = self.measurement_hash();
+            self.measurements
+                .insert("measurement_blake3".to_string(), mh);
+            self.params
+                .insert("has_measurements".to_string(), "true".to_string());
+        }
+        // 3. Stamp the version into the claim, then the claim self-hash last.
         self.params.insert(
             "schema_version".to_string(),
             MANIFEST_SCHEMA_VERSION.to_string(),
@@ -123,12 +218,20 @@ impl RunManifest {
         self.params.insert("manifest_blake3".to_string(), h);
     }
 
-    /// `Some(true)`/`Some(false)` if a self-hash is recorded and matches / mismatches;
-    /// `None` if none is recorded (a pre-1.2 receipt).
+    /// `Some(true)`/`Some(false)` if a claim self-hash is recorded and matches /
+    /// mismatches; `None` if none is recorded (a pre-1.2 receipt).
     pub fn self_hash_ok(&self) -> Option<bool> {
         self.params
             .get("manifest_blake3")
             .map(|recorded| *recorded == self.content_hash())
+    }
+
+    /// `Some(true)`/`Some(false)` if a measurement self-hash is recorded and matches /
+    /// mismatches; `None` if none is recorded (no measurement block, or a pre-v2 receipt).
+    pub fn measurement_hash_ok(&self) -> Option<bool> {
+        self.measurements
+            .get("measurement_blake3")
+            .map(|recorded| *recorded == self.measurement_hash())
     }
 }
 
@@ -248,7 +351,12 @@ impl Parser<'_> {
             let k = self.parse_string()?;
             self.expect(b':')?;
             let v = self.parse_string()?;
-            map.insert(k, v);
+            // Reject duplicate keys: a crafted receipt with two values for one key
+            // could otherwise show one value to a human reader while `verify` (and
+            // `get_recorded`) act on the other.
+            if map.insert(k.clone(), v).is_some() {
+                return Err(self.err(&format!("duplicate key \"{k}\"")));
+            }
             match self.b.get(self.i) {
                 Some(b',') => self.i += 1,
                 Some(b'}') => {
@@ -266,8 +374,22 @@ impl Parser<'_> {
         self.expect_key("inputs")?;
         let inputs = self.parse_file_array()?;
         self.expect(b',')?;
-        self.expect_key("outputs")?;
-        let outputs = self.parse_file_array()?;
+        // `measurements` is optional: absent in pre-v2 receipts and measurement-free
+        // runs. Read the next key and branch on whether it is the measurement block.
+        let key = self.parse_string()?;
+        self.expect(b':')?;
+        let (measurements, outputs) = if key == "measurements" {
+            let m = self.parse_params()?;
+            self.expect(b',')?;
+            self.expect_key("outputs")?;
+            (m, self.parse_file_array()?)
+        } else if key == "outputs" {
+            (BTreeMap::new(), self.parse_file_array()?)
+        } else {
+            return Err(self.err(&format!(
+                "expected \"measurements\" or \"outputs\", got \"{key}\""
+            )));
+        };
         self.expect(b',')?;
         self.expect_key("params")?;
         let params = self.parse_params()?;
@@ -284,6 +406,7 @@ impl Parser<'_> {
             inputs,
             params,
             outputs,
+            measurements,
         })
     }
 }
@@ -304,6 +427,23 @@ fn push_file_hashes(out: &mut String, files: &[FileHash]) {
         out.push_str("\"}");
     }
     out.push(']');
+}
+
+/// Render a `{"k":"v",…}` object, entries in the map's (sorted) key order. Shared by
+/// the `params` and `measurements` blocks (both are `string → string`).
+fn push_string_map(out: &mut String, map: &BTreeMap<String, String>) {
+    out.push('{');
+    for (i, (k, v)) in map.iter().enumerate() {
+        if i > 0 {
+            out.push(',');
+        }
+        out.push('"');
+        out.push_str(&json_escape(k));
+        out.push_str("\":\"");
+        out.push_str(&json_escape(v));
+        out.push('"');
+    }
+    out.push('}');
 }
 
 /// Minimal RFC-8259 string escaping for the characters we can encounter.
@@ -536,5 +676,221 @@ mod tests {
         m.finalize();
         assert_eq!(m.params.get("manifest_blake3").cloned(), first);
         assert_eq!(m.self_hash_ok(), Some(true));
+    }
+
+    #[test]
+    fn claim_hash_is_stable_across_machine_dependent_measurements() {
+        // Same logical run on two machines: identical claim, different measured cost.
+        // The claim self-hash must match; the measurement is excluded from it.
+        let mk = |peak: &str, ws: &str| {
+            let mut m = RunManifest::new("variants");
+            m.tool_version = "0.1.0".to_string();
+            m.inputs.push(FileHash {
+                path: "ref.fa".to_string(),
+                blake3: "aa".to_string(),
+            });
+            m.outputs.push(FileHash {
+                path: "out.vcf".to_string(),
+                blake3: "bb".to_string(),
+            });
+            m.params.insert("min_qual".to_string(), "30".to_string());
+            m.record_measurement("peak_rss_bytes", peak);
+            m.record_measurement("max_working_set_bytes", ws);
+            m.finalize();
+            m
+        };
+        let a = mk("1000000", "4096");
+        let b = mk("9999999", "8192");
+        assert_eq!(
+            a.content_hash(),
+            b.content_hash(),
+            "measured cost must not change the claim hash"
+        );
+        assert_eq!(a.self_hash_ok(), Some(true));
+        assert_eq!(b.self_hash_ok(), Some(true));
+        // Differing measurements DO change the measurement hash.
+        assert_ne!(
+            a.measurements.get("measurement_blake3"),
+            b.measurements.get("measurement_blake3")
+        );
+    }
+
+    #[test]
+    fn claim_excludes_but_full_form_includes_measurements() {
+        let mut m = RunManifest::new("variants");
+        m.tool_version = "0.1.0".to_string();
+        m.record_measurement("peak_rss_bytes", "123");
+        m.finalize();
+        assert!(
+            !m.to_canonical_claim_json().contains("peak_rss_bytes"),
+            "claim form must not carry the measurement"
+        );
+        assert!(
+            m.to_canonical_json().contains("peak_rss_bytes"),
+            "full form must record the measurement"
+        );
+    }
+
+    #[test]
+    fn editing_a_measurement_breaks_only_the_measurement_hash() {
+        let mut m = RunManifest::new("variants");
+        m.tool_version = "0.1.0".to_string();
+        m.record_measurement("peak_rss_bytes", "123");
+        m.finalize();
+        assert_eq!(m.self_hash_ok(), Some(true));
+        assert_eq!(m.measurement_hash_ok(), Some(true));
+        // Lower the recorded peak WITHOUT re-finalizing (a tampered receipt).
+        m.measurements
+            .insert("peak_rss_bytes".to_string(), "1".to_string());
+        assert_eq!(
+            m.self_hash_ok(),
+            Some(true),
+            "claim hash is unaffected by the measurement edit"
+        );
+        assert_eq!(
+            m.measurement_hash_ok(),
+            Some(false),
+            "measurement hash must catch the edit"
+        );
+    }
+
+    #[test]
+    fn finalize_relocates_measured_keys_out_of_the_claim() {
+        let mut m = RunManifest::new("variants");
+        m.tool_version = "0.1.0".to_string();
+        // Insert measured fields the legacy way (into params); finalize must relocate.
+        m.params
+            .insert("peak_rss_bytes".to_string(), "555".to_string());
+        m.params
+            .insert("contract_verdict".to_string(), "within".to_string());
+        m.params.insert("min_qual".to_string(), "30".to_string());
+        m.finalize();
+        for k in ["peak_rss_bytes", "contract_verdict"] {
+            assert!(!m.params.contains_key(k), "{k} must leave the claim");
+            assert!(
+                m.measurements.contains_key(k),
+                "{k} must enter measurements"
+            );
+        }
+        assert!(m.params.contains_key("min_qual"), "claim params stay put");
+    }
+
+    #[test]
+    fn pre_v2_receipt_with_measurements_in_params_still_verifies() {
+        // A pre-v2 receipt: peak in params, no measurements key, schema 1, self-hash
+        // over the params-inclusive claim. It must still self-verify (graceful degrade).
+        let mut m = RunManifest::new("variants");
+        m.tool_version = "0.1.0".to_string();
+        m.params
+            .insert("peak_rss_bytes".to_string(), "123".to_string());
+        m.params
+            .insert("schema_version".to_string(), "1".to_string());
+        let h = m.content_hash();
+        m.params.insert("manifest_blake3".to_string(), h);
+
+        assert_eq!(m.self_hash_ok(), Some(true));
+        assert_eq!(m.measurement_hash_ok(), None, "no measurement block in v1");
+        let json = m.to_canonical_json();
+        assert!(
+            !json.contains("\"measurements\""),
+            "v1 emits no measurements key"
+        );
+        let parsed = RunManifest::from_canonical_json(&json).expect("parse v1");
+        assert!(parsed.measurements.is_empty());
+        assert_eq!(parsed.self_hash_ok(), Some(true));
+    }
+
+    #[test]
+    fn v2_receipt_round_trips_through_the_parser() {
+        let mut m = RunManifest::new("features");
+        m.tool_version = "9.9.9".to_string();
+        m.inputs.push(FileHash {
+            path: "a.idx".to_string(),
+            blake3: "aa".to_string(),
+        });
+        m.outputs.push(FileHash {
+            path: "out.tsv".to_string(),
+            blake3: "bb".to_string(),
+        });
+        m.params
+            .insert("feature_rows".to_string(), "42".to_string());
+        m.record_measurement("peak_rss_bytes", "1000");
+        m.record_measurement("governor", "enforced");
+        m.finalize();
+
+        let json = m.to_canonical_json();
+        let parsed = RunManifest::from_canonical_json(&json).expect("parse v2");
+        assert_eq!(
+            parsed.to_canonical_json(),
+            json,
+            "round-trip is the identity"
+        );
+        assert_eq!(
+            parsed
+                .measurements
+                .get("peak_rss_bytes")
+                .map(String::as_str),
+            Some("1000")
+        );
+        assert_eq!(
+            parsed.params.get("feature_rows").map(String::as_str),
+            Some("42")
+        );
+        assert_eq!(parsed.self_hash_ok(), Some(true));
+        assert_eq!(parsed.measurement_hash_ok(), Some(true));
+    }
+
+    #[test]
+    fn finalize_records_a_claim_marker_only_when_a_measurement_exists() {
+        // With a measurement: the claim records has_measurements (so stripping the
+        // block is detectable), and the marker is covered by the claim self-hash.
+        let mut with = RunManifest::new("variants");
+        with.tool_version = "0.1.0".to_string();
+        with.record_measurement("peak_rss_bytes", "123");
+        with.finalize();
+        assert!(with.claims_measurements());
+        assert_eq!(
+            with.params.get("has_measurements").map(String::as_str),
+            Some("true")
+        );
+        assert_eq!(with.self_hash_ok(), Some(true));
+
+        // Without a measurement (e.g. a somatic run): no marker, nothing to strip.
+        let mut without = RunManifest::new("somatic");
+        without.tool_version = "0.1.0".to_string();
+        without.finalize();
+        assert!(!without.claims_measurements());
+        assert!(!without.params.contains_key("has_measurements"));
+    }
+
+    #[test]
+    fn stripping_the_measurement_block_leaves_the_claim_asserting_one_exists() {
+        // The deletion-bypass guard: clearing the measurement block keeps the claim
+        // self-hash valid (the claim never carried the block), but the claim still
+        // records has_measurements while measurement_hash_ok drops to None — the
+        // exact signal `verify` keys on.
+        let mut m = RunManifest::new("variants");
+        m.tool_version = "0.1.0".to_string();
+        m.record_measurement("peak_rss_bytes", "900000000");
+        m.finalize();
+        m.measurements.clear();
+        assert_eq!(
+            m.self_hash_ok(),
+            Some(true),
+            "claim is intact after stripping"
+        );
+        assert_eq!(m.measurement_hash_ok(), None, "no block to hash");
+        assert!(
+            m.claims_measurements(),
+            "the claim still asserts a measurement block must exist"
+        );
+    }
+
+    #[test]
+    fn parser_rejects_a_duplicate_key() {
+        // A crafted receipt cannot carry two values for one key (reader/verifier
+        // shadowing). `params` and `measurements` both go through `parse_params`.
+        let dup = r#"{"inputs":[],"outputs":[],"params":{"k":"1","k":"2"},"subcommand":"x","tool_version":"0.1.0"}"#;
+        assert!(RunManifest::from_canonical_json(dup).is_err());
     }
 }
