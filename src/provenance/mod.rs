@@ -1015,15 +1015,13 @@ mod tests {
     }
 
     #[test]
-    fn pre_p0_2b_receipt_with_paths_in_the_claim_still_verifies() {
-        // A schema-2 receipt hashed paths INTO the claim. The version gate must
-        // reproduce that path-inclusive form so it still self-verifies; a schema-3
-        // receipt over the same files hashes differently (the form changed).
-        let mk = |schema: &str| {
+    fn the_schema_gate_keeps_v2_verifying_and_makes_only_v3_path_independent() {
+        // Seal a receipt at a given schema with a given input path.
+        let seal = |schema: &str, path: &str| {
             let mut m = RunManifest::new("variants");
             m.tool_version = "0.1.0".to_string();
             m.inputs.push(FileHash {
-                path: "ref.idx".to_string(),
+                path: path.to_string(),
                 blake3: "aa".to_string(),
             });
             m.params
@@ -1032,14 +1030,31 @@ mod tests {
             m.params.insert("manifest_blake3".to_string(), h);
             m
         };
-        let v2 = mk("2");
-        assert_eq!(v2.self_hash_ok(), Some(true), "schema-2 must self-verify");
-        let v3 = mk("3");
-        assert_eq!(v3.self_hash_ok(), Some(true), "schema-3 must self-verify");
+        // Back-compat: the gate reproduces each schema's own claim form, so both
+        // self-verify — a pre-P0.2b receipt does not break.
+        assert_eq!(
+            seal("2", "ref.idx").self_hash_ok(),
+            Some(true),
+            "schema-2 must still self-verify"
+        );
+        assert_eq!(
+            seal("3", "ref.idx").self_hash_ok(),
+            Some(true),
+            "schema-3 must self-verify"
+        );
+        // Isolate the file-render gate: hold the schema string fixed, vary ONLY the
+        // path. schema 2 hashed paths into the claim → path-SENSITIVE.
         assert_ne!(
-            v2.params.get("manifest_blake3"),
-            v3.params.get("manifest_blake3"),
-            "the claim form genuinely differs between schema 2 and 3"
+            seal("2", "/a/ref.idx").content_hash(),
+            seal("2", "/b/ref.idx").content_hash(),
+            "the pre-P0.2b claim form is path-inclusive"
+        );
+        // schema 3 drops paths → path-INDEPENDENT: the gate fired for the right reason
+        // (the render change, not the schema string sitting inside the hashed claim).
+        assert_eq!(
+            seal("3", "/a/ref.idx").content_hash(),
+            seal("3", "/b/ref.idx").content_hash(),
+            "the schema-3 claim form is content-only"
         );
     }
 }
