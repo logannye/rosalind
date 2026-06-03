@@ -775,7 +775,7 @@ fn receipt_is_self_hashing_and_schema_versioned() {
         "no measurement self-hash: {text}"
     );
     assert!(
-        text.contains("\"schema_version\":\"3\""),
+        text.contains("\"schema_version\":\"4\""),
         "no schema_version: {text}"
     );
     // An untampered receipt verifies.
@@ -923,6 +923,53 @@ fn verify_rejects_a_receipt_with_its_measurement_block_stripped() {
     assert!(
         stderr.contains("measurement block missing"),
         "expected a stripped-block error: {stderr}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn receipt_records_build_identity_and_verify_expect_code_catches_a_mismatch() {
+    let (dir, idx, bam) = build_sorted_bam_fixture();
+    let vcf = dir.join("calls.vcf");
+    let manifest = dir.join("calls.vcf.manifest.json");
+    let out = Command::new(bin())
+        .args(["variants", "--index"])
+        .arg(&idx)
+        .arg("--alignments")
+        .arg(&bam)
+        .args(["--memory-budget-mb", "4096", "--enforce", "-o"])
+        .arg(&vcf)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "run failed: {out:?}");
+
+    let text = std::fs::read_to_string(&manifest).unwrap();
+    for needle in [
+        "\"code_git_sha\":",
+        "\"code_dirty\":",
+        "\"rustc_version\":",
+        "\"target_triple\":",
+        "\"deps_lock_blake3\":",
+    ] {
+        assert!(text.contains(needle), "receipt missing {needle}: {text}");
+    }
+
+    // A wrong commit SHA must fail verify (robust regardless of the build's dirty state).
+    let v = Command::new(bin())
+        .args(["verify", "--manifest"])
+        .arg(&manifest)
+        .args(["--expect-code", "0000000000000000000000000000000000000000"])
+        .output()
+        .unwrap();
+    assert_eq!(
+        v.status.code(),
+        Some(5),
+        "a wrong --expect-code must fail verify: {v:?}"
+    );
+    let stderr = String::from_utf8_lossy(&v.stderr);
+    assert!(
+        stderr.contains("code mismatch"),
+        "expected a code-mismatch error: {stderr}"
     );
     std::fs::remove_dir_all(&dir).ok();
 }
