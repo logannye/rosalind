@@ -9,20 +9,23 @@
 //! claim only — so the machine-dependent measured *cost* no longer perturbs it —
 //! while a second `measurement_blake3` keeps that cost locally tamper-evident.
 //!
-//! Scope note: this removes the measured *cost* from the claim hash. Recorded
-//! input/output *paths* are still part of the claim, so two machines with the same
-//! data at different paths still hash differently — a separate machine-dependent
-//! axis (path normalization / content-only claim) left to a later phase.
+//! The claim hash is a cross-machine **content-address**: for schema-3 receipts the
+//! claim hashes inputs/outputs by their sorted `blake3` digests (recorded paths are
+//! dropped from the claim form, though the on-disk receipt keeps them for humans and
+//! for `verify` to re-hash files), so the same data at different paths hashes
+//! identically. Pre-3 receipts hashed paths into the claim; the version gate
+//! reproduces their form so they still self-verify.
 
 use std::collections::BTreeMap;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 
 /// Current receipt/feature schema version. Bump on any breaking schema change.
-/// v2: the receipt is split into a deterministic *claim* and a machine-dependent
-/// *measurement* block; the self-hash (`manifest_blake3`) covers the claim only, so
-/// the measured cost no longer perturbs it.
-pub const MANIFEST_SCHEMA_VERSION: u32 = 2;
+/// v2: split into a deterministic *claim* and a machine-dependent *measurement* block;
+/// the self-hash (`manifest_blake3`) covers the claim only. v3: the claim hashes
+/// inputs/outputs by their sorted `blake3` digests (paths dropped), so it is a
+/// cross-machine content-address — the same data at different paths hashes identically.
+pub const MANIFEST_SCHEMA_VERSION: u32 = 3;
 
 /// Keys whose values are machine-/run-dependent measurements, not part of the
 /// deterministic claim. `finalize` relocates these out of `params` into the
@@ -57,6 +60,15 @@ pub struct FileHash {
     pub path: String,
     /// BLAKE3 hex digest of the file's contents.
     pub blake3: String,
+}
+
+/// How input/output file entries render in a canonical form. The on-disk receipt
+/// keeps full `{path, blake3}`; the schema-3 claim drops the path and hashes only the
+/// content digest, so the claim hash does not depend on where files live.
+#[derive(Clone, Copy)]
+enum FileRender {
+    WithPath,
+    ContentOnly,
 }
 
 /// A reproducibility receipt for a single run.
@@ -96,34 +108,49 @@ impl RunManifest {
     }
 
     /// Serialize to canonical JSON: keys sorted, arrays sorted by path, no
-    /// timestamps — so identical runs render identically. Includes the measurement
-    /// block (when non-empty). This is the on-disk receipt.
+    /// timestamps — so identical runs render identically. Files render as full
+    /// `{path, blake3}`; includes the measurement block (when non-empty). This is the
+    /// on-disk receipt — humans and `verify` read files from its recorded paths.
     pub fn to_canonical_json(&self) -> String {
-        self.push_canonical(true)
+        self.push_canonical(true, FileRender::WithPath)
     }
 
     /// The claim-only canonical JSON: never emits the measurement block. This is the
-    /// portion the self-hash commits to, so the measured cost is excluded from the
-    /// claim hash.
+    /// portion the self-hash commits to. For schema-3 receipts, files render as their
+    /// sorted `blake3` digests (paths dropped) so the claim hash is a cross-machine
+    /// content-address.
     pub fn to_canonical_claim_json(&self) -> String {
-        self.push_canonical(false)
+        self.push_canonical(false, self.claim_file_render())
     }
 
-    /// Render the canonical JSON, optionally including the measurement block.
-    /// Canonical key order is alphabetical, so `measurements` sits between `inputs`
-    /// and `outputs`; it is emitted only when non-empty (a pre-v2 receipt and a
-    /// measurement-free v2 receipt are byte-identical).
-    fn push_canonical(&self, include_measurements: bool) -> String {
+    /// Schema >= 3 → content-only claim (paths dropped, cross-machine). Older receipts
+    /// hashed paths into the claim; reproduce their form so they still self-verify.
+    fn claim_file_render(&self) -> FileRender {
+        match self
+            .params
+            .get("schema_version")
+            .and_then(|v| v.parse::<u32>().ok())
+        {
+            Some(v) if v >= 3 => FileRender::ContentOnly,
+            _ => FileRender::WithPath,
+        }
+    }
+
+    /// Render the canonical JSON, optionally including the measurement block, with
+    /// files in the requested form. Canonical key order is alphabetical, so
+    /// `measurements` sits between `inputs` and `outputs`; it is emitted only when
+    /// non-empty (a pre-v2 receipt and a measurement-free receipt are byte-identical).
+    fn push_canonical(&self, include_measurements: bool, files: FileRender) -> String {
         let mut out = String::new();
         out.push('{');
         out.push_str("\"inputs\":");
-        push_file_hashes(&mut out, &self.inputs);
+        push_files(&mut out, &self.inputs, files);
         if include_measurements && !self.measurements.is_empty() {
             out.push_str(",\"measurements\":");
             push_string_map(&mut out, &self.measurements);
         }
         out.push_str(",\"outputs\":");
-        push_file_hashes(&mut out, &self.outputs);
+        push_files(&mut out, &self.outputs, files);
         out.push_str(",\"params\":");
         push_string_map(&mut out, &self.params);
         out.push_str(",\"subcommand\":\"");
@@ -147,8 +174,9 @@ impl RunManifest {
 
     /// BLAKE3 hex of the **claim** canonical JSON with the self-hash excluded — the
     /// content this manifest commits to. Excludes the machine-dependent measurement
-    /// block, so the measured cost does not perturb it. Deterministic; `verify`
-    /// re-derives it. (Recorded paths remain in the claim — see the module note.)
+    /// block (so the measured cost does not perturb it) and, for schema-3 receipts,
+    /// recorded paths (so it is a cross-machine content-address). Deterministic;
+    /// `verify` re-derives it.
     pub fn content_hash(&self) -> String {
         let mut m = self.clone();
         m.params.remove("manifest_blake3");
@@ -409,6 +437,31 @@ impl Parser<'_> {
             measurements,
         })
     }
+}
+
+/// Render a file array in the requested form: `[{"blake3","path"}]` sorted by path
+/// (on-disk), or `["<blake3>",…]` sorted by blake3 (the content-only claim).
+fn push_files(out: &mut String, files: &[FileHash], render: FileRender) {
+    match render {
+        FileRender::WithPath => push_file_hashes(out, files),
+        FileRender::ContentOnly => push_blake3_list(out, files),
+    }
+}
+
+/// Render `["<blake3>",…]`, sorted by digest (a content multiset — duplicates kept).
+fn push_blake3_list(out: &mut String, files: &[FileHash]) {
+    let mut digests: Vec<&str> = files.iter().map(|f| f.blake3.as_str()).collect();
+    digests.sort_unstable();
+    out.push('[');
+    for (i, d) in digests.iter().enumerate() {
+        if i > 0 {
+            out.push(',');
+        }
+        out.push('"');
+        out.push_str(&json_escape(d));
+        out.push('"');
+    }
+    out.push(']');
 }
 
 /// Render a `[{"blake3":..,"path":..}, ..]` array, entries sorted by path.
@@ -892,5 +945,101 @@ mod tests {
         // shadowing). `params` and `measurements` both go through `parse_params`.
         let dup = r#"{"inputs":[],"outputs":[],"params":{"k":"1","k":"2"},"subcommand":"x","tool_version":"0.1.0"}"#;
         assert!(RunManifest::from_canonical_json(dup).is_err());
+    }
+
+    #[test]
+    fn claim_hash_is_stable_across_machine_dependent_paths() {
+        // Same content (blake3) at DIFFERENT paths on two machines → SAME claim hash.
+        // The keystone of P0.2b: paths are dropped from the claim form.
+        let mk = |idx_path: &str, out_path: &str| {
+            let mut m = RunManifest::new("variants");
+            m.tool_version = "0.1.0".to_string();
+            m.inputs.push(FileHash {
+                path: idx_path.to_string(),
+                blake3: "aa".to_string(),
+            });
+            m.outputs.push(FileHash {
+                path: out_path.to_string(),
+                blake3: "bb".to_string(),
+            });
+            m.params.insert("min_qual".to_string(), "30".to_string());
+            m.finalize();
+            m
+        };
+        let a = mk("/home/alice/ref.idx", "/tmp/run-1/out.vcf");
+        let b = mk("/data/ref.idx", "out.vcf");
+        assert_eq!(
+            a.content_hash(),
+            b.content_hash(),
+            "the claim hash must not depend on recorded paths"
+        );
+        assert_eq!(a.self_hash_ok(), Some(true));
+        assert_eq!(b.self_hash_ok(), Some(true));
+    }
+
+    #[test]
+    fn claim_hash_still_tracks_content() {
+        // Different content (blake3) → different claim hash (the address is the content).
+        let mk = |digest: &str| {
+            let mut m = RunManifest::new("variants");
+            m.tool_version = "0.1.0".to_string();
+            m.inputs.push(FileHash {
+                path: "ref.idx".to_string(),
+                blake3: digest.to_string(),
+            });
+            m.finalize();
+            m
+        };
+        assert_ne!(mk("aa").content_hash(), mk("bb").content_hash());
+    }
+
+    #[test]
+    fn claim_drops_paths_but_the_on_disk_form_keeps_them() {
+        let mut m = RunManifest::new("variants");
+        m.tool_version = "0.1.0".to_string();
+        m.inputs.push(FileHash {
+            path: "/home/alice/secret/ref.idx".to_string(),
+            blake3: "aa".to_string(),
+        });
+        m.finalize();
+        assert!(
+            !m.to_canonical_claim_json().contains("/home/alice"),
+            "the claim form must not carry the recorded path"
+        );
+        assert!(
+            m.to_canonical_json().contains("/home/alice"),
+            "the on-disk form must keep the recorded path"
+        );
+        // The content digest is present in BOTH.
+        assert!(m.to_canonical_claim_json().contains("aa"));
+    }
+
+    #[test]
+    fn pre_p0_2b_receipt_with_paths_in_the_claim_still_verifies() {
+        // A schema-2 receipt hashed paths INTO the claim. The version gate must
+        // reproduce that path-inclusive form so it still self-verifies; a schema-3
+        // receipt over the same files hashes differently (the form changed).
+        let mk = |schema: &str| {
+            let mut m = RunManifest::new("variants");
+            m.tool_version = "0.1.0".to_string();
+            m.inputs.push(FileHash {
+                path: "ref.idx".to_string(),
+                blake3: "aa".to_string(),
+            });
+            m.params
+                .insert("schema_version".to_string(), schema.to_string());
+            let h = m.content_hash();
+            m.params.insert("manifest_blake3".to_string(), h);
+            m
+        };
+        let v2 = mk("2");
+        assert_eq!(v2.self_hash_ok(), Some(true), "schema-2 must self-verify");
+        let v3 = mk("3");
+        assert_eq!(v3.self_hash_ok(), Some(true), "schema-3 must self-verify");
+        assert_ne!(
+            v2.params.get("manifest_blake3"),
+            v3.params.get("manifest_blake3"),
+            "the claim form genuinely differs between schema 2 and 3"
+        );
     }
 }
