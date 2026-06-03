@@ -220,6 +220,14 @@ impl RunManifest {
     /// DIRTY tree (not reproducible from a SHA alone), or an inability to check (no /
     /// `unknown` SHA). An empty vec means a clean, matching build.
     pub fn check_expected_code(&self, expected: &str) -> Vec<String> {
+        // Reject a degenerate expected SHA up front: an empty / too-short / non-hex
+        // value would match loosely (or vacuously) via `starts_with` and give false
+        // confidence — a scripted `--expect-code "$MAYBE_EMPTY"` must fail, not pass.
+        if expected.len() < 7 || !expected.chars().all(|c| c.is_ascii_hexdigit()) {
+            return vec![format!(
+                "invalid --expect-code {expected:?}: expected a hex commit SHA of at least 7 chars"
+            )];
+        }
         match self.params.get("code_git_sha").map(String::as_str) {
             None => vec![
                 "cannot check --expect-code: the receipt records no code_git_sha (a pre-P0.3 receipt)"
@@ -1134,28 +1142,55 @@ mod tests {
             m.params.insert("code_dirty".to_string(), dirty.to_string());
             m
         };
-        // Exact + prefix match on a clean build → no problems.
+        // Exact + (>=7-char) prefix match on a clean build → no problems.
         assert!(mk("abc123def456", "false")
             .check_expected_code("abc123def456")
             .is_empty());
         assert!(mk("abc123def456", "false")
-            .check_expected_code("abc123")
+            .check_expected_code("abc123d")
             .is_empty());
         // Mismatch → one problem mentioning "mismatch".
-        let mm = mk("abc123", "false").check_expected_code("deadbeef");
+        let mm = mk("abc123def456", "false").check_expected_code("deadbeef");
         assert_eq!(mm.len(), 1);
         assert!(mm[0].contains("mismatch"));
         // Match but dirty → one problem mentioning the DIRTY tree.
-        let dirty = mk("abc123", "true").check_expected_code("abc123");
+        let dirty = mk("abc123def456", "true").check_expected_code("abc123def456");
         assert_eq!(dirty.len(), 1);
         assert!(dirty[0].contains("DIRTY"));
         // Absent / unknown → cannot check (one problem each).
         assert_eq!(
             RunManifest::new("variants")
-                .check_expected_code("abc")
+                .check_expected_code("abc1234")
                 .len(),
             1
         );
-        assert_eq!(mk("unknown", "false").check_expected_code("abc").len(), 1);
+        assert_eq!(
+            mk("unknown", "false").check_expected_code("abc1234").len(),
+            1
+        );
+    }
+
+    #[test]
+    fn check_expected_code_rejects_a_degenerate_expected_sha() {
+        // An empty / too-short / non-hex expected must FAIL (not vacuously pass via
+        // starts_with) — otherwise `--expect-code "$MAYBE_EMPTY"` is a false-confidence
+        // footgun.
+        let m = {
+            let mut m = RunManifest::new("variants");
+            m.params
+                .insert("code_git_sha".to_string(), "abc123def456".to_string());
+            m.params
+                .insert("code_dirty".to_string(), "false".to_string());
+            m
+        };
+        for bad in ["", "9", "abc", "zzzzzzz"] {
+            let problems = m.check_expected_code(bad);
+            assert_eq!(problems.len(), 1, "{bad:?} must be rejected");
+            assert!(
+                problems[0].contains("invalid --expect-code"),
+                "{bad:?}: {}",
+                problems[0]
+            );
+        }
     }
 }

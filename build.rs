@@ -10,6 +10,11 @@ fn main() {
     emit_rerun_triggers();
 
     let git_sha = git(&["rev-parse", "HEAD"]).unwrap_or_else(|| "unknown".to_string());
+    // Collapse `git status --porcelain` to a boolean. This is LOAD-BEARING for safety:
+    // its output embeds attacker-influenceable filenames (which may contain newlines),
+    // and a newline in a baked value would split into a second `cargo:` directive. Every
+    // other baked value (40-hex SHA, single-line rustc version, TARGET, blake3 hex) is
+    // newline-free, so never bake a raw git ref/branch/tag/commit message here.
     let git_dirty = match git(&["status", "--porcelain"]) {
         Some(s) => if s.is_empty() { "false" } else { "true" }.to_string(),
         None => "unknown".to_string(),
