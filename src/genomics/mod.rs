@@ -33,8 +33,8 @@ pub use fm_index::{
 };
 pub use genome_index::{GenomeIndex, GenomeIndexError, MAX_GENOME_LEN};
 pub use index::{
-    estimate_build_working_set, render_plan_line, BuildMemoryModel, FmIndexView, GenomeIndexView,
-    IndexBuildReport, IndexHeader, IndexReader, IndexWriter, ReferenceIndex, ReferenceView,
+    render_plan_line, BuildMemoryModel, FmIndexView, GenomeIndexView, IndexBuildReport,
+    IndexHeader, IndexReader, IndexWriter, ReferenceIndex, ReferenceView,
 };
 pub use io::create_bam_writer;
 pub(crate) use rank_select::popcount_range;

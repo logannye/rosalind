@@ -12,7 +12,5 @@ mod view;
 
 pub use format::IndexHeader;
 pub use io::{IndexReader, IndexWriter, ReferenceIndex};
-pub use report::{
-    estimate_build_working_set, render_plan_line, BuildMemoryModel, IndexBuildReport,
-};
+pub use report::{render_plan_line, BuildMemoryModel, IndexBuildReport};
 pub use view::{FmIndexView, GenomeIndexView, ReferenceView};

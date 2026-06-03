@@ -1,29 +1,11 @@
 //! Pure, testable presentation + planning helpers for `rosalind index`.
 //!
-//! Kept out of `main.rs` (a thin CLI handler) so the build working-set estimate,
-//! the build receipt, and the budget plan line are unit-tested without spawning a
-//! process. Nothing here enforces anything — the `MemoryBudget` plan line is
-//! record-only (honor-or-refuse is Phase C).
+//! Kept out of `main.rs` (a thin CLI handler) so the build memory model, the build
+//! receipt, and the budget plan line are unit-tested without spawning a process.
+//! Nothing here enforces anything — the `MemoryBudget` plan line is record-only
+//! (honor-or-refuse is Phase D).
 
 use crate::core::{MemoryBudget, WorkingSet};
-
-/// A coarse, **record-only** estimate of the peak working set of building a
-/// `GenomeIndex` over a reference of `reference_len` bases.
-///
-/// The build is dominated by SA-IS over the `u32` text (text + suffix array +
-/// workspace) plus the in-RAM index structures — roughly **12 bytes per base**.
-/// This is an intentionally coarse upper-ish model for the budget *seam*; precise
-/// accounting is Phase C and the build cost itself is what Phase D reduces. It is
-/// not a guarantee.
-pub fn estimate_build_working_set(reference_len: u64) -> WorkingSet {
-    const BYTES_PER_BASE: u64 = 12;
-    const BASE_OVERHEAD: u64 = 1 << 20; // 1 MiB floor for short references
-    WorkingSet {
-        bytes: reference_len
-            .saturating_mul(BYTES_PER_BASE)
-            .saturating_add(BASE_OVERHEAD),
-    }
-}
 
 /// A code-grounded model of the **peak simultaneously-live n-scale memory** of the
 /// SA-IS index build, broken down by the arrays `sais_impl`/`induce_sort`/the
@@ -35,6 +17,12 @@ pub fn estimate_build_working_set(reference_len: u64) -> WorkingSet {
 /// tail (~1× the parent's live n-scale arrays). This is a peak-SET estimate, not a
 /// sum of every allocation ever made — D0 MEASURES whether it captures the
 /// realized peak (the gate); it is not tuned to the gate.
+///
+/// This is the model `plan --reference` and the `index` build receipt SHARE (anti-drift).
+/// D0 MEASURED 41 B/base realized (constant across E. coli + yeast); this model is ~45 B/base,
+/// so it ENVELOPES the realized peak (model/realized ≈ 1.08). It is a code-grounded model
+/// validated by D0 — NOT a proven worst-case bound; the realized peak in the build receipt is
+/// the backstop.
 #[derive(Debug, Clone)]
 pub struct BuildMemoryModel {
     /// Per-component `(name, bytes)` of the modeled peak set.
@@ -74,6 +62,15 @@ impl BuildMemoryModel {
         Self {
             components,
             total_bytes,
+        }
+    }
+
+    /// The modeled peak as a `WorkingSet` for the budget plan line. This is the model
+    /// `plan --reference`, the `index` plan line, and the build receipt all share, so
+    /// the up-front prediction and the realized accounting cannot drift.
+    pub fn working_set(&self) -> WorkingSet {
+        WorkingSet {
+            bytes: self.total_bytes,
         }
     }
 
@@ -165,12 +162,25 @@ mod tests {
     use super::*;
 
     #[test]
-    fn estimate_grows_with_length_and_does_not_overflow() {
-        let small = estimate_build_working_set(1_000).bytes;
-        let large = estimate_build_working_set(1_000_000).bytes;
-        assert!(large > small, "estimate must grow with reference length");
-        assert!(large >= 12_000_000, "≈12 bytes/base");
-        let _ = estimate_build_working_set(u64::MAX); // must not panic/overflow
+    fn model_envelopes_the_d0_measured_realized_peak() {
+        // D0 measured 41 B/base realized; the model is ~45 B/base, so it envelopes the
+        // realized peak (the soundness margin) without ballooning. Pinned against formula drift.
+        let n = 100_000_000u64; // 100 Mbp
+        let total = BuildMemoryModel::from_reference_len(n).total_bytes;
+        assert!(
+            total >= 41 * n,
+            "model {} B/base must envelope the D0-measured 41 B/base realized peak",
+            total / n
+        );
+        assert!(
+            total <= 50 * n,
+            "model {} B/base is implausibly large (formula drift?)",
+            total / n
+        );
+        assert_eq!(
+            BuildMemoryModel::from_reference_len(n).working_set().bytes,
+            total
+        );
     }
 
     #[test]

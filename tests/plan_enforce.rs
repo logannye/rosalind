@@ -78,9 +78,19 @@ fn plan_reference_reports_build_estimate() {
         .unwrap();
     assert!(out.status.success());
     let stdout = String::from_utf8_lossy(&out.stdout);
+    // The model breakdown is rendered, and the build peak is now the code-grounded
+    // ~45 B/base model (envelopes the D0-measured 41 B/base), not the stale 12 B/base.
+    assert!(
+        stdout.contains("build memory model"),
+        "missing model breakdown: {stdout}"
+    );
+    assert!(
+        stdout.contains("45 B/base"),
+        "expected the ~45 B/base model total, not the old 12 B/base: {stdout}"
+    );
     assert!(
         stdout.contains("plan:"),
-        "missing build plan line: {stdout}"
+        "missing build plan verdict line: {stdout}"
     );
     std::fs::remove_dir_all(&dir).ok();
 }
