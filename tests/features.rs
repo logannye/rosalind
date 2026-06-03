@@ -38,7 +38,7 @@ fn build_sorted_bam_fixture() -> (PathBuf, PathBuf, PathBuf) {
     let mut s = String::new();
     for (i, &start) in [0usize, 0, 4, 4, 8].iter().enumerate() {
         let read = &seq[start..start + 16];
-        let qual: String = std::iter::repeat('I').take(16).collect();
+        let qual: String = std::iter::repeat_n('I', 16).collect();
         s.push_str(&format!("@r{i}\n{read}\n+\n{qual}\n"));
     }
     std::fs::write(&fq, s).unwrap();

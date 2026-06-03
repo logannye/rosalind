@@ -77,7 +77,7 @@ fn spill_chunk(
     idx: usize,
     chunk: &mut Vec<Record>,
 ) -> Result<PathBuf> {
-    chunk.sort_by(|a, b| sort_key_cmp(a, b));
+    chunk.sort_by(sort_key_cmp);
 
     let path = dir.join(format!("{idx:05}.bam"));
     let mut writer = bam::Writer::from_path(&path, header, bam::Format::Bam)

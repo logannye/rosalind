@@ -105,7 +105,7 @@ fn build_sorted_bam_fixture() -> (PathBuf, PathBuf, PathBuf) {
     let mut s = String::new();
     for (i, &start) in [0usize, 0, 4, 4, 8].iter().enumerate() {
         let read = &seq[start..start + 16];
-        let qual: String = std::iter::repeat('I').take(16).collect();
+        let qual: String = std::iter::repeat_n('I', 16).collect();
         s.push_str(&format!("@r{i}\n{read}\n+\n{qual}\n"));
     }
     std::fs::write(&fq, s).unwrap();
@@ -443,7 +443,7 @@ fn build_big_contig_fixture(ref_len: usize) -> (PathBuf, PathBuf, PathBuf) {
         .enumerate()
     {
         let read = std::str::from_utf8(&seq[off..off + 60]).unwrap();
-        let qual: String = std::iter::repeat('I').take(60).collect();
+        let qual: String = std::iter::repeat_n('I', 60).collect();
         fastq.push_str(&format!("@r{i}\n{read}\n+\n{qual}\n"));
     }
     std::fs::write(&fq, fastq).unwrap();

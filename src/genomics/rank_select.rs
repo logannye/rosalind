@@ -103,11 +103,11 @@ impl RankSelectIndex {
         }
 
         // Build superblock prefix sums for each base.
-        let num_superblocks = (len + stride - 1) / stride;
+        let num_superblocks = len.div_ceil(stride);
         let mut superblocks: [Vec<u32>; ALPHABET_SIZE] =
             std::array::from_fn(|_| Vec::with_capacity(num_superblocks + 1));
-        for b in 0..ALPHABET_SIZE {
-            superblocks[b].push(0);
+        for sb_prefix in superblocks.iter_mut() {
+            sb_prefix.push(0);
         }
 
         for sb in 0..num_superblocks {
@@ -182,10 +182,10 @@ impl RankSelectIndex {
         let within_start = sb * self.stride;
 
         let mut out = [0u32; ALPHABET_SIZE];
-        for b in 0..ALPHABET_SIZE {
+        for (b, slot) in out.iter_mut().enumerate() {
             let prefix = self.superblocks[b][sb];
             let within = popcount_range(&self.bitvectors[b], within_start, bounded);
-            out[b] = prefix + within;
+            *slot = prefix + within;
         }
         out
     }
@@ -196,7 +196,7 @@ fn words_for_bits(bits: usize) -> usize {
     if bits == 0 {
         0
     } else {
-        (bits + 63) / 64
+        bits.div_ceil(64)
     }
 }
 

@@ -24,8 +24,8 @@ fn deterministic_bam_sort_orders_by_tid_pos_strand_qname() {
     let mut header = bam::Header::new();
     header.push_record(
         bam::header::HeaderRecord::new(b"SQ")
-            .push_tag(b"SN", &"chr1")
-            .push_tag(b"LN", &1000),
+            .push_tag(b"SN", "chr1")
+            .push_tag(b"LN", 1000),
     );
 
     // Write unsorted records: positions 10, 5, 10 (different qnames).
@@ -88,9 +88,9 @@ fn deterministic_bam_sort_orders_by_tid_pos_strand_qname() {
     assert_eq!(qnames, vec!["readA", "readB", "readC"]);
     assert_eq!(keys[0].1, 5);
     assert_eq!(keys[1].1, 10);
-    assert_eq!(keys[1].2, false);
+    assert!(!keys[1].2);
     assert_eq!(keys[2].1, 10);
-    assert_eq!(keys[2].2, true);
+    assert!(keys[2].2);
 
     let _ = std::fs::remove_file(input);
     let _ = std::fs::remove_file(output);

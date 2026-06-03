@@ -45,9 +45,8 @@ impl MmapReadOnly {
             if addr == libc::MAP_FAILED {
                 return Err(io::Error::last_os_error());
             }
-            let ptr = NonNull::new(addr as *mut u8).ok_or_else(|| {
-                io::Error::new(io::ErrorKind::Other, "mmap returned null pointer")
-            })?;
+            let ptr = NonNull::new(addr as *mut u8)
+                .ok_or_else(|| io::Error::other("mmap returned null pointer"))?;
             Ok(Self { ptr, len })
         }
     }

@@ -319,7 +319,7 @@ fn block_record_len(block: &crate::genomics::BWTBlock) -> u64 {
         + 4 * 5; // totals[5]
                  // Round up to a multiple of 8. `(body + 7) / 8 * 8`, not `body.div_ceil(8) * 8`
                  // (div_ceil is Rust 1.73+; MSRV is 1.72).
-    (body + 7) / 8 * 8
+    body.div_ceil(8) * 8
 }
 
 /// Write one block record: 8 header fields (`start,end,sentinel_offset,stride,
@@ -369,7 +369,7 @@ fn write_block_record(
         + 4 * 5 * occ_superblock_len
         + 4 * 5;
     // Pad to a multiple of 8. `(body + 7) / 8 * 8`, not `div_ceil` (Rust 1.73+; MSRV 1.72).
-    let pad = ((body + 7) / 8 * 8 - body) as usize;
+    let pad = (body.div_ceil(8) * 8 - body) as usize;
     if pad != 0 {
         w.write_all(&[0u8; 8][..pad])?;
     }
@@ -856,8 +856,8 @@ mod tests {
 
         assert_eq!(rv.len(), reference.len());
         assert!(!rv.is_empty());
-        for i in 0..rv.len() {
-            assert_eq!(rv.base_at(i), reference[i], "base_at mismatch @ {i}");
+        for (i, &expected) in reference.iter().enumerate() {
+            assert_eq!(rv.base_at(i), expected, "base_at mismatch @ {i}");
         }
 
         let mut buf = Vec::new();

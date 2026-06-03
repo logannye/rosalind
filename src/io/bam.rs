@@ -257,7 +257,7 @@ mod tests {
         for (name, len) in contigs {
             let mut rec = bam::header::HeaderRecord::new(b"SQ");
             rec.push_tag(b"SN", name);
-            rec.push_tag(b"LN", &(*len as i64));
+            rec.push_tag(b"LN", *len as i64);
             header.push_record(&rec);
         }
         header
@@ -414,8 +414,8 @@ mod tests {
         let mut header = bam::Header::new();
         header.push_record(
             bam::header::HeaderRecord::new(b"SQ")
-                .push_tag(b"SN", &"chr1")
-                .push_tag(b"LN", &1000),
+                .push_tag(b"SN", "chr1")
+                .push_tag(b"LN", 1000),
         );
         {
             let mut w = bam::Writer::from_path(&path, &header, bam::Format::Bam).unwrap();
@@ -477,8 +477,8 @@ mod tests {
         let mut header = bam::Header::new();
         header.push_record(
             bam::header::HeaderRecord::new(b"SQ")
-                .push_tag(b"SN", &"chrX")
-                .push_tag(b"LN", &1000),
+                .push_tag(b"SN", "chrX")
+                .push_tag(b"LN", 1000),
         );
         {
             let mut w = bam::Writer::from_path(&path, &header, bam::Format::Bam).unwrap();

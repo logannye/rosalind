@@ -1019,6 +1019,7 @@ fn run_locate(index: PathBuf, pattern: String, max_hits: usize) -> Result<()> {
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)] // a CLI entry point: each flag is a parameter
 fn run_somatic(
     reference_path: PathBuf,
     tumor_fastq: Option<PathBuf>,
@@ -1198,6 +1199,7 @@ fn run_somatic(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)] // a CLI entry point: each flag is a parameter
 fn run_align(
     reference_path: PathBuf,
     reads_path: Option<PathBuf>,
@@ -1427,6 +1429,7 @@ fn align_pairs(
     Ok(out)
 }
 
+#[allow(clippy::too_many_arguments)] // a CLI entry point: each flag is a parameter
 fn run_variants(
     reference_path: PathBuf,
     alignments_path: PathBuf,
@@ -1891,6 +1894,7 @@ fn run_features(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)] // a CLI entry point: each flag is a parameter
 fn run_variants_index(
     index_path: PathBuf,
     alignments_path: PathBuf,

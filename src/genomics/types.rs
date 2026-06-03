@@ -77,6 +77,11 @@ impl AlignedRead {
         self.sequence.len()
     }
 
+    /// Whether the read has no bases.
+    pub fn is_empty(&self) -> bool {
+        self.sequence.is_empty()
+    }
+
     /// End position (half-open) on the reference assuming contiguous match.
     pub fn end(&self) -> u32 {
         self.pos + self.len() as u32

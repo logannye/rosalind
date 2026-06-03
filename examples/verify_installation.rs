@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
@@ -35,7 +35,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn ensure_data_exists(dir: &PathBuf) -> Result<()> {
+fn ensure_data_exists(dir: &Path) -> Result<()> {
     for name in ["ref.fa", "reads.fastq"] {
         let path = dir.join(name);
         if !path.exists() {

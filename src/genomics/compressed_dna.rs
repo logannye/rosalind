@@ -45,6 +45,11 @@ impl AmbiguityMask {
         self.len
     }
 
+    /// Whether the mask tracks no positions.
+    pub fn is_empty(&self) -> bool {
+        self.len == 0
+    }
+
     /// Access the underlying bit words (useful for serialization).
     pub fn bits(&self) -> &[u64] {
         &self.bits
@@ -80,8 +85,8 @@ impl CompressedDNA {
         let mut ambiguity = AmbiguityMask::new(len);
 
         for (idx, &base) in sequence.iter().enumerate() {
-            let (code, is_ambiguous) = encode_base(base)
-                .ok_or_else(|| CompressedDNAError::UnsupportedBase(base as char, idx))?;
+            let (code, is_ambiguous) =
+                encode_base(base).ok_or(CompressedDNAError::UnsupportedBase(base as char, idx))?;
 
             if is_ambiguous {
                 ambiguity.set(idx);
@@ -168,8 +173,8 @@ impl CompressedDNA {
             self.len
         );
 
-        for idx in 0..self.len {
-            out[idx] = if self.ambiguity.test(idx) {
+        for (idx, slot) in out.iter_mut().take(self.len).enumerate() {
+            *slot = if self.ambiguity.test(idx) {
                 b'N'
             } else {
                 let (word_idx, bit_shift) = word_position(idx);
@@ -182,8 +187,8 @@ impl CompressedDNA {
     /// Append a single base to the compressed sequence.
     pub fn push(&mut self, base: u8) -> Result<(), CompressedDNAError> {
         let idx = self.len;
-        let (code, is_ambiguous) = encode_base(base)
-            .ok_or_else(|| CompressedDNAError::UnsupportedBase(base as char, idx))?;
+        let (code, is_ambiguous) =
+            encode_base(base).ok_or(CompressedDNAError::UnsupportedBase(base as char, idx))?;
 
         let (word_idx, bit_shift) = word_position(idx);
         if word_idx >= self.data.len() {
@@ -274,7 +279,7 @@ fn words_for_len(len: usize) -> usize {
     if len == 0 {
         0
     } else {
-        (len + BASES_PER_WORD - 1) / BASES_PER_WORD
+        len.div_ceil(BASES_PER_WORD)
     }
 }
 

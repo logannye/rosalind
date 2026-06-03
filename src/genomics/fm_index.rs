@@ -283,6 +283,11 @@ impl BlockedFMIndex {
         self.bwt_len
     }
 
+    /// Whether the BWT is empty (no bases indexed).
+    pub fn is_empty(&self) -> bool {
+        self.bwt_len == 0
+    }
+
     /// Block size used for the FM-index partitioning.
     pub fn block_size(&self) -> usize {
         self.block_size
@@ -504,7 +509,9 @@ fn build_bwt_and_sa_samples(
         text.len(),
         rate,
         sa.iter().enumerate().filter_map(|(bwt_idx, &sa_idx)| {
-            ((sa_idx as usize) % rate == 0).then_some((bwt_idx, sa_idx))
+            (sa_idx as usize)
+                .is_multiple_of(rate)
+                .then_some((bwt_idx, sa_idx))
         }),
     );
 
@@ -696,12 +703,12 @@ mod tests {
             assert_eq!(block.end() - block.start(), block.bwt().len());
             // Each of the 5 occ rank bitvectors has ceil(n/64) words.
             let n = block.bwt().len();
-            let expected_words = (n + 63) / 64;
+            let expected_words = n.div_ceil(64);
             for bv in block.occ().bitvectors() {
                 assert_eq!(bv.len(), expected_words);
             }
             // Each of the 5 occ superblock arrays has ceil(n/stride) + 1 entries.
-            let expected_sb = (n + block.occ().stride() - 1) / block.occ().stride() + 1;
+            let expected_sb = n.div_ceil(block.occ().stride()) + 1;
             for sb in block.occ().superblocks() {
                 assert_eq!(sb.len(), expected_sb);
             }
@@ -710,7 +717,7 @@ mod tests {
 
         // The sampled SA exposes marks/superblocks/values.
         let s = index.sampled();
-        assert_eq!(s.marks().len(), (s.len() + 63) / 64);
+        assert_eq!(s.marks().len(), s.len().div_ceil(64));
         assert_eq!(s.values().len(), s.num_samples());
         assert!(!s.superblocks().is_empty());
     }

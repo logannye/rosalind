@@ -425,7 +425,7 @@ fn validate_block_records(blocks: &[u8], block_dir: &[u64]) -> Result<(), IndexI
         // corrupt non-aligned offset here at `open` rather than letting `block()`
         // hit `.expect("aligned")` at query time (the integrity contract: a corrupt
         // index is rejected up front, never crashed-on later).
-        if rec % 8 != 0 {
+        if !rec.is_multiple_of(8) {
             return Err(IndexIoError::Invalid(
                 "block record offset is not 8-aligned".to_string(),
             ));

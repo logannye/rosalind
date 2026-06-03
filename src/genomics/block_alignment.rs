@@ -136,7 +136,7 @@ pub fn align_within_block(
     let mut processed = 0usize;
     let mut exhausted = false;
 
-    for (_offset, &symbol) in workspace.iter().take(read_segment.len()).enumerate() {
+    for &symbol in workspace.iter().take(read_segment.len()) {
         let base_code = match BaseCode::from_ascii(symbol) {
             Some(code) => code,
             None => {

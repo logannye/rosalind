@@ -45,7 +45,7 @@ fn write_fastq(dir: &Path, seq: &str, starts: &[usize], len: usize) -> PathBuf {
     let mut s = String::new();
     for (i, &start) in starts.iter().enumerate() {
         let read = &seq[start..start + len];
-        let qual: String = std::iter::repeat('I').take(len).collect();
+        let qual: String = std::iter::repeat_n('I', len).collect();
         s.push_str(&format!("@r{i}\n{read}\n+\n{qual}\n"));
     }
     std::fs::write(&p, s).unwrap();

@@ -6,7 +6,7 @@ fn main() -> anyhow::Result<()> {
     // Minimal reference contig (re-used in README quick start).
     let reference = include_bytes!("data/ref.fa")
         .split(|&b| b == b'\n')
-        .filter(|line| !line.starts_with(&[b'>']))
+        .filter(|line| !line.starts_with(b">"))
         .flatten()
         .copied()
         .collect::<Vec<u8>>();

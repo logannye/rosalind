@@ -4,7 +4,7 @@ use rosalind::genomics::BWTAligner;
 fn align_batch_produces_results() {
     let reference = b"ACGTACGTACGT";
     let mut aligner = BWTAligner::new(reference).expect("aligner should initialize");
-    let reads = vec![b"ACGT".as_slice(), b"CGTA".as_slice(), b"GTAC".as_slice()];
+    let reads = [b"ACGT".as_slice(), b"CGTA".as_slice(), b"GTAC".as_slice()];
     let results = aligner
         .align_batch(reads.iter().copied())
         .expect("batch alignment should succeed");
