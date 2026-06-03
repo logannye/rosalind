@@ -25,7 +25,10 @@ use std::path::{Path, PathBuf};
 /// the self-hash (`manifest_blake3`) covers the claim only. v3: the claim hashes
 /// inputs/outputs by their sorted `blake3` digests (paths dropped), so it is a
 /// cross-machine content-address — the same data at different paths hashes identically.
-pub const MANIFEST_SCHEMA_VERSION: u32 = 3;
+/// v4: the claim records build-identity (`code_git_sha`/`code_dirty`/`rustc_version`/
+/// `target_triple`/`deps_lock_blake3`), committing to exactly which code, toolchain, and
+/// dependencies produced the run.
+pub const MANIFEST_SCHEMA_VERSION: u32 = 4;
 
 /// Keys whose values are machine-/run-dependent measurements, not part of the
 /// deterministic claim. `finalize` relocates these out of `params` into the
@@ -212,6 +215,36 @@ impl RunManifest {
             .unwrap_or(false)
     }
 
+    /// Check the recorded `code_git_sha` against an expected commit (prefix match, so
+    /// short SHAs work). Returns the problems found: a mismatch, a clean match from a
+    /// DIRTY tree (not reproducible from a SHA alone), or an inability to check (no /
+    /// `unknown` SHA). An empty vec means a clean, matching build.
+    pub fn check_expected_code(&self, expected: &str) -> Vec<String> {
+        match self.params.get("code_git_sha").map(String::as_str) {
+            None => vec![
+                "cannot check --expect-code: the receipt records no code_git_sha (a pre-P0.3 receipt)"
+                    .to_string(),
+            ],
+            Some("unknown") => vec![
+                "cannot check --expect-code: the receipt's code_git_sha is 'unknown' (a non-git build)"
+                    .to_string(),
+            ],
+            Some(sha) if !sha.starts_with(expected) => vec![format!(
+                "code mismatch: receipt was built from {sha}, expected {expected}"
+            )],
+            Some(_) => {
+                if self.params.get("code_dirty").map(String::as_str) == Some("true") {
+                    vec![format!(
+                        "code matches {expected} but the receipt was built from a DIRTY tree \
+                         (uncommitted changes) — not reproducible from a commit SHA alone"
+                    )]
+                } else {
+                    Vec::new()
+                }
+            }
+        }
+    }
+
     /// Seal the receipt: partition measured fields out of the claim, stamp the
     /// measurement hash, the schema version, then the claim self-hash LAST (so it
     /// covers every other claim field, including the version). Idempotent.
@@ -237,7 +270,19 @@ impl RunManifest {
             self.params
                 .insert("has_measurements".to_string(), "true".to_string());
         }
-        // 3. Stamp the version into the claim, then the claim self-hash last.
+        // 3. Build-identity (baked at compile time by build.rs) — part of the claim,
+        //    so it is committed to by the self-hash and forms the reproduction key:
+        //    exactly which code, toolchain, and deps produced this run.
+        for (k, v) in [
+            ("code_git_sha", env!("ROSALIND_GIT_SHA")),
+            ("code_dirty", env!("ROSALIND_GIT_DIRTY")),
+            ("rustc_version", env!("ROSALIND_RUSTC_VERSION")),
+            ("target_triple", env!("ROSALIND_TARGET")),
+            ("deps_lock_blake3", env!("ROSALIND_DEPS_LOCK_BLAKE3")),
+        ] {
+            self.params.insert(k.to_string(), v.to_string());
+        }
+        // 4. Stamp the version into the claim, then the claim self-hash last.
         self.params.insert(
             "schema_version".to_string(),
             MANIFEST_SCHEMA_VERSION.to_string(),
@@ -1056,5 +1101,61 @@ mod tests {
             seal("3", "/b/ref.idx").content_hash(),
             "the schema-3 claim form is content-only"
         );
+    }
+
+    #[test]
+    fn finalize_stamps_build_identity_into_the_claim() {
+        let mut m = RunManifest::new("variants");
+        m.finalize();
+        for k in [
+            "code_git_sha",
+            "code_dirty",
+            "rustc_version",
+            "target_triple",
+            "deps_lock_blake3",
+        ] {
+            assert!(
+                m.params.get(k).is_some_and(|v| !v.is_empty()),
+                "finalize must stamp {k}"
+            );
+        }
+        // Build-identity is in the claim → tampering it breaks the claim self-hash.
+        assert_eq!(m.self_hash_ok(), Some(true));
+        m.params
+            .insert("code_git_sha".to_string(), "tampered".to_string());
+        assert_eq!(m.self_hash_ok(), Some(false));
+    }
+
+    #[test]
+    fn check_expected_code_matches_mismatches_and_flags_dirty() {
+        let mk = |sha: &str, dirty: &str| {
+            let mut m = RunManifest::new("variants");
+            m.params.insert("code_git_sha".to_string(), sha.to_string());
+            m.params.insert("code_dirty".to_string(), dirty.to_string());
+            m
+        };
+        // Exact + prefix match on a clean build → no problems.
+        assert!(mk("abc123def456", "false")
+            .check_expected_code("abc123def456")
+            .is_empty());
+        assert!(mk("abc123def456", "false")
+            .check_expected_code("abc123")
+            .is_empty());
+        // Mismatch → one problem mentioning "mismatch".
+        let mm = mk("abc123", "false").check_expected_code("deadbeef");
+        assert_eq!(mm.len(), 1);
+        assert!(mm[0].contains("mismatch"));
+        // Match but dirty → one problem mentioning the DIRTY tree.
+        let dirty = mk("abc123", "true").check_expected_code("abc123");
+        assert_eq!(dirty.len(), 1);
+        assert!(dirty[0].contains("DIRTY"));
+        // Absent / unknown → cannot check (one problem each).
+        assert_eq!(
+            RunManifest::new("variants")
+                .check_expected_code("abc")
+                .len(),
+            1
+        );
+        assert_eq!(mk("unknown", "false").check_expected_code("abc").len(), 1);
     }
 }
