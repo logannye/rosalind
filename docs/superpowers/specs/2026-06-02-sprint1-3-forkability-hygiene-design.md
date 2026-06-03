@@ -26,27 +26,31 @@ Verified defects (2026-06-02):
 
 **Goals**
 - Fix the three verified doc-drift defects.
-- Declare + **enforce** the MSRV (`rust-version` + a CI job that builds on it).
 - Add `CONTRIBUTING.md`, `ARCHITECTURE.md`, and a deterministic-repro issue template.
 - Confirm the crate **packages** cleanly for crates.io (`cargo publish --dry-run`).
 
 **Non-goals (explicitly deferred — see §6)**
-- The `clippy -D warnings` CI gate (82 pre-existing lints + an MSRV/`div_ceil` tension → its own
-  "1.3b clippy cleanup" increment).
+- The MSRV declaration + CI gate — moved to **1.3b** after the execution finding in §3.1 (the documented
+  1.72 is not buildable; the dep ecosystem forces ≥1.83). It is the same decision as `div_ceil`/clippy.
+- The `clippy -D warnings` CI gate (82 pre-existing lints + the MSRV/`div_ceil` tension → **1.3b**).
 - Actually running `cargo publish` (irreversible; a gated step for the maintainer).
 - PyPI / bioconda / Docker channels (the htslib-linking wall — a separate, later effort).
 - Running the README quickstart verbatim in CI (`release.yml` already smoke-tests `install.sh` on tag).
 
 ## 3. Design
 
-### 3.1 MSRV — declare + enforce
+### 3.1 MSRV — DEFERRED to 1.3b (finding during execution, 2026-06-02)
 
-- `Cargo.toml`: add `rust-version = "1.72"` to `[package]` (the documented MSRV).
-- `.github/workflows/ci.yml`: add an `msrv` job that installs Rust **1.72** and runs `cargo check
-  --all-targets`. This catches any accidental use of a newer-than-1.72 API (the codebase already
-  avoids `u64::div_ceil`, a 1.73 API, via manual arithmetic — consistent with 1.72).
-- Pre-push local check: `rustup install 1.72.0 && cargo +1.72.0 check --all-targets`. If it does not
-  compile on 1.72, **bump `rust-version` to the true minimum** rather than weaken the gate.
+**Original plan:** declare `rust-version = "1.72"` + a CI job enforcing it.
+
+**Finding:** the documented "1.72" MSRV is stale and not buildable. The committed `Cargo.lock` is
+format **v4** (Rust ≥1.78 to parse), and its pinned transitive deps demand an even higher floor that
+*climbs* as you test (`proptest 1.9` + its ICU chain → 1.82; `icu_properties_data 2.1.1` → 1.83; …).
+Supporting a low MSRV would require pinning many transitive deps via `cargo update --precise` — a
+fragile, high-maintenance choice that is a *deliberate dependency policy*, not hygiene. It is also the
+**same decision** as the deferred `div_ceil`/clippy item (`div_ceil` needs 1.73). So MSRV moves to the
+**1.3b** increment (§6), where the dep-pinning-vs-high-MSRV tradeoff is decided on purpose. No
+`rust-version` or MSRV CI job ships in 1.3.
 
 ### 3.2 Doc-drift fixes
 
@@ -84,8 +88,7 @@ already passes. The real `cargo publish` stays a maintainer-gated, irreversible 
 
 | File | Change |
 |---|---|
-| `Cargo.toml` | `rust-version = "1.72"`. |
-| `.github/workflows/ci.yml` | New `msrv` job (Rust 1.72 `cargo check`); repoint the 2 pip-cache keys off `pyproject.toml`. |
+| `.github/workflows/ci.yml` | Repoint the 2 pip-cache keys off `pyproject.toml`. (MSRV job deferred to 1.3b.) |
 | `README.md` | Replace the `space_bounds` test line. |
 | `python/README.md` | `ft.array` → `ft.data`. |
 | `CONTRIBUTING.md` (new) | Contribution guide. |
@@ -94,9 +97,7 @@ already passes. The real `cargo publish` stays a maintainer-gated, irreversible 
 
 ## 5. Testing / verification
 
-- `cargo build --release` + `cargo test` stay green; `cargo fmt --check` clean (no code changes, but
-  `Cargo.toml` edits must not break the build).
-- `cargo +1.72.0 check --all-targets` passes locally (or `rust-version` is bumped to the true min).
+- `cargo build --release` + `cargo test` stay green; `cargo fmt --check` clean.
 - `cargo publish --dry-run` succeeds.
 - The fixed doc commands actually run: `cargo test --test plan_enforce` passes; the python snippet
   field (`ft.data`) matches `python/rosalind.py`.
@@ -104,11 +105,14 @@ already passes. The real `cargo publish` stays a maintainer-gated, irreversible 
 
 ## 6. Deferred follow-up (noted, not in this increment)
 
-**1.3b — clippy cleanup + `-D warnings` gate.** Clear all 82 pre-existing `clippy --all-targets` lints
-(needless-borrow ×17, `manual_div_ceil` ×10, manual-`for` loops, `repeat().take()`, etc.) and add a
-CI clippy gate. The `manual_div_ceil` lints force an MSRV decision: either bump MSRV to **1.73** to use
-`u64::div_ceil` (and replace the manual arithmetic, including in `tests/plan_enforce.rs`), or
-`#[allow(clippy::manual_div_ceil)]` to stay at 1.72. Resolve there, not here.
+**1.3b — MSRV policy + clippy cleanup + `-D warnings` gate.** One increment, because MSRV, `div_ceil`,
+and the clippy lints are the same decision. Scope: (1) pick a real MSRV policy — either accept a recent
+MSRV that the current deps build on (verify by install + `cargo check`), or pin the bleeding-edge
+transitive deps down via `cargo update --precise` to support a lower floor — then declare `rust-version`
+and add an MSRV CI job that actually passes; (2) clear all 82 `clippy --all-targets` lints (needless-borrow
+×17, `manual_div_ceil` ×10 — resolved by the MSRV choice, manual-`for` loops, `repeat().take()`, etc.) and
+add the `-D warnings` CI gate. The `Cargo.lock` is format v4 (≥1.78) and dep MSRVs climb to ≥1.83 — that
+constraint is the starting point.
 
 ## 7. References
 

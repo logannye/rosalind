@@ -63,9 +63,15 @@ git commit -m "fix(docs): repair day-one doc-drift (space_bounds test, ft.array-
 
 ---
 
-### Task 2: MSRV — declare + enforce
+### Task 2: MSRV — DEFERRED to 1.3b (execution finding 2026-06-02)
 
-**Files:** `Cargo.toml`, `.github/workflows/ci.yml`
+**Skip this task.** The documented 1.72 MSRV is not buildable: `Cargo.lock` is format v4 (≥1.78) and the
+pinned transitive deps climb to ≥1.83 (`proptest` ICU chain, `icu_properties_data`). Supporting a low
+MSRV needs deliberate `cargo update --precise` dep-pinning — the same decision as the deferred
+`div_ceil`/clippy work — so MSRV moves to **1.3b** (see the spec §3.1/§6). No `rust-version` or MSRV CI
+job ships in 1.3. The pip-cache-key fix from Task 1 already covers the only `ci.yml` change in 1.3.
+
+**Files:** none (deferred).
 
 - [ ] **Step 1: Add `rust-version` to `Cargo.toml`**
 
