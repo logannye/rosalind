@@ -907,17 +907,16 @@ fn run_verify(manifest_path: PathBuf, budget_mb: Option<u64>) -> Result<()> {
     }
 
     // Re-check the recorded realized peak against the budget (CLI overrides manifest).
+    // `get_recorded` reads the measurement block (v2) or params (pre-v2) uniformly.
     let budget_mb = budget_mb.or_else(|| {
         manifest
-            .params
-            .get("memory_budget_mb")
+            .get_recorded("memory_budget_mb")
             .and_then(|v| v.parse::<u64>().ok())
     });
     match (
         budget_mb,
         manifest
-            .params
-            .get("peak_rss_bytes")
+            .get_recorded("peak_rss_bytes")
             .and_then(|v| v.parse::<u64>().ok()),
     ) {
         (Some(mb), Some(peak)) => {
@@ -939,12 +938,13 @@ fn run_verify(manifest_path: PathBuf, budget_mb: Option<u64>) -> Result<()> {
     }
 
     // Internal-consistency cross-checks: a receipt's self-reported numbers must
-    // agree with each other. The manifest has no self-hash yet (a signed,
-    // tamper-evident receipt is a separate feature), so these cheap checks are the
-    // first line against a hand-edited or corrupt receipt — e.g. someone lowering
-    // `peak_rss_bytes` to pass `verify` but leaving the other fields behind.
+    // agree with each other. The claim self-hash (manifest_blake3) cannot see an
+    // edit to a measured field (the measurement is excluded from the claim by
+    // design), so alongside the measurement self-hash these cheap checks are the
+    // semantic guard against a hand-edited receipt — e.g. someone lowering
+    // `peak_rss_bytes` to pass `verify` but leaving the other fields inconsistent.
     let recorded_u64 =
-        |k: &str| -> Option<u64> { manifest.params.get(k).and_then(|v| v.parse::<u64>().ok()) };
+        |k: &str| -> Option<u64> { manifest.get_recorded(k).and_then(|v| v.parse::<u64>().ok()) };
     // The working set is a subset of resident memory; it cannot exceed peak RSS.
     if let (Some(ws), Some(peak)) = (
         recorded_u64("max_working_set_bytes"),
@@ -958,7 +958,9 @@ fn run_verify(manifest_path: PathBuf, budget_mb: Option<u64>) -> Result<()> {
     }
     // A recorded verdict must agree with the recorded peak vs the recorded budget.
     if let (Some(verdict), Some(mb), Some(peak)) = (
-        manifest.params.get("contract_verdict").map(String::as_str),
+        manifest
+            .get_recorded("contract_verdict")
+            .map(String::as_str),
         recorded_u64("memory_budget_mb"),
         recorded_u64("peak_rss_bytes"),
     ) {
@@ -979,8 +981,8 @@ fn run_verify(manifest_path: PathBuf, budget_mb: Option<u64>) -> Result<()> {
         }
     }
 
-    // Self-hash: catches any post-write edit (even one that keeps the other fields
-    // mutually consistent). A pre-1.2 receipt has no self-hash — note and skip.
+    // Claim self-hash: catches any post-write edit to the claim (inputs, outputs,
+    // declared params) — cross-machine stable. A pre-1.2 receipt has none — note and skip.
     match manifest.self_hash_ok() {
         Some(true) => {}
         Some(false) => problems.push(
@@ -989,6 +991,16 @@ fn run_verify(manifest_path: PathBuf, budget_mb: Option<u64>) -> Result<()> {
         None => {
             println!("verify: note — no manifest_blake3 (a pre-1.2 receipt); skipping self-hash")
         }
+    }
+
+    // Measurement self-hash: catches an edit to a measured field (e.g. lowering
+    // peak_rss_bytes to fake a fit) that the claim hash cannot see by design. A
+    // pre-v2 / measurement-free receipt has none — silently skip.
+    match manifest.measurement_hash_ok() {
+        Some(true) | None => {}
+        Some(false) => problems.push(
+            "measurement_blake3 mismatch: a measured field was modified after the run".to_string(),
+        ),
     }
 
     if problems.is_empty() {
