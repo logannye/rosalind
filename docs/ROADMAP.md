@@ -134,12 +134,13 @@ Everything downstream rests on the proofs being literally correct. Two verified 
   **DONE** (claim/measurement split shipped; the split is lossless — a second `measurement_blake3` keeps
   the measured cost locally tamper-evident, and a hash-protected `has_measurements` claim marker catches a
   stripped measurement block).
-- **P0.2b — Path-normalized / content-only claim.** *(S)* P0.2 removed the measured *cost* from the claim
-  hash, but recorded input/output **paths** (`FileHash.path`) are still in the claim, recorded verbatim —
-  so two machines with byte-identical data at different paths still hash differently. To make the claim
-  hash a true cross-machine content-address (the property chaining/reproduce/cohort actually need),
-  normalize paths out of the *claim* form (e.g. key the claim on the sorted `blake3` digests; keep the
-  full path in the on-disk receipt for humans). Pairs naturally with P0.3.
+- **P0.2b — Path-normalized / content-only claim.** *(S)* **DONE.** P0.2 removed the measured *cost* from
+  the claim hash, but recorded input/output **paths** (`FileHash.path`) were still in the claim, recorded
+  verbatim — so two machines with byte-identical data at different paths still hashed differently. The
+  schema-3 claim now keys inputs/outputs on their sorted `blake3` digests (paths dropped from the *claim*
+  form; the on-disk receipt keeps full paths for humans and for `verify` to re-hash files), making the
+  claim hash a true cross-machine content-address. Version-gated (schema <3 reproduces the path-inclusive
+  form so pre-P0.2b receipts still self-verify). This is the property chaining/reproduce/cohort need.
 - **P0.3 — Build-identity in the receipt.** *(S)* Replace the `tool_version = "0.1.0"` half-measure with
   `code_git_sha` + `code_dirty` + `rustc_version` + `target_triple` + `deps_lock_blake3` (via `build.rs`)
   and a `verify --expect-code <sha>` gate, so "exactly this code" stops being a lie and becomes a real
