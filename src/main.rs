@@ -8,9 +8,9 @@ use anyhow::{anyhow, bail, Context, Result};
 use clap::{Parser, Subcommand, ValueEnum};
 use rosalind::core::MemoryBudget;
 use rosalind::genomics::{
-    compare_callsets, create_bam_writer, estimate_build_working_set, read_vcf_variants,
-    render_plan_line, sort_bam_deterministic, AlignedRead, BWTAligner, BedIndex, BuildMemoryModel,
-    CigarOp, CigarOpKind, GenomeIndex, IndexBuildReport, IndexReader, IndexWriter,
+    compare_callsets, create_bam_writer, read_vcf_variants, render_plan_line,
+    sort_bam_deterministic, AlignedRead, BWTAligner, BedIndex, BuildMemoryModel, CigarOp,
+    CigarOpKind, GenomeIndex, IndexBuildReport, IndexReader, IndexWriter,
 };
 use rosalind::io::decompress::open_input;
 use rosalind::io::fasta::{FastaReader, FastaRecord};
@@ -593,11 +593,16 @@ fn run_index(reference: PathBuf, output: PathBuf, memory_budget_mb: Option<u64>)
         );
     }
     let total_bp: u64 = records.iter().map(|r| r.sequence.len() as u64).sum();
+    // The code-grounded build-memory model the plan line AND the build receipt share
+    // (anti-drift): the up-front prediction and the realized accounting use one model.
+    let model = BuildMemoryModel::from_reference_len(total_bp);
 
     // Record-only budget plan line, printed BEFORE the build. Never refuses.
     if let Some(mb) = memory_budget_mb {
-        let estimate = estimate_build_working_set(total_bp);
-        eprintln!("{}", render_plan_line(estimate, MemoryBudget::from_mb(mb)));
+        eprintln!(
+            "{}",
+            render_plan_line(model.working_set(), MemoryBudget::from_mb(mb))
+        );
     }
 
     let named: Vec<(String, Vec<u8>)> = records.into_iter().map(|r| (r.name, r.sequence)).collect();
@@ -631,7 +636,6 @@ fn run_index(reference: PathBuf, output: PathBuf, memory_budget_mb: Option<u64>)
     // the D0 measure-first probe. The realized peak is machine-dependent; the
     // breakdown + attribution ratio are the analysis payload.
     let peak = peak_rss_bytes();
-    let model = BuildMemoryModel::from_reference_len(total_bp);
     let denom = total_bp.max(1);
     eprintln!(
         "build: realized peak RSS {} MiB ({} B/base) over {} bp",
@@ -729,12 +733,19 @@ fn run_plan(
             .iter()
             .map(|r| r.sequence.len() as u64)
             .sum();
-        let estimate = estimate_build_working_set(total_bp);
+        // Predict the build peak from the code-grounded BuildMemoryModel (~45 B/base,
+        // envelopes the D0-measured 41 B/base realized) — NOT the old 12 B/base estimate,
+        // which under-predicted ~3.4x. Advisory: the build is still O(reference) until D1a.
+        let model = BuildMemoryModel::from_reference_len(total_bp);
+        print!("{}", model.render(total_bp));
         match budget_mb {
-            Some(mb) => println!("{}", render_plan_line(estimate, MemoryBudget::from_mb(mb))),
+            Some(mb) => println!(
+                "{}",
+                render_plan_line(model.working_set(), MemoryBudget::from_mb(mb))
+            ),
             None => println!(
                 "plan: est. build peak ~{} MiB (advisory; build is O(reference)) [no budget]",
-                estimate.bytes / (1 << 20)
+                model.total_bytes / (1 << 20)
             ),
         }
     }
