@@ -26,6 +26,7 @@ pub use compressed_dna::{AmbiguityMask, CompressedDNA, CompressedDNAError};
 pub use eval::{
     compare_callsets, normalize_variant, read_vcf_variants, BedIndex, BedParseError,
     ComparisonReport, NormalizeError, NormalizedVariant, VariantType, VcfParseError, VcfVariant,
+    Zygosity,
 };
 pub use fm_index::{
     BWTBlock, BlockBoundary, BlockedFMIndex, CompressedBoundaries, FMIndexError, FmSymbol,
