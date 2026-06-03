@@ -2,6 +2,7 @@
 name = "rosalind"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.83"
 authors = ["Logan Nye <logannye@users.noreply.github.com>"]
 description = "Deterministic, low-memory genomics engine: memory as a verifiable contract (declare → predict → honor → verify) for alignment and variant calling"
 repository = "https://github.com/logannye/rosalind"

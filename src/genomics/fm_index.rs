@@ -505,13 +505,13 @@ fn build_bwt_and_sa_samples(
     }
 
     let rate = sa_sample_rate.max(1);
+    // `% == 0` (not `usize::is_multiple_of`, stable only in 1.87) to hold MSRV 1.83.
+    #[allow(clippy::manual_is_multiple_of)]
     let sampled = SampledSuffixArray::from_sorted_samples(
         text.len(),
         rate,
         sa.iter().enumerate().filter_map(|(bwt_idx, &sa_idx)| {
-            (sa_idx as usize)
-                .is_multiple_of(rate)
-                .then_some((bwt_idx, sa_idx))
+            ((sa_idx as usize) % rate == 0).then_some((bwt_idx, sa_idx))
         }),
     );
 

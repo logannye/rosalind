@@ -425,7 +425,9 @@ fn validate_block_records(blocks: &[u8], block_dir: &[u64]) -> Result<(), IndexI
         // corrupt non-aligned offset here at `open` rather than letting `block()`
         // hit `.expect("aligned")` at query time (the integrity contract: a corrupt
         // index is rejected up front, never crashed-on later).
-        if !rec.is_multiple_of(8) {
+        // `% != 0` (not `usize::is_multiple_of`, stable only in 1.87) to hold MSRV 1.83.
+        #[allow(clippy::manual_is_multiple_of)]
+        if rec % 8 != 0 {
             return Err(IndexIoError::Invalid(
                 "block record offset is not 8-aligned".to_string(),
             ));
