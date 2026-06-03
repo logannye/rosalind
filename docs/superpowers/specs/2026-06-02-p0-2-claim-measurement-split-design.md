@@ -220,3 +220,40 @@ fields (`code_git_sha`, `rustc_version`, lockfile hash) — that is P0.3.
   Mitigated by `MEASUREMENT_KEYS` being the single audited list + a unit test asserting no
   measured key affects the claim hash.
 - **Parser regression on the optional key** → covered by the v1 and v2 round-trip tests.
+
+## Post-review hardening (adversarial review response)
+
+A three-way adversarial review (cross-machine stability, back-compat, silent-failure) surfaced
+issues addressed before merge:
+
+- **Deletion bypass (critical regression).** Excluding the measurement from the claim hash means
+  the claim hash no longer sees an edit *or deletion* of the measured fields. An attacker could
+  delete the entire `measurements` block: `measurement_hash_ok()` then returns `None` (read as
+  "nothing to check") and every consistency cross-check, guarded by `if let Some(...)`, silently
+  no-ops — so an over-budget receipt verifies clean. Fix: `finalize` stamps a deterministic
+  `has_measurements: "true"` marker **into the claim** (so it is covered by the cross-machine-stable
+  claim hash — unlike `measurement_blake3`, which is machine-dependent and cannot live in the
+  claim). `verify` treats `measurement_hash_ok() == None` as a problem **when the claim records
+  `has_measurements`**, catching the strip; a genuine pre-v2 / measurement-free receipt has no
+  marker and is skipped legitimately. Covered by a unit test and an end-to-end `verify` test.
+- **Honest threat model.** `measurement_blake3` is an *unkeyed self-hash*: tamper-**evidence**
+  against an accidental edit, not tamper-**resistance** against a forger who re-hashes. Wording in
+  code/`verify` states this; cryptographic signing is a later phase. (`manifest_blake3` is the same
+  kind of control — both are evidence, not authentication.)
+- **Malformed-numeric silently skipped.** `verify` parsed measured numbers with
+  `.parse().ok()`, so a *present-but-corrupt* field was indistinguishable from *absent* and silently
+  disabled the check it fed. Fix: present-but-unparseable numeric fields now push a
+  `malformed numeric field` problem; only genuine absence skips.
+- **Duplicate-key shadowing.** `parse_params` accepted duplicate keys (last wins), letting a
+  crafted receipt show one value to a reader while `verify` acted on another. Fix: the parser now
+  rejects duplicate keys.
+
+## Known remaining limitation (flagged, deferred)
+
+This change removes the measured **cost** from the claim hash. Recorded input/output **paths** are
+still part of the claim (`FileHash.path`), recorded verbatim from the CLI with no normalization — so
+two machines with byte-identical data at different paths still produce different claim hashes. Full
+cross-machine claim identity therefore requires a follow-up (path normalization, or a content-only
+claim keyed on the `blake3` digests). Tracked in the roadmap; **not** in this increment's scope. The
+unit test `claim_hash_is_stable_across_machine_dependent_measurements` is accurately scoped to
+measurement-independence (it holds paths fixed) and does not assert path-independence.

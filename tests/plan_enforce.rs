@@ -878,3 +878,51 @@ fn verify_rejects_a_consistent_measurement_tamper_via_the_measurement_hash() {
     );
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn verify_rejects_a_receipt_with_its_measurement_block_stripped() {
+    // The deletion bypass: drop the WHOLE measurement block (every measured field and
+    // its measurement_blake3). The claim hash still verifies (the claim never carried
+    // the block), and naively a missing measurement hash would read as "nothing to
+    // check". The claim's has_measurements marker — covered by the claim self-hash —
+    // makes the strip detectable: verify must refuse.
+    let (dir, idx, bam) = build_sorted_bam_fixture();
+    let vcf = dir.join("calls.vcf");
+    let manifest = dir.join("calls.vcf.manifest.json");
+    let out = Command::new(bin())
+        .args(["variants", "--index"])
+        .arg(&idx)
+        .arg("--alignments")
+        .arg(&bam)
+        .args(["--memory-budget-mb", "4096", "--enforce", "-o"])
+        .arg(&vcf)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "run failed: {out:?}");
+
+    let text = std::fs::read_to_string(&manifest).unwrap();
+    let mut m = rosalind::provenance::RunManifest::from_canonical_json(&text).unwrap();
+    assert!(
+        m.claims_measurements() && !m.measurements.is_empty(),
+        "fixture must record a measurement block to strip"
+    );
+    m.measurements.clear();
+    std::fs::write(&manifest, m.to_canonical_json()).unwrap();
+
+    let v = Command::new(bin())
+        .args(["verify", "--manifest"])
+        .arg(&manifest)
+        .output()
+        .unwrap();
+    assert_eq!(
+        v.status.code(),
+        Some(5),
+        "a stripped measurement block must fail verify: {v:?}"
+    );
+    let stderr = String::from_utf8_lossy(&v.stderr);
+    assert!(
+        stderr.contains("measurement block missing"),
+        "expected a stripped-block error: {stderr}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}

@@ -131,6 +131,15 @@ Everything downstream rests on the proofs being literally correct. Two verified 
   hash/chain/sign/re-derive the **claim** (inputs, deterministic params, code-identity, output hashes);
   record + budget-check the **measurement** but exclude it from `content_hash()`. Bump
   `MANIFEST_SCHEMA_VERSION` to 2; degrade pre-v2 gracefully (the pre-1.2 self-hash skip is the pattern).
+  **DONE** (claim/measurement split shipped; the split is lossless — a second `measurement_blake3` keeps
+  the measured cost locally tamper-evident, and a hash-protected `has_measurements` claim marker catches a
+  stripped measurement block).
+- **P0.2b — Path-normalized / content-only claim.** *(S)* P0.2 removed the measured *cost* from the claim
+  hash, but recorded input/output **paths** (`FileHash.path`) are still in the claim, recorded verbatim —
+  so two machines with byte-identical data at different paths still hash differently. To make the claim
+  hash a true cross-machine content-address (the property chaining/reproduce/cohort actually need),
+  normalize paths out of the *claim* form (e.g. key the claim on the sorted `blake3` digests; keep the
+  full path in the on-disk receipt for humans). Pairs naturally with P0.3.
 - **P0.3 — Build-identity in the receipt.** *(S)* Replace the `tool_version = "0.1.0"` half-measure with
   `code_git_sha` + `code_dirty` + `rustc_version` + `target_triple` + `deps_lock_blake3` (via `build.rs`)
   and a `verify --expect-code <sha>` gate, so "exactly this code" stops being a lie and becomes a real

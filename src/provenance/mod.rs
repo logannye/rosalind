@@ -6,8 +6,13 @@
 //! The receipt is split into a deterministic **claim** (inputs, outputs, params,
 //! subcommand, versions) and a machine-/run-dependent **measurement** block (peak
 //! RSS, working set, verdict, …). The self-hash (`manifest_blake3`) covers the
-//! claim only — so the same logical run hashes identically on any machine — while
-//! a second `measurement_blake3` keeps the measured cost locally tamper-evident.
+//! claim only — so the machine-dependent measured *cost* no longer perturbs it —
+//! while a second `measurement_blake3` keeps that cost locally tamper-evident.
+//!
+//! Scope note: this removes the measured *cost* from the claim hash. Recorded
+//! input/output *paths* are still part of the claim, so two machines with the same
+//! data at different paths still hash differently — a separate machine-dependent
+//! axis (path normalization / content-only claim) left to a later phase.
 
 use std::collections::BTreeMap;
 use std::io::{self, Read, Write};
@@ -16,13 +21,13 @@ use std::path::{Path, PathBuf};
 /// Current receipt/feature schema version. Bump on any breaking schema change.
 /// v2: the receipt is split into a deterministic *claim* and a machine-dependent
 /// *measurement* block; the self-hash (`manifest_blake3`) covers the claim only, so
-/// the same logical run hashes identically on any machine.
+/// the measured cost no longer perturbs it.
 pub const MANIFEST_SCHEMA_VERSION: u32 = 2;
 
 /// Keys whose values are machine-/run-dependent measurements, not part of the
 /// deterministic claim. `finalize` relocates these out of `params` into the
-/// `measurements` block so the claim hash is identical for the same logical run on
-/// any machine. The single audited source of truth for the claim/measurement split.
+/// `measurements` block so the measured cost is excluded from the claim hash. The
+/// single audited source of truth for the claim/measurement split.
 pub const MEASUREMENT_KEYS: &[&str] = &[
     "peak_rss_bytes",
     "max_working_set_bytes",
@@ -98,8 +103,8 @@ impl RunManifest {
     }
 
     /// The claim-only canonical JSON: never emits the measurement block. This is the
-    /// portion the self-hash commits to, so the hash is identical for the same
-    /// logical run on any machine.
+    /// portion the self-hash commits to, so the measured cost is excluded from the
+    /// claim hash.
     pub fn to_canonical_claim_json(&self) -> String {
         self.push_canonical(false)
     }
@@ -141,8 +146,9 @@ impl RunManifest {
     }
 
     /// BLAKE3 hex of the **claim** canonical JSON with the self-hash excluded — the
-    /// content this manifest commits to, identical on any machine (the measurement
-    /// block is excluded). Deterministic; `verify` re-derives it.
+    /// content this manifest commits to. Excludes the machine-dependent measurement
+    /// block, so the measured cost does not perturb it. Deterministic; `verify`
+    /// re-derives it. (Recorded paths remain in the claim — see the module note.)
     pub fn content_hash(&self) -> String {
         let mut m = self.clone();
         m.params.remove("manifest_blake3");
@@ -168,22 +174,40 @@ impl RunManifest {
         self.measurements.get(key).or_else(|| self.params.get(key))
     }
 
+    /// Whether the (hash-protected) claim records that a measurement block exists.
+    /// `verify` uses this to detect a measurement block stripped after the run — a
+    /// claim that says `has_measurements` paired with a receipt that has none.
+    pub fn claims_measurements(&self) -> bool {
+        self.params
+            .get("has_measurements")
+            .map(|v| v == "true")
+            .unwrap_or(false)
+    }
+
     /// Seal the receipt: partition measured fields out of the claim, stamp the
     /// measurement hash, the schema version, then the claim self-hash LAST (so it
     /// covers every other claim field, including the version). Idempotent.
     pub fn finalize(&mut self) {
         // 1. Partition: relocate machine-dependent fields OUT of the claim so the
-        //    claim hash is identical for the same logical run on any machine.
+        //    measured cost no longer perturbs the claim hash.
         for key in MEASUREMENT_KEYS {
             if let Some(v) = self.params.remove(*key) {
                 self.measurements.insert((*key).to_string(), v);
             }
         }
-        // 2. Local measurement attestation (only when a measurement exists).
+        // 2. Local measurement attestation (only when a measurement exists), plus a
+        //    DETERMINISTIC marker in the claim recording that a block exists. The
+        //    marker is covered by the claim self-hash and is identical for the same
+        //    logical run on any machine (unlike `measurement_blake3`, which hashes
+        //    machine-dependent numbers and so cannot live in the claim). It lets
+        //    `verify` catch a measurement block stripped to evade the cost checks:
+        //    dropping the block leaves the claim asserting one must exist.
         if !self.measurements.is_empty() {
             let mh = self.measurement_hash();
             self.measurements
                 .insert("measurement_blake3".to_string(), mh);
+            self.params
+                .insert("has_measurements".to_string(), "true".to_string());
         }
         // 3. Stamp the version into the claim, then the claim self-hash last.
         self.params.insert(
@@ -327,7 +351,12 @@ impl Parser<'_> {
             let k = self.parse_string()?;
             self.expect(b':')?;
             let v = self.parse_string()?;
-            map.insert(k, v);
+            // Reject duplicate keys: a crafted receipt with two values for one key
+            // could otherwise show one value to a human reader while `verify` (and
+            // `get_recorded`) act on the other.
+            if map.insert(k.clone(), v).is_some() {
+                return Err(self.err(&format!("duplicate key \"{k}\"")));
+            }
             match self.b.get(self.i) {
                 Some(b',') => self.i += 1,
                 Some(b'}') => {
@@ -809,5 +838,59 @@ mod tests {
         );
         assert_eq!(parsed.self_hash_ok(), Some(true));
         assert_eq!(parsed.measurement_hash_ok(), Some(true));
+    }
+
+    #[test]
+    fn finalize_records_a_claim_marker_only_when_a_measurement_exists() {
+        // With a measurement: the claim records has_measurements (so stripping the
+        // block is detectable), and the marker is covered by the claim self-hash.
+        let mut with = RunManifest::new("variants");
+        with.tool_version = "0.1.0".to_string();
+        with.record_measurement("peak_rss_bytes", "123");
+        with.finalize();
+        assert!(with.claims_measurements());
+        assert_eq!(
+            with.params.get("has_measurements").map(String::as_str),
+            Some("true")
+        );
+        assert_eq!(with.self_hash_ok(), Some(true));
+
+        // Without a measurement (e.g. a somatic run): no marker, nothing to strip.
+        let mut without = RunManifest::new("somatic");
+        without.tool_version = "0.1.0".to_string();
+        without.finalize();
+        assert!(!without.claims_measurements());
+        assert!(!without.params.contains_key("has_measurements"));
+    }
+
+    #[test]
+    fn stripping_the_measurement_block_leaves_the_claim_asserting_one_exists() {
+        // The deletion-bypass guard: clearing the measurement block keeps the claim
+        // self-hash valid (the claim never carried the block), but the claim still
+        // records has_measurements while measurement_hash_ok drops to None — the
+        // exact signal `verify` keys on.
+        let mut m = RunManifest::new("variants");
+        m.tool_version = "0.1.0".to_string();
+        m.record_measurement("peak_rss_bytes", "900000000");
+        m.finalize();
+        m.measurements.clear();
+        assert_eq!(
+            m.self_hash_ok(),
+            Some(true),
+            "claim is intact after stripping"
+        );
+        assert_eq!(m.measurement_hash_ok(), None, "no block to hash");
+        assert!(
+            m.claims_measurements(),
+            "the claim still asserts a measurement block must exist"
+        );
+    }
+
+    #[test]
+    fn parser_rejects_a_duplicate_key() {
+        // A crafted receipt cannot carry two values for one key (reader/verifier
+        // shadowing). `params` and `measurements` both go through `parse_params`.
+        let dup = r#"{"inputs":[],"outputs":[],"params":{"k":"1","k":"2"},"subcommand":"x","tool_version":"0.1.0"}"#;
+        assert!(RunManifest::from_canonical_json(dup).is_err());
     }
 }
