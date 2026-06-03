@@ -154,7 +154,7 @@ fn gvcf_is_banded_byte_reproducible_and_well_formed() {
     // Bounded: the receipt records a small realized peak (coverage-bounded).
     let m = std::fs::read_to_string(&manifest).unwrap();
     let rm = rosalind::provenance::RunManifest::from_canonical_json(&m).unwrap();
-    assert!(rm.params.contains_key("peak_rss_bytes"));
+    assert!(rm.measurements.contains_key("peak_rss_bytes"));
 
     std::fs::remove_dir_all(&dir).ok();
 }
