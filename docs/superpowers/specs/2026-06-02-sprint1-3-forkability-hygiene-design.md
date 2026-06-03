@@ -79,10 +79,15 @@ as-is (it records what was true then).
 
 ### 3.4 Publish readiness
 
-Run `cargo publish --dry-run` and fix anything that blocks packaging (e.g. excluded files, metadata).
-**Do not publish.** The crate metadata is already complete (`description`, `license`, `keywords`,
-`categories`, `repository` in `Cargo.toml`); this step confirms the tarball builds and is a no-op if it
-already passes. The real `cargo publish` stays a maintainer-gated, irreversible action.
+Run `cargo publish --dry-run` to confirm the crate packages cleanly. **Do not publish.**
+
+**Result (2026-06-02):** ✅ packages + verifies cleanly — `Packaged 173 files, 1.8 MiB`, the packaged
+tarball compiles. BUT a **blocking finding**: the crate name **`rosalind` is already taken on
+crates.io** — by an unrelated crate (`github.com/antklim/rosalind`, "solutions of problems published on
+Rosalind.info", currently v0.10.0). So `cargo publish` as `rosalind` is **not possible**; publishing to
+crates.io requires **renaming the published crate** (e.g. `rosalind-genomics`, `rosalind-engine`) in
+`Cargo.toml` `[package].name` — a product/naming decision for the maintainer, deferred out of this
+increment. The GitHub-release + `install.sh` + Action distribution path (already shipped) is unaffected.
 
 ## 4. File-by-file change list
 
