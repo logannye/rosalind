@@ -775,7 +775,7 @@ fn receipt_is_self_hashing_and_schema_versioned() {
         "no measurement self-hash: {text}"
     );
     assert!(
-        text.contains("\"schema_version\":\"2\""),
+        text.contains("\"schema_version\":\"3\""),
         "no schema_version: {text}"
     );
     // An untampered receipt verifies.
