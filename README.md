@@ -384,7 +384,7 @@ Rosalind's kernel is a **bounded, deterministic `PileupColumn` stream** — buil
 cargo test                          # full unit + integration suite
 cargo test --test variants_index    # bounded whole-genome `variants --index` gates
 cargo test --test determinism       # byte-identical outputs across repeated runs
-cargo test --test space_bounds      # working-set scaling checks for the streaming evaluator
+cargo test --test plan_enforce      # the memory contract: plan / --enforce / verify / governor
 cargo test --test fm_index_props    # property tests: FM-index rank/total invariants vs. naive counts
 cargo test --test golden_vcf        # snapshot test for stable VCF rendering
 ```

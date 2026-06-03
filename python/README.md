@@ -16,7 +16,7 @@ from rosalind import features
 # Streams the whole-genome feature table to disk in bounded memory, then loads it.
 ft = features("ref.idx", "sorted.bam", binary="target/release/rosalind")
 print(ft.columns)            # contig, pos, ref, depth, A/C/G/T counts, strand, mean bq/mapq, …
-print(ft.array.shape)        # one row per callable locus
+print(ft.data.shape)         # one row per callable locus
 ```
 
 Because `rosalind features` is byte-identical run-to-run with a BLAKE3 receipt, the loaded
