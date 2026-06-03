@@ -320,6 +320,10 @@ enum Commands {
         /// `memory_budget_mb` recorded in the manifest, if any).
         #[arg(long)]
         budget_mb: Option<u64>,
+        /// Assert the receipt was built from exactly this commit SHA (prefix ok).
+        /// Fails verify on a mismatch, or on a clean match from a dirty build.
+        #[arg(long)]
+        expect_code: Option<String>,
     },
 }
 
@@ -517,7 +521,8 @@ fn main() -> Result<()> {
         Commands::Verify {
             manifest,
             budget_mb,
-        } => run_verify(manifest, budget_mb)?,
+            expect_code,
+        } => run_verify(manifest, budget_mb, expect_code)?,
     }
 
     Ok(())
@@ -882,7 +887,11 @@ fn run_pack(
 /// listed input/output and confirm the digests match, and confirm the recorded
 /// realized peak RSS landed within the budget (supplied, or recorded in the
 /// manifest). Exits non-zero with a per-check report on any mismatch.
-fn run_verify(manifest_path: PathBuf, budget_mb: Option<u64>) -> Result<()> {
+fn run_verify(
+    manifest_path: PathBuf,
+    budget_mb: Option<u64>,
+    expect_code: Option<String>,
+) -> Result<()> {
     use rosalind::provenance::{blake3_file, RunManifest};
 
     let text = std::fs::read_to_string(&manifest_path)
@@ -1021,6 +1030,17 @@ fn run_verify(manifest_path: PathBuf, budget_mb: Option<u64>) -> Result<()> {
                         .to_string(),
                 );
             }
+        }
+    }
+
+    // Build-identity: assert the receipt came from exactly the expected commit. A clean
+    // match prints a note; a mismatch / dirty-build / un-checkable receipt fails verify.
+    if let Some(expected) = &expect_code {
+        let code_problems = manifest.check_expected_code(expected);
+        if code_problems.is_empty() {
+            println!("verify: code matches {expected} (clean build)");
+        } else {
+            problems.extend(code_problems);
         }
     }
 
