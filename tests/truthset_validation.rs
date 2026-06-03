@@ -26,8 +26,8 @@ fn somatic_snv_truth_mixture_simple() {
     let mut header = bam::Header::new();
     header.push_record(
         bam::header::HeaderRecord::new(b"SQ")
-            .push_tag(b"SN", &"chr1")
-            .push_tag(b"LN", &1000),
+            .push_tag(b"SN", "chr1")
+            .push_tag(b"LN", 1000),
     );
 
     // Reference is all 'A'.

@@ -45,6 +45,7 @@ pub fn call_germline_region_streaming<S: ReadSource>(
 /// Like [`call_germline_region`], but also returns the maximum pileup-engine
 /// working set observed during the pass. Collects sites into a `Vec` via
 /// [`call_germline_region_streaming`].
+#[allow(clippy::type_complexity)] // (emitted sites, working set) — a clear ad-hoc pair, not worth a named type
 pub fn call_germline_region_tracked<S: ReadSource>(
     source: S,
     reference: Arc<[u8]>,

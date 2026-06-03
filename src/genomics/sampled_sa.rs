@@ -32,7 +32,7 @@ impl SampledSuffixArray {
         samples: impl Iterator<Item = (usize, u32)>,
     ) -> Self {
         // `(n + 63) / 64`, not `n.div_ceil(64)` (which is Rust 1.73+; MSRV is 1.72).
-        let words = (bwt_len + 63) / 64;
+        let words = bwt_len.div_ceil(64);
         let mut marks = vec![0u64; words];
         let mut values = Vec::new();
         // The strictly-ascending contract is load-bearing: `values` is pushed in
@@ -45,7 +45,7 @@ impl SampledSuffixArray {
             #[cfg(debug_assertions)]
             {
                 debug_assert!(
-                    prev.map_or(true, |p| pos > p),
+                    prev.is_none_or(|p| pos > p),
                     "samples must be yielded in strictly ascending BWT-position order"
                 );
                 prev = Some(pos);
@@ -148,7 +148,7 @@ fn popcount_prefix(words: &[u64], start: usize, end: usize) -> u32 {
 /// Prefix popcounts of `marks` at each `stride` boundary (entry `k` = set bits in
 /// `[0, k*stride)`); length `ceil(bwt_len/stride) + 1`.
 fn build_superblocks(marks: &[u64], bwt_len: usize, stride: usize) -> Vec<u32> {
-    let num = (bwt_len + stride - 1) / stride;
+    let num = bwt_len.div_ceil(stride);
     let mut sb = Vec::with_capacity(num + 1);
     sb.push(0u32);
     let mut acc = 0u32;

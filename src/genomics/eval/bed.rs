@@ -33,6 +33,7 @@ impl BedIndex {
     }
 
     /// Parse and index a BED file given as a string.
+    #[allow(clippy::should_implement_trait)] // inherent parser; a `FromStr` impl would force callers to import the trait
     pub fn from_str(contents: &str) -> Result<Self, BedParseError> {
         let mut per_chrom: BTreeMap<String, Vec<Range<u32>>> = BTreeMap::new();
 

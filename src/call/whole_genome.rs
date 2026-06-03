@@ -231,7 +231,7 @@ mod tests {
         let run = |n: usize| -> u64 {
             // n reads, each 100bp, all starting at pos 0 (depth would be n without
             // the cap; capped at 8).
-            let reads: Vec<AlignedRead> = (0..n).map(|_| read_at(0, 0, &vec![b'C'; 100])).collect();
+            let reads: Vec<AlignedRead> = (0..n).map(|_| read_at(0, 0, &[b'C'; 100])).collect();
             call_germline_whole_genome(
                 SliceSource::new(reads),
                 &rv,

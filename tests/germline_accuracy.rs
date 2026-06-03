@@ -137,8 +137,8 @@ fn run_accuracy(coverage: usize, error_rate: f64, cap: u32, seed: u64) -> Accura
     let mut header = bam::Header::new();
     {
         let mut sq = bam::header::HeaderRecord::new(b"SQ");
-        sq.push_tag(b"SN", &"chr1");
-        sq.push_tag(b"LN", &(N as i64));
+        sq.push_tag(b"SN", "chr1");
+        sq.push_tag(b"LN", N as i64);
         header.push_record(&sq);
     }
     let raw_bam = dir.join("reads.bam");

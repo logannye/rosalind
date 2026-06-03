@@ -445,9 +445,9 @@ mod tests {
         )
     }
 
-    fn columns(mut e: PileupEngine<SliceSource>) -> Vec<PileupColumn> {
+    fn columns(e: PileupEngine<SliceSource>) -> Vec<PileupColumn> {
         let mut out = Vec::new();
-        while let Some(c) = e.next() {
+        for c in e {
             out.push(c.expect("pileup column"));
         }
         out
@@ -533,7 +533,7 @@ mod tests {
             max_depth: Some(cap),
             ..PileupParams::default()
         };
-        let mut e = PileupEngine::new(
+        let e = PileupEngine::new(
             SliceSource::new(reads),
             Arc::from(reference.into_boxed_slice()),
             0,
@@ -541,7 +541,7 @@ mod tests {
             params,
         );
         let mut at_v = None;
-        while let Some(c) = e.next() {
+        for c in e {
             let col = c.unwrap();
             if col.locus.pos.0 == v {
                 at_v = Some(col);
@@ -751,7 +751,7 @@ mod tests {
         ];
         let mut e = engine(reads, reference);
         let mut cols = Vec::new();
-        while let Some(c) = e.next() {
+        for c in e.by_ref() {
             cols.push(c.unwrap());
         }
         // Only the kept read's 'C' (allele 1) appears at every position.
@@ -778,7 +778,7 @@ mod tests {
             params,
         );
         let mut cols = Vec::new();
-        while let Some(c) = e.next() {
+        for c in e.by_ref() {
             cols.push(c.unwrap());
         }
         assert!(cols.iter().all(|c| c.allele_counts() == [0, 1, 0, 0]));
@@ -857,8 +857,8 @@ mod tests {
         let reference = b"AAAAAAAA";
         let reads = vec![mread(0, b"CCCC", false), mread(2, b"CCCC", false)];
         let mut coverage = Vec::new();
-        let mut e = engine(reads, reference);
-        while let Some(c) = e.next() {
+        let e = engine(reads, reference);
+        for c in e {
             let col = c.unwrap();
             coverage.push((col.locus.pos.0, col.depth()));
         }
@@ -932,7 +932,7 @@ mod tests {
                 params.clone(),
             );
             let mut depths = Vec::new();
-            while let Some(c) = e.next() {
+            for c in e.by_ref() {
                 depths.push(c.unwrap().raw_depth);
             }
             (depths, e.skip_counts().over_max_depth)

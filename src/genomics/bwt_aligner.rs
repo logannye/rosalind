@@ -134,7 +134,7 @@ impl BWTAligner {
         if read_upper.len() >= self.seed_cfg.k {
             for read_pos in (0..=read_upper.len() - self.seed_cfg.k).step_by(self.seed_cfg.stride) {
                 let kmer = &read_upper[read_pos..read_pos + self.seed_cfg.k];
-                if kmer.iter().any(|&b| b == b'N') {
+                if kmer.contains(&b'N') {
                     continue;
                 }
                 let k_interval = self.fm_index.backward_search(kmer);
