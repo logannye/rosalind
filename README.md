@@ -96,10 +96,10 @@ The contract is real today: `rosalind plan` predicts before you commit, `--enfor
 
 The contract wraps a real caller, and its detection accuracy is **measured, not assumed.** Against simulated diploid truth (known het/hom SNVs, reads sampled from both haplotypes, the BAM built directly so this isolates the *caller*, not alignment):
 
-- **40× / 0.5% error (clean):** precision **1.00**, recall **1.00**, F1 **1.00** — every het/hom SNV recovered, zero false positives.
-- **12× / 1.5% error (stress):** the caller still finds *every* true variant (unfiltered recall 1.00); the default `min_qual` / `min_depth` PASS filter then trades a little recall for precision under noise (0.90 / 0.68).
+- **40× / 0.5% error (clean):** precision **1.00**, recall **1.00**, F1 **1.00** — every het/hom SNV recovered, zero false positives — and **genotype concordance 1.00** (40/40 zygosities correct).
+- **12× / 1.5% error (stress):** the caller still finds *every* true variant (unfiltered recall 1.00); the default `min_qual` / `min_depth` PASS filter then trades a little recall for precision under noise (0.90 / 0.68), at **genotype concordance 0.97**.
 
-Scope is honest: simulated (not yet GIAB), detection-only (position + ref + alt), SNV-only. A real **GIAB HG002** benchmark plugs into the same comparator via `rosalind eval-germline --reference … --calls … --truth … --regions highconf.bed`. Full numbers + the gated harness: [`docs/findings/2026-06-02-germline-accuracy.md`](docs/findings/2026-06-02-germline-accuracy.md).
+The comparator is **GIAB-grade**: it scores **genotype concordance** (a het called as hom is a genotype error, not a free pass) and **decomposes multi-allelic records**, not just detection. Scope is honest: simulated (not yet GIAB), SNV-focused, zygosity (not phase). A real **GIAB HG002** benchmark plugs into the same comparator via `rosalind eval-germline --reference … --calls … --truth … --regions highconf.bed`. Full numbers: [`docs/findings/2026-06-02-genotype-aware-eval.md`](docs/findings/2026-06-02-genotype-aware-eval.md) (genotype-aware) and [`…/2026-06-02-germline-accuracy.md`](docs/findings/2026-06-02-germline-accuracy.md) (detection).
 
 ## Who it's for
 

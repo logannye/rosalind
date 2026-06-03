@@ -568,6 +568,10 @@ fn run_eval(
     println!("precision={p:.6}");
     println!("recall={r:.6}");
     println!("f1={f1:.6}");
+    println!("genotype_concordant={}", report.genotype_concordant);
+    println!("genotype_discordant={}", report.genotype_discordant);
+    println!("genotype_unknown={}", report.genotype_unknown);
+    println!("genotype_concordance={:.6}", report.genotype_concordance());
     for (ty, (tp, fp, fn_)) in report.by_type.iter() {
         println!("type={:?} tp={} fp={} fn={}", ty, tp, fp, fn_);
     }

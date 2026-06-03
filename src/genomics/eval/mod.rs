@@ -11,4 +11,4 @@ mod vcf;
 pub use bed::{BedIndex, BedParseError};
 pub use compare::{compare_callsets, ComparisonReport, VariantType};
 pub use normalize::{normalize_variant, NormalizeError, NormalizedVariant};
-pub use vcf::{read_vcf_variants, VcfParseError, VcfVariant};
+pub use vcf::{read_vcf_variants, VcfParseError, VcfVariant, Zygosity};

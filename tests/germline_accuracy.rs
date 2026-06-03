@@ -17,11 +17,11 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use rust_htslib::bam;
 use rust_htslib::bam::record::{Cigar, CigarString, Record};
 
-use rosalind::call::Filter;
+use rosalind::call::{Filter, Genotype};
 use rosalind::core::Locus;
 use rosalind::genomics::{
     compare_callsets, sort_bam_deterministic, ComparisonReport, GenomeIndex, IndexReader,
-    IndexWriter, VcfVariant,
+    IndexWriter, VcfVariant, Zygosity,
 };
 use rosalind::{
     call_germline_whole_genome, GermlineCall, GermlineParams, PileupParams, StreamingBamSource,
@@ -228,6 +228,10 @@ fn run_accuracy(coverage: usize, error_rate: f64, cap: u32, seed: u64) -> Accura
             qual: Some(call.qual as f32),
             filter: format!("{:?}", call.filter),
             info: BTreeMap::new(),
+            genotype: Some(match call.genotype {
+                Genotype::Het => Zygosity::Het,
+                _ => Zygosity::Hom, // HomAlt; HomRef is never emitted as a variant call
+            }),
         };
         if matches!(call.filter, Filter::Pass) {
             calls_pass.push(v.clone());
@@ -248,6 +252,7 @@ fn run_accuracy(coverage: usize, error_rate: f64, cap: u32, seed: u64) -> Accura
             qual: None,
             filter: ".".to_string(),
             info: BTreeMap::new(),
+            genotype: Some(if v.het { Zygosity::Het } else { Zygosity::Hom }),
         })
         .collect();
 
@@ -278,7 +283,8 @@ fn f1(report: &ComparisonReport) -> f64 {
 fn log_report(label: &str, o: &AccuracyOutcome) {
     for (which, r) in [("PASS", &o.report_pass), ("all", &o.report_all)] {
         eprintln!(
-            "germline accuracy [{label}/{which}]: truth={} calls={} tp={} fp={} fn={} precision={:.4} recall={:.4} f1={:.4}",
+            "germline accuracy [{label}/{which}]: truth={} calls={} tp={} fp={} fn={} \
+             precision={:.4} recall={:.4} f1={:.4} gt_concordance={:.4} (concordant={} discordant={} unknown={})",
             r.total_truth,
             r.total_calls,
             r.true_positive,
@@ -287,6 +293,10 @@ fn log_report(label: &str, o: &AccuracyOutcome) {
             r.precision(),
             r.recall(),
             f1(r),
+            r.genotype_concordance(),
+            r.genotype_concordant,
+            r.genotype_discordant,
+            r.genotype_unknown,
         );
     }
 }
@@ -312,6 +322,20 @@ fn detection_accuracy_clean_baseline_40x() {
         r.precision() >= 0.97,
         "PASS precision {:.4} below 0.97",
         r.precision()
+    );
+    // Genotype concordance: on the clean baseline, recovered SNVs match zygosity
+    // (het truth -> het call, hom truth -> hom call). This is the new GIAB-grade
+    // signal the old detection-only comparator could not see.
+    assert!(
+        r.genotype_concordant > 0,
+        "expected some genotype-concordant TPs: {r:?}"
+    );
+    assert!(
+        r.genotype_concordance() >= 0.95,
+        "PASS genotype concordance {:.4} below 0.95 (concordant {}, discordant {})",
+        r.genotype_concordance(),
+        r.genotype_concordant,
+        r.genotype_discordant
     );
 }
 
