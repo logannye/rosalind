@@ -71,6 +71,11 @@ It re-hashes the recorded inputs and outputs (BLAKE3) and re-checks the recorded
 non-zero (exit **5**) with a per-check report on any drift, missing file, or over-budget peak. This is the
 auditability story containers can't give you for a non-deterministic caller.
 
+The receipt is **self-hashing**: a `manifest_blake3` over its own canonical JSON (plus a `schema_version`)
+is stamped at write time and re-derived by `verify`, so any post-write edit — even one that keeps the other
+fields mutually consistent — is caught (exit **5**). This is tamper-*evident*; a cryptographically signed,
+tamper-*proof* receipt is a separate planned feature.
+
 ## What's bounded (honest scope)
 
 - **Germline `variants --index`** and **`features --index`** are the bounded paths: peak ≈ the largest

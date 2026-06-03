@@ -964,6 +964,18 @@ fn run_verify(manifest_path: PathBuf, budget_mb: Option<u64>) -> Result<()> {
         }
     }
 
+    // Self-hash: catches any post-write edit (even one that keeps the other fields
+    // mutually consistent). A pre-1.2 receipt has no self-hash — note and skip.
+    match manifest.self_hash_ok() {
+        Some(true) => {}
+        Some(false) => problems.push(
+            "manifest_blake3 mismatch: the receipt was modified after it was written".to_string(),
+        ),
+        None => {
+            println!("verify: note — no manifest_blake3 (a pre-1.2 receipt); skipping self-hash")
+        }
+    }
+
     if problems.is_empty() {
         println!(
             "verify: OK — {} input(s), {} output(s) match",
@@ -1165,6 +1177,7 @@ fn run_somatic(
     manifest
         .params
         .insert("somatic_snv_only".to_string(), "true".to_string());
+    manifest.finalize();
     let manifest_path = write_manifest(&output_vcf, &manifest)?;
     eprintln!("wrote reproducibility receipt: {}", manifest_path.display());
 
@@ -1535,6 +1548,7 @@ fn run_variants(
             manifest
                 .params
                 .insert("region_start".to_string(), region_start.to_string());
+            manifest.finalize();
             let manifest_path = write_manifest(&path, &manifest)?;
             eprintln!("wrote reproducibility receipt: {}", manifest_path.display());
         }
@@ -1835,6 +1849,7 @@ fn run_features(
         manifest
             .params
             .insert("contract_verdict".to_string(), verdict.to_string());
+        manifest.finalize();
         std::fs::write(&dest, manifest.to_canonical_json())
             .with_context(|| format!("failed to write manifest {}", dest.display()))?;
         eprintln!("wrote reproducibility receipt: {}", dest.display());
@@ -2215,6 +2230,7 @@ fn run_variants_index(
         manifest
             .params
             .insert("contract_verdict".to_string(), verdict.to_string());
+        manifest.finalize();
         std::fs::write(&dest, manifest.to_canonical_json())
             .with_context(|| format!("failed to write manifest {}", dest.display()))?;
         eprintln!("wrote reproducibility receipt: {}", dest.display());
