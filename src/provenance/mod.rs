@@ -8,6 +8,9 @@ use std::collections::BTreeMap;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 
+/// Current receipt/feature schema version. Bump on any breaking schema change.
+pub const MANIFEST_SCHEMA_VERSION: u32 = 1;
+
 /// Failure parsing a canonical run manifest.
 #[derive(Debug)]
 pub struct ManifestError(pub String);
@@ -99,6 +102,33 @@ impl RunManifest {
             i: 0,
         };
         p.parse_manifest()
+    }
+
+    /// BLAKE3 hex of the canonical JSON with the self-hash field excluded — the
+    /// content this manifest commits to. Deterministic; `verify` re-derives it.
+    pub fn content_hash(&self) -> String {
+        let mut m = self.clone();
+        m.params.remove("manifest_blake3");
+        blake3_hex(m.to_canonical_json().as_bytes())
+    }
+
+    /// Stamp the schema version + the self-hash. Call LAST, immediately before
+    /// serialization, so the hash covers every other field (including the version).
+    pub fn finalize(&mut self) {
+        self.params.insert(
+            "schema_version".to_string(),
+            MANIFEST_SCHEMA_VERSION.to_string(),
+        );
+        let h = self.content_hash();
+        self.params.insert("manifest_blake3".to_string(), h);
+    }
+
+    /// `Some(true)`/`Some(false)` if a self-hash is recorded and matches / mismatches;
+    /// `None` if none is recorded (a pre-1.2 receipt).
+    pub fn self_hash_ok(&self) -> Option<bool> {
+        self.params
+            .get("manifest_blake3")
+            .map(|recorded| *recorded == self.content_hash())
     }
 }
 
@@ -458,5 +488,53 @@ mod tests {
     fn parse_rejects_malformed() {
         assert!(RunManifest::from_canonical_json("not json").is_err());
         assert!(RunManifest::from_canonical_json("{\"inputs\":[}").is_err());
+    }
+
+    #[test]
+    fn finalize_stamps_schema_version_and_a_matching_self_hash() {
+        let mut m = RunManifest::new("variants");
+        m.tool_version = "0.1.0".to_string();
+        m.params
+            .insert("peak_rss_bytes".to_string(), "123".to_string());
+        m.finalize();
+        assert_eq!(
+            m.params.get("schema_version").map(String::as_str),
+            Some(MANIFEST_SCHEMA_VERSION.to_string().as_str())
+        );
+        assert!(m.params.contains_key("manifest_blake3"));
+        assert_eq!(m.self_hash_ok(), Some(true), "fresh finalize must verify");
+    }
+
+    #[test]
+    fn tampering_any_field_breaks_the_self_hash() {
+        let mut m = RunManifest::new("variants");
+        m.tool_version = "0.1.0".to_string();
+        m.params
+            .insert("peak_rss_bytes".to_string(), "123".to_string());
+        m.finalize();
+        // Flip a field WITHOUT re-finalizing — the recorded hash no longer matches.
+        m.params
+            .insert("peak_rss_bytes".to_string(), "999".to_string());
+        assert_eq!(m.self_hash_ok(), Some(false));
+    }
+
+    #[test]
+    fn a_manifest_without_a_self_hash_returns_none() {
+        let mut m = RunManifest::new("variants");
+        m.tool_version = "0.1.0".to_string();
+        assert_eq!(m.self_hash_ok(), None);
+    }
+
+    #[test]
+    fn finalize_is_idempotent() {
+        let mut m = RunManifest::new("variants");
+        m.tool_version = "0.1.0".to_string();
+        m.params
+            .insert("peak_rss_bytes".to_string(), "123".to_string());
+        m.finalize();
+        let first = m.params.get("manifest_blake3").cloned();
+        m.finalize();
+        assert_eq!(m.params.get("manifest_blake3").cloned(), first);
+        assert_eq!(m.self_hash_ok(), Some(true));
     }
 }

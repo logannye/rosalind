@@ -724,3 +724,80 @@ fn near_saturation_margin_holds_on_a_larger_contig() {
     );
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn receipt_is_self_hashing_and_schema_versioned() {
+    let (dir, idx, bam) = build_sorted_bam_fixture();
+    let vcf = dir.join("calls.vcf");
+    let manifest = dir.join("calls.vcf.manifest.json");
+    let out = Command::new(bin())
+        .args(["variants", "--index"])
+        .arg(&idx)
+        .arg("--alignments")
+        .arg(&bam)
+        .args(["--memory-budget-mb", "4096", "--enforce", "-o"])
+        .arg(&vcf)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "run failed: {out:?}");
+    let text = std::fs::read_to_string(&manifest).expect("manifest");
+    assert!(
+        text.contains("\"manifest_blake3\":"),
+        "no self-hash: {text}"
+    );
+    assert!(
+        text.contains("\"schema_version\":\"1\""),
+        "no schema_version: {text}"
+    );
+    // An untampered receipt verifies.
+    let v = Command::new(bin())
+        .args(["verify", "--manifest"])
+        .arg(&manifest)
+        .output()
+        .unwrap();
+    assert!(v.status.success(), "untampered verify should pass: {v:?}");
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn verify_rejects_a_self_consistent_but_tampered_receipt() {
+    let (dir, idx, bam) = build_sorted_bam_fixture();
+    let vcf = dir.join("calls.vcf");
+    let manifest = dir.join("calls.vcf.manifest.json");
+    let out = Command::new(bin())
+        .args(["variants", "--index"])
+        .arg(&idx)
+        .arg("--alignments")
+        .arg(&bam)
+        .args(["--memory-budget-mb", "4096", "--enforce", "-o"])
+        .arg(&vcf)
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "run failed: {out:?}");
+    // Tamper a field while keeping the receipt internally CONSISTENT: raise the
+    // recorded budget (a 'within' verdict stays valid since peak << 8192 MiB), so the
+    // verdict/consistency cross-checks still pass. Only the self-hash catches this.
+    let text = std::fs::read_to_string(&manifest).unwrap();
+    let tampered = text.replace(
+        "\"memory_budget_mb\":\"4096\"",
+        "\"memory_budget_mb\":\"8192\"",
+    );
+    assert_ne!(text, tampered, "the replace must have changed something");
+    std::fs::write(&manifest, &tampered).unwrap();
+    let v = Command::new(bin())
+        .args(["verify", "--manifest"])
+        .arg(&manifest)
+        .output()
+        .unwrap();
+    assert_eq!(
+        v.status.code(),
+        Some(5),
+        "tampered receipt must fail verify: {v:?}"
+    );
+    let stderr = String::from_utf8_lossy(&v.stderr);
+    assert!(
+        stderr.contains("manifest_blake3 mismatch"),
+        "expected a self-hash mismatch: {stderr}"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
