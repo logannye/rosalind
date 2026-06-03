@@ -141,10 +141,13 @@ Everything downstream rests on the proofs being literally correct. Two verified 
   form; the on-disk receipt keeps full paths for humans and for `verify` to re-hash files), making the
   claim hash a true cross-machine content-address. Version-gated (schema <3 reproduces the path-inclusive
   form so pre-P0.2b receipts still self-verify). This is the property chaining/reproduce/cohort need.
-- **P0.3 — Build-identity in the receipt.** *(S)* Replace the `tool_version = "0.1.0"` half-measure with
-  `code_git_sha` + `code_dirty` + `rustc_version` + `target_triple` + `deps_lock_blake3` (via `build.rs`)
-  and a `verify --expect-code <sha>` gate, so "exactly this code" stops being a lie and becomes a real
-  reproduction key.
+- **P0.3 — Build-identity in the receipt.** *(S)* **DONE.** Replaced the `tool_version = "0.1.0"`
+  half-measure with `code_git_sha` + `code_dirty` + `rustc_version` + `target_triple` + `deps_lock_blake3`
+  (baked at compile time by `build.rs`, each degrading to `"unknown"`), stamped into the *claim* (so they
+  are hash-protected and form the reproduction key), plus a `verify --expect-code <sha>` gate (prefix
+  match; flags a clean match from a dirty build; rejects a degenerate SHA). Schema 3 → 4. "Exactly this
+  code" is no longer a lie. **⇒ Phase 0 complete: the receipt is sound (conservative build estimate),
+  cross-machine stable (content-address claim + lossless measurement split), and code-identified.**
 
 ### Phase 1 — Sell what ships (harden + market the contract; no √t needed)
 

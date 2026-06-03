@@ -33,6 +33,10 @@ rust-htslib = { version = "0.44", default-features = false, features = ["bzip2",
 [dev-dependencies]
 proptest = "1.4"
 
+[build-dependencies]
+# Same hash as the runtime receipt digests — for deps_lock_blake3 in build.rs.
+blake3 = "1.5"
+
 [profile.release]
 opt-level = 3
 lto = true
