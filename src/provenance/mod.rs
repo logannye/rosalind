@@ -20,6 +20,9 @@ use std::collections::BTreeMap;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
 
+mod command;
+pub use command::CommandCapture;
+
 /// Current receipt/feature schema version. Bump on any breaking schema change.
 /// v2: split into a deterministic *claim* and a machine-dependent *measurement* block;
 /// the self-hash (`manifest_blake3`) covers the claim only. v3: the claim hashes
