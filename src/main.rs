@@ -958,12 +958,56 @@ fn run_reproduce(
     no_attest: bool,
     output: Option<PathBuf>,
 ) -> Result<()> {
+    use rosalind::provenance::{ReproOutput, ReproReceipt};
+
     let report = rosalind::reproduce::reproduce(&manifest, &inputs)?;
     for line in &report.lines {
         println!("{line}");
     }
-    // The reproduction certificate is minted here in Task 5.
-    let _ = (no_attest, output);
+
+    // Mint a chainable reproduction certificate when a real comparison happened
+    // (REPRODUCED / DIVERGED) — unless the caller opted out.
+    if report.compared && !no_attest {
+        let outputs: Vec<ReproOutput> = report
+            .outputs
+            .iter()
+            .map(|c| ReproOutput {
+                role: c.role.clone(),
+                recorded_blake3: c.recorded.clone(),
+                observed_blake3: c.observed.clone(),
+                matched: c.matched,
+            })
+            .collect();
+        let cert = ReproReceipt::build(
+            &report.parent_claim,
+            &report.parent_subcommand,
+            &report.verdict_label,
+            1,
+            &outputs,
+            report.resource_here.peak_rss_bytes,
+            report.resource_here.declared_budget_mb,
+        );
+        let dest = match &output {
+            Some(p) => p.clone(),
+            None => {
+                let mut s = manifest.as_os_str().to_os_string();
+                s.push(".repro.json");
+                PathBuf::from(s)
+            }
+        };
+        std::fs::write(&dest, cert.to_canonical_json()).with_context(|| {
+            format!(
+                "failed to write reproduction certificate {}",
+                dest.display()
+            )
+        })?;
+        println!(
+            "  -> wrote reproduction certificate: {} (chains to {})",
+            dest.display(),
+            &report.parent_claim[..report.parent_claim.len().min(10)]
+        );
+    }
+
     if report.exit_code != 0 {
         std::process::exit(report.exit_code);
     }
