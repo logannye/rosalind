@@ -221,7 +221,7 @@ fn stdout_run_persists_a_self_describing_receipt() {
     let json = std::fs::read_to_string(&manifest).expect("manifest written");
     for needle in [
         "\"contract_verdict\":\"within\"",
-        "\"enforced\":\"true\"",
+        "\"enforce\":\"true\"",
         "\"max_depth\":\"1000\"",
         "\"memory_budget_mb\":\"4096\"",
         "\"peak_rss_bytes\":",
@@ -775,7 +775,7 @@ fn receipt_is_self_hashing_and_schema_versioned() {
         "no measurement self-hash: {text}"
     );
     assert!(
-        text.contains("\"schema_version\":\"4\""),
+        text.contains("\"schema_version\":\"5\""),
         "no schema_version: {text}"
     );
     // An untampered receipt verifies.

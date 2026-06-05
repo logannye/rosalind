@@ -151,7 +151,8 @@ impl CommandCapture {
     /// the inferred `mode`. Call before `finalize()`. Measurement fields remain the
     /// caller's responsibility (recorded separately, relocated by `finalize`).
     pub fn record_into(self, m: &mut RunManifest) {
-        m.params.insert("command".to_string(), self.render_command());
+        m.params
+            .insert("command".to_string(), self.render_command());
         for t in &self.tokens {
             match t {
                 Token::Opt(f, v) => {
@@ -238,11 +239,17 @@ mod tests {
              --mapq-threshold 20 --max-depth 1000 --memory-budget-mb 256 --enforce -o @out:h_out"
         );
         assert_eq!(
-            m.inputs.iter().map(|f| f.blake3.as_str()).collect::<Vec<_>>(),
+            m.inputs
+                .iter()
+                .map(|f| f.blake3.as_str())
+                .collect::<Vec<_>>(),
             ["h_idx", "h_bam"]
         );
         assert_eq!(
-            m.outputs.iter().map(|f| f.blake3.as_str()).collect::<Vec<_>>(),
+            m.outputs
+                .iter()
+                .map(|f| f.blake3.as_str())
+                .collect::<Vec<_>>(),
             ["h_out"]
         );
         assert_eq!(m.params.get("mapq_threshold").unwrap(), "20");
@@ -296,6 +303,9 @@ mod tests {
         let locate = |_h: &str| None;
         let out_temp = |_h: &str| "/tmp/out.vcf".to_string();
         let err = CommandCapture::argv_from_command(command, &locate, &out_temp).unwrap_err();
-        assert!(err.contains("h_idx"), "error names the unresolved input hash: {err}");
+        assert!(
+            err.contains("h_idx"),
+            "error names the unresolved input hash: {err}"
+        );
     }
 }

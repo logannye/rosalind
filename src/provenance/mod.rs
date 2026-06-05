@@ -30,8 +30,10 @@ pub use command::CommandCapture;
 /// cross-machine content-address — the same data at different paths hashes identically.
 /// v4: the claim records build-identity (`code_git_sha`/`code_dirty`/`rustc_version`/
 /// `target_triple`/`deps_lock_blake3`), committing to exactly which code, toolchain, and
-/// dependencies produced the run.
-pub const MANIFEST_SCHEMA_VERSION: u32 = 4;
+/// dependencies produced the run. v5: the claim records a normalized, replayable
+/// `command` recipe (via [`CommandCapture`]) plus the discrete output-affecting params and
+/// `mode`, so `reproduce` can re-derive the exact invocation.
+pub const MANIFEST_SCHEMA_VERSION: u32 = 5;
 
 /// Keys whose values are machine-/run-dependent measurements, not part of the
 /// deterministic claim. `finalize` relocates these out of `params` into the

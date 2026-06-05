@@ -1183,7 +1183,7 @@ fn run_somatic(
     use rosalind::io::bam::BamSource;
     use rosalind::io::vcf::write_somatic_vcf;
     use rosalind::pileup::PileupParams;
-    use rosalind::provenance::{blake3_file, write_manifest, FileHash, RunManifest};
+    use rosalind::provenance::{write_manifest, CommandCapture, RunManifest};
 
     let start_call = Instant::now();
     let mut contigs = ContigSet::new();
@@ -1227,22 +1227,20 @@ fn run_somatic(
         _ => Vec::new(),
     };
     let mut manifest = RunManifest::new("somatic");
-    manifest.inputs.push(FileHash {
-        path: reference_path.display().to_string(),
-        blake3: blake3_file(&reference_path)?,
-    });
-    for p in tumor_inputs.iter().chain(normal_inputs.iter()) {
+    let mut cmd = CommandCapture::new("somatic");
+    cmd.input("--reference", &reference_path)?;
+    for p in tumor_inputs.iter() {
         if p.exists() {
-            manifest.inputs.push(FileHash {
-                path: p.display().to_string(),
-                blake3: blake3_file(p)?,
-            });
+            cmd.input("--tumor", p)?;
         }
     }
-    manifest.outputs.push(FileHash {
-        path: output_vcf.display().to_string(),
-        blake3: blake3_file(&output_vcf)?,
-    });
+    for p in normal_inputs.iter() {
+        if p.exists() {
+            cmd.input("--normal", p)?;
+        }
+    }
+    cmd.output("-o", &output_vcf)?;
+    cmd.record_into(&mut manifest);
     manifest
         .params
         .insert("somatic_snv_only".to_string(), "true".to_string());
@@ -1513,7 +1511,7 @@ fn run_variants(
     use rosalind::io::bam::BamSource;
     use rosalind::io::vcf::{write_germline_vcf, GermlineRow};
     use rosalind::pileup::{PileupParams, SliceSource};
-    use rosalind::provenance::{blake3_file, write_manifest, FileHash, RunManifest};
+    use rosalind::provenance::{write_manifest, CommandCapture, RunManifest};
 
     let fasta = read_fasta(&reference_path)
         .with_context(|| format!("failed to read reference from {}", reference_path.display()))?;
@@ -1597,28 +1595,15 @@ fn run_variants(
 
             // Reproducibility receipt next to the VCF.
             let mut manifest = RunManifest::new("variants");
-            manifest.inputs.push(FileHash {
-                path: reference_path.display().to_string(),
-                blake3: blake3_file(&reference_path)?,
-            });
-            manifest.inputs.push(FileHash {
-                path: alignments_path.display().to_string(),
-                blake3: blake3_file(&alignments_path)?,
-            });
-            manifest.outputs.push(FileHash {
-                path: path.display().to_string(),
-                blake3: blake3_file(&path)?,
-            });
-            manifest
-                .params
-                .insert("mapq_threshold".to_string(), mapq_threshold.to_string());
-            manifest.params.insert(
-                "min_qual".to_string(),
-                (quality_threshold as f64).to_string(),
-            );
-            manifest
-                .params
-                .insert("region_start".to_string(), region_start.to_string());
+            let mut cmd = CommandCapture::new("variants");
+            cmd.input("--reference", &reference_path)?;
+            cmd.input("--alignments", &alignments_path)?;
+            cmd.opt("--chrom", &chrom_name);
+            cmd.opt("--region-start", region_start);
+            cmd.opt("--mapq-threshold", mapq_threshold);
+            cmd.opt("--quality-threshold", quality_threshold as f64);
+            cmd.output("-o", &path)?;
+            cmd.record_into(&mut manifest);
             manifest.finalize();
             let manifest_path = write_manifest(&path, &manifest)?;
             eprintln!("wrote reproducibility receipt: {}", manifest_path.display());
@@ -1656,7 +1641,7 @@ fn run_features(
     use rosalind::genomics::IndexReader;
     use rosalind::io::bam::StreamingBamSource;
     use rosalind::pileup::PileupParams;
-    use rosalind::provenance::{blake3_file, FileHash, RunManifest};
+    use rosalind::provenance::{CommandCapture, RunManifest};
 
     let loaded = IndexReader::open(&index_path)
         .with_context(|| format!("failed to open index {}", index_path.display()))?;
@@ -1850,32 +1835,20 @@ fn run_features(
     };
     if let Some(dest) = receipt_dest {
         let mut manifest = RunManifest::new("features");
-        manifest.inputs.push(FileHash {
-            path: index_path.display().to_string(),
-            blake3: blake3_file(&index_path)?,
-        });
-        manifest.inputs.push(FileHash {
-            path: alignments_path.display().to_string(),
-            blake3: blake3_file(&alignments_path)?,
-        });
-        if let Some(path) = &output {
-            manifest.outputs.push(FileHash {
-                path: path.display().to_string(),
-                blake3: blake3_file(path)?,
-            });
+        let mut cmd = CommandCapture::new("features");
+        cmd.input("--index", &index_path)?;
+        cmd.input("--alignments", &alignments_path)?;
+        cmd.opt("--mapq-threshold", mapq_threshold);
+        cmd.opt("--max-depth", max_depth);
+        cmd.opt("--max-read-len", max_read_len);
+        cmd.flag_if(enforce, "--enforce");
+        if let Some(mb) = memory_budget_mb {
+            cmd.opt("--memory-budget-mb", mb);
         }
-        manifest
-            .params
-            .insert("mapq_threshold".to_string(), mapq_threshold.to_string());
-        manifest
-            .params
-            .insert("max_depth".to_string(), max_depth.to_string());
-        manifest
-            .params
-            .insert("max_read_len".to_string(), max_read_len.to_string());
-        manifest
-            .params
-            .insert("enforced".to_string(), enforce.to_string());
+        if let Some(path) = &output {
+            cmd.output("-o", path)?;
+        }
+        cmd.record_into(&mut manifest);
         manifest
             .params
             .insert("peak_rss_bytes".to_string(), peak_rss.to_string());
@@ -1912,11 +1885,6 @@ fn run_features(
         manifest
             .params
             .insert("reads_skipped_total".to_string(), skips.total().to_string());
-        if let Some(mb) = memory_budget_mb {
-            manifest
-                .params
-                .insert("memory_budget_mb".to_string(), mb.to_string());
-        }
         manifest
             .params
             .insert("contract_verdict".to_string(), verdict.to_string());
@@ -1985,7 +1953,7 @@ fn run_variants_index(
     use rosalind::io::bam::StreamingBamSource;
     use rosalind::io::vcf::{write_germline_header, write_germline_row, GermlineRow};
     use rosalind::pileup::PileupParams;
-    use rosalind::provenance::{blake3_file, FileHash, RunManifest};
+    use rosalind::provenance::{CommandCapture, RunManifest};
 
     let loaded = IndexReader::open(&index_path)
         .with_context(|| format!("failed to open index {}", index_path.display()))?;
@@ -2231,36 +2199,22 @@ fn run_variants_index(
     };
     if let Some(dest) = receipt_dest {
         let mut manifest = RunManifest::new("variants");
-        manifest.inputs.push(FileHash {
-            path: index_path.display().to_string(),
-            blake3: blake3_file(&index_path)?,
-        });
-        manifest.inputs.push(FileHash {
-            path: alignments_path.display().to_string(),
-            blake3: blake3_file(&alignments_path)?,
-        });
-        if let Some(path) = &output {
-            manifest.outputs.push(FileHash {
-                path: path.display().to_string(),
-                blake3: blake3_file(path)?,
-            });
+        let mut cmd = CommandCapture::new("variants");
+        cmd.input("--index", &index_path)?;
+        cmd.input("--alignments", &alignments_path)?;
+        cmd.opt("--mapq-threshold", mapq_threshold);
+        cmd.opt("--quality-threshold", quality_threshold as f64);
+        cmd.opt("--max-depth", max_depth);
+        cmd.opt("--max-read-len", max_read_len);
+        cmd.flag_if(enforce, "--enforce");
+        cmd.flag_if(gvcf, "--gvcf");
+        if let Some(mb) = memory_budget_mb {
+            cmd.opt("--memory-budget-mb", mb);
         }
-        manifest
-            .params
-            .insert("mapq_threshold".to_string(), mapq_threshold.to_string());
-        manifest.params.insert(
-            "min_qual".to_string(),
-            (quality_threshold as f64).to_string(),
-        );
-        manifest
-            .params
-            .insert("max_depth".to_string(), max_depth.to_string());
-        manifest
-            .params
-            .insert("max_read_len".to_string(), max_read_len.to_string());
-        manifest
-            .params
-            .insert("enforced".to_string(), enforce.to_string());
+        if let Some(path) = &output {
+            cmd.output("-o", path)?;
+        }
+        cmd.record_into(&mut manifest);
         manifest
             .params
             .insert("peak_rss_bytes".to_string(), peak_rss.to_string());
@@ -2294,11 +2248,6 @@ fn run_variants_index(
         manifest
             .params
             .insert("reads_skipped_total".to_string(), skips.total().to_string());
-        if let Some(mb) = memory_budget_mb {
-            manifest
-                .params
-                .insert("memory_budget_mb".to_string(), mb.to_string());
-        }
         manifest
             .params
             .insert("contract_verdict".to_string(), verdict.to_string());
