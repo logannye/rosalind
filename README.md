@@ -149,6 +149,26 @@ pack: 37 job(s) → 3 node(s) of 64000 MiB — every node proven within capacity
 
 `rosalind plan --index ref.idx --budget-mb 64000 --json` emits the same predicted peak as one line of JSON for a workflow engine to read. This is what an emergent-peak caller (GATK, DeepVariant) structurally cannot do: their peak is only known *after* a possible OOM-kill, so every co-location is a gamble. Here, `Packed` is a proof — each node's summed predicted peak is `≤` its capacity, established up front, and the schedule is deterministic.
 
+## Reproduce a result — a command a stranger can run
+
+Hand someone a `*.vcf` and its `*.manifest.json`. On a *different machine*, with one offline command, they re-derive it byte-for-byte — no GATK, no Docker, no Nextflow, no re-aligning:
+
+```bash
+rosalind reproduce --manifest sample.vcf.manifest.json --inputs ./data
+#   claim       : a1b2c3… (re-derived)
+#   code        : git 9f3a213 — matches
+#   inputs      : 2 file(s) indexed by content hash
+#   output      : output[0]  OK byte-identical (blake3 e4f5…)
+#   VERDICT     : REPRODUCED
+#   -> wrote reproduction certificate: sample.vcf.manifest.json.repro.json (chains to a1b2c3…)
+```
+
+It content-locates the recorded inputs by their BLAKE3 hash (paths don't matter), re-runs the exact recorded command (schema-5 receipts carry a normalized, replayable `command`), and compares output bytes — exit **0 REPRODUCED / 6 DIVERGED / 7 INCONCLUSIVE** (and **5** for a tampered receipt). **No incumbent caller can do this:** GATK/DeepVariant would report DIVERGED on a *correct* run, because their output is not byte-deterministic.
+
+Each run writes a **reproduction certificate** (`.repro.json`) — a content-addressed, self-hashing attestation that names the original receipt's claim hash. Independent parties who reproduce the same result mint certificates that all name the same parent — **N independent confirmations, with no server**: a reproducibility web. (Tamper-evident today; cryptographic signing is the next step.)
+
+**Honest scope:** byte-equality covers the deterministic text outputs (`variants → VCF`, `features → TSV`); BAM/bgzf is reported INCONCLUSIVE rather than risking a false DIVERGED. Drop the [Rosalind budget Action](#the-memory-contract-in-your-ci) + `rosalind badge` into CI to publish a self-hosted *“reproducible · fits N MiB”* badge.
+
 ## A reproducible feature substrate for ML
 
 The same bounded streaming engine that calls variants can emit **per-locus features** instead — one tabular row per callable position, ready for a model:

@@ -7,6 +7,26 @@ All notable changes to Rosalind are recorded here. Versions follow [Semantic Ver
 A contract-hardening pass followed by moat-compounding capabilities, all on the
 canonical bounded-memory substrate.
 
+### Reproducibility — a stranger can re-derive your result (Track D)
+- **`rosalind reproduce`** re-derives a recorded result byte-for-byte from its receipt and
+  content-located inputs, reporting REPRODUCED / DIVERGED / INCONCLUSIVE (exit 0 / 6 / 7; a
+  tampered receipt is exit 5). No incumbent caller can offer this — a non-deterministic caller
+  reports DIVERGED on a *correct* run. Honest scope: the deterministic text outputs
+  (`variants → VCF`, `features → TSV`); BAM/bgzf is reported INCONCLUSIVE, never a false DIVERGED.
+- **Chainable reproduction certificate** (`<receipt>.repro.json`): a content-addressed,
+  self-hashing attestation that names the original receipt's claim hash. N certificates over the
+  same parent are N independent confirmations — a serverless reproducibility web. Signing-ready,
+  and itself `verify`-able.
+- **Schema 5 — a replayable command.** Every receipt now records a normalized, machine-independent
+  `command` recipe (one `CommandCapture` chokepoint), closing the prior gap where
+  `gvcf`/`chrom`/index-vs-reference mode went unrecorded. Pre-v5 receipts still parse and verify.
+- **`rosalind badge`** emits a self-hosted shields.io endpoint JSON + a static SVG
+  ("reproducible · fits N MiB") with no shields.io runtime dependency (works offline).
+- **CI reproduce fence:** the `cli-e2e` job re-derives a result on the GitHub runner (a different
+  machine than the author's) and confirms a byte-changed input is reported INCONCLUSIVE.
+- Internals: `verify_receipt` is now a shared library function — `verify`, `reproduce`, and a
+  future WASM verifier consume one source of truth, so they cannot drift.
+
 ### Contract hardening (true & trusted on real genomes)
 - **Predicted peak is a true upper bound.** The per-contig reference decode no longer holds a
   transient second copy (`decode_window_arc`); the prediction is recorded in the receipt and carries an
