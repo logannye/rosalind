@@ -26,6 +26,9 @@ pub use command::CommandCapture;
 mod repro;
 pub use repro::{ReproOutput, ReproReceipt};
 
+mod badge;
+pub use badge::{badge_json, badge_svg};
+
 /// Current receipt/feature schema version. Bump on any breaking schema change.
 /// v2: split into a deterministic *claim* and a machine-dependent *measurement* block;
 /// the self-hash (`manifest_blake3`) covers the claim only. v3: the claim hashes

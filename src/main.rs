@@ -342,6 +342,21 @@ enum Commands {
         #[arg(short, long)]
         output: Option<PathBuf>,
     },
+    /// Emit a self-hosted status badge — a shields.io endpoint JSON or a static SVG —
+    /// asserting "reproducible · fits N MiB" for a run. With `--repro` the reproducible
+    /// claim is backed by a reproduction certificate; otherwise it reflects the
+    /// deterministic engine (an intact receipt re-derives byte-identically).
+    Badge {
+        /// The run's `*.manifest.json`.
+        #[arg(long)]
+        manifest: PathBuf,
+        /// An optional `*.repro.json` whose verdict backs the "reproducible" claim.
+        #[arg(long)]
+        repro: Option<PathBuf>,
+        /// Output path; a `.svg` extension emits the static SVG, else a shields JSON.
+        #[arg(short, long)]
+        output: PathBuf,
+    },
 }
 
 #[derive(Copy, Clone, Debug, ValueEnum, Eq, PartialEq)]
@@ -546,6 +561,11 @@ fn main() -> Result<()> {
             no_attest,
             output,
         } => run_reproduce(manifest, inputs, no_attest, output)?,
+        Commands::Badge {
+            manifest,
+            repro,
+            output,
+        } => run_badge(manifest, repro, output)?,
     }
 
     Ok(())
@@ -1011,6 +1031,57 @@ fn run_reproduce(
     if report.exit_code != 0 {
         std::process::exit(report.exit_code);
     }
+    Ok(())
+}
+
+/// Emit a self-hosted status badge for a run. `fits` comes from the receipt's recorded
+/// peak vs declared budget; `reproducible` comes from a `--repro` certificate's verdict,
+/// or (absent one) from the receipt's intact self-hash (the engine is deterministic, so
+/// an intact Rosalind receipt re-derives byte-identically by construction).
+fn run_badge(manifest: PathBuf, repro: Option<PathBuf>, output: PathBuf) -> Result<()> {
+    use rosalind::core::MemoryBudget;
+    use rosalind::provenance::{badge_json, badge_svg, ReproReceipt, RunManifest};
+
+    let text = std::fs::read_to_string(&manifest)
+        .with_context(|| format!("failed to read receipt {}", manifest.display()))?;
+    let m = RunManifest::from_canonical_json(&text)
+        .map_err(|e| anyhow!("failed to parse receipt {}: {e}", manifest.display()))?;
+
+    let budget = m
+        .get_recorded("memory_budget_mb")
+        .and_then(|v| v.parse::<u64>().ok());
+    let peak = m
+        .get_recorded("peak_rss_bytes")
+        .and_then(|v| v.parse::<u64>().ok());
+    let fits_mb = match (budget, peak) {
+        (Some(mb), Some(p)) if MemoryBudget::from_mb(mb).admits(p) => Some(mb),
+        _ => None,
+    };
+
+    let reproducible = match &repro {
+        Some(p) => {
+            let ctext = std::fs::read_to_string(p)
+                .with_context(|| format!("failed to read certificate {}", p.display()))?;
+            let cert = ReproReceipt::from_canonical_json(&ctext)
+                .map_err(|e| anyhow!("failed to parse certificate {}: {e}", p.display()))?;
+            cert.self_hash_ok() && cert.verdict() == Some("REPRODUCED")
+        }
+        None => m.self_hash_ok() == Some(true),
+    };
+
+    let is_svg = output
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.eq_ignore_ascii_case("svg"))
+        .unwrap_or(false);
+    let body = if is_svg {
+        badge_svg(reproducible, fits_mb)
+    } else {
+        badge_json(reproducible, fits_mb)
+    };
+    std::fs::write(&output, &body)
+        .with_context(|| format!("failed to write badge {}", output.display()))?;
+    eprintln!("wrote badge: {}", output.display());
     Ok(())
 }
 
