@@ -325,6 +325,23 @@ enum Commands {
         #[arg(long)]
         expect_code: Option<String>,
     },
+    /// Re-derive a recorded result from its receipt and content-located inputs, and
+    /// write a chainable reproduction certificate. The verdict is over output bytes
+    /// (exit 0 REPRODUCED / 6 DIVERGED / 7 INCONCLUSIVE / 5 tampered receipt).
+    Reproduce {
+        /// Path to a `*.manifest.json` from a previous run.
+        #[arg(long)]
+        manifest: PathBuf,
+        /// Directory holding the recorded inputs (located by content hash).
+        #[arg(long)]
+        inputs: PathBuf,
+        /// Do not write a `.repro.json` reproduction certificate.
+        #[arg(long, default_value_t = false)]
+        no_attest: bool,
+        /// Where to write the certificate (default: `<manifest>.repro.json`).
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
 }
 
 #[derive(Copy, Clone, Debug, ValueEnum, Eq, PartialEq)]
@@ -523,6 +540,12 @@ fn main() -> Result<()> {
             budget_mb,
             expect_code,
         } => run_verify(manifest, budget_mb, expect_code)?,
+        Commands::Reproduce {
+            manifest,
+            inputs,
+            no_attest,
+            output,
+        } => run_reproduce(manifest, inputs, no_attest, output)?,
     }
 
     Ok(())
@@ -924,6 +947,27 @@ fn run_verify(
         }
         std::process::exit(5);
     }
+}
+
+/// Re-derive a recorded result and report REPRODUCED / DIVERGED / INCONCLUSIVE (and
+/// TAMPERED for a modified receipt), exiting 0 / 6 / 7 / 5 respectively. Writes a
+/// `.repro.json` reproduction certificate next to the receipt unless `--no-attest`.
+fn run_reproduce(
+    manifest: PathBuf,
+    inputs: PathBuf,
+    no_attest: bool,
+    output: Option<PathBuf>,
+) -> Result<()> {
+    let report = rosalind::reproduce::reproduce(&manifest, &inputs)?;
+    for line in &report.lines {
+        println!("{line}");
+    }
+    // The reproduction certificate is minted here in Task 5.
+    let _ = (no_attest, output);
+    if report.exit_code != 0 {
+        std::process::exit(report.exit_code);
+    }
+    Ok(())
 }
 
 /// Load a prebuilt index and print exact-match loci for `pattern` (B3c). This is
