@@ -595,6 +595,183 @@ pub fn blake3_file(path: &Path) -> io::Result<String> {
     Ok(hasher.finalize().to_hex().to_string())
 }
 
+/// Options for [`verify_receipt`] beyond the receipt text itself.
+#[derive(Debug, Default)]
+pub struct VerifyOpts {
+    /// Budget (MiB) to check the recorded peak against (overrides the recorded one).
+    pub budget_mb: Option<u64>,
+    /// Assert the receipt was built from exactly this commit SHA (prefix match).
+    pub expect_code: Option<String>,
+    /// Re-hash the files at the recorded input/output paths and check their digests.
+    pub rehash_files: bool,
+}
+
+/// The outcome of [`verify_receipt`]: failures (empty == ok), informational notes, and
+/// the parsed manifest (when parsing succeeded).
+#[derive(Debug)]
+pub struct VerifyReport {
+    /// Whether the receipt passed every check.
+    pub ok: bool,
+    /// Human-readable failures (empty when `ok`).
+    pub problems: Vec<String>,
+    /// Informational, non-failing notes (e.g. "peak within budget").
+    pub notes: Vec<String>,
+    /// The parsed manifest, when parsing succeeded.
+    pub manifest: Option<RunManifest>,
+}
+
+/// Check a receipt's internal integrity — self-hashes, cross-field consistency, optional
+/// budget + expected-code — and, when `opts.rehash_files`, re-hash recorded files. The
+/// single source of truth shared by the `verify` CLI and `reproduce` (and a future WASM
+/// verifier) so they cannot drift.
+pub fn verify_receipt(text: &str, opts: &VerifyOpts) -> VerifyReport {
+    let manifest = match RunManifest::from_canonical_json(text) {
+        Ok(m) => m,
+        Err(e) => {
+            return VerifyReport {
+                ok: false,
+                problems: vec![format!("parse error: {e}")],
+                notes: Vec::new(),
+                manifest: None,
+            }
+        }
+    };
+    let mut problems: Vec<String> = Vec::new();
+    let mut notes: Vec<String> = Vec::new();
+
+    // Re-hash inputs + outputs against the recorded digests (CLI sets this).
+    if opts.rehash_files {
+        for (kind, files) in [("input", &manifest.inputs), ("output", &manifest.outputs)] {
+            for f in files {
+                match blake3_file(Path::new(&f.path)) {
+                    Ok(h) if h == f.blake3 => {}
+                    Ok(h) => problems.push(format!(
+                        "{kind} {} hash mismatch: recorded {}, now {}",
+                        f.path, f.blake3, h
+                    )),
+                    Err(e) => problems.push(format!("{kind} {} unreadable: {e}", f.path)),
+                }
+            }
+        }
+    }
+
+    // Strictly parse the numeric fields. A PRESENT-but-unparseable field is corruption,
+    // not absence. `get_recorded` reads measurements (v2) or params (pre-v2) uniformly.
+    let parse_num = |k: &str, problems: &mut Vec<String>| -> Option<u64> {
+        match manifest.get_recorded(k) {
+            None => None,
+            Some(v) => match v.parse::<u64>() {
+                Ok(n) => Some(n),
+                Err(_) => {
+                    problems.push(format!("malformed numeric field {k}: {v:?}"));
+                    None
+                }
+            },
+        }
+    };
+    let recorded_peak = parse_num("peak_rss_bytes", &mut problems);
+    let recorded_ws = parse_num("max_working_set_bytes", &mut problems);
+    let recorded_budget = parse_num("memory_budget_mb", &mut problems);
+
+    // Re-check the recorded realized peak against the budget (CLI overrides manifest).
+    let budget_mb = opts.budget_mb.or(recorded_budget);
+    match (budget_mb, recorded_peak) {
+        (Some(mb), Some(peak)) => {
+            if crate::core::MemoryBudget::from_mb(mb).admits(peak) {
+                notes.push(format!(
+                    "peak {} MiB within budget {mb} MiB",
+                    peak / (1 << 20)
+                ));
+            } else {
+                problems.push(format!(
+                    "recorded peak {} MiB exceeded budget {mb} MiB",
+                    peak / (1 << 20)
+                ));
+            }
+        }
+        (None, _) => notes.push("no budget to check (none supplied or recorded)".to_string()),
+        (Some(_), None) => problems.push("manifest has no recorded peak_rss_bytes".to_string()),
+    }
+
+    // Internal-consistency cross-checks: the working set cannot exceed peak RSS.
+    if let (Some(ws), Some(peak)) = (recorded_ws, recorded_peak) {
+        if ws > peak {
+            problems.push(format!(
+                "internally inconsistent: max_working_set_bytes ({ws}) exceeds peak_rss_bytes ({peak})"
+            ));
+        }
+    }
+    // A recorded verdict must agree with the recorded peak vs the recorded budget.
+    if let (Some(verdict), Some(mb), Some(peak)) = (
+        manifest
+            .get_recorded("contract_verdict")
+            .map(String::as_str),
+        recorded_budget,
+        recorded_peak,
+    ) {
+        let actually_within = crate::core::MemoryBudget::from_mb(mb).admits(peak);
+        if verdict == "within" && !actually_within {
+            problems.push(format!(
+                "internally inconsistent: contract_verdict='within' but recorded peak {} MiB \
+                 exceeds recorded budget {mb} MiB",
+                peak / (1 << 20)
+            ));
+        }
+        if verdict == "over" && actually_within {
+            problems.push(format!(
+                "internally inconsistent: contract_verdict='over' but recorded peak {} MiB \
+                 is within recorded budget {mb} MiB",
+                peak / (1 << 20)
+            ));
+        }
+    }
+
+    // Claim self-hash: catches any post-write edit to the claim. A pre-1.2 receipt has none.
+    match manifest.self_hash_ok() {
+        Some(true) => {}
+        Some(false) => problems.push(
+            "manifest_blake3 mismatch: the receipt was modified after it was written".to_string(),
+        ),
+        None => {
+            notes.push("no manifest_blake3 (a pre-1.2 receipt); skipping self-hash".to_string())
+        }
+    }
+
+    // Measurement self-hash: catches an edit to a measured field the claim hash can't see.
+    match manifest.measurement_hash_ok() {
+        Some(true) => {}
+        Some(false) => problems.push(
+            "measurement_blake3 mismatch: a measured field was modified after the run".to_string(),
+        ),
+        None => {
+            if manifest.claims_measurements() {
+                problems.push(
+                    "measurement block missing: the claim records a measurement block but \
+                     the receipt has none (stripped after the run?)"
+                        .to_string(),
+                );
+            }
+        }
+    }
+
+    // Build-identity: assert the receipt came from exactly the expected commit.
+    if let Some(expected) = &opts.expect_code {
+        let code_problems = manifest.check_expected_code(expected);
+        if code_problems.is_empty() {
+            notes.push(format!("code matches {expected} (clean build)"));
+        } else {
+            problems.extend(code_problems);
+        }
+    }
+
+    VerifyReport {
+        ok: problems.is_empty(),
+        notes,
+        manifest: Some(manifest),
+        problems,
+    }
+}
+
 /// Write `<output_path>.manifest.json` next to the output, returning its path.
 pub fn write_manifest(output_path: &Path, manifest: &RunManifest) -> io::Result<PathBuf> {
     let mut name = output_path.as_os_str().to_os_string();
@@ -609,6 +786,37 @@ pub fn write_manifest(output_path: &Path, manifest: &RunManifest) -> io::Result<
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn verify_receipt_reports_a_tampered_claim() {
+        let mut m = RunManifest::new("variants");
+        m.inputs.push(FileHash {
+            path: "a".into(),
+            blake3: "aa".into(),
+        });
+        m.finalize();
+        // Flip a byte of a recorded input digest without re-sealing — the claim
+        // self-hash must catch it.
+        let text = m.to_canonical_json().replace("\"aa\"", "\"ab\"");
+        let report = verify_receipt(&text, &VerifyOpts::default());
+        assert!(!report.ok, "tampered claim must not verify");
+        assert!(
+            report
+                .problems
+                .iter()
+                .any(|p| p.contains("manifest_blake3")),
+            "{:?}",
+            report.problems
+        );
+    }
+
+    #[test]
+    fn verify_receipt_passes_a_clean_receipt() {
+        let mut m = RunManifest::new("variants");
+        m.finalize();
+        let report = verify_receipt(&m.to_canonical_json(), &VerifyOpts::default());
+        assert!(report.ok, "{:?}", report.problems);
+    }
 
     #[test]
     fn blake3_is_deterministic_and_sensitive() {

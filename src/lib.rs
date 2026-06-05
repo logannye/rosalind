@@ -79,4 +79,4 @@ pub use call::{
 pub use core::{MemoryBudget, WorkingSet};
 // Build-once → mmap index + the reproducibility receipt:
 pub use genomics::{GenomeIndex, IndexReader, ReferenceView};
-pub use provenance::RunManifest;
+pub use provenance::{verify_receipt, CommandCapture, RunManifest, VerifyOpts, VerifyReport};
