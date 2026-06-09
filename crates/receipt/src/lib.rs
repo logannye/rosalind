@@ -27,6 +27,9 @@ pub use command::CommandCapture;
 mod chain;
 pub use chain::{walk_chain, ChainEdge, ChainNode, ChainReport, EdgeStatus};
 
+mod diff;
+pub use diff::{diff_receipts, FieldChange, OperandChange, ReceiptDiff};
+
 mod repro;
 pub use repro::{ReproOutput, ReproReceipt};
 
