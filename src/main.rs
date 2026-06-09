@@ -364,6 +364,18 @@ enum Commands {
         #[arg(long)]
         expect_code: Option<String>,
     },
+    /// Localize how two run receipts' claims differ, bucketed by causal role: inputs /
+    /// code-identity / params (causes), outputs (effect), measurements (noise). Exit
+    /// 0 = identical claims, 1 = claims differ, 2 = read/parse error.
+    Diff {
+        /// First receipt (`*.manifest.json`).
+        a: PathBuf,
+        /// Second receipt (`*.manifest.json`).
+        b: PathBuf,
+        /// Emit a compact JSON summary instead of the human report.
+        #[arg(long)]
+        json: bool,
+    },
     /// Re-derive a recorded result from its receipt and content-located inputs, and
     /// write a chainable reproduction certificate. The verdict is over output bytes
     /// (exit 0 REPRODUCED / 6 DIVERGED / 7 INCONCLUSIVE / 5 tampered receipt).
@@ -679,6 +691,7 @@ fn main() -> Result<()> {
             budget_mb,
             expect_code,
         } => run_verify(manifest, budget_mb, expect_code)?,
+        Commands::Diff { a, b, json } => run_diff(a, b, json)?,
         Commands::Reproduce {
             manifest,
             inputs,
@@ -1228,6 +1241,88 @@ fn run_chain_verify(dir: PathBuf, json: bool) -> Result<()> {
     } else {
         std::process::exit(5);
     }
+}
+
+/// Localize how two receipts' claims differ (claim-level only; it does not re-derive or
+/// diff output bytes). Exit 0 = identical, 1 = differ, 2 = read/parse error.
+fn run_diff(a: PathBuf, b: PathBuf, json: bool) -> Result<()> {
+    use rosalind::provenance::{diff_receipts, RunManifest};
+
+    let parse = |p: &PathBuf| -> RunManifest {
+        let text = match std::fs::read_to_string(p) {
+            Ok(t) => t,
+            Err(e) => {
+                eprintln!("diff: cannot read {}: {e}", p.display());
+                std::process::exit(2);
+            }
+        };
+        match RunManifest::from_canonical_json(&text) {
+            Ok(m) => m,
+            Err(e) => {
+                eprintln!("diff: cannot parse {}: {e}", p.display());
+                std::process::exit(2);
+            }
+        }
+    };
+    let ma = parse(&a);
+    let mb = parse(&b);
+    let report = diff_receipts(&ma, &mb);
+
+    let short = |o: &Option<String>| -> String {
+        match o {
+            Some(s) if s.len() > 12 => format!("{}…", &s[..12]),
+            Some(s) => s.clone(),
+            None => "(absent)".to_string(),
+        }
+    };
+
+    if json {
+        println!("{}", report.to_json());
+    } else {
+        println!("diff: {}  vs  {}", ma.subcommand, mb.subcommand);
+        for c in &report.code_identity {
+            println!(
+                "CAUSE  — code-identity {}  {} → {}",
+                c.key,
+                short(&c.a),
+                short(&c.b)
+            );
+        }
+        for c in &report.inputs {
+            println!(
+                "CAUSE  — input  {}  {} → {}",
+                c.flag,
+                short(&c.a),
+                short(&c.b)
+            );
+        }
+        for c in &report.science_params {
+            println!(
+                "CAUSE  — param  {}  {} → {}",
+                c.key,
+                short(&c.a),
+                short(&c.b)
+            );
+        }
+        for c in &report.outputs {
+            println!(
+                "EFFECT — output {}  {} → {}",
+                c.flag,
+                short(&c.a),
+                short(&c.b)
+            );
+        }
+        for c in &report.measurements {
+            println!(
+                "noise  — measurement {}  {} → {}",
+                c.key,
+                short(&c.a),
+                short(&c.b)
+            );
+        }
+        println!("VERDICT: {}", report.verdict());
+    }
+    std::process::exit(report.exit_code());
 }
 
 /// Re-derive a recorded result and report REPRODUCED / DIVERGED / INCONCLUSIVE (and
