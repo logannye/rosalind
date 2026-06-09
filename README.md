@@ -2,13 +2,14 @@
 
 [![CI](https://github.com/logannye/rosalind/actions/workflows/ci.yml/badge.svg)](https://github.com/logannye/rosalind/actions/workflows/ci.yml)
 [![Latest release](https://img.shields.io/github/v/release/logannye/rosalind?sort=semver&color=blue)](https://github.com/logannye/rosalind/releases/latest)
+[![crates.io](https://img.shields.io/crates/v/rosalind-bio?logo=rust&label=crates.io&color=orange)](https://crates.io/crates/rosalind-bio)
 [![Output: byte-reproducible](https://img.shields.io/badge/output-byte--reproducible-brightgreen)](CONTRACT.md)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](#license)
 [![Verify a receipt (live)](https://img.shields.io/badge/demo-verify%20a%20receipt-2f81f7)](https://logannye.github.io/rosalind/)
 
 **A deterministic, low-memory genomics engine in Rust, built around a different promise: memory is a contract — you see it before you commit, and verify it after.**
 
-> ⚡ **Install** (macOS · Linux, no toolchain): `curl -fsSL https://raw.githubusercontent.com/logannye/rosalind/main/install.sh | sh` — or build from source with `cargo`. Then jump to the [60-second Quickstart](#quickstart-60-seconds).
+> ⚡ **Install:** `cargo install rosalind-bio` (the crate is `rosalind-bio`; the installed binary is `rosalind`) — or `curl -fsSL https://raw.githubusercontent.com/logannye/rosalind/main/install.sh | sh` for a prebuilt binary (macOS · Linux, no toolchain). Then jump to the [60-second Quickstart](#quickstart-60-seconds).
 
 Call variants across a whole genome on a laptop, in RAM you declare up front, and get results that reproduce byte-for-byte — with a receipt to prove it. Most variant callers spend memory that grows with your data, so "will this finish on my machine?" is something you find out the hard way. Rosalind inverts that: you state a budget, and it tells you *before committing a byte* whether the job fits, then honors that ceiling while it runs. It streams a coordinate-sorted BAM one read at a time, reads the reference from a compact memory-mapped index (no second copy of the genome in RAM), and keeps its working set proportional to *local read depth* rather than file size. Every run prints — and records — the memory it actually used. Where the evidence is too thin to be sure, it **abstains** instead of guessing.
 
