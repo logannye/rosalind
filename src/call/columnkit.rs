@@ -120,10 +120,46 @@ impl ColumnAnalyzer for FeatureAnalyzer {
     }
 }
 
+/// A per-locus coverage track: `(contig, 1-based pos, depth)`. The second first-party
+/// [`ColumnAnalyzer`] — proof the SDK carries more than the feature egress. Its
+/// `params()` names the analyzer so the receipt records which metric produced the run.
+#[derive(Debug, Default)]
+pub struct CoverageTrack;
+
+impl ColumnAnalyzer for CoverageTrack {
+    fn header(&self) -> Option<String> {
+        Some("#contig\tpos\tdepth\n".to_string())
+    }
+
+    fn params(&self) -> BTreeMap<String, String> {
+        BTreeMap::from([("analyzer".to_string(), "coverage".to_string())])
+    }
+
+    fn on_column(
+        &mut self,
+        col: &PileupColumn,
+        contig: &str,
+        out: &mut dyn Write,
+    ) -> io::Result<()> {
+        writeln!(out, "{contig}\t{}\t{}", col.locus.pos.0 + 1, col.depth())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::call::features::write_feature_header;
+
+    #[test]
+    fn coverage_track_header_and_params() {
+        let t = CoverageTrack;
+        assert_eq!(t.header().as_deref(), Some("#contig\tpos\tdepth\n"));
+        assert_eq!(
+            t.params().get("analyzer").map(String::as_str),
+            Some("coverage")
+        );
+    }
+
     use crate::genomics::{GenomeIndex, IndexReader, IndexWriter};
     use crate::pileup::SliceSource;
     use std::sync::Arc;

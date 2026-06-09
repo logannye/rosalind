@@ -13,7 +13,7 @@ pub mod somatic;
 pub mod types;
 pub mod whole_genome;
 
-pub use columnkit::{run_bounded_whole_genome, ColumnAnalyzer, FeatureAnalyzer};
+pub use columnkit::{run_bounded_whole_genome, ColumnAnalyzer, CoverageTrack, FeatureAnalyzer};
 pub use features::{
     stream_features_region, stream_features_whole_genome, write_feature_header, write_feature_row,
 };
