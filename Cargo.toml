@@ -1,5 +1,5 @@
 [package]
-name = "rosalind-genomics"
+name = "rosalind-bio"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.83"
@@ -10,7 +10,7 @@ license = "MIT OR Apache-2.0"
 keywords = ["genomics", "alignment", "variant-calling", "bioinformatics", "bwt", "fm-index"]
 categories = ["science::bioinformatics", "algorithms"]
 readme = "README.md"
-documentation = "https://docs.rs/rosalind-genomics"
+documentation = "https://docs.rs/rosalind-bio"
 # Keep the published .crate lean: source + licenses, not demo data / artifacts / docs.
 exclude = [
     "results/",
@@ -28,7 +28,7 @@ members = ["crates/receipt"]
 # out of this workspace so the normal build/test/clippy loop is unaffected.
 exclude = ["crates/receipt-wasm"]
 
-# Published as `rosalind-genomics` (the bare `rosalind` crate is an unrelated, dormant
+# Published as `rosalind-bio` (the bare `rosalind` crate is an unrelated, dormant
 # 2016 package). The library and the installed binary stay named `rosalind`, so
 # `use rosalind::...` and the `rosalind` CLI are unchanged.
 [lib]
