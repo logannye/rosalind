@@ -1281,19 +1281,44 @@ fn run_diff(a: PathBuf, b: PathBuf, json: bool) -> Result<()> {
     } else {
         println!("diff: {}  vs  {}", ma.subcommand, mb.subcommand);
         for c in &report.code_identity {
-            println!("CAUSE  — code-identity {}  {} → {}", c.key, short(&c.a), short(&c.b));
+            println!(
+                "CAUSE  — code-identity {}  {} → {}",
+                c.key,
+                short(&c.a),
+                short(&c.b)
+            );
         }
         for c in &report.inputs {
-            println!("CAUSE  — input  {}  {} → {}", c.flag, short(&c.a), short(&c.b));
+            println!(
+                "CAUSE  — input  {}  {} → {}",
+                c.flag,
+                short(&c.a),
+                short(&c.b)
+            );
         }
         for c in &report.science_params {
-            println!("CAUSE  — param  {}  {} → {}", c.key, short(&c.a), short(&c.b));
+            println!(
+                "CAUSE  — param  {}  {} → {}",
+                c.key,
+                short(&c.a),
+                short(&c.b)
+            );
         }
         for c in &report.outputs {
-            println!("EFFECT — output {}  {} → {}", c.flag, short(&c.a), short(&c.b));
+            println!(
+                "EFFECT — output {}  {} → {}",
+                c.flag,
+                short(&c.a),
+                short(&c.b)
+            );
         }
         for c in &report.measurements {
-            println!("noise  — measurement {}  {} → {}", c.key, short(&c.a), short(&c.b));
+            println!(
+                "noise  — measurement {}  {} → {}",
+                c.key,
+                short(&c.a),
+                short(&c.b)
+            );
         }
         println!("VERDICT: {}", report.verdict());
     }

@@ -60,8 +60,14 @@ fn operands(command: &str, marker: &str) -> BTreeMap<String, String> {
 }
 
 fn operand_changes(a: &RunManifest, b: &RunManifest, marker: &str) -> Vec<OperandChange> {
-    let ma = operands(a.params.get("command").map(String::as_str).unwrap_or(""), marker);
-    let mb = operands(b.params.get("command").map(String::as_str).unwrap_or(""), marker);
+    let ma = operands(
+        a.params.get("command").map(String::as_str).unwrap_or(""),
+        marker,
+    );
+    let mb = operands(
+        b.params.get("command").map(String::as_str).unwrap_or(""),
+        marker,
+    );
     let mut flags: Vec<String> = ma.keys().chain(mb.keys()).cloned().collect();
     flags.sort();
     flags.dedup();
@@ -110,7 +116,9 @@ pub fn diff_receipts(a: &RunManifest, b: &RunManifest) -> ReceiptDiff {
         science_params: map_changes(&a.params, &b.params, |k| {
             !BUILD_IDENTITY_KEYS.contains(&k) && !SKIP_PARAMS.contains(&k)
         }),
-        measurements: map_changes(&a.measurements, &b.measurements, |k| k != "measurement_blake3"),
+        measurements: map_changes(&a.measurements, &b.measurements, |k| {
+            k != "measurement_blake3"
+        }),
         claims_identical: a.content_hash() == b.content_hash(),
     }
 }
@@ -339,7 +347,11 @@ mod tests {
         assert_eq!(d.exit_code(), 0);
         assert_eq!(d.measurements.len(), 1);
         assert_eq!(d.measurements[0].key, "peak_rss_bytes");
-        assert!(d.verdict().contains("measurements differ"), "{}", d.verdict());
+        assert!(
+            d.verdict().contains("measurements differ"),
+            "{}",
+            d.verdict()
+        );
         assert_eq!(
             d.to_json(),
             "{\"claims_identical\":true,\"inputs\":0,\"outputs\":0,\"code_identity\":0,\"science_params\":0,\"measurements\":1,\"exit_code\":0}"

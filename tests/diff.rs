@@ -110,7 +110,10 @@ fn diff_localizes_a_science_param_change_and_exits_one() {
         Some(1),
         "differing claims must exit 1. stdout:\n{stdout}"
     );
-    assert!(stdout.contains("max_depth"), "must localize the param change: {stdout}");
+    assert!(
+        stdout.contains("max_depth"),
+        "must localize the param change: {stdout}"
+    );
     assert!(stdout.contains("DIFFER"), "{stdout}");
 
     std::fs::remove_dir_all(&d).ok();
