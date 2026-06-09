@@ -10,7 +10,16 @@ license = "MIT OR Apache-2.0"
 keywords = ["genomics", "alignment", "variant-calling", "bioinformatics", "bwt", "fm-index"]
 categories = ["science::bioinformatics", "algorithms"]
 
+[workspace]
+members = ["crates/receipt"]
+# The wasm-bindgen verifier is its own standalone crate (built via wasm-pack), kept
+# out of this workspace so the normal build/test/clippy loop is unaffected.
+exclude = ["crates/receipt-wasm"]
+
 [dependencies]
+# Reproducibility receipt model + offline verification, factored into a leaf crate
+# with no htslib (std + blake3 only) so the verifier can compile to wasm.
+rosalind-receipt = { path = "crates/receipt", version = "0.1.0" }
 # OS bindings (read-only mmap of large reference/index files; peak-RSS readout)
 libc = "0.2"
 # Fast hashing for the reproducibility receipts

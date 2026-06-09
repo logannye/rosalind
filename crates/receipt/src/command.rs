@@ -212,7 +212,7 @@ fn flag_to_key(flag: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::provenance::RunManifest;
+    use crate::RunManifest;
 
     // Build a capture WITHOUT touching the filesystem by injecting hashes directly.
     fn sample() -> CommandCapture {

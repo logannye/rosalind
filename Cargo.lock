@@ -810,10 +810,18 @@ dependencies = [
  "flate2",
  "libc",
  "proptest",
+ "rosalind-receipt",
  "rust-htslib",
  "thiserror",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "rosalind-receipt"
+version = "0.1.0"
+dependencies = [
+ "blake3",
 ]
 
 [[package]]

@@ -1,0 +1,19 @@
+# Standalone (its own [workspace]) so the main Rosalind workspace and its CI are
+# untouched; built only via `wasm-pack`. See web/verify/README.md.
+[package]
+name = "rosalind-receipt-wasm"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.83"
+license = "MIT OR Apache-2.0"
+description = "Browser (wasm) bindings for rosalind-receipt: drag in a receipt, verify its tamper-evident BLAKE3 self-hash entirely client-side."
+publish = false
+
+[workspace]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+rosalind-receipt = { path = "../receipt" }
+wasm-bindgen = "0.2"
