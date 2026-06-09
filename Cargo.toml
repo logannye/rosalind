@@ -1,5 +1,5 @@
 [package]
-name = "rosalind"
+name = "rosalind-genomics"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.83"
@@ -9,12 +9,35 @@ repository = "https://github.com/logannye/rosalind"
 license = "MIT OR Apache-2.0"
 keywords = ["genomics", "alignment", "variant-calling", "bioinformatics", "bwt", "fm-index"]
 categories = ["science::bioinformatics", "algorithms"]
+readme = "README.md"
+documentation = "https://docs.rs/rosalind-genomics"
+# Keep the published .crate lean: source + licenses, not demo data / artifacts / docs.
+exclude = [
+    "results/",
+    "docs/superpowers/",
+    "docs/findings/",
+    "examples/data/",
+    "tests/snapshots/",
+    "web/",
+    ".github/",
+]
 
 [workspace]
 members = ["crates/receipt"]
 # The wasm-bindgen verifier is its own standalone crate (built via wasm-pack), kept
 # out of this workspace so the normal build/test/clippy loop is unaffected.
 exclude = ["crates/receipt-wasm"]
+
+# Published as `rosalind-genomics` (the bare `rosalind` crate is an unrelated, dormant
+# 2016 package). The library and the installed binary stay named `rosalind`, so
+# `use rosalind::...` and the `rosalind` CLI are unchanged.
+[lib]
+name = "rosalind"
+path = "src/lib.rs"
+
+[[bin]]
+name = "rosalind"
+path = "src/main.rs"
 
 [dependencies]
 # Reproducibility receipt model + offline verification, factored into a leaf crate
