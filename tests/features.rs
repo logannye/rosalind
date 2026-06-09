@@ -132,6 +132,10 @@ fn features_emit_a_schema_correct_byte_identical_table_with_a_receipt() {
         json.contains("\"feature_rows\":"),
         "receipt missing feature_rows: {json}"
     );
+    assert!(
+        !json.contains("analyzer.feature_rows"),
+        "features receipt must keep the un-prefixed feature_rows key: {json}"
+    );
     let m = rosalind::provenance::RunManifest::from_canonical_json(&json).unwrap();
     let rows: u64 = m.params.get("feature_rows").unwrap().parse().unwrap();
     assert!(rows > 0, "expected feature rows, got {rows}");

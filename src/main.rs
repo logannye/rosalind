@@ -1659,7 +1659,10 @@ fn run_variants(
 /// index. Same engine + memory contract as `run_variants_index`, but every callable
 /// locus is emitted as ML-ready features. Byte-identical run-to-run.
 #[allow(clippy::too_many_arguments)]
-fn run_features(
+fn run_bounded_analysis(
+    subcommand: &str,
+    param_prefix: &str,
+    analyzer: &mut dyn rosalind::call::ColumnAnalyzer,
     index_path: PathBuf,
     alignments_path: PathBuf,
     mapq_threshold: u8,
@@ -1770,13 +1773,9 @@ fn run_features(
         None
     };
 
-    // Stream feature rows straight to the writer (header once, one row per callable
-    // locus) — no genome-wide buffer accumulates.
-    // `features` is the first ColumnKit analyzer: the FeatureAnalyzer drives the
-    // SAME bounded whole-genome column walk a builder's own analyzer would, so the
-    // shipped path and the SDK are one and the same (not parallel). Byte-identical
-    // output is pinned by the golden feature test.
-    let mut analyzer = rosalind::call::FeatureAnalyzer::default();
+    // Drive the analyzer's bounded whole-genome walk straight to the writer (header
+    // once, one row per callable locus) — no genome-wide buffer accumulates. This is
+    // the ONE analyzer-agnostic path: `features` and `analyze <kind>` both run here.
     // Inline both arms (match arms are exclusive, so moving source/pileup_params in
     // each is fine). Flush on BOTH paths so partial output survives a governed abort;
     // inspect the Result rather than `?`-propagating it.
@@ -1789,7 +1788,7 @@ fn run_features(
                 .with_context(|| format!("failed to create features file {}", path.display()))?;
             let mut writer = io::BufWriter::new(file);
             let r = run_bounded_whole_genome(
-                &mut analyzer,
+                &mut *analyzer,
                 source,
                 &ref_view,
                 contigs,
@@ -1807,7 +1806,7 @@ fn run_features(
             let stdout = io::stdout();
             let mut handle = stdout.lock();
             let r = run_bounded_whole_genome(
-                &mut analyzer,
+                &mut *analyzer,
                 source,
                 &ref_view,
                 contigs,
@@ -1832,8 +1831,6 @@ fn run_features(
         ),
         Err(e) => return Err(anyhow!("feature streaming failed: {e}")),
     };
-    let feature_rows = analyzer.rows();
-
     let peak_rss = if breached {
         breach_peak
     } else {
@@ -1869,8 +1866,8 @@ fn run_features(
         (None, None) => None,
     };
     if let Some(dest) = receipt_dest {
-        let mut manifest = RunManifest::new("features");
-        let mut cmd = CommandCapture::new("features");
+        let mut manifest = RunManifest::new(subcommand);
+        let mut cmd = CommandCapture::new(subcommand);
         cmd.input("--index", &index_path)?;
         cmd.input("--alignments", &alignments_path)?;
         cmd.opt("--mapq-threshold", mapq_threshold);
@@ -1910,9 +1907,17 @@ fn run_features(
             "io_rss_overhead_assumed_bytes".to_string(),
             PILEUP_IO_RSS_OVERHEAD.to_string(),
         );
-        manifest
-            .params
-            .insert("feature_rows".to_string(), feature_rows.to_string());
+        // Merge the analyzer's own params into the CLAIM under the caller's prefix
+        // (`""` for features → byte-identical `feature_rows`; `analyzer.` for analyze).
+        // The prefix keeps an analyzer from shadowing a measured field out of the claim.
+        for (k, v) in analyzer.params() {
+            let key = format!("{param_prefix}{k}");
+            debug_assert!(
+                !rosalind::provenance::MEASUREMENT_KEYS.contains(&key.as_str()),
+                "analyzer param {key} collides with a measurement key"
+            );
+            manifest.params.insert(key, v);
+        }
         manifest.params.insert(
             "over_max_depth".to_string(),
             skips.over_max_depth.to_string(),
@@ -1933,7 +1938,7 @@ fn run_features(
         );
     }
     eprintln!(
-        "features: wrote {feature_rows} rows; peak RSS {} MiB; max pileup working set {} KiB",
+        "{subcommand}: peak RSS {} MiB; max pileup working set {} KiB",
         peak_rss / (1 << 20),
         max_ws.bytes / 1024
     );
@@ -1963,6 +1968,38 @@ fn run_features(
         }
     }
     Ok(())
+}
+
+/// The shipped `features` egress: the FeatureAnalyzer through the one bounded-analysis
+/// path. `param_prefix=""` reproduces the historic `feature_rows` claim key exactly, so
+/// the receipt stays byte-identical.
+#[allow(clippy::too_many_arguments)]
+fn run_features(
+    index_path: PathBuf,
+    alignments_path: PathBuf,
+    mapq_threshold: u8,
+    memory_budget_mb: Option<u64>,
+    max_depth: u32,
+    max_read_len: u32,
+    enforce: bool,
+    output: Option<PathBuf>,
+    manifest_out: Option<PathBuf>,
+) -> Result<()> {
+    let mut analyzer = rosalind::call::FeatureAnalyzer::default();
+    run_bounded_analysis(
+        "features",
+        "",
+        &mut analyzer,
+        index_path,
+        alignments_path,
+        mapq_threshold,
+        memory_budget_mb,
+        max_depth,
+        max_read_len,
+        enforce,
+        output,
+        manifest_out,
+    )
 }
 
 #[allow(clippy::too_many_arguments)] // a CLI entry point: each flag is a parameter
