@@ -73,12 +73,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut analyzer = CoverageTrack;
     let mut out = io::stdout().lock();
+    // emit_all_positions makes the coverage track REFERENCE-COMPLETE: every locus
+    // emits, so uncovered positions (here ref 12–15, which no read reaches) report
+    // depth 0 instead of being silently dropped. The memory bound is unchanged.
     let (ws, _skips) = run_bounded_whole_genome(
         &mut analyzer,
         SliceSource::new(reads),
         &ref_view,
         contigs,
-        PileupParams::default(),
+        PileupParams {
+            emit_all_positions: true,
+            ..PileupParams::default()
+        },
         &mut out,
     )?;
     out.flush()?;

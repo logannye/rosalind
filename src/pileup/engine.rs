@@ -62,6 +62,13 @@ pub struct PileupParams {
     /// exceeds `m` aborts the run — the predicted memory envelope assumes `<= m`,
     /// so a longer read would silently void it. `None` = no check (default).
     pub max_read_len: Option<u32>,
+    /// When `true`, emit a column at EVERY reference position in the region, including
+    /// zero-coverage loci (depth 0) — for reference-complete per-locus analytics
+    /// (coverage/QC). Default `false` (covered loci only). The working-set bound is
+    /// unchanged: the empty column is already built at each position; this only decides
+    /// whether it is returned. A volume tradeoff — a region/panel opt-in, not a
+    /// whole-genome default.
+    pub emit_all_positions: bool,
 }
 
 impl Default for PileupParams {
@@ -74,6 +81,7 @@ impl Default for PileupParams {
             skip_duplicate: true,
             max_depth: None,
             max_read_len: None,
+            emit_all_positions: false,
         }
     }
 }
@@ -404,7 +412,7 @@ impl<S: ReadSource> Iterator for PileupEngine<S> {
             }
             let column = self.build_column();
             self.pos += 1;
-            if !column.obs.is_empty() {
+            if self.params.emit_all_positions || !column.obs.is_empty() {
                 return Some(Ok(column));
             }
         }
@@ -451,6 +459,73 @@ mod tests {
             out.push(c.expect("pileup column"));
         }
         out
+    }
+
+    fn engine_emit_all(reads: Vec<AlignedRead>, reference: &[u8]) -> PileupEngine<SliceSource> {
+        PileupEngine::new(
+            SliceSource::new(reads),
+            Arc::from(reference.to_vec().into_boxed_slice()),
+            0,
+            0..reference.len() as u32,
+            PileupParams {
+                emit_all_positions: true,
+                ..PileupParams::default()
+            },
+        )
+    }
+
+    #[test]
+    fn emit_all_positions_reports_gaps_at_depth_zero() {
+        // Same fixture as `deletion_leaves_a_reference_gap_with_no_observation`:
+        // 2M1D2M at ref 0 over an 8 bp reference. Observed: 0,1,3,4. Gaps: 2 (deleted),
+        // 5,6,7 (uncovered). With emit_all_positions EVERY position emits — gaps depth 0.
+        let reference = b"AAAAAAAA";
+        let read = AlignedRead {
+            contig: 0,
+            pos: Position(0),
+            mapq: 60,
+            flags: SamFlags::default(),
+            cigar: vec![
+                CigarOp::new(CigarOpKind::Match, 2),
+                CigarOp::new(CigarOpKind::Deletion, 1),
+                CigarOp::new(CigarOpKind::Match, 2),
+            ],
+            seq: Arc::from(b"GGGG".to_vec().into_boxed_slice()),
+            qual: Arc::from(vec![30u8; 4].into_boxed_slice()),
+        };
+        let cols = columns(engine_emit_all(vec![read], reference));
+        let positions: Vec<u32> = cols.iter().map(|c| c.locus.pos.0).collect();
+        assert_eq!(
+            positions,
+            vec![0, 1, 2, 3, 4, 5, 6, 7],
+            "every position emits"
+        );
+        for p in [2u32, 5, 6, 7] {
+            let col = cols.iter().find(|c| c.locus.pos.0 == p).unwrap();
+            assert_eq!(col.depth(), 0, "gap position {p} must be depth 0");
+        }
+    }
+
+    #[test]
+    fn emit_all_positions_preserves_the_working_set_bound() {
+        // The flag only decides whether an already-built column is returned; it never
+        // touches the active set, so the peak working set is identical on/off.
+        let reference = b"AAAAAAAA";
+        let reads = || vec![mread(0, b"GG", false), mread(3, b"GG", false)];
+        let peak = |mut e: PileupEngine<SliceSource>| -> u64 {
+            let mut p = e.current_working_set().bytes;
+            while let Some(c) = e.next() {
+                c.expect("column");
+                p = p.max(e.current_working_set().bytes);
+            }
+            p
+        };
+        let off = peak(engine(reads(), reference));
+        let on = peak(engine_emit_all(reads(), reference));
+        assert_eq!(
+            off, on,
+            "emit_all_positions must not change the working-set bound"
+        );
     }
 
     #[test]
