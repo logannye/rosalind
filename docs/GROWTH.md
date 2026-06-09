@@ -116,7 +116,8 @@ Done / merged to `main`:
 - **Wave 0** — README badges + install one-liner + "Jump to" nav + Contributing section; stale "build from source" hedges removed; Discussions enabled; 10 `good first issue`/`help wanted` tickets seeded (#53–#62). (PR #52)
 - **Wave 1.3 — the in-browser "caught-you" verifier.** Extracted a wasm-friendly `rosalind-receipt` leaf crate; TDD'd `verify_manifest_str`; `crates/receipt-wasm` + `web/verify/`; **deployed to GitHub Pages → https://logannye.github.io/rosalind/** (live; the README has a demo badge + reproduce-section callout). (PRs #64, #65)
 - **Wave 1.4 — reproduce-duel demo** `scripts/reproduce_demo.sh` (runnable; basis for the asciinema, #55). (PR #68)
-- **Release x86_64-linux-musl fixed** — it had never built with htslib (v0.1.0 predated rust-htslib); `hts-sys 2.2.0` forces `libz-sys/zlib-ng` (CMake + C++), so the musl job failed. Fixed with `cmake` + host `g++`. (in the release-fix PR)
+- **Release x86_64-linux-musl fixed** — it had never built with htslib (v0.1.0 predated rust-htslib); `hts-sys 2.2.0` forces `libz-sys/zlib-ng` (CMake + C++), so the musl job failed. Fixed with `cmake` + host `g++`. (PR #70)
+- **Wave 2.1 — reproducible claims harness** `benchmarks/run.sh` (+ `claims.py`): five contract/reproducibility claims, each fails the run if false, on bundled toy data, framed on verifiability (not speed/accuracy). Wired in as a CI **Claims harness** gate (green on the ubuntu runner). (PR #72)
 
 Open / needs you:
 - **Wave 1.1 — crates.io publish-ready** (PR #67, supersedes #63): name `rosalind-genomics` (lib/bin stay `rosalind`); receipt dry-run clean. **Publish is two crates and needs your token:** `cargo publish -p rosalind-receipt` then `cargo publish -p rosalind-genomics`. Confirm the name first (changeable until publish).
