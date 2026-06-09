@@ -179,6 +179,43 @@ jobs:
           test "$code" -eq 3
           grep -q "REFUSE" refuse.log
           test ! -f examples/data/illumina_toy/refused.vcf
+      - name: Reproduce fence — a stranger re-derives the result on this runner
+        # The contract.vcf + its receipt were produced above; reproduce re-derives it
+        # byte-for-byte from content-located inputs on THIS runner (a different machine
+        # than the author's), writes a chainable certificate, and a byte-changed input
+        # is correctly reported INCONCLUSIVE (exit 7) — never a false DIVERGED.
+        run: |
+          set -e
+          D=examples/data/illumina_toy
+          cargo run --release -- reproduce \
+            --manifest $D/contract.vcf.manifest.json \
+            --inputs $D/ | tee reproduce.log
+          grep -q "REPRODUCED" reproduce.log
+          test -f $D/contract.vcf.manifest.json.repro.json
+          # Negative: a byte-changed input can no longer be content-located -> exit 7.
+          mkdir -p tamper && cp $D/reference.idx tamper/ && cp $D/sorted.bam tamper/
+          printf 'x' >> tamper/sorted.bam
+          set +e
+          cargo run --release -- reproduce \
+            --manifest $D/contract.vcf.manifest.json --inputs tamper/ > /dev/null 2>&1
+          code=$?
+          set -e
+          test "$code" -eq 7
+      - name: Emit a self-hosted reproducibility badge
+        run: |
+          D=examples/data/illumina_toy
+          cargo run --release -- badge \
+            --manifest $D/contract.vcf.manifest.json \
+            --repro $D/contract.vcf.manifest.json.repro.json \
+            -o badge.json
+          cat badge.json
+      - name: Upload the reproducibility badge
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rosalind-reproducibility-badge
+          path: badge.json
+          if-no-files-found: ignore
       - name: Exercise the rosalind-budget Action (local, from-source binary)
         uses: ./
         with:

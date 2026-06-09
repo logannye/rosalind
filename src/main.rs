@@ -62,7 +62,7 @@ enum Commands {
         output: Option<PathBuf>,
     },
     /// Call germline variants from aligned reads (streaming pileup engine +
-    /// calibrated, abstention-aware genotype-likelihood caller).
+    /// abstention-aware genotype-likelihood caller).
     Variants {
         /// Persisted index (`rosalind index`); calls all contigs, reference from
         /// the index. Mutually exclusive with `--reference`.
@@ -286,9 +286,9 @@ enum Commands {
         json: bool,
     },
     /// Pack many bounded `variants` jobs onto fixed-size nodes by their PREDICTED
-    /// peaks — prove a co-location fits before launching a byte. Each job's peak
-    /// is read from its index header (no run); peaks are additive, so the sum is a
-    /// conservative bound a scheduler can refuse on. Exit 3 if no packing fits.
+    /// peaks — show a co-location fits within budget before launching a byte. Each
+    /// job's peak is read from its index header (no run); peaks are additive, so the
+    /// sum is a conservative bound a scheduler can refuse on. Exit 3 if no packing fits.
     Pack {
         /// A jobs file: one job per line, `<index_path>[\t<max_depth>[\t<max_read_len>]]`
         /// (TSV or whitespace; blank lines and `#` comments ignored).
@@ -324,6 +324,38 @@ enum Commands {
         /// Fails verify on a mismatch, or on a clean match from a dirty build.
         #[arg(long)]
         expect_code: Option<String>,
+    },
+    /// Re-derive a recorded result from its receipt and content-located inputs, and
+    /// write a chainable reproduction certificate. The verdict is over output bytes
+    /// (exit 0 REPRODUCED / 6 DIVERGED / 7 INCONCLUSIVE / 5 tampered receipt).
+    Reproduce {
+        /// Path to a `*.manifest.json` from a previous run.
+        #[arg(long)]
+        manifest: PathBuf,
+        /// Directory holding the recorded inputs (located by content hash).
+        #[arg(long)]
+        inputs: PathBuf,
+        /// Do not write a `.repro.json` reproduction certificate.
+        #[arg(long, default_value_t = false)]
+        no_attest: bool,
+        /// Where to write the certificate (default: `<manifest>.repro.json`).
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+    },
+    /// Emit a self-hosted status badge — a shields.io endpoint JSON or a static SVG —
+    /// asserting "reproducible · fits N MiB" for a run. With `--repro` the reproducible
+    /// claim is backed by a reproduction certificate; otherwise it reflects the
+    /// deterministic engine (an intact receipt re-derives byte-identically).
+    Badge {
+        /// The run's `*.manifest.json`.
+        #[arg(long)]
+        manifest: PathBuf,
+        /// An optional `*.repro.json` whose verdict backs the "reproducible" claim.
+        #[arg(long)]
+        repro: Option<PathBuf>,
+        /// Output path; a `.svg` extension emits the static SVG, else a shields JSON.
+        #[arg(short, long)]
+        output: PathBuf,
     },
 }
 
@@ -523,6 +555,17 @@ fn main() -> Result<()> {
             budget_mb,
             expect_code,
         } => run_verify(manifest, budget_mb, expect_code)?,
+        Commands::Reproduce {
+            manifest,
+            inputs,
+            no_attest,
+            output,
+        } => run_reproduce(manifest, inputs, no_attest, output)?,
+        Commands::Badge {
+            manifest,
+            repro,
+            output,
+        } => run_badge(manifest, repro, output)?,
     }
 
     Ok(())
@@ -759,9 +802,9 @@ fn run_plan(
 
 /// Pack many bounded `variants` jobs onto fixed-size nodes by their PREDICTED
 /// peaks — each read from the job's index header (no run, no read I/O). Peaks are
-/// conservative upper bounds and additive, so the printed schedule PROVES every
-/// node fits before a single job launches — the contract turned into a placement
-/// decision. Exits 3 when no safe packing exists.
+/// conservative upper bounds and additive, so the printed schedule shows every
+/// node within capacity by predicted peak before a single job launches — the
+/// contract turned into a placement decision. Exits 3 when no safe packing exists.
 fn run_pack(
     jobs_path: PathBuf,
     node_mb: u64,
@@ -859,7 +902,7 @@ fn run_pack(
                 println!("{s}");
             } else {
                 println!(
-                    "pack: {} job(s) → {} node(s) of {} MiB — every node proven within capacity",
+                    "pack: {} job(s) → {} node(s) of {} MiB — every node within capacity by predicted peak",
                     pack_jobs.len(),
                     assignments.len(),
                     node_mb
@@ -892,171 +935,154 @@ fn run_verify(
     budget_mb: Option<u64>,
     expect_code: Option<String>,
 ) -> Result<()> {
-    use rosalind::provenance::{blake3_file, RunManifest};
+    use rosalind::provenance::{verify_receipt, VerifyOpts};
 
     let text = std::fs::read_to_string(&manifest_path)
         .with_context(|| format!("failed to read manifest {}", manifest_path.display()))?;
-    let manifest = RunManifest::from_canonical_json(&text)
-        .map_err(|e| anyhow!("failed to parse manifest {}: {e}", manifest_path.display()))?;
-
-    let mut problems: Vec<String> = Vec::new();
-
-    // Re-hash inputs + outputs against the recorded digests.
-    for (kind, files) in [("input", &manifest.inputs), ("output", &manifest.outputs)] {
-        for f in files {
-            match blake3_file(std::path::Path::new(&f.path)) {
-                Ok(h) if h == f.blake3 => {}
-                Ok(h) => problems.push(format!(
-                    "{kind} {} hash mismatch: recorded {}, now {}",
-                    f.path, f.blake3, h
-                )),
-                Err(e) => problems.push(format!("{kind} {} unreadable: {e}", f.path)),
-            }
-        }
+    let report = verify_receipt(
+        &text,
+        &VerifyOpts {
+            budget_mb,
+            expect_code,
+            rehash_files: true,
+        },
+    );
+    for n in &report.notes {
+        println!("verify: {n}");
     }
-
-    // Strictly parse the numeric fields verify consults. A field that is PRESENT but
-    // unparseable is corruption, not absence — flag it rather than silently skipping
-    // the check it feeds (the closure takes `&mut problems` as an argument so it does
-    // not capture the borrow). `get_recorded` reads measurements (v2) or params
-    // (pre-v2) uniformly.
-    let parse_num = |k: &str, problems: &mut Vec<String>| -> Option<u64> {
-        match manifest.get_recorded(k) {
-            None => None,
-            Some(v) => match v.parse::<u64>() {
-                Ok(n) => Some(n),
-                Err(_) => {
-                    problems.push(format!("malformed numeric field {k}: {v:?}"));
-                    None
-                }
-            },
-        }
-    };
-    let recorded_peak = parse_num("peak_rss_bytes", &mut problems);
-    let recorded_ws = parse_num("max_working_set_bytes", &mut problems);
-    let recorded_budget = parse_num("memory_budget_mb", &mut problems);
-
-    // Re-check the recorded realized peak against the budget (CLI overrides manifest).
-    let budget_mb = budget_mb.or(recorded_budget);
-    match (budget_mb, recorded_peak) {
-        (Some(mb), Some(peak)) => {
-            let budget = rosalind::core::MemoryBudget::from_mb(mb);
-            if budget.admits(peak) {
-                println!(
-                    "verify: peak {} MiB within budget {mb} MiB",
-                    peak / (1 << 20)
-                );
-            } else {
-                problems.push(format!(
-                    "recorded peak {} MiB exceeded budget {mb} MiB",
-                    peak / (1 << 20)
-                ));
-            }
-        }
-        (None, _) => println!("verify: no budget to check (none supplied or recorded)"),
-        (Some(_), None) => problems.push("manifest has no recorded peak_rss_bytes".to_string()),
-    }
-
-    // Internal-consistency cross-checks: a receipt's self-reported numbers must
-    // agree with each other. The claim self-hash (manifest_blake3) cannot see an
-    // edit to a measured field (the measurement is excluded from the claim by
-    // design), so alongside the measurement self-hash these cheap checks are the
-    // semantic guard against a hand-edited receipt — e.g. someone lowering
-    // `peak_rss_bytes` to pass `verify` but leaving the other fields inconsistent.
-    //
-    // The working set is a subset of resident memory; it cannot exceed peak RSS.
-    if let (Some(ws), Some(peak)) = (recorded_ws, recorded_peak) {
-        if ws > peak {
-            problems.push(format!(
-                "internally inconsistent: max_working_set_bytes ({ws}) exceeds peak_rss_bytes ({peak})"
-            ));
-        }
-    }
-    // A recorded verdict must agree with the recorded peak vs the recorded budget.
-    if let (Some(verdict), Some(mb), Some(peak)) = (
-        manifest
-            .get_recorded("contract_verdict")
-            .map(String::as_str),
-        recorded_budget,
-        recorded_peak,
-    ) {
-        let actually_within = rosalind::core::MemoryBudget::from_mb(mb).admits(peak);
-        if verdict == "within" && !actually_within {
-            problems.push(format!(
-                "internally inconsistent: contract_verdict='within' but recorded peak {} MiB \
-                 exceeds recorded budget {mb} MiB",
-                peak / (1 << 20)
-            ));
-        }
-        if verdict == "over" && actually_within {
-            problems.push(format!(
-                "internally inconsistent: contract_verdict='over' but recorded peak {} MiB \
-                 is within recorded budget {mb} MiB",
-                peak / (1 << 20)
-            ));
-        }
-    }
-
-    // Claim self-hash: catches any post-write edit to the claim (inputs, outputs,
-    // declared params) — cross-machine stable. A pre-1.2 receipt has none — note and skip.
-    match manifest.self_hash_ok() {
-        Some(true) => {}
-        Some(false) => problems.push(
-            "manifest_blake3 mismatch: the receipt was modified after it was written".to_string(),
-        ),
-        None => {
-            println!("verify: note — no manifest_blake3 (a pre-1.2 receipt); skipping self-hash")
-        }
-    }
-
-    // Measurement self-hash: catches an edit to a measured field (e.g. lowering
-    // peak_rss_bytes to fake a fit) that the claim hash cannot see by design. This is
-    // an unkeyed self-hash — tamper-EVIDENCE against an accidental edit, not
-    // tamper-resistance against a forger who re-hashes; the cross-checks above are the
-    // semantic backstop.
-    match manifest.measurement_hash_ok() {
-        Some(true) => {}
-        Some(false) => problems.push(
-            "measurement_blake3 mismatch: a measured field was modified after the run".to_string(),
-        ),
-        // No measurement block. Legitimate for a pre-v2 / measurement-free receipt —
-        // but if the (hash-protected) claim records that one must exist, its absence
-        // means the whole block was stripped to evade the budget/consistency checks.
-        None => {
-            if manifest.claims_measurements() {
-                problems.push(
-                    "measurement block missing: the claim records a measurement block but \
-                     the receipt has none (stripped after the run?)"
-                        .to_string(),
-                );
-            }
-        }
-    }
-
-    // Build-identity: assert the receipt came from exactly the expected commit. A clean
-    // match prints a note; a mismatch / dirty-build / un-checkable receipt fails verify.
-    if let Some(expected) = &expect_code {
-        let code_problems = manifest.check_expected_code(expected);
-        if code_problems.is_empty() {
-            println!("verify: code matches {expected} (clean build)");
-        } else {
-            problems.extend(code_problems);
-        }
-    }
-
-    if problems.is_empty() {
+    if report.ok {
+        let m = report
+            .manifest
+            .as_ref()
+            .expect("a passing report always carries the parsed manifest");
         println!(
             "verify: OK — {} input(s), {} output(s) match",
-            manifest.inputs.len(),
-            manifest.outputs.len()
+            m.inputs.len(),
+            m.outputs.len()
         );
         Ok(())
     } else {
-        for p in &problems {
+        for p in &report.problems {
             eprintln!("verify: FAIL — {p}");
         }
         std::process::exit(5);
     }
+}
+
+/// Re-derive a recorded result and report REPRODUCED / DIVERGED / INCONCLUSIVE (and
+/// TAMPERED for a modified receipt), exiting 0 / 6 / 7 / 5 respectively. Writes a
+/// `.repro.json` reproduction certificate next to the receipt unless `--no-attest`.
+fn run_reproduce(
+    manifest: PathBuf,
+    inputs: PathBuf,
+    no_attest: bool,
+    output: Option<PathBuf>,
+) -> Result<()> {
+    use rosalind::provenance::{ReproOutput, ReproReceipt};
+
+    let report = rosalind::reproduce::reproduce(&manifest, &inputs)?;
+    for line in &report.lines {
+        println!("{line}");
+    }
+
+    // Mint a chainable reproduction certificate when a real comparison happened
+    // (REPRODUCED / DIVERGED) — unless the caller opted out.
+    if report.compared && !no_attest {
+        let outputs: Vec<ReproOutput> = report
+            .outputs
+            .iter()
+            .map(|c| ReproOutput {
+                role: c.role.clone(),
+                recorded_blake3: c.recorded.clone(),
+                observed_blake3: c.observed.clone(),
+                matched: c.matched,
+            })
+            .collect();
+        let cert = ReproReceipt::build(
+            &report.parent_claim,
+            &report.parent_subcommand,
+            &report.verdict_label,
+            1,
+            &outputs,
+            report.resource_here.peak_rss_bytes,
+            report.resource_here.declared_budget_mb,
+        );
+        let dest = match &output {
+            Some(p) => p.clone(),
+            None => {
+                let mut s = manifest.as_os_str().to_os_string();
+                s.push(".repro.json");
+                PathBuf::from(s)
+            }
+        };
+        std::fs::write(&dest, cert.to_canonical_json()).with_context(|| {
+            format!(
+                "failed to write reproduction certificate {}",
+                dest.display()
+            )
+        })?;
+        println!(
+            "  -> wrote reproduction certificate: {} (chains to {})",
+            dest.display(),
+            &report.parent_claim[..report.parent_claim.len().min(10)]
+        );
+    }
+
+    if report.exit_code != 0 {
+        std::process::exit(report.exit_code);
+    }
+    Ok(())
+}
+
+/// Emit a self-hosted status badge for a run. `fits` comes from the receipt's recorded
+/// peak vs declared budget; `reproducible` comes from a `--repro` certificate's verdict,
+/// or (absent one) from the receipt's intact self-hash (the engine is deterministic, so
+/// an intact Rosalind receipt re-derives byte-identically by construction).
+fn run_badge(manifest: PathBuf, repro: Option<PathBuf>, output: PathBuf) -> Result<()> {
+    use rosalind::core::MemoryBudget;
+    use rosalind::provenance::{badge_json, badge_svg, ReproReceipt, RunManifest};
+
+    let text = std::fs::read_to_string(&manifest)
+        .with_context(|| format!("failed to read receipt {}", manifest.display()))?;
+    let m = RunManifest::from_canonical_json(&text)
+        .map_err(|e| anyhow!("failed to parse receipt {}: {e}", manifest.display()))?;
+
+    let budget = m
+        .get_recorded("memory_budget_mb")
+        .and_then(|v| v.parse::<u64>().ok());
+    let peak = m
+        .get_recorded("peak_rss_bytes")
+        .and_then(|v| v.parse::<u64>().ok());
+    let fits_mb = match (budget, peak) {
+        (Some(mb), Some(p)) if MemoryBudget::from_mb(mb).admits(p) => Some(mb),
+        _ => None,
+    };
+
+    let reproducible = match &repro {
+        Some(p) => {
+            let ctext = std::fs::read_to_string(p)
+                .with_context(|| format!("failed to read certificate {}", p.display()))?;
+            let cert = ReproReceipt::from_canonical_json(&ctext)
+                .map_err(|e| anyhow!("failed to parse certificate {}: {e}", p.display()))?;
+            cert.self_hash_ok() && cert.verdict() == Some("REPRODUCED")
+        }
+        None => m.self_hash_ok() == Some(true),
+    };
+
+    let is_svg = output
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.eq_ignore_ascii_case("svg"))
+        .unwrap_or(false);
+    let body = if is_svg {
+        badge_svg(reproducible, fits_mb)
+    } else {
+        badge_json(reproducible, fits_mb)
+    };
+    std::fs::write(&output, &body)
+        .with_context(|| format!("failed to write badge {}", output.display()))?;
+    eprintln!("wrote badge: {}", output.display());
+    Ok(())
 }
 
 /// Load a prebuilt index and print exact-match loci for `pattern` (B3c). This is
@@ -1183,7 +1209,7 @@ fn run_somatic(
     use rosalind::io::bam::BamSource;
     use rosalind::io::vcf::write_somatic_vcf;
     use rosalind::pileup::PileupParams;
-    use rosalind::provenance::{blake3_file, write_manifest, FileHash, RunManifest};
+    use rosalind::provenance::{write_manifest, CommandCapture, RunManifest};
 
     let start_call = Instant::now();
     let mut contigs = ContigSet::new();
@@ -1227,22 +1253,20 @@ fn run_somatic(
         _ => Vec::new(),
     };
     let mut manifest = RunManifest::new("somatic");
-    manifest.inputs.push(FileHash {
-        path: reference_path.display().to_string(),
-        blake3: blake3_file(&reference_path)?,
-    });
-    for p in tumor_inputs.iter().chain(normal_inputs.iter()) {
+    let mut cmd = CommandCapture::new("somatic");
+    cmd.input("--reference", &reference_path)?;
+    for p in tumor_inputs.iter() {
         if p.exists() {
-            manifest.inputs.push(FileHash {
-                path: p.display().to_string(),
-                blake3: blake3_file(p)?,
-            });
+            cmd.input("--tumor", p)?;
         }
     }
-    manifest.outputs.push(FileHash {
-        path: output_vcf.display().to_string(),
-        blake3: blake3_file(&output_vcf)?,
-    });
+    for p in normal_inputs.iter() {
+        if p.exists() {
+            cmd.input("--normal", p)?;
+        }
+    }
+    cmd.output("-o", &output_vcf)?;
+    cmd.record_into(&mut manifest);
     manifest
         .params
         .insert("somatic_snv_only".to_string(), "true".to_string());
@@ -1513,7 +1537,7 @@ fn run_variants(
     use rosalind::io::bam::BamSource;
     use rosalind::io::vcf::{write_germline_vcf, GermlineRow};
     use rosalind::pileup::{PileupParams, SliceSource};
-    use rosalind::provenance::{blake3_file, write_manifest, FileHash, RunManifest};
+    use rosalind::provenance::{write_manifest, CommandCapture, RunManifest};
 
     let fasta = read_fasta(&reference_path)
         .with_context(|| format!("failed to read reference from {}", reference_path.display()))?;
@@ -1597,28 +1621,15 @@ fn run_variants(
 
             // Reproducibility receipt next to the VCF.
             let mut manifest = RunManifest::new("variants");
-            manifest.inputs.push(FileHash {
-                path: reference_path.display().to_string(),
-                blake3: blake3_file(&reference_path)?,
-            });
-            manifest.inputs.push(FileHash {
-                path: alignments_path.display().to_string(),
-                blake3: blake3_file(&alignments_path)?,
-            });
-            manifest.outputs.push(FileHash {
-                path: path.display().to_string(),
-                blake3: blake3_file(&path)?,
-            });
-            manifest
-                .params
-                .insert("mapq_threshold".to_string(), mapq_threshold.to_string());
-            manifest.params.insert(
-                "min_qual".to_string(),
-                (quality_threshold as f64).to_string(),
-            );
-            manifest
-                .params
-                .insert("region_start".to_string(), region_start.to_string());
+            let mut cmd = CommandCapture::new("variants");
+            cmd.input("--reference", &reference_path)?;
+            cmd.input("--alignments", &alignments_path)?;
+            cmd.opt("--chrom", &chrom_name);
+            cmd.opt("--region-start", region_start);
+            cmd.opt("--mapq-threshold", mapq_threshold);
+            cmd.opt("--quality-threshold", quality_threshold as f64);
+            cmd.output("-o", &path)?;
+            cmd.record_into(&mut manifest);
             manifest.finalize();
             let manifest_path = write_manifest(&path, &manifest)?;
             eprintln!("wrote reproducibility receipt: {}", manifest_path.display());
@@ -1656,7 +1667,7 @@ fn run_features(
     use rosalind::genomics::IndexReader;
     use rosalind::io::bam::StreamingBamSource;
     use rosalind::pileup::PileupParams;
-    use rosalind::provenance::{blake3_file, FileHash, RunManifest};
+    use rosalind::provenance::{CommandCapture, RunManifest};
 
     let loaded = IndexReader::open(&index_path)
         .with_context(|| format!("failed to open index {}", index_path.display()))?;
@@ -1850,32 +1861,20 @@ fn run_features(
     };
     if let Some(dest) = receipt_dest {
         let mut manifest = RunManifest::new("features");
-        manifest.inputs.push(FileHash {
-            path: index_path.display().to_string(),
-            blake3: blake3_file(&index_path)?,
-        });
-        manifest.inputs.push(FileHash {
-            path: alignments_path.display().to_string(),
-            blake3: blake3_file(&alignments_path)?,
-        });
-        if let Some(path) = &output {
-            manifest.outputs.push(FileHash {
-                path: path.display().to_string(),
-                blake3: blake3_file(path)?,
-            });
+        let mut cmd = CommandCapture::new("features");
+        cmd.input("--index", &index_path)?;
+        cmd.input("--alignments", &alignments_path)?;
+        cmd.opt("--mapq-threshold", mapq_threshold);
+        cmd.opt("--max-depth", max_depth);
+        cmd.opt("--max-read-len", max_read_len);
+        cmd.flag_if(enforce, "--enforce");
+        if let Some(mb) = memory_budget_mb {
+            cmd.opt("--memory-budget-mb", mb);
         }
-        manifest
-            .params
-            .insert("mapq_threshold".to_string(), mapq_threshold.to_string());
-        manifest
-            .params
-            .insert("max_depth".to_string(), max_depth.to_string());
-        manifest
-            .params
-            .insert("max_read_len".to_string(), max_read_len.to_string());
-        manifest
-            .params
-            .insert("enforced".to_string(), enforce.to_string());
+        if let Some(path) = &output {
+            cmd.output("-o", path)?;
+        }
+        cmd.record_into(&mut manifest);
         manifest
             .params
             .insert("peak_rss_bytes".to_string(), peak_rss.to_string());
@@ -1912,11 +1911,6 @@ fn run_features(
         manifest
             .params
             .insert("reads_skipped_total".to_string(), skips.total().to_string());
-        if let Some(mb) = memory_budget_mb {
-            manifest
-                .params
-                .insert("memory_budget_mb".to_string(), mb.to_string());
-        }
         manifest
             .params
             .insert("contract_verdict".to_string(), verdict.to_string());
@@ -1985,7 +1979,7 @@ fn run_variants_index(
     use rosalind::io::bam::StreamingBamSource;
     use rosalind::io::vcf::{write_germline_header, write_germline_row, GermlineRow};
     use rosalind::pileup::PileupParams;
-    use rosalind::provenance::{blake3_file, FileHash, RunManifest};
+    use rosalind::provenance::{CommandCapture, RunManifest};
 
     let loaded = IndexReader::open(&index_path)
         .with_context(|| format!("failed to open index {}", index_path.display()))?;
@@ -2231,36 +2225,22 @@ fn run_variants_index(
     };
     if let Some(dest) = receipt_dest {
         let mut manifest = RunManifest::new("variants");
-        manifest.inputs.push(FileHash {
-            path: index_path.display().to_string(),
-            blake3: blake3_file(&index_path)?,
-        });
-        manifest.inputs.push(FileHash {
-            path: alignments_path.display().to_string(),
-            blake3: blake3_file(&alignments_path)?,
-        });
-        if let Some(path) = &output {
-            manifest.outputs.push(FileHash {
-                path: path.display().to_string(),
-                blake3: blake3_file(path)?,
-            });
+        let mut cmd = CommandCapture::new("variants");
+        cmd.input("--index", &index_path)?;
+        cmd.input("--alignments", &alignments_path)?;
+        cmd.opt("--mapq-threshold", mapq_threshold);
+        cmd.opt("--quality-threshold", quality_threshold as f64);
+        cmd.opt("--max-depth", max_depth);
+        cmd.opt("--max-read-len", max_read_len);
+        cmd.flag_if(enforce, "--enforce");
+        cmd.flag_if(gvcf, "--gvcf");
+        if let Some(mb) = memory_budget_mb {
+            cmd.opt("--memory-budget-mb", mb);
         }
-        manifest
-            .params
-            .insert("mapq_threshold".to_string(), mapq_threshold.to_string());
-        manifest.params.insert(
-            "min_qual".to_string(),
-            (quality_threshold as f64).to_string(),
-        );
-        manifest
-            .params
-            .insert("max_depth".to_string(), max_depth.to_string());
-        manifest
-            .params
-            .insert("max_read_len".to_string(), max_read_len.to_string());
-        manifest
-            .params
-            .insert("enforced".to_string(), enforce.to_string());
+        if let Some(path) = &output {
+            cmd.output("-o", path)?;
+        }
+        cmd.record_into(&mut manifest);
         manifest
             .params
             .insert("peak_rss_bytes".to_string(), peak_rss.to_string());
@@ -2294,11 +2274,6 @@ fn run_variants_index(
         manifest
             .params
             .insert("reads_skipped_total".to_string(), skips.total().to_string());
-        if let Some(mb) = memory_budget_mb {
-            manifest
-                .params
-                .insert("memory_budget_mb".to_string(), mb.to_string());
-        }
         manifest
             .params
             .insert("contract_verdict".to_string(), verdict.to_string());

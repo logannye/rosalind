@@ -54,8 +54,8 @@ pub struct PileupParams {
     /// Skip PCR/optical duplicates (SAM flag 0x400).
     pub skip_duplicate: bool,
     /// Cap on the active read set per position (deterministic downsampling).
-    /// `None` = uncapped (default). When `Some(d)`, an unbiased min-hash reservoir
-    /// keeps `d` reads covering each position; reads removed are counted
+    /// `None` = uncapped (default). When `Some(d)`, an unbiased min-hash bottom-k
+    /// cap keeps `d` reads covering each position; reads removed are counted
     /// `over_max_depth`.
     pub max_depth: Option<u32>,
     /// When `Some(m)` (set only under `--enforce`), a read whose `seq.len()`
@@ -136,7 +136,7 @@ struct ActiveRead {
     mapq: u8,
     /// Reverse-strand flag (metadata only — never applied to `seq`).
     reverse: bool,
-    /// Fixed-seed content hash — the depth-cap reservoir admission/eviction key.
+    /// Fixed-seed content hash — the depth-cap selector admission/eviction key.
     priority: u64,
 }
 
@@ -235,7 +235,7 @@ impl<S: ReadSource> PileupEngine<S> {
     }
 
     /// Precompute a read's reference→read-offset map and add it to the active set.
-    /// `priority` is the precomputed reservoir key (see `read_priority`).
+    /// `priority` is the precomputed selector key (see `read_priority`).
     fn ingest(&mut self, read: AlignedRead, priority: u64) {
         let end = read.end();
         let mut ref_to_read = HashMap::new();
@@ -306,7 +306,7 @@ impl<S: ReadSource> PileupEngine<S> {
                     let prio = read_priority(&read);
                     if let Some(max) = self.params.max_depth {
                         if self.active.len() as u32 >= max {
-                            // Unbiased min-hash reservoir: keep the `max`
+                            // Unbiased min-hash bottom-k cap: keep the `max`
                             // smallest-priority reads covering the cursor. Evict the
                             // greatest-priority resident iff the newcomer ranks below
                             // it; otherwise refuse. Either way the cap removed one
@@ -370,7 +370,7 @@ impl<S: ReadSource> PileupEngine<S> {
         // Emit observations in a canonical total order so the downstream diploid
         // log-likelihood accumulation (germline.rs, an order-sensitive f64 sum) is
         // order-independent and the VCF stays byte-identical regardless of the
-        // active set's internal order (which the depth-cap reservoir may permute).
+        // active set's internal order (which the depth-cap selector may permute).
         obs.sort_by(|a, b| {
             (a.allele, a.base_qual, a.mapq, a.reverse as u8).cmp(&(
                 b.allele,
@@ -508,7 +508,7 @@ mod tests {
     #[test]
     fn unbiased_cap_keeps_downstream_starting_reads() {
         // The biased (leftmost-arrival) cap dropped reads that START at a deep
-        // variant, zeroing the alt allele. The min-hash reservoir keeps a
+        // variant, zeroing the alt allele. The min-hash bottom-k cap keeps a
         // start-position-independent sample, so a variant carried only by reads
         // that begin AT the variant column survives. Reads must be DISTINCT
         // (real reads are) — identical content shares one hash and degenerates.

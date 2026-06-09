@@ -252,3 +252,45 @@ fn variants_index_memory_budget_reports_and_never_refuses() {
     );
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn variants_index_receipt_records_a_replayable_command() {
+    let dir = tmpdir();
+    let seq = "ACGTACGTACGTACGTACGTACGTACGTACGT";
+    let fa = write_fasta(&dir, "chr1", seq);
+    let fq = write_fastq(&dir, seq, &[0, 0, 8], 16);
+    let (idx, bam) = build_index_and_sorted_bam(&dir, &fa, &fq);
+    let vcf = dir.join("calls.vcf");
+    let out = run(&[
+        "variants",
+        "--index",
+        idx.to_str().unwrap(),
+        "--alignments",
+        bam.to_str().unwrap(),
+        "-o",
+        vcf.to_str().unwrap(),
+    ]);
+    assert!(
+        out.status.success(),
+        "variants --index -o: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let man = std::fs::read_to_string(format!("{}.manifest.json", vcf.display()))
+        .expect("receipt written next to the VCF");
+    // schema-5 records a normalized, replayable command (closes the arg-recording gap).
+    assert!(
+        man.contains("\"command\":\"variants --index @in:"),
+        "records a replayable command recipe: {man}"
+    );
+    assert!(
+        man.contains("-o @out:"),
+        "records the output operand: {man}"
+    );
+    assert!(
+        man.contains("\"mode\":\"index\""),
+        "records the mode: {man}"
+    );
+    assert!(man.contains("\"schema_version\":\"5\""), "schema 5: {man}");
+    assert!(!man.contains("\"gvcf\""), "a false flag is omitted: {man}");
+    std::fs::remove_dir_all(&dir).ok();
+}

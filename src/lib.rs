@@ -46,7 +46,7 @@
 #![allow(clippy::new_without_default)]
 
 // Each module is a layer of the genomics engine.
-/// The calling layer: calibrated, abstention-aware variant calls from pileup columns.
+/// The calling layer: probabilistically-grounded, abstention-aware variant calls from pileup columns.
 pub mod call;
 /// Core types: the lingua franca shared by every layer (io, index, align, pileup, call).
 pub mod core;
@@ -58,6 +58,8 @@ pub mod io;
 pub mod pileup;
 /// Reproducibility receipts: canonical-JSON BLAKE3 manifests for every run.
 pub mod provenance;
+/// Third-party byte re-derivation from a receipt (the `reproduce` verb).
+pub mod reproduce;
 /// Helper utilities: read-only mmap + peak-RSS measurement.
 pub mod util;
 
@@ -79,4 +81,4 @@ pub use call::{
 pub use core::{MemoryBudget, WorkingSet};
 // Build-once → mmap index + the reproducibility receipt:
 pub use genomics::{GenomeIndex, IndexReader, ReferenceView};
-pub use provenance::RunManifest;
+pub use provenance::{verify_receipt, CommandCapture, RunManifest, VerifyOpts, VerifyReport};

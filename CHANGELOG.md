@@ -7,6 +7,26 @@ All notable changes to Rosalind are recorded here. Versions follow [Semantic Ver
 A contract-hardening pass followed by moat-compounding capabilities, all on the
 canonical bounded-memory substrate.
 
+### Reproducibility — a stranger can re-derive your result (Track D)
+- **`rosalind reproduce`** re-derives a recorded result byte-for-byte from its receipt and
+  content-located inputs, reporting REPRODUCED / DIVERGED / INCONCLUSIVE (exit 0 / 6 / 7; a
+  tampered receipt is exit 5). A non-deterministic caller can't offer this — it
+  reports DIVERGED on a *correct* run. Honest scope: the deterministic text outputs
+  (`variants → VCF`, `features → TSV`); BAM/bgzf is reported INCONCLUSIVE, never a false DIVERGED.
+- **Chainable reproduction certificate** (`<receipt>.repro.json`): a content-addressed,
+  self-hashing attestation that names the original receipt's claim hash. N certificates over the
+  same parent are N independent confirmations — a serverless reproducibility web. Signing-ready,
+  and itself `verify`-able.
+- **Schema 5 — a replayable command.** Every receipt now records a normalized, machine-independent
+  `command` recipe (one `CommandCapture` chokepoint), closing the prior gap where
+  `gvcf`/`chrom`/index-vs-reference mode went unrecorded. Pre-v5 receipts still parse and verify.
+- **`rosalind badge`** emits a self-hosted shields.io endpoint JSON + a static SVG
+  ("reproducible · fits N MiB") with no shields.io runtime dependency (works offline).
+- **CI reproduce fence:** the `cli-e2e` job re-derives a result on the GitHub runner (a different
+  machine than the author's) and confirms a byte-changed input is reported INCONCLUSIVE.
+- Internals: `verify_receipt` is now a shared library function — `verify`, `reproduce`, and a
+  future WASM verifier consume one source of truth, so they cannot drift.
+
 ### Contract hardening (true & trusted on real genomes)
 - **Predicted peak is a true upper bound.** The per-contig reference decode no longer holds a
   transient second copy (`decode_window_arc`); the prediction is recorded in the receipt and carries an
@@ -21,7 +41,7 @@ canonical bounded-memory substrate.
 
 ### Fleet scheduling — prediction → placement
 - **`rosalind pack`** packs many bounded `variants` jobs onto fixed-size nodes by their predicted peaks
-  (read from each index header, additive) and *proves* a co-location fits before launching a byte, or
+  (read from each index header, additive) and *shows* a co-location fits within budget before launching a byte, or
   refuses (exit 3). `plan --index --json` emits the predicted peak for a scheduler to read.
 
 ### ColumnKit SDK — implement one trait, inherit the contract
@@ -49,10 +69,10 @@ contract** — predict it before you commit, honor it during the run, and verify
 
 ### Variant calling
 - **Bounded whole-genome germline SNV calling** (`variants --index`) over a coordinate-sorted BAM and a
-  persisted index: peak memory tracks coverage, not BAM size. Calibrated, abstention-aware.
-- **Unbiased depth-cap downsampling** — a content-hash reservoir that bounds the working set without
+  persisted index: peak memory tracks coverage, not BAM size. Genotype-likelihood, abstention-aware.
+- **Unbiased depth-cap downsampling** — deterministic content-hash selection that bounds the working set without
   biasing allele balance (no silent variant drops); dropped-read counts surfaced in the receipt.
-- **Tumor/normal somatic** SNV + simple-indel calling (`somatic`).
+- **Tumor/normal somatic** SNV calling (`somatic`).
 - **Measured detection accuracy** on simulated diploid truth (precision/recall 1.00/1.00 on clean data);
   `eval-germline` / `eval-somatic` truth-set comparison (the `eval-germline` path is GIAB-ready).
 

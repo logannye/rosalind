@@ -1,6 +1,6 @@
 //! `rosalind pack` — the contract's prediction turned into a placement decision.
-//! Each job's peak is read from its index header (no run); the schedule proves
-//! every node fits before any job launches, or refuses (exit 3).
+//! Each job's peak is read from its index header (no run); the schedule shows
+//! every node fits (by predicted peak) before any job launches, or refuses (exit 3).
 
 use std::path::PathBuf;
 use std::process::Command;
@@ -39,7 +39,7 @@ fn build_index(dir: &std::path::Path, name: &str) -> PathBuf {
 }
 
 #[test]
-fn pack_proves_a_co_location_fits_and_refuses_when_it_cannot() {
+fn pack_shows_a_co_location_fits_and_refuses_when_it_cannot() {
     let dir = unique_dir("rosalind-pack");
     let a = build_index(&dir, "a");
     let b = build_index(&dir, "b");
@@ -54,7 +54,7 @@ fn pack_proves_a_co_location_fits_and_refuses_when_it_cannot() {
     )
     .unwrap();
 
-    // A generous node fits both jobs on one node, proven up front.
+    // A generous node fits both jobs on one node, shown up front.
     let out = Command::new(bin())
         .args(["pack", "--jobs"])
         .arg(&jobs)
@@ -64,8 +64,8 @@ fn pack_proves_a_co_location_fits_and_refuses_when_it_cannot() {
     assert!(out.status.success(), "generous node should pack: {out:?}");
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(
-        stdout.contains("every node proven within capacity"),
-        "missing proof line: {stdout}"
+        stdout.contains("every node within capacity by predicted peak"),
+        "missing capacity line: {stdout}"
     );
 
     // JSON form is machine-readable.

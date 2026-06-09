@@ -40,7 +40,7 @@ real memory-bound build.
 
 Each is tagged **[shipped]** or **[to build]** and tied to the persona who actually needs it.
 
-| Capability | Persona who needs it | Why incumbents structurally can't match it |
+| Capability | Persona who needs it | Why it's hard for incumbents to match |
 |---|---|---|
 | **Never a silent OOM — predict, then refuse / fail loud** [shipped] | Field/outbreak operator on a no-swap laptop driving a MinION | GATK `-Xmx` crashes; DeepVariant OOM-kills; pSAscan/Big-BWT/ropebwt3 have no governor. `plan` gives a FITS/REFUSE verdict in ms; the runtime governor (`core/governor.rs`) fails loud at exit 4. |
 | **Verify-without-rerun** [shipped] | Air-gapped / regulated / CRO auditor | A non-deterministic caller can't emit a byte-reproducible hash, so it can't anchor an audit at all. `rosalind verify` re-checks inputs/outputs + realized-peak-vs-budget offline in seconds. |
@@ -160,7 +160,7 @@ The strongest *differentiated* claims are real **today**. Make them legible and 
   An asciinema: `variants` → `verify` OK → a human edits one byte → `verify` exits 5. Then compile
   `provenance/mod.rs` (std + hand-rolled canonical-JSON + blake3, zero htslib) to `wasm32` for a
   drag-a-receipt-in-the-browser verifier — the most viral artifact in the repo and a structural
-  capability no incumbent has. **Honest copy:** catches corruption/casual edits, *not* a motivated
+  capability we're not aware of in incumbent callers. **Honest copy:** catches corruption/casual edits, *not* a motivated
   forger who re-runs `finalize()` — that needs the signature (Phase 3).
 - **P1.3 — A scope-boundary benchmark + a README scope table.** *(S, the anti-hype guardrail)* A
   reproducible benchmark showing **both** the in-scope win (construction peak slides down the curve)
@@ -204,7 +204,7 @@ The strongest *differentiated* claims are real **today**. Make them legible and 
 - **P3.4 — `rosalind cohort`: a verifiable Merkle ledger for biobank-scale re-analysis.** *(L)* Roll
   *N* byte-stable per-sample receipts into a signed root; `cohort verify` re-derives without re-running
   and, on mismatch, reports the **exact changed leaves and which field drifted**; `cohort plan` reuses
-  `pack` to prove the re-run co-locates. **Beats** GenomicsDB/GLnexus (outputs not byte-stable, no
+  `pack` to show the re-run co-locates within budget. **Beats** GenomicsDB/GLnexus (outputs not byte-stable, no
   receipt, emergent memory). Depends on P0.2 + P3.1 + P3.2.
 
 ### Phase 4 — Complete the contract end-to-end (the √t build)

@@ -1,4 +1,4 @@
-//! The calling layer: turn the `PileupColumn` stream into calibrated,
+//! The calling layer: turn the `PileupColumn` stream into probabilistically-grounded,
 //! abstention-aware variant calls. Built on `crate::core` + `crate::pileup`
 //! only; no VCF writing or CLI wiring (those are later phases).
 

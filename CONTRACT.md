@@ -5,8 +5,8 @@
 Every other variant caller treats RAM as an emergent property you guess at (`-Xmx…`,
 `--target-mem` "heuristics may not work well") and then crash on. Rosalind treats it as a contract:
 
-> **Rosalind never silently OOM-kills you — it fits, or it tells you up front, and it proves the
-> realized peak with a receipt.**
+> **Rosalind never silently OOM-kills you — it fits, or it tells you up front, and it records the
+> realized peak in a receipt you can verify.**
 
 (It does *not* claim to "never refuse": when a budget is genuinely too small the run declines cleanly
 rather than crashing. Graceful degrade-don't-die — sliding down a space/time curve to finish anyway — is
@@ -54,7 +54,7 @@ With `--enforce`:
 
 Without `--enforce`, the budget is **record-only**: the run always completes and the verdict is recorded in
 the receipt. The active read set is capped at `--max-depth` (default 1000; `0` = uncapped) by an
-**unbiased** content-hash reservoir — it bounds the working set without biasing allele balance, so a deep
+**unbiased** content-hash downsampling — it bounds the working set without biasing allele balance, so a deep
 variant is *not* silently dropped. Output changes only at sites deeper than the cap, and the dropped-read
 count is surfaced (stderr + the receipt's `over_max_depth`).
 
