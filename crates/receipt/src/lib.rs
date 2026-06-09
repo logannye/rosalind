@@ -1034,6 +1034,30 @@ mod tests {
     }
 
     #[test]
+    fn analyzer_prefixed_params_stay_in_the_claim() {
+        // No measurement key starts with the analyzer. prefix, so an analyzer can never
+        // shadow a measured field out of the claim.
+        assert!(
+            MEASUREMENT_KEYS.iter().all(|k| !k.starts_with("analyzer.")),
+            "no MEASUREMENT_KEY may start with the analyzer. prefix"
+        );
+        // And a prefixed param survives finalize in the claim (params), not measurements.
+        let mut m = RunManifest::new("analyze coverage");
+        m.params
+            .insert("analyzer.analyzer".to_string(), "coverage".to_string());
+        m.finalize();
+        assert_eq!(
+            m.params.get("analyzer.analyzer").map(String::as_str),
+            Some("coverage"),
+            "an analyzer.-prefixed param must remain in the claim"
+        );
+        assert!(
+            !m.measurements.contains_key("analyzer.analyzer"),
+            "an analyzer.-prefixed param must NOT be relocated to measurements"
+        );
+    }
+
+    #[test]
     fn blake3_is_deterministic_and_sensitive() {
         assert_eq!(blake3_hex(b"abc"), blake3_hex(b"abc"));
         assert_ne!(blake3_hex(b"abc"), blake3_hex(b"abd"));
