@@ -24,6 +24,9 @@ use std::sync::OnceLock;
 mod command;
 pub use command::CommandCapture;
 
+mod chain;
+pub use chain::{walk_chain, ChainEdge, ChainNode, ChainReport, EdgeStatus};
+
 mod repro;
 pub use repro::{ReproOutput, ReproReceipt};
 

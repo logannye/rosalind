@@ -245,6 +245,11 @@ enum Commands {
         #[arg(long)]
         memory_budget_mb: Option<u64>,
     },
+    /// Walk a directory of receipts as a provenance DAG and verify it offline.
+    Chain {
+        #[command(subcommand)]
+        action: ChainAction,
+    },
     /// Locate exact occurrences of a pattern in a prebuilt index (load + query).
     Locate {
         /// Index artifact built by `rosalind index`.
@@ -356,6 +361,18 @@ enum Commands {
         /// Output path; a `.svg` extension emits the static SVG, else a shields JSON.
         #[arg(short, long)]
         output: PathBuf,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum ChainAction {
+    /// Verify every node self-hashes and every internal edge resolves by content hash.
+    Verify {
+        /// Directory of `*.manifest.json` receipts to walk.
+        dir: PathBuf,
+        /// Emit a compact JSON report instead of human-readable lines.
+        #[arg(long)]
+        json: bool,
     },
 }
 
@@ -538,6 +555,9 @@ fn main() -> Result<()> {
             output,
             memory_budget_mb,
         } => run_index(reference, output, memory_budget_mb)?,
+        Commands::Chain { action } => match action {
+            ChainAction::Verify { dir, json } => run_chain_verify(dir, json)?,
+        },
         Commands::Locate {
             index,
             pattern,
@@ -715,6 +735,41 @@ fn run_index(reference: PathBuf, output: PathBuf, memory_budget_mb: Option<u64>)
             "below 0.70"
         }
     );
+
+    // Content-addressed receipt: makes the index a chainable, verifiable node — the
+    // root of every downstream provenance chain. Mirrors the `variants`/`somatic` path.
+    // The `--output` operand records blake3(.idx file) into outputs[]; that digest is
+    // bit-identical to what `variants` records as its `--index` input, so the chain edge
+    // resolves by construction. `--reference` records blake3(FASTA file) as the root.
+    {
+        use rosalind::provenance::{blake3_hex, write_manifest, CommandCapture, RunManifest};
+
+        let mut manifest = RunManifest::new("index");
+        let mut cmd = CommandCapture::new("index");
+        cmd.input("--reference", &reference)?;
+        if let Some(mb) = memory_budget_mb {
+            cmd.opt("--memory-budget-mb", mb);
+        }
+        cmd.output("--output", &output)?;
+        cmd.record_into(&mut manifest);
+        // `reference_blake3` is the in-memory NORMALIZED sequence hash (a "what genome"
+        // id, stable across FASTA reformatting) — informational, NOT the chain edge.
+        manifest.params.insert(
+            "reference_blake3".to_string(),
+            blake3_hex(&reference_blake3),
+        );
+        manifest
+            .params
+            .insert("total_bp".to_string(), total_bp.to_string());
+        // Realized build peak is machine-dependent → a MEASUREMENT (relocated out of the
+        // claim by finalize). The build is still O(reference) RAM; this records the cost,
+        // it does NOT claim the budget was honored.
+        manifest.record_measurement("peak_rss_bytes", peak.to_string());
+        manifest.finalize();
+        let dest = write_manifest(&output, &manifest)
+            .with_context(|| format!("failed to write index receipt for {}", output.display()))?;
+        eprintln!("wrote reproducibility receipt: {}", dest.display());
+    }
     Ok(())
 }
 
@@ -974,6 +1029,108 @@ fn run_verify(
         for p in &report.problems {
             eprintln!("verify: FAIL — {p}");
         }
+        std::process::exit(5);
+    }
+}
+
+/// Walk a directory of receipts as a provenance DAG: every node self-hashes and every
+/// expected-internal edge (`--index`) resolves by content hash. External inputs
+/// (reads/alignments/reference FASTA) are integrity-verified, not byte-reproduced.
+/// Exit 0 = CHAIN INTACT, 5 = CHAIN BROKEN (matching `verify`).
+fn run_chain_verify(dir: PathBuf, json: bool) -> Result<()> {
+    use rosalind::provenance::{walk_chain, EdgeStatus, RunManifest};
+    use std::collections::HashMap;
+
+    let mut receipts: Vec<RunManifest> = Vec::new();
+    for entry in std::fs::read_dir(&dir)
+        .with_context(|| format!("failed to read directory {}", dir.display()))?
+    {
+        let path = entry?.path();
+        let is_manifest = path
+            .file_name()
+            .and_then(|n| n.to_str())
+            .map(|n| n.ends_with(".manifest.json"))
+            .unwrap_or(false);
+        if !is_manifest {
+            continue;
+        }
+        let text = std::fs::read_to_string(&path)
+            .with_context(|| format!("failed to read {}", path.display()))?;
+        // Skip anything that is not a parseable run manifest (e.g. a stray file).
+        if let Ok(m) = RunManifest::from_canonical_json(&text) {
+            receipts.push(m);
+        }
+    }
+    if receipts.is_empty() {
+        bail!("no receipts (*.manifest.json) found in {}", dir.display());
+    }
+    // Stable order (independent of read_dir) so the report is deterministic.
+    receipts.sort_by_key(|m| m.content_hash());
+
+    let report = walk_chain(&receipts);
+
+    if json {
+        println!("{}", report.to_json());
+    } else {
+        let sub: HashMap<&str, &str> = report
+            .nodes
+            .iter()
+            .map(|n| (n.id.as_str(), n.subcommand.as_str()))
+            .collect();
+        let tampered = report
+            .nodes
+            .iter()
+            .filter(|n| n.self_hash == Some(false))
+            .count();
+        if tampered == 0 {
+            println!("chain: {} nodes, all self-hash OK", report.nodes.len());
+        } else {
+            println!(
+                "chain: {} nodes, {tampered} TAMPERED (self-hash mismatch)",
+                report.nodes.len()
+            );
+        }
+        for e in &report.edges {
+            match &e.status {
+                EdgeStatus::Resolved { parent_id } => {
+                    let p = sub.get(parent_id.as_str()).copied().unwrap_or("?");
+                    println!(
+                        "edge: {}  {}-->  {p}  [resolved]",
+                        e.child_subcommand, e.flag
+                    );
+                }
+                EdgeStatus::External => {
+                    println!(
+                        "edge: {}  {}-->  (external)  [integrity-only]",
+                        e.child_subcommand, e.flag
+                    );
+                }
+                EdgeStatus::Broken => {
+                    println!(
+                        "edge: {}  {}-->  (unresolved)  [BROKEN]",
+                        e.child_subcommand, e.flag
+                    );
+                }
+            }
+        }
+        let resolved = report
+            .edges
+            .iter()
+            .filter(|e| matches!(e.status, EdgeStatus::Resolved { .. }))
+            .count();
+        if report.intact {
+            println!(
+                "VERDICT: CHAIN INTACT ({} nodes, {resolved} internal edges resolve)",
+                report.nodes.len()
+            );
+        } else {
+            println!("VERDICT: CHAIN BROKEN");
+        }
+    }
+
+    if report.intact {
+        Ok(())
+    } else {
         std::process::exit(5);
     }
 }
