@@ -1,5 +1,5 @@
 [package]
-name = "rosalind"
+name = "rosalind-genomics"
 version = "0.1.0"
 edition = "2021"
 rust-version = "1.83"
@@ -9,6 +9,29 @@ repository = "https://github.com/logannye/rosalind"
 license = "MIT OR Apache-2.0"
 keywords = ["genomics", "alignment", "variant-calling", "bioinformatics", "bwt", "fm-index"]
 categories = ["science::bioinformatics", "algorithms"]
+readme = "README.md"
+documentation = "https://docs.rs/rosalind-genomics"
+# Keep the published .crate lean: ship source + licenses, not demo data, artifacts,
+# or internal planning docs (all remain in the git repo).
+exclude = [
+    "results/",
+    "docs/superpowers/",
+    "docs/findings/",
+    "examples/data/",
+    "tests/snapshots/",
+    ".github/",
+]
+
+# Published as `rosalind-genomics` (the bare `rosalind` crate is an unrelated, dormant
+# 2016 package). The library and the installed binary are both named `rosalind`, so
+# `use rosalind::...` and the `rosalind` CLI are unchanged.
+[lib]
+name = "rosalind"
+path = "src/lib.rs"
+
+[[bin]]
+name = "rosalind"
+path = "src/main.rs"
 
 [dependencies]
 # OS bindings (read-only mmap of large reference/index files; peak-RSS readout)
