@@ -495,7 +495,11 @@ mod tests {
         };
         let cols = columns(engine_emit_all(vec![read], reference));
         let positions: Vec<u32> = cols.iter().map(|c| c.locus.pos.0).collect();
-        assert_eq!(positions, vec![0, 1, 2, 3, 4, 5, 6, 7], "every position emits");
+        assert_eq!(
+            positions,
+            vec![0, 1, 2, 3, 4, 5, 6, 7],
+            "every position emits"
+        );
         for p in [2u32, 5, 6, 7] {
             let col = cols.iter().find(|c| c.locus.pos.0 == p).unwrap();
             assert_eq!(col.depth(), 0, "gap position {p} must be depth 0");
@@ -518,7 +522,10 @@ mod tests {
         };
         let off = peak(engine(reads(), reference));
         let on = peak(engine_emit_all(reads(), reference));
-        assert_eq!(off, on, "emit_all_positions must not change the working-set bound");
+        assert_eq!(
+            off, on,
+            "emit_all_positions must not change the working-set bound"
+        );
     }
 
     #[test]
