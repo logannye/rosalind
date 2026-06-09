@@ -21,8 +21,8 @@ case "$os" in
   Linux)
     case "$arch" in
       x86_64 | amd64) target="x86_64-unknown-linux-musl" ;;
-      aarch64 | arm64) target="aarch64-unknown-linux-musl" ;;
-      *) die "unsupported Linux arch '$arch' (prebuilt: x86_64, aarch64; build from source for others)" ;;
+      # aarch64-linux prebuilt is deferred (rust-htslib aarch64 build bug) — build from source.
+      *) die "unsupported Linux arch '$arch' (prebuilt: x86_64; build from source for others)" ;;
     esac
     ;;
   Darwin)

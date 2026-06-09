@@ -25,8 +25,9 @@ jobs:
           # Each builds NATIVELY on its arch's runner — no cross-compiler needed.
           - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
-          - target: aarch64-unknown-linux-musl
-            os: ubuntu-24.04-arm
+          # aarch64-unknown-linux-musl is deferred: rust-htslib 0.44.1 fails to compile
+          # on aarch64 (a c_char signedness mismatch, E0308 — an upstream bug). Tracked
+          # as a separate issue; re-add the runner once rust-htslib builds on aarch64.
           # macOS builds on Apple Silicon runners (macos-14, plentiful). The
           # aarch64 build is native; the x86_64 build is cross-compiled from arm64
           # (the SDK ships both arches; the cc crate adds `-arch x86_64`) so the
@@ -62,14 +63,11 @@ jobs:
       - name: Build (release, ${{ matrix.target }})
         env:
           # musl needs the musl C compiler for the bundled htslib/bzip2/lzma builds.
-          # On each musl runner `musl-gcc` is that arch's native musl compiler.
           CC_x86_64_unknown_linux_musl: musl-gcc
-          CC_aarch64_unknown_linux_musl: musl-gcc
           # hts-sys 2.2.0 forces libz-sys/zlib-ng, whose CMake build probes for a C++
           # compiler. zlib-ng's sources are C (built with the musl CC above); the host
-          # `g++` is the right arch on these NATIVE runners and satisfies CMake's probe.
+          # `g++` is the right arch on this native runner and satisfies CMake's probe.
           CXX_x86_64_unknown_linux_musl: g++
-          CXX_aarch64_unknown_linux_musl: g++
         run: cargo build --release --target ${{ matrix.target }} --bin rosalind
 
       - name: Stage the bundle
