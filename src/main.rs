@@ -715,6 +715,40 @@ fn run_index(reference: PathBuf, output: PathBuf, memory_budget_mb: Option<u64>)
             "below 0.70"
         }
     );
+
+    // Content-addressed receipt: makes the index a chainable, verifiable node — the
+    // root of every downstream provenance chain. Mirrors the `variants`/`somatic` path.
+    // The `--output` operand records blake3(.idx file) into outputs[]; that digest is
+    // bit-identical to what `variants` records as its `--index` input, so the chain edge
+    // resolves by construction. `--reference` records blake3(FASTA file) as the root.
+    {
+        use rosalind::provenance::{blake3_hex, write_manifest, CommandCapture, RunManifest};
+
+        let mut manifest = RunManifest::new("index");
+        let mut cmd = CommandCapture::new("index");
+        cmd.input("--reference", &reference)?;
+        if let Some(mb) = memory_budget_mb {
+            cmd.opt("--memory-budget-mb", mb);
+        }
+        cmd.output("--output", &output)?;
+        cmd.record_into(&mut manifest);
+        // `reference_blake3` is the in-memory NORMALIZED sequence hash (a "what genome"
+        // id, stable across FASTA reformatting) — informational, NOT the chain edge.
+        manifest
+            .params
+            .insert("reference_blake3".to_string(), blake3_hex(&reference_blake3));
+        manifest
+            .params
+            .insert("total_bp".to_string(), total_bp.to_string());
+        // Realized build peak is machine-dependent → a MEASUREMENT (relocated out of the
+        // claim by finalize). The build is still O(reference) RAM; this records the cost,
+        // it does NOT claim the budget was honored.
+        manifest.record_measurement("peak_rss_bytes", peak.to_string());
+        manifest.finalize();
+        let dest = write_manifest(&output, &manifest)
+            .with_context(|| format!("failed to write index receipt for {}", output.display()))?;
+        eprintln!("wrote reproducibility receipt: {}", dest.display());
+    }
     Ok(())
 }
 

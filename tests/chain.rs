@@ -1,0 +1,126 @@
+//! Provenance-DAG gates: the `index` receipt (PR1) and `chain verify` (PR2).
+//! Driven through the real CLI binary (no rust-htslib dev-dependency), reusing the
+//! `index -> align -> sort -> variants` toy pipeline from `tests/reproduce.rs`.
+
+use std::env;
+use std::path::{Path, PathBuf};
+use std::process::Command;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
+
+fn bin() -> &'static str {
+    env!("CARGO_BIN_EXE_rosalind")
+}
+
+fn tmpdir() -> PathBuf {
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let n = COUNTER.fetch_add(1, Ordering::Relaxed);
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let d = env::temp_dir().join(format!("rosalind-chain-{nanos}-{n}"));
+    std::fs::create_dir_all(&d).unwrap();
+    d
+}
+
+fn run(args: &[&str]) -> std::process::Output {
+    Command::new(bin())
+        .args(args)
+        .output()
+        .expect("spawn rosalind")
+}
+
+fn write_fasta(dir: &Path, name: &str, seq: &str) -> PathBuf {
+    let p = dir.join("ref.fa");
+    std::fs::write(&p, format!(">{name}\n{seq}\n")).unwrap();
+    p
+}
+
+fn write_fastq(dir: &Path, seq: &str, starts: &[usize], len: usize) -> PathBuf {
+    let p = dir.join("reads.fq");
+    let mut s = String::new();
+    for (i, &start) in starts.iter().enumerate() {
+        let read = &seq[start..start + len];
+        let qual: String = std::iter::repeat_n('I', len).collect();
+        s.push_str(&format!("@r{i}\n{read}\n+\n{qual}\n"));
+    }
+    std::fs::write(&p, s).unwrap();
+    p
+}
+
+/// `index` -> `align --format bam` -> `sort` -> `(idx, sorted.bam)`, all in `dir`.
+fn build_index_and_sorted_bam(dir: &Path, fa: &Path, fq: &Path) -> (PathBuf, PathBuf) {
+    let idx = dir.join("ref.idx");
+    let raw = dir.join("raw.bam");
+    let sorted = dir.join("sorted.bam");
+    assert!(run(&[
+        "index",
+        "--reference",
+        fa.to_str().unwrap(),
+        "--output",
+        idx.to_str().unwrap()
+    ])
+    .status
+    .success());
+    assert!(run(&[
+        "align",
+        "--reference",
+        fa.to_str().unwrap(),
+        "--reads",
+        fq.to_str().unwrap(),
+        "--format",
+        "bam",
+        "--output",
+        raw.to_str().unwrap(),
+    ])
+    .status
+    .success());
+    assert!(run(&[
+        "sort",
+        "--input",
+        raw.to_str().unwrap(),
+        "--output",
+        sorted.to_str().unwrap()
+    ])
+    .status
+    .success());
+    (idx, sorted)
+}
+
+#[test]
+fn index_writes_a_self_verifying_receipt() {
+    let d = tmpdir();
+    let fa = write_fasta(&d, "chr1", "ACGTACGTACGTACGTACGTACGTACGTACGT");
+    let idx = d.join("ref.idx");
+
+    let out = run(&[
+        "index",
+        "--reference",
+        fa.to_str().unwrap(),
+        "--output",
+        idx.to_str().unwrap(),
+    ]);
+    assert!(
+        out.status.success(),
+        "index failed: {}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+
+    let manifest = d.join("ref.idx.manifest.json");
+    assert!(
+        manifest.exists(),
+        "index must write a receipt sidecar at {}",
+        manifest.display()
+    );
+
+    let v = run(&["verify", "--manifest", manifest.to_str().unwrap()]);
+    assert!(
+        v.status.success(),
+        "verify must pass on the index receipt. stdout:\n{}\nstderr:\n{}",
+        String::from_utf8_lossy(&v.stdout),
+        String::from_utf8_lossy(&v.stderr)
+    );
+
+    std::fs::remove_dir_all(&d).ok();
+}
