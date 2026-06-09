@@ -156,6 +156,40 @@ enum Commands {
         #[arg(long)]
         manifest: Option<PathBuf>,
     },
+    /// Run a registered per-locus analyzer over the bounded whole-genome walk, with a
+    /// verifiable receipt that records the analyzer's own params (under `analyzer.`).
+    Analyze {
+        /// Which analyzer to run.
+        #[arg(value_enum)]
+        kind: AnalyzerKind,
+        /// Persisted index (`rosalind index`); analyzed over all contigs.
+        #[arg(long)]
+        index: PathBuf,
+        /// Coordinate-sorted alignments (BAM).
+        #[arg(long)]
+        alignments: PathBuf,
+        /// Minimum MAPQ required for a read to be considered.
+        #[arg(long, default_value_t = 0)]
+        mapq_threshold: u8,
+        /// Declared memory budget (MiB). With `--enforce` it is honored (exit 3/4).
+        #[arg(long)]
+        memory_budget_mb: Option<u64>,
+        /// Active-set depth cap (unbiased downsampling). `0` = uncapped.
+        #[arg(long, default_value_t = 1000)]
+        max_depth: u32,
+        /// Max read length assumed by the `--enforce` estimate and enforced at ingest.
+        #[arg(long, default_value_t = 250)]
+        max_read_len: u32,
+        /// Honor the budget: refuse up front (exit 3) / fail after (exit 4).
+        #[arg(long, default_value_t = false)]
+        enforce: bool,
+        /// Output path (stdout if omitted).
+        #[arg(short, long)]
+        output: Option<PathBuf>,
+        /// Where to write the reproducibility receipt (default: `<output>.manifest.json`).
+        #[arg(long)]
+        manifest: Option<PathBuf>,
+    },
     /// Deterministically coordinate-sort a BAM file using bounded memory.
     Sort {
         /// Input BAM path.
@@ -365,6 +399,14 @@ enum OutputFormat {
     Bam,
 }
 
+/// Registered per-locus analyzers for `rosalind analyze <kind>`. A compile-time
+/// registry — adding a kind is one variant + one dispatch arm.
+#[derive(Copy, Clone, Debug, ValueEnum, Eq, PartialEq)]
+enum AnalyzerKind {
+    Features,
+    Coverage,
+}
+
 #[derive(Debug, Clone)]
 struct FastqPair {
     name: String,
@@ -492,6 +534,59 @@ fn main() -> Result<()> {
             output,
             manifest,
         )?,
+        Commands::Analyze {
+            kind,
+            index,
+            alignments,
+            mapq_threshold,
+            memory_budget_mb,
+            max_depth,
+            max_read_len,
+            enforce,
+            output,
+            manifest,
+        } => {
+            let label = match kind {
+                AnalyzerKind::Features => "analyze features",
+                AnalyzerKind::Coverage => "analyze coverage",
+            };
+            match kind {
+                AnalyzerKind::Features => {
+                    let mut a = rosalind::call::FeatureAnalyzer::default();
+                    run_bounded_analysis(
+                        label,
+                        "analyzer.",
+                        &mut a,
+                        index,
+                        alignments,
+                        mapq_threshold,
+                        memory_budget_mb,
+                        max_depth,
+                        max_read_len,
+                        enforce,
+                        output,
+                        manifest,
+                    )?
+                }
+                AnalyzerKind::Coverage => {
+                    let mut a = rosalind::call::CoverageTrack;
+                    run_bounded_analysis(
+                        label,
+                        "analyzer.",
+                        &mut a,
+                        index,
+                        alignments,
+                        mapq_threshold,
+                        memory_budget_mb,
+                        max_depth,
+                        max_read_len,
+                        enforce,
+                        output,
+                        manifest,
+                    )?
+                }
+            }
+        }
         Commands::Sort {
             input,
             output,
