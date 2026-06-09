@@ -271,3 +271,29 @@ jobs:
           override: true
       - name: Clippy as a gate
         run: cargo clippy --all-targets -- -D warnings
+
+  benchmarks:
+    name: Claims harness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache cargo artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Run the claims harness (a standing regression gate on the contract + reproducibility)
+        run: bash benchmarks/run.sh
