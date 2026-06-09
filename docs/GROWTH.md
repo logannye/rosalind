@@ -105,3 +105,25 @@ crates.io + PyPI + release-download counts · `cargo install` / `pip install` ·
 > creation is to surface the differentiator visually, open every install channel (cargo/pip/ARM), and
 > ship the two demos that make "verifiable memory contract + byte-reproducibility" undeniable — then
 > re-launch on that, and only then spend bandwidth earning GIAB credibility and starting the √t moat.
+
+---
+
+## Progress log
+
+**2026-06-09 (autonomous session).**
+
+Done / merged to `main`:
+- **Wave 0** — README badges + install one-liner + "Jump to" nav + Contributing section; stale "build from source" hedges removed; Discussions enabled; 10 `good first issue`/`help wanted` tickets seeded (#53–#62). (PR #52)
+- **Wave 1.3 — the in-browser "caught-you" verifier.** Extracted a wasm-friendly `rosalind-receipt` leaf crate; TDD'd `verify_manifest_str`; `crates/receipt-wasm` + `web/verify/`; **deployed to GitHub Pages → https://logannye.github.io/rosalind/** (live; the README has a demo badge + reproduce-section callout). (PRs #64, #65)
+- **Wave 1.4 — reproduce-duel demo** `scripts/reproduce_demo.sh` (runnable; basis for the asciinema, #55). (PR #68)
+- **Release x86_64-linux-musl fixed** — it had never built with htslib (v0.1.0 predated rust-htslib); `hts-sys 2.2.0` forces `libz-sys/zlib-ng` (CMake + C++), so the musl job failed. Fixed with `cmake` + host `g++`. (PR #70)
+- **Wave 2.1 — reproducible claims harness** `benchmarks/run.sh` (+ `claims.py`): five contract/reproducibility claims, each fails the run if false, on bundled toy data, framed on verifiability (not speed/accuracy). Wired in as a CI **Claims harness** gate (green on the ubuntu runner). (PR #72)
+
+Open / needs you:
+- **Wave 1.1 — crates.io publish-ready** (PR #67, supersedes #63): name `rosalind-genomics` (lib/bin stay `rosalind`); receipt dry-run clean. **Publish is two crates and needs your token:** `cargo publish -p rosalind-receipt` then `cargo publish -p rosalind-genomics`. Confirm the name first (changeable until publish).
+- **Wave 1.5 — aarch64-linux release** deferred: `rust-htslib` won't compile on aarch64 (E0308, upstream). Tracked in #69. x86_64-linux + both macOS build fine.
+
+Not started (need your input / decisions):
+- **Wave 1.2 — PyPI wheel:** needs a binary-distribution decision (the Python boundary shells out to the `rosalind` binary) + a PyPI token. Deferred for the debrief.
+- **Wave 1.6 — Action on Marketplace:** the listing is a manual GitHub UI step; the `action.yml` + README recipe are already in place.
+- **Wave 2+** (benchmark harness, deep-dive post + landing page, second-act "Show HN"); **Wave 3** (GIAB, MAPQ); **Wave 4** (√t build).
