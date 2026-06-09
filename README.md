@@ -4,6 +4,7 @@
 [![Latest release](https://img.shields.io/github/v/release/logannye/rosalind?sort=semver&color=blue)](https://github.com/logannye/rosalind/releases/latest)
 [![Output: byte-reproducible](https://img.shields.io/badge/output-byte--reproducible-brightgreen)](CONTRACT.md)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](#license)
+[![Verify a receipt (live)](https://img.shields.io/badge/demo-verify%20a%20receipt-2f81f7)](https://logannye.github.io/rosalind/)
 
 **A deterministic, low-memory genomics engine in Rust, built around a different promise: memory is a contract — you see it before you commit, and verify it after.**
 
@@ -159,6 +160,8 @@ pack: 37 job(s) → 3 node(s) of 64000 MiB — every node within capacity by pre
 `rosalind plan --index ref.idx --budget-mb 64000 --json` emits the same predicted peak as one line of JSON for a workflow engine to read. This is what emergent-peak callers (GATK, DeepVariant) can't tell you up front: their peak is only known *after* a possible OOM-kill, so every co-location is a gamble. Here, `Packed` is a decision you can check before you launch — each node's summed *predicted* peak is `≤` its capacity, established up front, and the schedule is deterministic.
 
 ## Reproduce a result — a command a stranger can run
+
+> 🔍 **Try it in your browser:** [**verify a receipt live**](https://logannye.github.io/rosalind/) — drag in a `*.manifest.json` (or edit one byte of the bundled sample) and watch its tamper-evident hash flip to **TAMPERED**. 100% client-side, running the same Rust check that ships in the CLI, compiled to wasm.
 
 Hand someone a `*.vcf` and its `*.manifest.json`. On a *different machine*, with one offline command, they re-derive it byte-for-byte — no GATK, no Docker, no Nextflow, no re-aligning:
 
