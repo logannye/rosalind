@@ -389,6 +389,15 @@ struct AlignmentCandidate {
 }
 
 fn main() -> Result<()> {
+    // Install the build-identity (baked at compile time by build.rs) into the receipt
+    // crate, so every receipt records exactly which code/toolchain/deps produced the run.
+    rosalind::provenance::set_build_identity(rosalind::provenance::BuildIdentity {
+        code_git_sha: env!("ROSALIND_GIT_SHA").to_string(),
+        code_dirty: env!("ROSALIND_GIT_DIRTY").to_string(),
+        rustc_version: env!("ROSALIND_RUSTC_VERSION").to_string(),
+        target_triple: env!("ROSALIND_TARGET").to_string(),
+        deps_lock_blake3: env!("ROSALIND_DEPS_LOCK_BLAKE3").to_string(),
+    });
     let cli = Cli::parse();
 
     match cli.command {

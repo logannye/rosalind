@@ -1,0 +1,14 @@
+[package]
+name = "rosalind-receipt"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.83"
+authors = ["Logan Nye <logannye@users.noreply.github.com>"]
+description = "Rosalind's canonical-JSON, self-hashing BLAKE3 reproducibility receipt: the RunManifest model, content-addressed claim hashing, and offline verification. No htslib — std + blake3 only, so it compiles to wasm."
+repository = "https://github.com/logannye/rosalind"
+license = "MIT OR Apache-2.0"
+keywords = ["reproducibility", "provenance", "blake3", "receipt", "genomics"]
+categories = ["science::bioinformatics", "cryptography"]
+
+[dependencies]
+blake3 = "1.5"

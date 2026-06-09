@@ -57,7 +57,9 @@ pub mod io;
 /// The streaming pileup kernel: one CIGAR-aware, filtered, bounded-memory engine.
 pub mod pileup;
 /// Reproducibility receipts: canonical-JSON BLAKE3 manifests for every run.
-pub mod provenance;
+/// Extracted to the `rosalind-receipt` leaf crate (no htslib — wasm-friendly) and
+/// re-exported here, so `rosalind::provenance::*` is unchanged.
+pub use rosalind_receipt as provenance;
 /// Third-party byte re-derivation from a receipt (the `reproduce` verb).
 pub mod reproduce;
 /// Helper utilities: read-only mmap + peak-RSS measurement.

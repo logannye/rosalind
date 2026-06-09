@@ -19,6 +19,7 @@
 use std::collections::BTreeMap;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 
 mod command;
 pub use command::CommandCapture;
@@ -40,6 +41,57 @@ pub use badge::{badge_json, badge_svg};
 /// `command` recipe (via [`CommandCapture`]) plus the discrete output-affecting params and
 /// `mode`, so `reproduce` can re-derive the exact invocation.
 pub const MANIFEST_SCHEMA_VERSION: u32 = 5;
+
+/// Build-identity stamped into every finalized claim (code / toolchain / deps — the
+/// reproduction key). The binary installs the real values once at startup via
+/// [`set_build_identity`]; left unset (unit tests, or a pure in-browser verifier that
+/// only *checks* receipts) every field degrades to `"unknown"`, exactly as a non-git
+/// build would. Keeping this crate free of `build.rs`/`env!` is what lets it compile to
+/// wasm.
+#[derive(Clone, Debug)]
+pub struct BuildIdentity {
+    /// `git rev-parse HEAD`, or `"unknown"`.
+    pub code_git_sha: String,
+    /// `"true"` / `"false"` / `"unknown"` — whether the tree had uncommitted changes.
+    pub code_dirty: String,
+    /// `rustc --version`, or `"unknown"`.
+    pub rustc_version: String,
+    /// The compilation target triple, or `"unknown"`.
+    pub target_triple: String,
+    /// BLAKE3 of `Cargo.lock`, or `"unknown"`.
+    pub deps_lock_blake3: String,
+}
+
+static BUILD_IDENTITY: OnceLock<BuildIdentity> = OnceLock::new();
+
+/// Install the build-identity once (first call wins; later calls are ignored). The
+/// `rosalind` binary calls this at startup with values its `build.rs` baked in.
+pub fn set_build_identity(identity: BuildIdentity) {
+    let _ = BUILD_IDENTITY.set(identity);
+}
+
+/// The five claim key/value pairs for the installed identity, or `"unknown"` if unset.
+fn build_identity_pairs() -> [(&'static str, String); 5] {
+    match BUILD_IDENTITY.get() {
+        Some(i) => [
+            ("code_git_sha", i.code_git_sha.clone()),
+            ("code_dirty", i.code_dirty.clone()),
+            ("rustc_version", i.rustc_version.clone()),
+            ("target_triple", i.target_triple.clone()),
+            ("deps_lock_blake3", i.deps_lock_blake3.clone()),
+        ],
+        None => {
+            let u = || "unknown".to_string();
+            [
+                ("code_git_sha", u()),
+                ("code_dirty", u()),
+                ("rustc_version", u()),
+                ("target_triple", u()),
+                ("deps_lock_blake3", u()),
+            ]
+        }
+    }
+}
 
 /// Keys whose values are machine-/run-dependent measurements, not part of the
 /// deterministic claim. `finalize` relocates these out of `params` into the
@@ -292,14 +344,8 @@ impl RunManifest {
         // 3. Build-identity (baked at compile time by build.rs) — part of the claim,
         //    so it is committed to by the self-hash and forms the reproduction key:
         //    exactly which code, toolchain, and deps produced this run.
-        for (k, v) in [
-            ("code_git_sha", env!("ROSALIND_GIT_SHA")),
-            ("code_dirty", env!("ROSALIND_GIT_DIRTY")),
-            ("rustc_version", env!("ROSALIND_RUSTC_VERSION")),
-            ("target_triple", env!("ROSALIND_TARGET")),
-            ("deps_lock_blake3", env!("ROSALIND_DEPS_LOCK_BLAKE3")),
-        ] {
-            self.params.insert(k.to_string(), v.to_string());
+        for (k, v) in build_identity_pairs() {
+            self.params.insert(k.to_string(), v);
         }
         // 4. Stamp the version into the claim, then the claim self-hash last.
         self.params.insert(
@@ -683,7 +729,7 @@ pub fn verify_receipt(text: &str, opts: &VerifyOpts) -> VerifyReport {
     let budget_mb = opts.budget_mb.or(recorded_budget);
     match (budget_mb, recorded_peak) {
         (Some(mb), Some(peak)) => {
-            if crate::core::MemoryBudget::from_mb(mb).admits(peak) {
+            if peak <= mb.saturating_mul(1024 * 1024) {
                 notes.push(format!(
                     "peak {} MiB within budget {mb} MiB",
                     peak / (1 << 20)
@@ -715,7 +761,7 @@ pub fn verify_receipt(text: &str, opts: &VerifyOpts) -> VerifyReport {
         recorded_budget,
         recorded_peak,
     ) {
-        let actually_within = crate::core::MemoryBudget::from_mb(mb).admits(peak);
+        let actually_within = peak <= mb.saturating_mul(1024 * 1024);
         if verdict == "within" && !actually_within {
             problems.push(format!(
                 "internally inconsistent: contract_verdict='within' but recorded peak {} MiB \
@@ -789,9 +835,172 @@ pub fn write_manifest(output_path: &Path, manifest: &RunManifest) -> io::Result<
     Ok(manifest_path)
 }
 
+/// The outcome of a pure, file-free receipt check (the kind a browser verifier runs):
+/// it re-derives the claim self-hash and the measurement hash from the JSON alone, with
+/// no access to the original inputs/outputs.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ReceiptVerdict {
+    /// The claim self-hash (and measurement hash, if present) re-derive and match.
+    Verified,
+    /// A hash did not re-derive — the receipt was edited after it was written.
+    Tampered,
+    /// Parsed, but carries no `manifest_blake3` to check (a pre-self-hash receipt).
+    Unverifiable,
+    /// Not a parseable canonical run manifest.
+    Unparseable,
+}
+
+/// A file-free verification of a receipt's own integrity (self-hash + measurement hash).
+#[derive(Debug, Clone)]
+pub struct ReceiptCheck {
+    /// The overall verdict.
+    pub verdict: ReceiptVerdict,
+    /// `Some(true/false)` once a `manifest_blake3` is present; `None` if absent.
+    pub self_hash_ok: Option<bool>,
+    /// `Some(true/false)` if a measurement block + `measurement_blake3` are present.
+    pub measurement_hash_ok: Option<bool>,
+    /// The recorded schema version, if parseable.
+    pub schema_version: Option<u32>,
+    /// The recorded subcommand, if present.
+    pub subcommand: Option<String>,
+    /// A short human-readable explanation of the verdict.
+    pub detail: String,
+}
+
+/// Verify a receipt's integrity from its JSON text alone — no inputs/outputs needed.
+///
+/// This is the tamper-evidence check (`manifest_blake3` over the canonical claim, plus
+/// the independent `measurement_blake3`) — what `rosalind verify` runs over a receipt's
+/// recorded hashes, minus the file re-hashing. It is what the in-browser verifier calls.
+pub fn verify_manifest_str(json: &str) -> ReceiptCheck {
+    let m = match RunManifest::from_canonical_json(json) {
+        Ok(m) => m,
+        Err(e) => {
+            return ReceiptCheck {
+                verdict: ReceiptVerdict::Unparseable,
+                self_hash_ok: None,
+                measurement_hash_ok: None,
+                schema_version: None,
+                subcommand: None,
+                detail: format!("not a parseable canonical run manifest: {}", e.0),
+            }
+        }
+    };
+
+    let self_hash_ok = m.self_hash_ok();
+    let measurement_hash_ok = m.measurement_hash_ok();
+    let schema_version = m
+        .params
+        .get("schema_version")
+        .and_then(|s| s.parse::<u32>().ok());
+    let subcommand = Some(m.subcommand.clone());
+
+    let (verdict, detail) = if self_hash_ok == Some(false) {
+        (
+            ReceiptVerdict::Tampered,
+            "the claim self-hash (manifest_blake3) does not re-derive — the receipt was edited after it was written".to_string(),
+        )
+    } else if measurement_hash_ok == Some(false) {
+        (
+            ReceiptVerdict::Tampered,
+            "the measurement block's measurement_blake3 does not re-derive — the recorded cost was altered".to_string(),
+        )
+    } else if self_hash_ok == Some(true) {
+        (
+            ReceiptVerdict::Verified,
+            "the claim self-hash re-derives and matches — the receipt is intact".to_string(),
+        )
+    } else {
+        (
+            ReceiptVerdict::Unverifiable,
+            "the receipt carries no manifest_blake3 to check (a pre-self-hash receipt)".to_string(),
+        )
+    };
+
+    ReceiptCheck {
+        verdict,
+        self_hash_ok,
+        measurement_hash_ok,
+        schema_version,
+        subcommand,
+        detail,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn verify_manifest_str_reports_verified_for_a_finalized_receipt() {
+        let mut m = RunManifest::new("variants");
+        m.finalize();
+        let json = m.to_canonical_json();
+        let check = verify_manifest_str(&json);
+        assert_eq!(
+            check.verdict,
+            ReceiptVerdict::Verified,
+            "a fresh finalized receipt should verify; detail: {}",
+            check.detail
+        );
+        assert_eq!(check.self_hash_ok, Some(true));
+    }
+
+    #[test]
+    fn verify_manifest_str_reports_tampered_when_a_claim_byte_is_flipped() {
+        let mut m = RunManifest::new("variants");
+        m.finalize();
+        let json = m.to_canonical_json();
+        // Edit a claim field (the subcommand) without recomputing the self-hash —
+        // exactly what a human editing the .manifest.json by hand does.
+        let tampered = json.replace("\"variants\"", "\"variantz\"");
+        assert_ne!(tampered, json, "the tamper must change the JSON");
+        let check = verify_manifest_str(&tampered);
+        assert_eq!(
+            check.verdict,
+            ReceiptVerdict::Tampered,
+            "an edited claim must be caught; detail: {}",
+            check.detail
+        );
+        assert_eq!(check.self_hash_ok, Some(false));
+    }
+
+    #[test]
+    fn verify_manifest_str_reports_unparseable_for_non_manifest_json() {
+        let check = verify_manifest_str("this is not a receipt");
+        assert_eq!(check.verdict, ReceiptVerdict::Unparseable);
+    }
+
+    #[test]
+    fn verify_manifest_str_reports_tampered_when_the_measurement_block_is_edited() {
+        let mut m = RunManifest::new("variants");
+        m.record_measurement("peak_rss_bytes", "12345");
+        m.finalize();
+        let json = m.to_canonical_json();
+        // Edit the recorded peak inside the measurement block (not the claim).
+        let tampered = json.replace("12345", "99999");
+        assert_ne!(tampered, json, "the tamper must change the JSON");
+        let check = verify_manifest_str(&tampered);
+        assert_eq!(
+            check.verdict,
+            ReceiptVerdict::Tampered,
+            "an edited measurement must be caught; detail: {}",
+            check.detail
+        );
+        assert_eq!(check.measurement_hash_ok, Some(false));
+        // The claim self-hash is untouched — measurements are excluded from the claim.
+        assert_eq!(check.self_hash_ok, Some(true));
+    }
+
+    #[test]
+    fn verify_manifest_str_reports_unverifiable_without_a_self_hash() {
+        // A manifest serialized without finalize() carries no manifest_blake3.
+        let m = RunManifest::new("variants");
+        let json = m.to_canonical_json();
+        let check = verify_manifest_str(&json);
+        assert_eq!(check.verdict, ReceiptVerdict::Unverifiable);
+        assert_eq!(check.self_hash_ok, None);
+    }
 
     #[test]
     fn verify_receipt_reports_a_tampered_claim() {
