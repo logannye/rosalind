@@ -176,3 +176,41 @@ fn index_output_hash_equals_variants_index_input_hash() {
 
     std::fs::remove_dir_all(&d).ok();
 }
+
+#[test]
+fn chain_verify_is_intact_on_a_real_index_variants_chain() {
+    let d = tmpdir();
+    let seq = "ACGTACGTACGTACGTACGTACGTACGTACGT";
+    let fa = write_fasta(&d, "chr1", seq);
+    let fq = write_fastq(&d, seq, &[0, 0, 8], 16);
+    let (idx, bam) = build_index_and_sorted_bam(&d, &fa, &fq);
+    let vcf = d.join("calls.vcf");
+    assert!(run(&[
+        "variants",
+        "--index",
+        idx.to_str().unwrap(),
+        "--alignments",
+        bam.to_str().unwrap(),
+        "-o",
+        vcf.to_str().unwrap(),
+    ])
+    .status
+    .success());
+
+    // d now holds ref.idx.manifest.json + calls.vcf.manifest.json.
+    let out = run(&["chain", "verify", d.to_str().unwrap()]);
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        out.status.success(),
+        "chain verify must exit 0 (INTACT). stdout:\n{stdout}\nstderr:\n{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(stdout.contains("CHAIN INTACT"), "verdict line: {stdout}");
+
+    let j = run(&["chain", "verify", d.to_str().unwrap(), "--json"]);
+    let js = String::from_utf8_lossy(&j.stdout);
+    assert!(js.contains("\"intact\":true"), "json: {js}");
+    assert!(js.contains("\"edges_resolved\":1"), "json: {js}");
+
+    std::fs::remove_dir_all(&d).ok();
+}
