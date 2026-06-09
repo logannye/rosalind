@@ -124,3 +124,55 @@ fn index_writes_a_self_verifying_receipt() {
 
     std::fs::remove_dir_all(&d).ok();
 }
+
+#[test]
+fn index_output_hash_equals_variants_index_input_hash() {
+    use rosalind::provenance::RunManifest;
+
+    let d = tmpdir();
+    let seq = "ACGTACGTACGTACGTACGTACGTACGTACGT";
+    let fa = write_fasta(&d, "chr1", seq);
+    let fq = write_fastq(&d, seq, &[0, 0, 8], 16);
+    let (idx, bam) = build_index_and_sorted_bam(&d, &fa, &fq);
+    let vcf = d.join("calls.vcf");
+
+    let made = run(&[
+        "variants",
+        "--index",
+        idx.to_str().unwrap(),
+        "--alignments",
+        bam.to_str().unwrap(),
+        "-o",
+        vcf.to_str().unwrap(),
+    ]);
+    assert!(
+        made.status.success(),
+        "variants: {}",
+        String::from_utf8_lossy(&made.stderr)
+    );
+
+    let index_m = RunManifest::from_canonical_json(
+        &std::fs::read_to_string(d.join("ref.idx.manifest.json")).unwrap(),
+    )
+    .unwrap();
+    let variants_m = RunManifest::from_canonical_json(
+        &std::fs::read_to_string(format!("{}.manifest.json", vcf.display())).unwrap(),
+    )
+    .unwrap();
+
+    // The index's recorded .idx output hash == the variants' recorded --index input hash.
+    let index_out = &index_m.outputs[0].blake3;
+    let variants_index_in = variants_m
+        .inputs
+        .iter()
+        .find(|f| f.path.ends_with("ref.idx"))
+        .expect("variants receipt records the index as an input")
+        .blake3
+        .clone();
+    assert_eq!(
+        *index_out, variants_index_in,
+        "the provenance edge must resolve: index outputs[0] == variants inputs[--index]"
+    );
+
+    std::fs::remove_dir_all(&d).ok();
+}
