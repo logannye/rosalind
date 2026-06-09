@@ -754,9 +754,10 @@ fn run_index(reference: PathBuf, output: PathBuf, memory_budget_mb: Option<u64>)
         cmd.record_into(&mut manifest);
         // `reference_blake3` is the in-memory NORMALIZED sequence hash (a "what genome"
         // id, stable across FASTA reformatting) — informational, NOT the chain edge.
-        manifest
-            .params
-            .insert("reference_blake3".to_string(), blake3_hex(&reference_blake3));
+        manifest.params.insert(
+            "reference_blake3".to_string(),
+            blake3_hex(&reference_blake3),
+        );
         manifest
             .params
             .insert("total_bp".to_string(), total_bp.to_string());
@@ -1064,7 +1065,7 @@ fn run_chain_verify(dir: PathBuf, json: bool) -> Result<()> {
         bail!("no receipts (*.manifest.json) found in {}", dir.display());
     }
     // Stable order (independent of read_dir) so the report is deterministic.
-    receipts.sort_by(|a, b| a.content_hash().cmp(&b.content_hash()));
+    receipts.sort_by_key(|m| m.content_hash());
 
     let report = walk_chain(&receipts);
 
@@ -1093,7 +1094,10 @@ fn run_chain_verify(dir: PathBuf, json: bool) -> Result<()> {
             match &e.status {
                 EdgeStatus::Resolved { parent_id } => {
                     let p = sub.get(parent_id.as_str()).copied().unwrap_or("?");
-                    println!("edge: {}  {}-->  {p}  [resolved]", e.child_subcommand, e.flag);
+                    println!(
+                        "edge: {}  {}-->  {p}  [resolved]",
+                        e.child_subcommand, e.flag
+                    );
                 }
                 EdgeStatus::External => {
                     println!(

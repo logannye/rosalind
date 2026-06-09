@@ -214,3 +214,81 @@ fn chain_verify_is_intact_on_a_real_index_variants_chain() {
 
     std::fs::remove_dir_all(&d).ok();
 }
+
+#[test]
+fn chain_verify_breaks_when_the_index_receipt_is_tampered() {
+    let d = tmpdir();
+    let seq = "ACGTACGTACGTACGTACGTACGTACGTACGT";
+    let fa = write_fasta(&d, "chr1", seq);
+    let fq = write_fastq(&d, seq, &[0, 0, 8], 16);
+    let (idx, bam) = build_index_and_sorted_bam(&d, &fa, &fq);
+    let vcf = d.join("calls.vcf");
+    assert!(run(&[
+        "variants",
+        "--index",
+        idx.to_str().unwrap(),
+        "--alignments",
+        bam.to_str().unwrap(),
+        "-o",
+        vcf.to_str().unwrap(),
+    ])
+    .status
+    .success());
+
+    // Tamper with the index receipt's claim: flip a digit of total_bp without
+    // recomputing manifest_blake3 → the node self-hash must fail.
+    let mpath = d.join("ref.idx.manifest.json");
+    let text = std::fs::read_to_string(&mpath).unwrap();
+    let tampered = text.replacen("\"total_bp\":\"", "\"total_bp\":\"9", 1);
+    assert_ne!(
+        text, tampered,
+        "the receipt must contain a total_bp field to tamper"
+    );
+    std::fs::write(&mpath, tampered).unwrap();
+
+    let out = run(&["chain", "verify", d.to_str().unwrap()]);
+    assert_eq!(out.status.code(), Some(5), "a tampered node must exit 5");
+    assert!(
+        String::from_utf8_lossy(&out.stdout).contains("CHAIN BROKEN"),
+        "stdout: {}",
+        String::from_utf8_lossy(&out.stdout)
+    );
+
+    std::fs::remove_dir_all(&d).ok();
+}
+
+#[test]
+fn chain_verify_reports_the_bam_input_as_external_not_a_failure() {
+    let d = tmpdir();
+    let seq = "ACGTACGTACGTACGTACGTACGTACGTACGT";
+    let fa = write_fasta(&d, "chr1", seq);
+    let fq = write_fastq(&d, seq, &[0, 0, 8], 16);
+    let (idx, bam) = build_index_and_sorted_bam(&d, &fa, &fq);
+    let vcf = d.join("calls.vcf");
+    assert!(run(&[
+        "variants",
+        "--index",
+        idx.to_str().unwrap(),
+        "--alignments",
+        bam.to_str().unwrap(),
+        "-o",
+        vcf.to_str().unwrap(),
+    ])
+    .status
+    .success());
+
+    let out = run(&["chain", "verify", d.to_str().unwrap()]);
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    // The BAM alignments input has no producing receipt → external/integrity-only,
+    // and it must NOT fail the chain.
+    assert!(
+        out.status.success(),
+        "external inputs must not break the chain: {stdout}"
+    );
+    assert!(
+        stdout.contains("--alignments-->  (external)  [integrity-only]"),
+        "the BAM edge must be reported external: {stdout}"
+    );
+
+    std::fs::remove_dir_all(&d).ok();
+}

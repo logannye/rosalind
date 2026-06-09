@@ -118,7 +118,9 @@ pub fn walk_chain(receipts: &[RunManifest]) -> ChainReport {
     let mut producer: HashMap<String, String> = HashMap::new();
     for (m, id) in receipts.iter().zip(&ids) {
         for o in &m.outputs {
-            producer.entry(o.blake3.clone()).or_insert_with(|| id.clone());
+            producer
+                .entry(o.blake3.clone())
+                .or_insert_with(|| id.clone());
         }
     }
 
@@ -229,7 +231,10 @@ mod tests {
             .filter(|e| matches!(e.status, EdgeStatus::External))
             .count();
         assert_eq!(resolved, 1, "exactly the --index edge resolves");
-        assert_eq!(external, 2, "--alignments and --reference are external sources");
+        assert_eq!(
+            external, 2,
+            "--alignments and --reference are external sources"
+        );
         assert_eq!(
             report.to_json(),
             "{\"intact\":true,\"nodes\":2,\"edges_resolved\":1,\"edges_external\":2,\"edges_broken\":0}"
