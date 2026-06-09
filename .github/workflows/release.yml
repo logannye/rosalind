@@ -38,9 +38,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install musl toolchain (Linux)
+      - name: Install musl toolchain + cmake (Linux)
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y musl-tools
+        # cmake: hts-sys 2.2.0 forces libz-sys/zlib-ng, whose build uses CMake.
+        run: sudo apt-get update && sudo apt-get install -y musl-tools cmake
 
       - uses: actions-rs/toolchain@v1
         with:
@@ -64,6 +65,11 @@ jobs:
           # On each musl runner `musl-gcc` is that arch's native musl compiler.
           CC_x86_64_unknown_linux_musl: musl-gcc
           CC_aarch64_unknown_linux_musl: musl-gcc
+          # hts-sys 2.2.0 forces libz-sys/zlib-ng, whose CMake build probes for a C++
+          # compiler. zlib-ng's sources are C (built with the musl CC above); the host
+          # `g++` is the right arch on these NATIVE runners and satisfies CMake's probe.
+          CXX_x86_64_unknown_linux_musl: g++
+          CXX_aarch64_unknown_linux_musl: g++
         run: cargo build --release --target ${{ matrix.target }} --bin rosalind
 
       - name: Stage the bundle
