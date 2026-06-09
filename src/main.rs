@@ -2433,6 +2433,15 @@ fn run_variants_index(
             "io_rss_overhead_assumed_bytes".to_string(),
             PILEUP_IO_RSS_OVERHEAD.to_string(),
         );
+        // The deterministic working-set PREDICTION (index header + declared caps, no
+        // baseline) — a CLAIM field (not in MEASUREMENT_KEYS), so it is cross-machine
+        // stable and `verify` can re-check `predicted >= realized` offline.
+        manifest.params.insert(
+            "predicted_working_set_bytes".to_string(),
+            rosalind::call::plan::estimate_variants_working_set(largest, max_depth, max_read_len)
+                .bytes
+                .to_string(),
+        );
         manifest.params.insert(
             "over_max_depth".to_string(),
             skips.over_max_depth.to_string(),

@@ -756,6 +756,32 @@ pub fn verify_receipt(text: &str, opts: &VerifyOpts) -> VerifyReport {
             ));
         }
     }
+
+    // Offline soundness re-check: the deterministic working-set PREDICTION must upper-bound the
+    // realized working set. Both are machine-independent (shared cost constants), so it is a true
+    // cross-machine claim — HARD under --enforce (the prediction is a guaranteed upper bound there:
+    // max_read_len is enforced at ingest, depth is always capped), advisory otherwise (a longer read
+    // on a record-only run can legitimately exceed the assumed max_read_len).
+    let predicted_ws = parse_num("predicted_working_set_bytes", &mut problems);
+    let enforced = manifest.params.get("enforce").map(String::as_str) == Some("true");
+    match (predicted_ws, recorded_ws) {
+        (Some(pred), Some(real)) if pred >= real => notes.push(format!(
+            "predicted working set {} MiB >= realized {} MiB",
+            pred / (1 << 20),
+            real / (1 << 20)
+        )),
+        (Some(pred), Some(real)) if enforced => problems.push(format!(
+            "unsound prediction: predicted working set {pred} bytes < realized {real} bytes (enforced run)"
+        )),
+        (Some(pred), Some(real)) => notes.push(format!(
+            "predicted working set {} MiB < realized {} MiB (advisory; run was not enforced)",
+            pred / (1 << 20),
+            real / (1 << 20)
+        )),
+        _ => notes.push(
+            "no predicted_working_set_bytes to re-check (a pre-soundness-check receipt)".to_string(),
+        ),
+    }
     // A recorded verdict must agree with the recorded peak vs the recorded budget.
     if let (Some(verdict), Some(mb), Some(peak)) = (
         manifest
@@ -1034,6 +1060,98 @@ mod tests {
         m.finalize();
         let report = verify_receipt(&m.to_canonical_json(), &VerifyOpts::default());
         assert!(report.ok, "{:?}", report.problems);
+    }
+
+    /// Build + finalize a receipt exercising the working-set soundness check.
+    fn soundness_receipt(
+        predicted: Option<&str>,
+        realized: Option<&str>,
+        enforced: bool,
+    ) -> String {
+        let mut m = RunManifest::new("variants");
+        if let Some(p) = predicted {
+            m.params
+                .insert("predicted_working_set_bytes".to_string(), p.to_string());
+        }
+        if let Some(r) = realized {
+            m.params
+                .insert("max_working_set_bytes".to_string(), r.to_string());
+        }
+        if enforced {
+            m.params.insert("enforce".to_string(), "true".to_string());
+        }
+        m.finalize();
+        m.to_canonical_json()
+    }
+
+    #[test]
+    fn soundness_ok_when_enforced_and_prediction_bounds_realized() {
+        let report = verify_receipt(
+            &soundness_receipt(Some("2000000"), Some("1000000"), true),
+            &VerifyOpts::default(),
+        );
+        assert!(report.ok, "{:?}", report.problems);
+        assert!(
+            report.notes.iter().any(|n| n.contains(">= realized")),
+            "{:?}",
+            report.notes
+        );
+    }
+
+    #[test]
+    fn soundness_fails_when_enforced_and_prediction_underbounds_realized() {
+        let report = verify_receipt(
+            &soundness_receipt(Some("500000"), Some("1000000"), true),
+            &VerifyOpts::default(),
+        );
+        assert!(!report.ok, "an enforced under-prediction must fail verify");
+        assert!(
+            report
+                .problems
+                .iter()
+                .any(|p| p.contains("unsound prediction")),
+            "{:?}",
+            report.problems
+        );
+    }
+
+    #[test]
+    fn soundness_is_advisory_when_not_enforced() {
+        let report = verify_receipt(
+            &soundness_receipt(Some("500000"), Some("1000000"), false),
+            &VerifyOpts::default(),
+        );
+        assert!(
+            report.ok,
+            "a record-only under-prediction must NOT fail: {:?}",
+            report.problems
+        );
+        assert!(
+            report.notes.iter().any(|n| n.contains("advisory")),
+            "{:?}",
+            report.notes
+        );
+    }
+
+    #[test]
+    fn soundness_skipped_when_no_prediction_recorded() {
+        let report = verify_receipt(
+            &soundness_receipt(None, Some("1000000"), true),
+            &VerifyOpts::default(),
+        );
+        assert!(
+            report.ok,
+            "a pre-change receipt must verify: {:?}",
+            report.problems
+        );
+        assert!(
+            report
+                .notes
+                .iter()
+                .any(|n| n.contains("no predicted_working_set_bytes")),
+            "{:?}",
+            report.notes
+        );
     }
 
     #[test]
