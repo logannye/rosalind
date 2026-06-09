@@ -62,7 +62,7 @@ enum Commands {
         output: Option<PathBuf>,
     },
     /// Call germline variants from aligned reads (streaming pileup engine +
-    /// calibrated, abstention-aware genotype-likelihood caller).
+    /// abstention-aware genotype-likelihood caller).
     Variants {
         /// Persisted index (`rosalind index`); calls all contigs, reference from
         /// the index. Mutually exclusive with `--reference`.
@@ -286,9 +286,9 @@ enum Commands {
         json: bool,
     },
     /// Pack many bounded `variants` jobs onto fixed-size nodes by their PREDICTED
-    /// peaks — prove a co-location fits before launching a byte. Each job's peak
-    /// is read from its index header (no run); peaks are additive, so the sum is a
-    /// conservative bound a scheduler can refuse on. Exit 3 if no packing fits.
+    /// peaks — show a co-location fits within budget before launching a byte. Each
+    /// job's peak is read from its index header (no run); peaks are additive, so the
+    /// sum is a conservative bound a scheduler can refuse on. Exit 3 if no packing fits.
     Pack {
         /// A jobs file: one job per line, `<index_path>[\t<max_depth>[\t<max_read_len>]]`
         /// (TSV or whitespace; blank lines and `#` comments ignored).
@@ -802,9 +802,9 @@ fn run_plan(
 
 /// Pack many bounded `variants` jobs onto fixed-size nodes by their PREDICTED
 /// peaks — each read from the job's index header (no run, no read I/O). Peaks are
-/// conservative upper bounds and additive, so the printed schedule PROVES every
-/// node fits before a single job launches — the contract turned into a placement
-/// decision. Exits 3 when no safe packing exists.
+/// conservative upper bounds and additive, so the printed schedule shows every
+/// node within capacity by predicted peak before a single job launches — the
+/// contract turned into a placement decision. Exits 3 when no safe packing exists.
 fn run_pack(
     jobs_path: PathBuf,
     node_mb: u64,
@@ -902,7 +902,7 @@ fn run_pack(
                 println!("{s}");
             } else {
                 println!(
-                    "pack: {} job(s) → {} node(s) of {} MiB — every node proven within capacity",
+                    "pack: {} job(s) → {} node(s) of {} MiB — every node within capacity by predicted peak",
                     pack_jobs.len(),
                     assignments.len(),
                     node_mb

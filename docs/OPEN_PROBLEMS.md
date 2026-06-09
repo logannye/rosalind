@@ -12,14 +12,14 @@ Rosalind does not try to out-align bwa-mem2/minimap2 or out-call DeepVariant —
 non-goal. Its differentiated, defensible contribution is a property almost no production genomics
 tool offers:
 
-> **Memory is a declared, predictable, never-refusing, verifiable contract** — across the entire
+> **Memory is a declared, predictable, verifiable contract** — and, as this thesis matures, a **never-refusing** one — across the entire
 > genomics lifecycle (index construction, alignment, pileup, calling, query), with a **continuous
 > space/time tradeoff** the builder selects by stating a RAM budget.
 
 You tell Rosalind the RAM you have; it tells you — *before you commit* — whether the job fits and
-how long it will take; it then honors that ceiling, sliding along a space/time curve to do so; and
-when the budget is below the comfortable in-RAM regime it **degrades gracefully** (more
-recomputation, then spill to disk) rather than refusing. Every run emits a receipt recording the
+how long it will take; it then honors that ceiling. Today it refuses cleanly when a budget is
+genuinely too small; the thesis's destination (Phase D) is to **degrade gracefully** instead —
+sliding along a space/time curve (more recomputation, then spill to disk) to finish anyway. Every run emits a receipt recording the
 *realized* peak working set, and CI enforces the bound. This is the capability that matters to the
 people who actually need Rosalind: **edge, field, clinical, and large-/meta-/pan-genome** settings
 where RAM is fixed, swap is death, and an unpredictable OOM at hour 20 of a build is unacceptable.
@@ -38,7 +38,7 @@ is that this is **not a single low-space operating point.** Block-respecting sim
 tunable block size `b` (and checkpoint density) yields a **continuous curve**: from `b = t`
 (standard, fast, O(t) space) through `b = √t` (minimal space ~√t, more
 recomputation) and onward toward external-memory spill. **A declared RAM budget simply selects the
-point on that curve.** The theory layer's job is to *be the knob.*
+point on that curve.** The role of the √t theory is to *be the knob.*
 
 ## 3. The open problem
 
@@ -119,8 +119,8 @@ A single declared budget governs the whole system, not just one stage:
 - **Declare → predict.** `rosalind plan --budget 4G …` reports *feasibility*, the *predicted peak
   working set*, the *estimated time*, and the *curve* ("at 8 GB → ~3× faster") — so you commit with
   your eyes open. No surprise OOM, no surprise multi-day run.
-- **Honor or refuse — then degrade rather than refuse.** Every streaming stage exposes a provable
-  working-set bound and honors the ceiling; below the in-RAM threshold it slides further down the
+- **Honor or refuse today; degrade-rather-than-refuse is the Phase-D aim.** Every streaming stage exposes a conservative
+  working-set bound and honors the ceiling; the aim is that below the in-RAM threshold it slides further down the
   curve (more recomputation → external-memory spill) and **still completes**, slower. A 2 GB field
   device builds a human index; it does not get "won't fit."
 - **Lifecycle-wide.** The same budget bounds **construction, mmap-query (tunable SA-sampling),
@@ -139,8 +139,7 @@ D lands the space-complexity headline on top.
 
 - **B — Genome-scale kernel (finish).** Zero-copy persisted lean multi-contig index (build-once →
   mmap), wired consumers, whole-genome pileup, pipe-native. Lay the `MemoryBudget` / space-accounting
-  hooks. The theory layer (`algebra`/`ledger`/`machine`/`tree`/`space`) is **kept and repurposed**,
-  not feature-gated away.
+  hooks the future budget-tunable build will consume.
 - **C — Memory as a verifiable contract.** Declared `MemoryBudget` threaded through every streaming
   stage + mmap-query; `rosalind plan` (envelope + curve); honor-or-refuse + graceful degradation;
   real RSS gates in CI; deterministic (thread-count-invariant) execution + receipts + `rosalind

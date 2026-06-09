@@ -9,8 +9,9 @@
 //! streaming-friendly: reference blocks are locus-ordered and append-only, so the
 //! whole-genome gVCF stays inside the same per-contig streaming envelope as
 //! `variants` — the bander holds O(1) state (one open block). Combined with the
-//! BLAKE3 receipt, each sample's gVCF is byte-reproducible, which neither GATK nor
-//! DeepVariant offers — and that reproducibility compounds at cohort scale.
+//! BLAKE3 receipt, each sample's gVCF is byte-reproducible — a property production
+//! gVCF pipelines generally don't provide — and that reproducibility compounds at
+//! cohort scale.
 
 use std::io::{self, Write};
 use std::ops::Range;

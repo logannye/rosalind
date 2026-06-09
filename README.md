@@ -1,10 +1,10 @@
 # Rosalind
 
-**A deterministic, low-memory genomics engine in Rust — call variants across a whole genome on a laptop, with memory you can predict and verify, and results that are byte-for-byte reproducible.**
+**A deterministic, low-memory genomics engine in Rust, built around a different promise: memory is a contract — you see it before you commit, and verify it after.**
 
-Most variant callers use memory that grows with your data, so "will this finish on my machine?" is something you find out the hard way. Rosalind is built around a different promise: **memory as a contract you can see before you commit and verify after the run.** It streams a coordinate-sorted BAM one read at a time, reads the reference from a compact portable index (no second copy of the genome in RAM), keeps its working set proportional to *local read depth* rather than file size, and prints a receipt showing the memory it actually used. Run it twice on the same inputs and you get identical output, bit for bit. And where the evidence is too thin to be sure, it **abstains** instead of guessing.
+Call variants across a whole genome on a laptop, in RAM you declare up front, and get results that reproduce byte-for-byte — with a receipt to prove it. Most variant callers spend memory that grows with your data, so "will this finish on my machine?" is something you find out the hard way. Rosalind inverts that: you state a budget, and it tells you *before committing a byte* whether the job fits, then honors that ceiling while it runs. It streams a coordinate-sorted BAM one read at a time, reads the reference from a compact memory-mapped index (no second copy of the genome in RAM), and keeps its working set proportional to *local read depth* rather than file size. Every run prints — and records — the memory it actually used. Where the evidence is too thin to be sure, it **abstains** instead of guessing.
 
-It's a Rust **library and CLI** you can call directly, extend with plugins, or drive from Python — not a black-box pipeline.
+The bounded engine is a substrate, not just a caller: **the receipt is the product, and variant calling is the first workload that runs on it.** It's a Rust **library and CLI** you can call directly, extend with one trait, or drive from Python — not a black-box pipeline.
 
 ---
 
@@ -33,7 +33,7 @@ rosalind variants \
 #   contract: OK — realized peak 412 MiB within declared 4096 MiB
 #   wrote reproducibility receipt: sample.vcf.manifest.json
 
-# 5. Re-check the receipt later — no re-run — to prove it fit and is reproducible.
+# 5. Re-check the receipt later — no re-run — to confirm it fit and is reproducible.
 rosalind verify --manifest sample.vcf.manifest.json
 ```
 
@@ -71,13 +71,13 @@ You'll see `plan` predict `[FITS]`, `variants --enforce` print `contract: OK —
 
 ## What it does today
 
-- **Bounded whole-genome germline calling** — `rosalind variants --index` streams a coordinate-sorted BAM over all contigs of a persisted index, calling SNVs to a multi-contig VCF with a working set bounded by coverage. Calls are calibrated and **abstention-aware** (no confident call → no row, rather than a guess). Detection accuracy is measured against simulated diploid truth (precision/recall 1.00/1.00 on clean data — see [Accuracy](#accuracy)).
+- **Bounded whole-genome germline calling** — `rosalind variants --index` streams a coordinate-sorted BAM over all contigs of a persisted index, calling SNVs to a multi-contig VCF with a working set bounded by coverage. Calls carry genotype-likelihood confidence (GT/GQ/PL) and are **abstention-aware** (no confident call → no row, rather than a guess). Detection accuracy is measured against simulated diploid truth (precision/recall 1.00/1.00 on clean data — see [Accuracy](#accuracy)).
 - **A reproducible ML feature substrate** — `rosalind features --index` emits the same bounded pileup stream as a per-locus feature **table** (TSV) instead of variant calls — byte-identical run-to-run, with a hash receipt, for **bit-reproducible** training inputs (see below).
 - **Build-once, query-many index** — `rosalind index` builds a portable, memory-mapped FM-index over a (multi-contig) reference; `rosalind locate` answers exact-match queries against it in milliseconds. The index is **never rebuilt on load** and is **byte-identical across builds** of the same reference.
 - **Alignment** — `rosalind align` builds a Burrows–Wheeler / FM-index over a reference contig and aligns reads via exact-match seeding, deterministic diagonal chaining, and banded affine-gap refinement. Emits SAM or BGZF-compressed BAM.
 - **Streaming I/O** — Reads plain or gzip/bgzf-compressed FASTA/FASTQ, auto-detected from the magic bytes; FASTQ can stream from stdin (`-`).
 - **Deterministic coordinate sort** — `rosalind sort`: an external merge sort (spills to disk) that orders a BAM by position within a configurable memory budget.
-- **Somatic (tumor/normal) calling** — `rosalind somatic` calls somatic SNVs and simple indels from a paired tumor/normal BAM set using a deterministic binomial log-likelihood-ratio model with explicit depth and allele-fraction filters.
+- **Somatic (tumor/normal) calling** — `rosalind somatic` calls somatic SNVs from a paired tumor/normal BAM set using a deterministic binomial log-likelihood-ratio model with explicit depth and allele-fraction filters.
 - **Truth-set evaluation** — `rosalind eval-germline` / `rosalind eval-somatic` compare a call set against a truth VCF over confident regions (BED), with variant normalization (left-align + trim) and precision / recall / F1. `eval-germline` is the drop-in interface for a GIAB benchmark.
 - **Extensibility** — Build custom bounded per-locus analytics by implementing one trait ([ColumnKit](#columnkit-implement-one-trait-inherit-the-contract); see [`examples/columnkit_coverage.rs`](examples/columnkit_coverage.rs)) — inheriting bounded memory, determinism, and a verifiable receipt for free. Or iterate the raw `PileupColumn` substrate directly ([`examples/custom_pileup_analytics.rs`](examples/custom_pileup_analytics.rs)).
 - **Determinism by design** — Primary artifacts are emitted in a canonical, stable order, byte-for-byte identical across repeated runs given identical inputs. See [`docs/determinism.md`](docs/determinism.md).
@@ -88,9 +88,9 @@ Three properties, treated as first-class guarantees rather than nice-to-haves:
 
 1. **Predictable memory.** The bet is that for a growing set of users — sequencing in the field, in the clinic, on a laptop, or at genome scale on modest hardware — *"it fits, and I knew it would"* matters more than raw throughput. Rosalind makes the streaming working set bounded by local coverage and surfaces the realized peak so the bound is **verifiable, not just claimed**.
 2. **Reproducibility.** Byte-identical outputs and a per-run BLAKE3 manifest make results auditable — a hard requirement for clinical and regulated pipelines, and a sanity-saver for everyone else.
-3. **Honest uncertainty.** Calibrated, abstention-aware calling refuses to emit a call where the evidence is insufficient, instead of papering over it.
+3. **Honest uncertainty.** Probabilistically grounded, abstention-aware calling refuses to emit a call where the evidence is insufficient, instead of papering over it.
 
-The contract is real today: `rosalind plan` predicts before you commit, `--enforce` honors the budget, and `rosalind verify` re-checks the receipt (see [CONTRACT.md](CONTRACT.md)). Looking ahead, Rosalind is *also* a research vehicle for **space-bounded genomics**: **sublinear-space index *construction*** along a `~√t` (square-root-space) space/time curve — the future Phase-D direction that would extend the contract to the index build step (today's build is `O(reference)`). That is a direction, not yet shipped; the bounded streaming engine you use today is the practical foundation it builds on.
+The contract is real today: `rosalind plan` predicts before you commit, `--enforce` honors the budget, and `rosalind verify` re-checks the receipt (see [CONTRACT.md](CONTRACT.md)). The roadmap's north star is to extend that same contract to index **construction** — building the index along a budget-selected space/time curve (in the `~√t` square-root-space lineage) so *"declare your RAM and it's honored"* holds end to end, not just for calling (construction is `O(reference)` today). That's the keystone the roadmap is climbing toward; the bounded streaming engine you use today is the foundation it builds on.
 
 ## Accuracy
 
@@ -112,7 +112,7 @@ The comparator is **GIAB-grade**: it scores **genotype concordance** (a het call
 
 - **Whole-genome:** germline variant calling via `rosalind variants --index` (all contigs, streaming, bounded) and exact-match lookup via `rosalind index` / `rosalind locate`.
 - **Single-contig:** Rosalind's own **aligner** (`rosalind align`) and the FASTA-based `variants --reference` path operate on one reference contig per run. For whole-genome calling, align with any standard aligner and bring the coordinate-sorted BAM to `variants --index`. (Wiring the *aligner* onto the persisted multi-contig index is a later phase — see the roadmap.)
-- Variant calling is **single-sample** (germline) or a **tumor/normal pair** (somatic); calling is SNV-focused, with simple indels in the somatic path.
+- Variant calling is **single-sample** (germline) or a **tumor/normal pair** (somatic); calling is SNV-focused.
 - The engine runs **single-threaded** today. `--memory-budget-mb` is record-only by default; add `--enforce` to honor it (refuse up front / fail loud — see [CONTRACT.md](CONTRACT.md)).
 
 ## The memory contract in *your* CI
@@ -129,11 +129,11 @@ Drop the Rosalind budget Action (this repo's [`action.yml`](action.yml)) into an
     max-read-len: 250       # optional (default 250)
 ```
 
-It runs `plan` (predicts the peak), then `variants --index --enforce` (honors the budget), and uploads the BLAKE3 receipt as a build artifact. This is the one thing a `--max-mem` flag on another caller can't give you: a portable, declarative, **verifiable** memory budget that fails a stranger's build loudly — the contract, enforced where your pipeline already lives. (Available once a release is published; see Quickstart.)
+It runs `plan` (predicts the peak), then `variants --index --enforce` (honors the budget), and uploads the BLAKE3 receipt as a build artifact. This is what a `--max-mem` flag on another caller can't give you: a portable, declarative, **verifiable** memory budget that fails a stranger's build loudly — the contract, enforced where your pipeline already lives. (Available once a release is published; see Quickstart.)
 
 ## Pack a fleet: prediction → placement
 
-Because the predicted peak is computed from the **index header alone** — no run, no read I/O, milliseconds — and is a conservative, *additive* upper bound, you can turn the prediction into a scheduling decision: **prove** that N calling jobs co-located on one node will all fit, before launching a single read.
+Because the predicted peak is computed from the **index header alone** — no run, no read I/O, milliseconds — and is a conservative, *additive* upper bound, you can turn the prediction into a scheduling decision: **show** that N calling jobs co-located on one node fit within their declared budgets, before launching a single read.
 
 ```sh
 # jobs.tsv: one job per line — <index>[\t<max-depth>[\t<max-read-len>]]
@@ -142,12 +142,12 @@ rosalind pack --jobs jobs.tsv --node-mb 64000 --nodes 4 # …or refuse (exit 3) 
 ```
 
 ```
-pack: 37 job(s) → 3 node(s) of 64000 MiB — every node proven within capacity
+pack: 37 job(s) → 3 node(s) of 64000 MiB — every node within capacity by predicted peak
   node 0: 61920 / 64000 MiB  [sampleA.idx, sampleB.idx, …]
   ...
 ```
 
-`rosalind plan --index ref.idx --budget-mb 64000 --json` emits the same predicted peak as one line of JSON for a workflow engine to read. This is what an emergent-peak caller (GATK, DeepVariant) structurally cannot do: their peak is only known *after* a possible OOM-kill, so every co-location is a gamble. Here, `Packed` is a proof — each node's summed predicted peak is `≤` its capacity, established up front, and the schedule is deterministic.
+`rosalind plan --index ref.idx --budget-mb 64000 --json` emits the same predicted peak as one line of JSON for a workflow engine to read. This is what emergent-peak callers (GATK, DeepVariant) can't tell you up front: their peak is only known *after* a possible OOM-kill, so every co-location is a gamble. Here, `Packed` is a decision you can check before you launch — each node's summed *predicted* peak is `≤` its capacity, established up front, and the schedule is deterministic.
 
 ## Reproduce a result — a command a stranger can run
 
@@ -163,7 +163,7 @@ rosalind reproduce --manifest sample.vcf.manifest.json --inputs ./data
 #   -> wrote reproduction certificate: sample.vcf.manifest.json.repro.json (chains to a1b2c3…)
 ```
 
-It content-locates the recorded inputs by their BLAKE3 hash (paths don't matter), re-runs the exact recorded command (schema-5 receipts carry a normalized, replayable `command`), and compares output bytes — exit **0 REPRODUCED / 6 DIVERGED / 7 INCONCLUSIVE** (and **5** for a tampered receipt). **No incumbent caller can do this:** GATK/DeepVariant would report DIVERGED on a *correct* run, because their output is not byte-deterministic.
+It content-locates the recorded inputs by their BLAKE3 hash (paths don't matter), re-runs the exact recorded command (schema-5 receipts carry a normalized, replayable `command`), and compares output bytes — exit **0 REPRODUCED / 6 DIVERGED / 7 INCONCLUSIVE** (and **5** for a tampered receipt). **A non-deterministic caller can't do this:** GATK/DeepVariant would report DIVERGED on a *correct* run, because their output is not byte-deterministic.
 
 Each run writes a **reproduction certificate** (`.repro.json`) — a content-addressed, self-hashing attestation that names the original receipt's claim hash. Independent parties who reproduce the same result mint certificates that all name the same parent — **N independent confirmations, with no server**: a reproducibility web. (Tamper-evident today; cryptographic signing is the next step.)
 
@@ -207,20 +207,20 @@ impl ColumnAnalyzer for CoverageTrack {
 //   → returns the bounded WorkingSet `plan`/`--enforce` reason about.
 ```
 
-The trait is *welded* to the bounded kernel — `run_bounded_whole_genome` drives the exact same column stream as the shipped `features` egress (which is itself just the first `ColumnAnalyzer`), so the estimator that admits a run provably upper-bounds the realized working set of *your* analyzer too. No other genomics library can offer "implement this trait, inherit a machine-checkable memory budget + a hash-verifiable receipt," because no other library has a memory contract to inherit. See [`examples/columnkit_coverage.rs`](examples/columnkit_coverage.rs).
+The trait is *welded* to the bounded kernel — `run_bounded_whole_genome` drives the exact same column stream as the shipped `features` egress (which is itself just the first `ColumnAnalyzer`), so the estimator that admits a run upper-bounds the realized working set of *your* analyzer too, by construction. Implement one trait and you inherit a machine-checkable memory budget and a hash-verifiable receipt for your own metric — what a library without a memory contract can't hand you. See [`examples/columnkit_coverage.rs`](examples/columnkit_coverage.rs).
 
 ## Roadmap
 
 The core primitive is a streaming, CIGAR-aware pileup column stream; variant calling and custom plugins consume it. Performance work deliberately *follows* the unique capability — the target user needs "it fits and is predictable" before "it's fastest."
 
-- **Phase A (done):** the streaming pileup engine; calibrated, abstention-aware germline SNV calling; tumor/normal somatic calling; spec-valid VCF; a BLAKE3 reproducibility receipt per run.
+- **Phase A (done):** the streaming pileup engine; genotype-likelihood, abstention-aware germline SNV calling; tumor/normal somatic calling; spec-valid VCF; a BLAKE3 reproducibility receipt per run.
 - **Phase B (done):** streaming gzip/bgzf input; a multi-contig FM-index over the concatenated genome with `(contig, position)` resolution; a build-once, memory-mapped, byte-reproducible persisted index (`rosalind index`/`locate`); zero-copy reference access from the index; and **bounded whole-genome germline calling over a sorted BAM** (`rosalind variants --index`) with a realized-memory receipt.
 - **Phase C (done):** memory as a *verifiable contract* — `rosalind plan` (a checkable envelope before you commit), `--enforce` (honor-or-refuse: refuse up front / fail loud, never a silent OOM-kill), and `rosalind verify`. See [CONTRACT.md](CONTRACT.md).
 - **Hardening & reach (done):** unbiased depth-cap downsampling (no silent variant drops) and a CI-enforced memory gate; **measured** germline detection accuracy ([Accuracy](#accuracy)); the **`rosalind features`** reproducible ML feature substrate; and a one-command adoption on-ramp — prebuilt binaries (`install.sh`, with checksum verification) plus the **Rosalind budget GitHub Action** (`action.yml`, used as `logannye/rosalind@v0.1.0`) that enforces the contract in *your* CI.
-- **Fleet scheduling (done):** [prediction → placement](#pack-a-fleet-prediction--placement) — `rosalind pack` proves a co-location of N calling jobs fits a node before launching a byte (predicted peaks are additive and read from the index header); `plan --index --json` for a scheduler to read.
+- **Fleet scheduling (done):** [prediction → placement](#pack-a-fleet-prediction--placement) — `rosalind pack` shows a co-location of N calling jobs fits within budget before launching a byte (predicted peaks are additive and read from the index header); `plan --index --json` for a scheduler to read.
 - **ColumnKit SDK (done):** [implement one trait, inherit the contract](#columnkit-implement-one-trait-inherit-the-contract) — a `ColumnAnalyzer` trait + `run_bounded_whole_genome` driver so a builder's own per-locus analyzer inherits bounded memory, determinism, and a verifiable receipt. The shipped `features` egress is the first impl.
-- **Bounded gVCF (done):** `variants --index --gvcf` emits a banded gVCF (every callable locus → a variant record or a `<NON_REF>` reference block with an `END=` span), so per-sample output joins into GLnexus/GATK cohort pipelines — bounded (the banding state is O(1)) and byte-reproducible, which neither GATK nor DeepVariant offers.
-- **Phase D (research):** sublinear-space index construction — the `~√t` space/time knob across the full curve — extending the contract to the index *build* step (today's build is O(reference)). The headline space-complexity bet; see [`docs/OPEN_PROBLEMS.md`](docs/OPEN_PROBLEMS.md).
+- **Bounded gVCF (done):** `variants --index --gvcf` emits a banded gVCF (every callable locus → a variant record or a `<NON_REF>` reference block with an `END=` span), so per-sample output joins into GLnexus/GATK cohort pipelines — bounded (O(1) banding state) and byte-reproducible run-to-run, a property production gVCF pipelines generally don't provide.
+- **Phase D (research):** sublinear-space index construction — the `~√t` space/time knob across the full curve — extending the contract to the index *build* step (today's build is `O(reference)`). The keystone that completes the memory contract end to end; see [`docs/OPEN_PROBLEMS.md`](docs/OPEN_PROBLEMS.md).
 - **Later:** the aligner over the persisted multi-contig index (`align --index`, whole-genome alignment); germline indels and richer read QC; deterministic multithreading; a Python/tensor binding over the pileup stream.
 
 Target architecture and per-phase specs/plans live in [`docs/superpowers/specs/`](docs/superpowers/specs/) and [`docs/superpowers/plans/`](docs/superpowers/plans/); the guiding thesis is in [`docs/OPEN_PROBLEMS.md`](docs/OPEN_PROBLEMS.md).
@@ -314,7 +314,7 @@ Run `rosalind <subcommand> --help` for exact flags.
 - `rosalind features --index genome.idx --alignments sorted.bam -o features.tsv` — stream a bounded, byte-identical per-locus feature table (TSV) under the same memory contract (see [the ML substrate](#a-reproducible-feature-substrate-for-ml)).
 - `rosalind locate --index genome.idx --pattern GATTACA` — exact-match positions in a prebuilt index (memory-mapped, never rebuilt). Exact-match only; seed/chain/extend alignment against the persisted index is a later phase.
 - `rosalind sort` — deterministic coordinate sort of a BAM within a memory budget.
-- `rosalind somatic` — tumor/normal somatic SNV + simple-indel calling from a paired BAM set over a region.
+- `rosalind somatic` — tumor/normal somatic SNV calling from a paired BAM set over a region.
 - `rosalind eval-germline` / `rosalind eval-somatic` — compare a germline / somatic call set to a truth VCF over confident regions (BED), reporting precision / recall / F1.
 
 ### Rust API
@@ -336,7 +336,7 @@ use rosalind::call::{call_germline_region, GermlineCall, GermlineParams};
 use rosalind::core::{AlignedRead, CoreError, Locus};
 use rosalind::pileup::{PileupParams, SliceSource};
 
-// Calibrated, abstention-aware germline SNV calls over one contig, from
+// Genotype-likelihood, abstention-aware germline SNV calls over one contig, from
 // coordinate-sorted reads. Each emitted site is (locus, ref_base, call).
 fn call_germline(
     reads: Vec<AlignedRead>,

@@ -10,7 +10,7 @@ canonical bounded-memory substrate.
 ### Reproducibility — a stranger can re-derive your result (Track D)
 - **`rosalind reproduce`** re-derives a recorded result byte-for-byte from its receipt and
   content-located inputs, reporting REPRODUCED / DIVERGED / INCONCLUSIVE (exit 0 / 6 / 7; a
-  tampered receipt is exit 5). No incumbent caller can offer this — a non-deterministic caller
+  tampered receipt is exit 5). A non-deterministic caller can't offer this — it
   reports DIVERGED on a *correct* run. Honest scope: the deterministic text outputs
   (`variants → VCF`, `features → TSV`); BAM/bgzf is reported INCONCLUSIVE, never a false DIVERGED.
 - **Chainable reproduction certificate** (`<receipt>.repro.json`): a content-addressed,
@@ -41,7 +41,7 @@ canonical bounded-memory substrate.
 
 ### Fleet scheduling — prediction → placement
 - **`rosalind pack`** packs many bounded `variants` jobs onto fixed-size nodes by their predicted peaks
-  (read from each index header, additive) and *proves* a co-location fits before launching a byte, or
+  (read from each index header, additive) and *shows* a co-location fits within budget before launching a byte, or
   refuses (exit 3). `plan --index --json` emits the predicted peak for a scheduler to read.
 
 ### ColumnKit SDK — implement one trait, inherit the contract
@@ -69,10 +69,10 @@ contract** — predict it before you commit, honor it during the run, and verify
 
 ### Variant calling
 - **Bounded whole-genome germline SNV calling** (`variants --index`) over a coordinate-sorted BAM and a
-  persisted index: peak memory tracks coverage, not BAM size. Calibrated, abstention-aware.
-- **Unbiased depth-cap downsampling** — a content-hash reservoir that bounds the working set without
+  persisted index: peak memory tracks coverage, not BAM size. Genotype-likelihood, abstention-aware.
+- **Unbiased depth-cap downsampling** — deterministic content-hash selection that bounds the working set without
   biasing allele balance (no silent variant drops); dropped-read counts surfaced in the receipt.
-- **Tumor/normal somatic** SNV + simple-indel calling (`somatic`).
+- **Tumor/normal somatic** SNV calling (`somatic`).
 - **Measured detection accuracy** on simulated diploid truth (precision/recall 1.00/1.00 on clean data);
   `eval-germline` / `eval-somatic` truth-set comparison (the `eval-germline` path is GIAB-ready).
 

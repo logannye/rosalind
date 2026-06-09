@@ -12,7 +12,7 @@
 //! the SAME verifiable receipt the shipped `variants`/`features` subcommands
 //! enjoy — for free. The trait is *welded* to the bounded kernel: the driver runs
 //! the exact same column stream as `stream_features_whole_genome`, so the
-//! estimator that admits a run provably upper-bounds the realized working set of
+//! estimator that admits a run upper-bounds the realized working set of
 //! the builder's analyzer too. It is the contract made composable, not a feature
 //! bolted beside it. (`FeatureAnalyzer` is the first impl — proof the trait
 //! carries the real shipped analyzer, not a toy.)

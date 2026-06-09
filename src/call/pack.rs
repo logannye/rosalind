@@ -3,11 +3,11 @@
 //!
 //! Each job's peak is a conservative upper bound computed from the index header
 //! alone (no run, no read I/O — milliseconds), and peaks are additive. So a
-//! scheduler can SUM predicted peaks across co-located jobs and *prove* a node
-//! fits before launching a byte. No incumbent caller can: GATK/DeepVariant peaks
-//! are emergent and only known after a possible OOM-kill, so every co-location is
-//! a gamble. Here, `Packed(...)` is a proof — every node's summed peak is `<=`
-//! its capacity, established up front.
+//! scheduler can SUM predicted peaks across co-located jobs and show a node stays
+//! within budget before launching a byte. Emergent-peak callers (GATK/DeepVariant)
+//! only learn their peak after a possible OOM-kill, so every co-location is a
+//! gamble. Here, `Packed(...)` reports a placement whose every node's summed
+//! predicted peak is `<=` its capacity, established up front.
 
 /// A job to place: a label and its predicted peak RSS, in bytes.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -19,7 +19,7 @@ pub struct PackJob {
 }
 
 /// One node's assignment: which jobs land on it and their summed predicted peak
-/// (which is `<=` the node capacity — the fit, proven).
+/// (which is `<=` the node capacity — the fit, by predicted peak).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct NodeAssignment {
     /// Node index (0-based).
@@ -34,7 +34,7 @@ pub struct NodeAssignment {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PackOutcome {
     /// Every job placed. Each `NodeAssignment.used_bytes <= node_capacity_bytes`,
-    /// so the node is *proven* to fit before any job runs.
+    /// so the node is within capacity by predicted peak before any job runs.
     Packed(Vec<NodeAssignment>),
     /// No safe packing exists under the constraints.
     NoFit {
@@ -123,13 +123,13 @@ mod tests {
     }
 
     #[test]
-    fn packs_all_jobs_and_every_node_is_proven_within_capacity() {
+    fn packs_all_jobs_and_every_node_is_within_capacity() {
         let jobs = vec![job("a", 30), job("b", 40), job("c", 50), job("d", 20)];
         let cap = 100;
         let PackOutcome::Packed(nodes) = first_fit_decreasing(&jobs, cap, None) else {
             panic!("should pack");
         };
-        // THE proof property: every node's summed peak is within capacity.
+        // THE invariant: every node's summed predicted peak is within capacity.
         for n in &nodes {
             assert!(
                 n.used_bytes <= cap,

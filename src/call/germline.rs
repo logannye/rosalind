@@ -1,6 +1,6 @@
 //! The germline diploid genotype-likelihood model: per-observation base-quality
 //! error integrated into [0/0, 0/1, 1/1] log-likelihoods, then a prior, then a
-//! calibrated, abstention-aware call.
+//! probabilistically-grounded, abstention-aware call.
 
 use crate::call::types::{Filter, Genotype, GermlineCall, GermlineParams, ACGT};
 use crate::core::allele_index;
@@ -364,7 +364,7 @@ mod tests {
     #[test]
     fn thin_alt_evidence_abstains() {
         // 3 ref + 1 alt at bq30: a lone alt read cannot overcome the θ=1e-3
-        // prior, so the calibrated model abstains (no-call) rather than overcall.
+        // prior, so the model abstains (no-call) rather than overcall.
         let thin = [(0u8, 30u8), (0, 30), (0, 30), (1, 30)];
         assert!(call_germline(&col(b'A', &thin), &GermlineParams::default()).is_none());
     }

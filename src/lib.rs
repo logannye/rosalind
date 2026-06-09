@@ -46,7 +46,7 @@
 #![allow(clippy::new_without_default)]
 
 // Each module is a layer of the genomics engine.
-/// The calling layer: calibrated, abstention-aware variant calls from pileup columns.
+/// The calling layer: probabilistically-grounded, abstention-aware variant calls from pileup columns.
 pub mod call;
 /// Core types: the lingua franca shared by every layer (io, index, align, pileup, call).
 pub mod core;
