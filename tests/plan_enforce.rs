@@ -973,3 +973,61 @@ fn receipt_records_build_identity_and_verify_expect_code_catches_a_mismatch() {
     );
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn variants_enforce_records_predicted_working_set_in_the_claim() {
+    use rosalind::provenance::RunManifest;
+
+    let (dir, idx, bam) = build_big_contig_fixture(1024 * 1024);
+
+    // Run the enforced call twice → two receipts. The deterministic working-set
+    // prediction must be identical (that determinism is what makes it a claim).
+    let run_once = |vcf: &std::path::Path| {
+        let out = Command::new(bin())
+            .args(["variants", "--index"])
+            .arg(&idx)
+            .arg("--alignments")
+            .arg(&bam)
+            .args(["--max-depth", "1000", "--max-read-len", "250"])
+            .args(["--memory-budget-mb", "512", "--enforce", "-o"])
+            .arg(vcf)
+            .output()
+            .unwrap();
+        assert!(out.status.success(), "enforced run failed: {out:?}");
+        let text = std::fs::read_to_string(format!("{}.manifest.json", vcf.display())).unwrap();
+        RunManifest::from_canonical_json(&text).unwrap()
+    };
+
+    let a = run_once(&dir.join("a.vcf"));
+    let b = run_once(&dir.join("b.vcf"));
+
+    // It is a CLAIM field (in params), not a measurement.
+    let pred_a = a
+        .params
+        .get("predicted_working_set_bytes")
+        .expect("predicted_working_set_bytes must be a claim param");
+    assert!(
+        !a.measurements.contains_key("predicted_working_set_bytes"),
+        "predicted_working_set_bytes must live in the claim, not the measurement block"
+    );
+    // Deterministic across runs (the cross-machine claim property).
+    assert_eq!(
+        pred_a,
+        b.params.get("predicted_working_set_bytes").unwrap(),
+        "the predicted working set must be identical across runs"
+    );
+
+    // The receipt verifies (an enforced run satisfies predicted >= realized).
+    let v = Command::new(bin())
+        .args(["verify", "--manifest"])
+        .arg(dir.join("a.vcf.manifest.json"))
+        .output()
+        .unwrap();
+    assert!(
+        v.status.success(),
+        "verify must pass on the enforced receipt: {}",
+        String::from_utf8_lossy(&v.stderr)
+    );
+
+    std::fs::remove_dir_all(&dir).ok();
+}
