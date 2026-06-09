@@ -1,0 +1,51 @@
+name: Deploy verifier to Pages
+
+# Builds the in-browser "caught-you" receipt verifier (wasm) and publishes
+# web/verify/ to GitHub Pages, so it is a shareable link.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "web/**"
+      - "crates/receipt/**"
+      - "crates/receipt-wasm/**"
+      - "scripts/build-wasm-verifier.sh"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; let an in-progress run finish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add the wasm target
+        run: rustup target add wasm32-unknown-unknown
+      - name: Install wasm-pack
+        run: cargo install wasm-pack --locked
+      - name: Build the verifier (wasm -> web/verify/pkg)
+        run: ./scripts/build-wasm-verifier.sh
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/verify
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
