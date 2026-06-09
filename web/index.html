@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Rosalind — memory is a contract</title>
+<meta name="description" content="A deterministic, low-memory genomics engine in Rust. Declare your RAM; it proves the job fits before it runs, never silently OOM-kills you, and emits a receipt anyone can reproduce byte-for-byte." />
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 3rem 1.25rem 5rem;
+    font: 16px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: #0b0e14; color: #c9d1d9; display: flex; flex-direction: column; align-items: center;
+  }
+  main { width: 100%; max-width: 760px; }
+  .eyebrow { color: #8b949e; letter-spacing: .08em; text-transform: uppercase; font-size: .8rem; margin: 0 0 .5rem; }
+  h1 { font-size: 2.4rem; line-height: 1.15; margin: 0 0 .75rem; color: #f0f6fc; }
+  h1 .accent { color: #2f81f7; }
+  .lede { font-size: 1.15rem; color: #c9d1d9; margin: 0 0 1.5rem; }
+  .install {
+    background: #0d1117; border: 1px solid #30363d; border-radius: 10px; padding: 1rem 1.1rem; margin: 0 0 1rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .92rem;
+  }
+  .install .c { color: #56d364; }
+  .install .muted { color: #8b949e; }
+  .cta { display: flex; gap: .6rem; flex-wrap: wrap; margin: 1.25rem 0 2.5rem; }
+  .btn {
+    text-decoration: none; border-radius: 8px; padding: .55rem 1rem; font-weight: 600; font-size: .95rem;
+    border: 1px solid #30363d; color: #c9d1d9; background: #161b22;
+  }
+  .btn.primary { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+  .btn:hover { filter: brightness(1.15); }
+  h2 { font-size: 1.05rem; color: #f0f6fc; margin: 2.25rem 0 .6rem; }
+  .verbs { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .75rem; margin: 0 0 1rem; }
+  .verb { background: #0d1117; border: 1px solid #21262d; border-radius: 8px; padding: .8rem .9rem; }
+  .verb b { color: #f0f6fc; display: block; }
+  .verb span { color: #8b949e; font-size: .88rem; }
+  .pillars { list-style: none; padding: 0; margin: 0; }
+  .pillars li { padding: .5rem 0; border-top: 1px solid #21262d; }
+  .pillars li:first-child { border-top: none; }
+  .pillars b { color: #f0f6fc; }
+  .demos { display: flex; gap: .6rem; flex-wrap: wrap; }
+  .demos a { color: #2f81f7; text-decoration: none; border: 1px solid #21262d; border-radius: 8px; padding: .5rem .8rem; font-size: .92rem; }
+  .demos a:hover { border-color: #2f81f7; }
+  .scope { margin-top: 2.5rem; padding: 1rem 1.1rem; border: 1px solid #21262d; border-radius: 8px; background: #0d1117; font-size: .9rem; color: #8b949e; }
+  .scope b { color: #c9d1d9; }
+  code { background: #161b22; padding: .08em .35em; border-radius: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .9em; }
+  footer { margin-top: 2.5rem; color: #6e7681; font-size: .85rem; }
+  a { color: #2f81f7; }
+</style>
+</head>
+<body>
+<main>
+  <p class="eyebrow">A genomics engine in Rust</p>
+  <h1>Memory is a <span class="accent">contract</span>.</h1>
+  <p class="lede">
+    Most variant callers spend memory that grows with your data, so <em>“will this finish on my
+    machine?”</em> is something you find out the hard way. Rosalind declares the RAM you have, proves
+    the job fits <strong>before it runs</strong>, never silently OOM-kills you, and emits a receipt
+    anyone can reproduce <strong>byte-for-byte</strong>.
+  </p>
+
+  <div class="install">
+    <span class="c">cargo install rosalind-bio</span><br>
+    <span class="muted"># the crate is rosalind-bio; the installed binary is `rosalind`</span><br><br>
+    <span class="muted"># or grab a prebuilt binary — no toolchain (macOS · Linux):</span><br>
+    <span class="c">curl -fsSL https://raw.githubusercontent.com/logannye/rosalind/main/install.sh | sh</span>
+  </div>
+
+  <div class="cta">
+    <a class="btn primary" href="./verify/">🔍 Verify a receipt in your browser →</a>
+    <a class="btn" href="https://github.com/logannye/rosalind">GitHub</a>
+    <a class="btn" href="https://crates.io/crates/rosalind-bio">crates.io</a>
+    <a class="btn" href="https://docs.rs/rosalind-bio">docs.rs</a>
+  </div>
+
+  <h2>The contract, in four verbs</h2>
+  <div class="verbs">
+    <div class="verb"><b>Declare</b><span>State the RAM you have.</span></div>
+    <div class="verb"><b>Predict</b><span><code>plan</code> reads the index header — no run — and tells you if it fits.</span></div>
+    <div class="verb"><b>Honor</b><span><code>--enforce</code> refuses up front or fails loud. Never a silent OOM.</span></div>
+    <div class="verb"><b>Verify</b><span>A BLAKE3 receipt re-checks the run, offline, months later.</span></div>
+  </div>
+
+  <h2>Why it's different</h2>
+  <ul class="pillars">
+    <li><b>Bounded, predictable memory.</b> Peak tracks local read depth, not file size — and the realized peak is recorded, so the bound is <em>verifiable, not just claimed</em>.</li>
+    <li><b>Byte-for-byte reproducible.</b> Identical inputs → an identical VCF + a content-addressed receipt. <code>rosalind reproduce</code> re-derives a result offline — something a non-deterministic caller can't do.</li>
+    <li><b>Honest about uncertainty.</b> Where the evidence is too thin, it <strong>abstains</strong> instead of guessing — and every claim it makes is a re-runnable check.</li>
+  </ul>
+
+  <h2>See it for yourself</h2>
+  <p class="demos">
+    <a href="./verify/">Drag in a receipt → watch tampering get caught (in-browser)</a>
+    <a href="https://github.com/logannye/rosalind#reproduce-a-result--a-command-a-stranger-can-run">Reproduce a result, offline</a>
+    <a href="https://github.com/logannye/rosalind/tree/main/benchmarks">Re-run the claims harness</a>
+  </p>
+
+  <div class="scope">
+    <b>Honest scope.</b> Today: bounded whole-genome <b>germline SNV</b> calling over a sorted BAM + a portable index,
+    a reproducible feature substrate for ML, and the verifiable memory contract — <b>single-threaded</b>, with accuracy
+    measured on <b>simulated</b> diploid truth so far (a real GIAB benchmark is next). <b>Building toward:</b> extending the
+    same contract to index <em>construction</em> along a sublinear-space (~√t) curve, so “declare your RAM and it's honored”
+    holds end to end. It's a Rust <b>library + CLI</b> — not a black-box pipeline.
+  </div>
+
+  <footer>
+    Built for edge, field, and large-genome work where RAM is fixed and an OOM at hour 20 is unacceptable.
+    Dual-licensed MIT OR Apache-2.0 · <a href="https://github.com/logannye/rosalind">github.com/logannye/rosalind</a>
+  </footer>
+</main>
+</body>
+</html>

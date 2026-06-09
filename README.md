@@ -5,7 +5,7 @@
 [![crates.io](https://img.shields.io/crates/v/rosalind-bio?logo=rust&label=crates.io&color=orange)](https://crates.io/crates/rosalind-bio)
 [![Output: byte-reproducible](https://img.shields.io/badge/output-byte--reproducible-brightgreen)](CONTRACT.md)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](#license)
-[![Verify a receipt (live)](https://img.shields.io/badge/demo-verify%20a%20receipt-2f81f7)](https://logannye.github.io/rosalind/)
+[![Verify a receipt (live)](https://img.shields.io/badge/demo-verify%20a%20receipt-2f81f7)](https://logannye.github.io/rosalind/verify/)
 
 **A deterministic, low-memory genomics engine in Rust, built around a different promise: memory is a contract — you see it before you commit, and verify it after.**
 
@@ -92,6 +92,7 @@ You'll see `plan` predict `[FITS]`, `variants --enforce` print `contract: OK —
 - **Truth-set evaluation** — `rosalind eval-germline` / `rosalind eval-somatic` compare a call set against a truth VCF over confident regions (BED), with variant normalization (left-align + trim) and precision / recall / F1. `eval-germline` is the drop-in interface for a GIAB benchmark.
 - **Extensibility** — Build custom bounded per-locus analytics by implementing one trait ([ColumnKit](#columnkit-implement-one-trait-inherit-the-contract); see [`examples/columnkit_coverage.rs`](examples/columnkit_coverage.rs)) — inheriting bounded memory, determinism, and a verifiable receipt for free. Or iterate the raw `PileupColumn` substrate directly ([`examples/custom_pileup_analytics.rs`](examples/custom_pileup_analytics.rs)).
 - **Determinism by design** — Primary artifacts are emitted in a canonical, stable order, byte-for-byte identical across repeated runs given identical inputs. See [`docs/determinism.md`](docs/determinism.md).
+- **A self-scrutinizing claims harness** — `bash benchmarks/run.sh` re-derives five contract + reproducibility properties on bundled data (predicted ≥ realized peak; honor-or-refuse; byte-identical output; `reproduce` + tamper-evidence; `pack`), each of which **fails the run if false**. It runs in CI, so a broken claim turns the build red. Re-run it yourself — don't trust the numbers. See [`benchmarks/`](benchmarks/).
 
 ## Why it matters
 
@@ -162,7 +163,7 @@ pack: 37 job(s) → 3 node(s) of 64000 MiB — every node within capacity by pre
 
 ## Reproduce a result — a command a stranger can run
 
-> 🔍 **Try it in your browser:** [**verify a receipt live**](https://logannye.github.io/rosalind/) — drag in a `*.manifest.json` (or edit one byte of the bundled sample) and watch its tamper-evident hash flip to **TAMPERED**. 100% client-side, running the same Rust check that ships in the CLI, compiled to wasm.
+> 🔍 **Try it in your browser:** [**verify a receipt live**](https://logannye.github.io/rosalind/verify/) — drag in a `*.manifest.json` (or edit one byte of the bundled sample) and watch its tamper-evident hash flip to **TAMPERED**. 100% client-side, running the same Rust check that ships in the CLI, compiled to wasm.
 
 Hand someone a `*.vcf` and its `*.manifest.json`. On a *different machine*, with one offline command, they re-derive it byte-for-byte — no GATK, no Docker, no Nextflow, no re-aligning:
 
@@ -243,7 +244,7 @@ Target architecture and per-phase specs/plans live in [`docs/superpowers/specs/`
 ## Install & build
 
 ### Prerequisites
-- Rust 1.72+ (`rustup` recommended)
+- Rust 1.83+ (the crate's MSRV; `rustup` recommended)
 - Native compression headers for BAM I/O: `libbz2-dev` & `liblzma-dev` on Debian/Ubuntu, `brew install bzip2 xz` on macOS
 - Python 3.9+ with `numpy` for the feature-substrate boundary (`python/rosalind.py`); the optional legacy PyO3 bindings additionally need `maturin` (set `PYO3_PYTHON=/path/to/python` if the default interpreter is unsuitable)
 
@@ -256,10 +257,10 @@ cargo test              # run the full suite
 cargo run --release -- --help
 ```
 
-Use Rosalind as a library in another crate:
+Use Rosalind as a library in another crate (the crate is `rosalind-bio`; the library you `use` is `rosalind`):
 ```toml
 [dependencies]
-rosalind = { path = "./rosalind" }
+rosalind-bio = "0.1"   # then in code: use rosalind::{ ... };
 ```
 
 Bundled sample data lives in `examples/data/` (small FASTA/FASTQ + alignments) so the commands below run without external downloads. For a larger, deterministic toy dataset:
