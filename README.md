@@ -1,10 +1,19 @@
 # Rosalind
 
+[![CI](https://github.com/logannye/rosalind/actions/workflows/ci.yml/badge.svg)](https://github.com/logannye/rosalind/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/logannye/rosalind?sort=semver&color=blue)](https://github.com/logannye/rosalind/releases/latest)
+[![Output: byte-reproducible](https://img.shields.io/badge/output-byte--reproducible-brightgreen)](CONTRACT.md)
+[![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](#license)
+
 **A deterministic, low-memory genomics engine in Rust, built around a different promise: memory is a contract — you see it before you commit, and verify it after.**
+
+> ⚡ **Install** (macOS · Linux, no toolchain): `curl -fsSL https://raw.githubusercontent.com/logannye/rosalind/main/install.sh | sh` — or build from source with `cargo`. Then jump to the [60-second Quickstart](#quickstart-60-seconds).
 
 Call variants across a whole genome on a laptop, in RAM you declare up front, and get results that reproduce byte-for-byte — with a receipt to prove it. Most variant callers spend memory that grows with your data, so "will this finish on my machine?" is something you find out the hard way. Rosalind inverts that: you state a budget, and it tells you *before committing a byte* whether the job fits, then honors that ceiling while it runs. It streams a coordinate-sorted BAM one read at a time, reads the reference from a compact memory-mapped index (no second copy of the genome in RAM), and keeps its working set proportional to *local read depth* rather than file size. Every run prints — and records — the memory it actually used. Where the evidence is too thin to be sure, it **abstains** instead of guessing.
 
 The bounded engine is a substrate, not just a caller: **the receipt is the product, and variant calling is the first workload that runs on it.** It's a Rust **library and CLI** you can call directly, extend with one trait, or drive from Python — not a black-box pipeline.
+
+**Jump to:** [Quickstart](#quickstart-60-seconds) · [Accuracy](#accuracy) · [Reproduce a result](#reproduce-a-result--a-command-a-stranger-can-run) · [ML feature substrate](#a-reproducible-feature-substrate-for-ml) · [Roadmap](#roadmap) · [Contributing](#contributing) · [the memory contract](CONTRACT.md)
 
 ---
 
@@ -65,7 +74,7 @@ cd rosalind-*/
 ./rosalind verify --manifest calls.vcf.manifest.json                   # re-checks the receipt
 ```
 
-You'll see `plan` predict `[FITS]`, `variants --enforce` print `contract: OK — realized peak … within`, and `verify: OK`. Tighten `--budget-mb` to `1` and `variants --enforce` *refuses up front* (exit 3, no VCF). That is the whole differentiator, in one minute. (Releases are cut from tags; if none is published yet, build from source below.)
+You'll see `plan` predict `[FITS]`, `variants --enforce` print `contract: OK — realized peak … within`, and `verify: OK`. Tighten `--budget-mb` to `1` and `variants --enforce` *refuses up front* (exit 3, no VCF). That is the whole differentiator, in one minute. (Prebuilt **v0.1.0** binaries ship for macOS arm64/x86_64 and Linux x86_64; `install.sh` verifies the checksum before unpacking. Prefer source? See [Build](#build).)
 
 ---
 
@@ -129,7 +138,7 @@ Drop the Rosalind budget Action (this repo's [`action.yml`](action.yml)) into an
     max-read-len: 250       # optional (default 250)
 ```
 
-It runs `plan` (predicts the peak), then `variants --index --enforce` (honors the budget), and uploads the BLAKE3 receipt as a build artifact. This is what a `--max-mem` flag on another caller can't give you: a portable, declarative, **verifiable** memory budget that fails a stranger's build loudly — the contract, enforced where your pipeline already lives. (Available once a release is published; see Quickstart.)
+It runs `plan` (predicts the peak), then `variants --index --enforce` (honors the budget), and uploads the BLAKE3 receipt as a build artifact. This is what a `--max-mem` flag on another caller can't give you: a portable, declarative, **verifiable** memory budget that fails a stranger's build loudly — the contract, enforced where your pipeline already lives.
 
 ## Pack a fleet: prediction → placement
 
@@ -412,6 +421,10 @@ Refresh golden snapshots with `ROSALIND_UPDATE_SNAPSHOTS=1 cargo test`. See [`do
 
 ---
 
+## Contributing
+
+Contributions are welcome — the bounded `PileupColumn` kernel and the [ColumnKit SDK](#columnkit-implement-one-trait-inherit-the-contract) make a per-locus analytic (coverage, QC, methylation, a custom metric) a natural first PR that inherits the memory contract for free. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the dev loop (`cargo build`/`test`/`fmt`) and the two invariants every change must preserve — **determinism** and the **memory contract**. Curated entry points are labelled [`good first issue`](https://github.com/logannye/rosalind/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22); questions and ideas belong in [Discussions](https://github.com/logannye/rosalind/discussions).
+
 ## License
 
-Dual-licensed under Apache-2.0 and MIT. Use GitHub Issues for bugs and feature requests.
+Dual-licensed under Apache-2.0 and MIT. Use [GitHub Issues](https://github.com/logannye/rosalind/issues) for bugs and feature requests, and [Discussions](https://github.com/logannye/rosalind/discussions) for questions.
