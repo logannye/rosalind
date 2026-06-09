@@ -110,6 +110,16 @@ pub const MEASUREMENT_KEYS: &[&str] = &[
     "contract_verdict",
 ];
 
+/// The claim keys that record build identity (code / toolchain / deps). Segregated by
+/// `rosalind diff` as a distinct cause bucket. Must track [`build_identity_pairs`].
+pub const BUILD_IDENTITY_KEYS: &[&str] = &[
+    "code_git_sha",
+    "code_dirty",
+    "rustc_version",
+    "target_triple",
+    "deps_lock_blake3",
+];
+
 /// Failure parsing a canonical run manifest.
 #[derive(Debug)]
 pub struct ManifestError(pub String);
@@ -1060,6 +1070,15 @@ mod tests {
         m.finalize();
         let report = verify_receipt(&m.to_canonical_json(), &VerifyOpts::default());
         assert!(report.ok, "{:?}", report.problems);
+    }
+
+    #[test]
+    fn build_identity_keys_match_the_pairs_helper() {
+        let keys: Vec<&str> = build_identity_pairs().iter().map(|(k, _)| *k).collect();
+        assert_eq!(
+            keys, BUILD_IDENTITY_KEYS,
+            "BUILD_IDENTITY_KEYS must track build_identity_pairs"
+        );
     }
 
     /// Build + finalize a receipt exercising the working-set soundness check.
