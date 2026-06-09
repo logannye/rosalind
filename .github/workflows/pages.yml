@@ -38,7 +38,9 @@ jobs:
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: web/verify
+          # Publish the whole site: web/index.html is the landing page (root),
+          # web/verify/ is the in-browser verifier (built into web/verify/pkg above).
+          path: web
 
   deploy:
     needs: build
