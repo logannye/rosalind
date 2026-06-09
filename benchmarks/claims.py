@@ -148,7 +148,7 @@ def main():
         toosmall = run(["pack", "--jobs", str(jobs), "--node-mb", "1", "--nodes", "1"])
         max_used = max(int(n["used_bytes"]) for n in pk["nodes"])
         add(
-            "pack proves a co-location fits by additive predicted peaks, before launching a byte",
+            "pack shows a co-location fits within capacity by additive predicted peaks, before launching a byte",
             "every node's summed predicted peak <= capacity; an impossible packing refuses (exit 3)",
             "within capacity / exit 3",
             f"nodes={len(pk['nodes'])}, max_node={max_used/MiB:.1f} MiB <= {pk['node_mb']} MiB ({within}), impossible_pack_exit={toosmall.returncode}",
