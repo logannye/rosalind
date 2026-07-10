@@ -33,8 +33,11 @@ pub use diff::{diff_receipts, FieldChange, OperandChange, ReceiptDiff};
 mod repro;
 pub use repro::{ReproOutput, ReproReceipt};
 
+mod trust;
+pub use trust::{ArtifactEvidence, CertificateEvidence, TrustFacet, TrustReport, TrustState};
+
 mod badge;
-pub use badge::{badge_json, badge_svg};
+pub use badge::{badge_json, badge_json_for, badge_svg, badge_svg_for, BadgeStatus};
 
 /// Current receipt/feature schema version. Bump on any breaking schema change.
 /// v2: split into a deterministic *claim* and a machine-dependent *measurement* block;
@@ -690,6 +693,8 @@ pub struct VerifyReport {
     pub notes: Vec<String>,
     /// The parsed manifest, when parsing succeeded.
     pub manifest: Option<RunManifest>,
+    /// Independent evidence dimensions shared with Studio and badge generation.
+    pub trust: TrustReport,
 }
 
 impl VerifyReport {
@@ -715,13 +720,14 @@ impl VerifyReport {
             },
         );
         format!(
-            "{{\"schema\":1,\"ok\":{},\"claim\":{},\"inputs\":{},\"outputs\":{},\"notes\":{},\"problems\":{}}}",
+            "{{\"schema\":2,\"ok\":{},\"claim\":{},\"inputs\":{},\"outputs\":{},\"notes\":{},\"problems\":{},\"trust\":{}}}",
             self.ok,
             claim,
             inputs,
             outputs,
             strings(&self.notes),
-            strings(&self.problems)
+            strings(&self.problems),
+            self.trust.to_json(),
         )
     }
 }
@@ -739,11 +745,13 @@ pub fn verify_receipt(text: &str, opts: &VerifyOpts) -> VerifyReport {
                 problems: vec![format!("parse error: {e}")],
                 notes: Vec::new(),
                 manifest: None,
+                trust: TrustReport::unparseable(e.to_string()),
             }
         }
     };
     let mut problems: Vec<String> = Vec::new();
     let mut notes: Vec<String> = Vec::new();
+    let mut artifacts_complete = true;
 
     // Re-hash inputs + outputs against the recorded digests (CLI sets this).
     if opts.rehash_files {
@@ -751,11 +759,17 @@ pub fn verify_receipt(text: &str, opts: &VerifyOpts) -> VerifyReport {
             for f in files {
                 match blake3_file(Path::new(&f.path)) {
                     Ok(h) if h == f.blake3 => {}
-                    Ok(h) => problems.push(format!(
-                        "{kind} {} hash mismatch: recorded {}, now {}",
-                        f.path, f.blake3, h
-                    )),
-                    Err(e) => problems.push(format!("{kind} {} unreadable: {e}", f.path)),
+                    Ok(h) => {
+                        artifacts_complete = false;
+                        problems.push(format!(
+                            "{kind} {} hash mismatch: recorded {}, now {}",
+                            f.path, f.blake3, h
+                        ));
+                    }
+                    Err(e) => {
+                        artifacts_complete = false;
+                        problems.push(format!("{kind} {} unreadable: {e}", f.path));
+                    }
                 }
             }
         }
@@ -944,11 +958,25 @@ pub fn verify_receipt(text: &str, opts: &VerifyOpts) -> VerifyReport {
         }
     }
 
+    let trust = TrustReport::evaluate(
+        &manifest,
+        if opts.rehash_files {
+            if artifacts_complete {
+                ArtifactEvidence::Complete
+            } else {
+                ArtifactEvidence::Incomplete
+            }
+        } else {
+            ArtifactEvidence::NotChecked
+        },
+        CertificateEvidence::NotSupplied,
+    );
     VerifyReport {
         ok: problems.is_empty(),
         notes,
         manifest: Some(manifest),
         problems,
+        trust,
     }
 }
 

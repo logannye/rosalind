@@ -137,6 +137,13 @@ impl ReproReceipt {
         self.inner.self_hash_ok() == Some(true)
     }
 
+    /// Whether both the claim and any claimed measurement block remain intact.
+    pub fn integrity_ok(&self) -> bool {
+        self.self_hash_ok()
+            && self.inner.measurement_hash_ok() != Some(false)
+            && (!self.inner.claims_measurements() || self.inner.measurement_hash_ok() == Some(true))
+    }
+
     /// The parent receipt's `content_hash` this certificate chains to.
     pub fn parent_claim(&self) -> Option<&str> {
         self.inner.params.get("parent_claim").map(String::as_str)
@@ -145,6 +152,30 @@ impl ReproReceipt {
     /// The recorded verdict (`REPRODUCED` / `DIVERGED`).
     pub fn verdict(&self) -> Option<&str> {
         self.inner.params.get("verdict").map(String::as_str)
+    }
+
+    /// Whether the certificate contains at least one complete, byte-matching output.
+    pub fn outputs_match(&self) -> bool {
+        let Some(count) = self
+            .inner
+            .params
+            .get("out_count")
+            .and_then(|value| value.parse::<usize>().ok())
+        else {
+            return false;
+        };
+        count > 0
+            && (0..count).all(|index| {
+                let recorded = self.inner.params.get(&format!("out{index}_recorded"));
+                let observed = self.inner.params.get(&format!("out{index}_observed"));
+                self.inner
+                    .params
+                    .get(&format!("out{index}_matched"))
+                    .map(String::as_str)
+                    == Some("true")
+                    && recorded.is_some()
+                    && recorded == observed
+            })
     }
 
     /// The chain depth (1 for a reproduction of an original run receipt).

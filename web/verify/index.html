@@ -71,7 +71,7 @@
     <div class="card"><strong>2 · Artifacts</strong><span id="artifacts" class="status idle">Not checked</span><small id="artifacts-detail" class="muted"></small></div>
     <div class="card"><strong>3 · Resource</strong><span id="resource" class="status idle">Unknown</span><small id="resource-detail" class="muted"></small></div>
     <div class="card"><strong>4 · Reproduced</strong><span id="reproduced" class="status idle">No certificate</span><small id="reproduced-detail" class="muted"></small></div>
-    <div class="card"><strong>5 · Signature</strong><span class="status idle">Not signed</span><small class="muted">Cryptographic identity is not part of schema 5.</small></div>
+    <div class="card"><strong>5 · Signature</strong><span id="signature" class="status idle">Not supplied</span><small id="signature-detail" class="muted">Cryptographic identity is not part of schema 5.</small></div>
   </section>
 
   <div class="two">
@@ -92,7 +92,7 @@
 </script>
 
 <script type="module">
-import init, { inspect_receipt, diff_receipts, walk_receipt_chain, Blake3Hasher } from './pkg/rosalind_verify.js';
+import init, { inspect_receipt, evaluate_trust, diff_receipts, walk_receipt_chain, Blake3Hasher } from './pkg/rosalind_verify.js';
 
 const state = { receipts: [], artifacts: new Map(), selected: -1 };
 const $ = id => document.getElementById(id);
@@ -149,20 +149,20 @@ function render() {
 }
 
 function renderTrust(receipt) {
-  if (!receipt) { setStatus('integrity','No receipt','idle',''); setStatus('artifacts','Not checked','idle',''); setStatus('resource','Unknown','idle',''); setStatus('reproduced','No certificate','idle',''); return; }
-  const intact=receipt.info.integrity==='intact'; setStatus('integrity',intact?'Intact':'Tampered',intact?'ok':'bad',receipt.info.detail);
+  if (!receipt) { setStatus('integrity','No receipt','idle',''); setStatus('artifacts','Not checked','idle',''); setStatus('resource','Unknown','idle',''); setStatus('reproduced','Not supplied','idle',''); setStatus('signature','Not supplied','idle',''); return; }
   const expected=[...(receipt.json.inputs||[]),...(receipt.json.outputs||[])];
   const matched=expected.filter(file=>state.artifacts.has(file.blake3)).length;
-  const wrongNames=expected.filter(file=>[...state.artifacts.values()].some(a=>a.name===basename(file.path))&&!state.artifacts.has(file.blake3)).length;
-  if (wrongNames) setStatus('artifacts','Mismatch','bad',`${wrongNames} same-named file(s) have different bytes.`);
-  else if (expected.length && matched===expected.length) setStatus('artifacts','All match','ok',`${matched}/${expected.length} content hashes matched.`);
-  else setStatus('artifacts',matched?'Partial':'Awaiting files',matched?'warn':'idle',`${matched}/${expected.length} artifacts matched.`);
-  if (receipt.info.resource==='within') setStatus('resource','Within budget','ok',`Peak ${Math.floor(receipt.info.peak_rss_bytes/1048576)} MiB / ${receipt.info.budget_mb} MiB.`);
-  else if (receipt.info.resource==='over') setStatus('resource','Over budget','bad','The recorded peak exceeded the declaration.');
-  else setStatus('resource','Not declared','idle','No comparable budget and peak were recorded.');
-  const cert=state.receipts.find(r=>r.json.subcommand==='reproduce'&&r.json.params?.parent_claim===receipt.info.claim);
-  const reproduced=cert&&cert.info.integrity==='intact'&&cert.json.params?.verdict==='REPRODUCED';
-  setStatus('reproduced',reproduced?'Certificate matches':cert?'Certificate invalid':'No certificate',reproduced?'ok':cert?'bad':'idle',reproduced?`Confirmation ${short(cert.info.claim)} names this claim.`:'Drop a .repro.json to check independent evidence.');
+  const artifactStatus=!state.artifacts.size?'not-checked':expected.length&&matched===expected.length?'complete':'incomplete';
+  const certificates=state.receipts.filter(r=>r.json.subcommand==='reproduce');
+  const cert=certificates.find(r=>r.json.params?.parent_claim===receipt.info.claim)||certificates[0];
+  const trust=JSON.parse(evaluate_trust(receipt.text,artifactStatus,cert?.text||''));
+  const cls=facet=>facet.state==='satisfied'?'ok':facet.state==='failed'?'bad':'idle';
+  const label=value=>value.split('-').map(word=>word.charAt(0).toUpperCase()+word.slice(1)).join(' ');
+  setStatus('integrity',label(trust.receipt_integrity.status),cls(trust.receipt_integrity),trust.receipt_integrity.explanation);
+  setStatus('artifacts',label(trust.artifact_completeness.status),cls(trust.artifact_completeness),`${trust.artifact_completeness.explanation} ${matched}/${expected.length} content hashes are loaded.`);
+  setStatus('resource',label(trust.resource_contract.status),cls(trust.resource_contract),trust.resource_contract.explanation);
+  setStatus('reproduced',label(trust.reproduction_evidence.status),cls(trust.reproduction_evidence),trust.reproduction_evidence.explanation);
+  setStatus('signature',label(trust.signature.status),cls(trust.signature),trust.signature.explanation);
 }
 
 function renderDiff() {

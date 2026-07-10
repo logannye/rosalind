@@ -1,8 +1,8 @@
 //! Client-side bindings for Rosalind Receipt Studio.
 
 use rosalind_receipt::{
-    diff_receipts as diff_core, verify_manifest_str, walk_chain, EdgeStatus, ReceiptVerdict,
-    RunManifest,
+    diff_receipts as diff_core, verify_manifest_str, walk_chain, ArtifactEvidence,
+    CertificateEvidence, EdgeStatus, ReceiptVerdict, ReproReceipt, RunManifest, TrustReport,
 };
 use wasm_bindgen::prelude::*;
 
@@ -58,8 +58,13 @@ pub fn inspect_receipt(json: &str) -> String {
         ReceiptVerdict::Unverifiable => "unverifiable",
         ReceiptVerdict::Unparseable => "unparseable",
     };
+    let trust = TrustReport::evaluate(
+        &manifest,
+        ArtifactEvidence::NotChecked,
+        CertificateEvidence::NotSupplied,
+    );
     format!(
-        "{{\"ok\":true,\"integrity\":\"{}\",\"detail\":\"{}\",\"claim\":\"{}\",\"subcommand\":\"{}\",\"tool_version\":\"{}\",\"producer_name\":{},\"producer_version\":{},\"analyzer_id\":{},\"analyzer_version\":{},\"budget_mb\":{},\"peak_rss_bytes\":{},\"resource\":\"{}\",\"parent_claim\":{},\"reproduction_verdict\":{},\"inputs\":{},\"outputs\":{},\"input_files\":{},\"output_files\":{},\"parameters\":{},\"measurements\":{}}}",
+        "{{\"ok\":true,\"integrity\":\"{}\",\"detail\":\"{}\",\"claim\":\"{}\",\"subcommand\":\"{}\",\"tool_version\":\"{}\",\"producer_name\":{},\"producer_version\":{},\"analyzer_id\":{},\"analyzer_version\":{},\"budget_mb\":{},\"peak_rss_bytes\":{},\"resource\":\"{}\",\"parent_claim\":{},\"reproduction_verdict\":{},\"inputs\":{},\"outputs\":{},\"input_files\":{},\"output_files\":{},\"parameters\":{},\"measurements\":{},\"trust\":{}}}",
         integrity,
         json_escape(&check.detail),
         manifest.content_hash(),
@@ -80,7 +85,39 @@ pub fn inspect_receipt(json: &str) -> String {
         files_json(&manifest.outputs),
         string_map_json(&manifest.params),
         string_map_json(&manifest.measurements),
+        trust.to_json(),
     )
+}
+
+/// Evaluate the shared trust model after JavaScript content-matches artifacts and
+/// optionally supplies a reproduction certificate. `artifact_status` is one of
+/// `not-checked`, `complete`, or `incomplete`.
+#[wasm_bindgen]
+pub fn evaluate_trust(
+    receipt_json: &str,
+    artifact_status: &str,
+    certificate_json: &str,
+) -> String {
+    let manifest = match RunManifest::from_canonical_json(receipt_json) {
+        Ok(manifest) => manifest,
+        Err(error) => return TrustReport::unparseable(error.to_string()).to_json(),
+    };
+    let artifacts = match artifact_status {
+        "complete" => ArtifactEvidence::Complete,
+        "incomplete" => ArtifactEvidence::Incomplete,
+        _ => ArtifactEvidence::NotChecked,
+    };
+    let certificate = if certificate_json.trim().is_empty() {
+        None
+    } else {
+        Some(ReproReceipt::from_canonical_json(certificate_json))
+    };
+    let evidence = match certificate.as_ref() {
+        None => CertificateEvidence::NotSupplied,
+        Some(Ok(certificate)) => CertificateEvidence::Parsed(certificate),
+        Some(Err(error)) => CertificateEvidence::Invalid(error.to_string()),
+    };
+    TrustReport::evaluate(&manifest, artifacts, evidence).to_json()
 }
 
 /// Diff two receipts using the same cause/effect/noise localizer as the CLI.
@@ -163,10 +200,14 @@ pub fn walk_receipt_chain(receipts_jsonl: &str) -> String {
         .filter(|receipt| receipt.subcommand == "reproduce")
     {
         let parent_claim = certificate.params.get("parent_claim");
-        let certificate_ok = certificate.self_hash_ok() == Some(true)
-            && certificate.measurement_hash_ok() != Some(false)
-            && certificate.params.get("verdict").map(String::as_str) == Some("REPRODUCED")
-            && parent_claim.is_some();
+        let certificate_ok = ReproReceipt::from_canonical_json(&certificate.to_canonical_json())
+            .map(|certificate| {
+                certificate.integrity_ok()
+                    && certificate.verdict() == Some("REPRODUCED")
+                    && certificate.outputs_match()
+                    && parent_claim.is_some()
+            })
+            .unwrap_or(false);
         let resolved_parent = parent_claim.and_then(|parent| {
             receipts
                 .iter()
@@ -329,7 +370,7 @@ fn json_escape(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rosalind_receipt::{FileHash, ReproReceipt};
+    use rosalind_receipt::{FileHash, ReproOutput, ReproReceipt};
 
     fn run_receipt(depth: &str) -> RunManifest {
         let mut receipt = RunManifest::new("features");
@@ -380,7 +421,12 @@ mod tests {
             "features",
             "REPRODUCED",
             1,
-            &[],
+            &[ReproOutput {
+                role: "output[0]".to_string(),
+                recorded_blake3: "same".to_string(),
+                observed_blake3: "same".to_string(),
+                matched: true,
+            }],
             None,
             None,
         );
@@ -392,6 +438,32 @@ mod tests {
         assert!(chain.contains("\"intact\":true"), "{chain}");
         assert!(chain.contains("\"flag\":\"parent_claim\""), "{chain}");
         assert!(chain.contains("\"status\":\"resolved\""), "{chain}");
+    }
+
+    #[test]
+    fn trust_evaluation_links_certificate_and_artifact_evidence() {
+        let receipt = run_receipt("1000");
+        let certificate = ReproReceipt::build(
+            &receipt.content_hash(),
+            "features",
+            "REPRODUCED",
+            1,
+            &[ReproOutput {
+                role: "output[0]".to_string(),
+                recorded_blake3: "same".to_string(),
+                observed_blake3: "same".to_string(),
+                matched: true,
+            }],
+            None,
+            None,
+        );
+        let trust = evaluate_trust(
+            &receipt.to_canonical_json(),
+            "complete",
+            &certificate.to_canonical_json(),
+        );
+        assert!(trust.contains("\"status\":\"complete\""), "{trust}");
+        assert!(trust.contains("\"status\":\"reproduced\""), "{trust}");
     }
 
     #[test]

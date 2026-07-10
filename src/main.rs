@@ -447,10 +447,8 @@ enum Commands {
         #[arg(long)]
         json: bool,
     },
-    /// Emit a self-hosted status badge — a shields.io endpoint JSON or a static SVG —
-    /// asserting "reproducible · fits N MiB" for a run. With `--repro` the reproducible
-    /// claim is backed by a reproduction certificate; otherwise it reflects the
-    /// deterministic engine (an intact receipt re-derives byte-identically).
+    /// Emit a self-hosted status badge — a shields.io endpoint JSON or a static SVG.
+    /// An intact receipt is blue; only a valid linked reproduction certificate is green.
     Badge {
         /// The run's `*.manifest.json`.
         #[arg(long)]
@@ -1731,40 +1729,37 @@ fn run_reproduce(
     Ok(())
 }
 
-/// Emit a self-hosted status badge for a run. `fits` comes from the receipt's recorded
-/// peak vs declared budget; `reproducible` comes from a `--repro` certificate's verdict,
-/// or (absent one) from the receipt's intact self-hash (the engine is deterministic, so
-/// an intact Rosalind receipt re-derives byte-identically by construction).
+/// Emit a self-hosted status badge for a run without conflating an intact receipt with
+/// evidence that another execution reproduced its output bytes.
 fn run_badge(manifest: PathBuf, repro: Option<PathBuf>, output: PathBuf) -> Result<()> {
-    use rosalind::core::MemoryBudget;
-    use rosalind::provenance::{badge_json, badge_svg, ReproReceipt, RunManifest};
+    use rosalind::provenance::{
+        badge_json_for, badge_svg_for, ArtifactEvidence, BadgeStatus, CertificateEvidence,
+        ReproReceipt, RunManifest, TrustReport, TrustState,
+    };
 
     let text = std::fs::read_to_string(&manifest)
         .with_context(|| format!("failed to read receipt {}", manifest.display()))?;
     let m = RunManifest::from_canonical_json(&text)
         .map_err(|e| anyhow!("failed to parse receipt {}: {e}", manifest.display()))?;
 
-    let budget = m
-        .get_recorded("memory_budget_mb")
-        .and_then(|v| v.parse::<u64>().ok());
-    let peak = m
-        .get_recorded("peak_rss_bytes")
-        .and_then(|v| v.parse::<u64>().ok());
-    let fits_mb = match (budget, peak) {
-        (Some(mb), Some(p)) if MemoryBudget::from_mb(mb).admits(p) => Some(mb),
-        _ => None,
+    let certificate = repro.as_ref().map(|path| {
+        std::fs::read_to_string(path)
+            .map_err(|error| format!("cannot read {}: {error}", path.display()))
+            .and_then(|text| {
+                ReproReceipt::from_canonical_json(&text)
+                    .map_err(|error| format!("cannot parse {}: {error}", path.display()))
+            })
+    });
+    let certificate_evidence = match &certificate {
+        None => CertificateEvidence::NotSupplied,
+        Some(Ok(certificate)) => CertificateEvidence::Parsed(certificate),
+        Some(Err(error)) => CertificateEvidence::Invalid(error.clone()),
     };
-
-    let reproducible = match &repro {
-        Some(p) => {
-            let ctext = std::fs::read_to_string(p)
-                .with_context(|| format!("failed to read certificate {}", p.display()))?;
-            let cert = ReproReceipt::from_canonical_json(&ctext)
-                .map_err(|e| anyhow!("failed to parse certificate {}: {e}", p.display()))?;
-            cert.self_hash_ok() && cert.verdict() == Some("REPRODUCED")
-        }
-        None => m.self_hash_ok() == Some(true),
-    };
+    let trust = TrustReport::evaluate(&m, ArtifactEvidence::NotChecked, certificate_evidence);
+    let status = BadgeStatus::from_trust(&trust);
+    let fits_mb = (trust.resource_contract.state == TrustState::Satisfied)
+        .then_some(trust.budget_mb)
+        .flatten();
 
     let is_svg = output
         .extension()
@@ -1772,9 +1767,9 @@ fn run_badge(manifest: PathBuf, repro: Option<PathBuf>, output: PathBuf) -> Resu
         .map(|e| e.eq_ignore_ascii_case("svg"))
         .unwrap_or(false);
     let body = if is_svg {
-        badge_svg(reproducible, fits_mb)
+        badge_svg_for(status, fits_mb)
     } else {
-        badge_json(reproducible, fits_mb)
+        badge_json_for(status, fits_mb)
     };
     std::fs::write(&output, &body)
         .with_context(|| format!("failed to write badge {}", output.display()))?;
