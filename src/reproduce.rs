@@ -319,6 +319,7 @@ fn make_temp_dir() -> Result<PathBuf> {
 /// read by finalizing a throwaway manifest (which stamps build-identity from `build.rs`).
 fn current_build_identity() -> BTreeMap<String, String> {
     let mut m = RunManifest::new("reproduce-probe");
+    m.tool_version = env!("CARGO_PKG_VERSION").to_string();
     m.finalize();
     let mut out = BTreeMap::new();
     for k in [
@@ -610,15 +611,14 @@ fn validate_recipe_tokens(
         }
     }
     for (index, token) in tokens.iter().enumerate() {
-        if token == "-o" || token == "--output" {
-            if !tokens
+        if (token == "-o" || token == "--output")
+            && !tokens
                 .get(index + 1)
                 .is_some_and(|value| value.starts_with("@out:"))
-            {
-                return Err(ReplaySafetyError::UnsafeRecipe(
-                    "output flags must target a recorded @out marker".to_string(),
-                ));
-            }
+        {
+            return Err(ReplaySafetyError::UnsafeRecipe(
+                "output flags must target a recorded @out marker".to_string(),
+            ));
         }
     }
     let mut index = prefix.len();
@@ -1012,7 +1012,7 @@ fn short(hex: &str) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::provenance::FileHash;
+    use crate::provenance::{CommandCapture, FileHash};
 
     fn fh(hash: &str) -> FileHash {
         FileHash {
@@ -1047,5 +1047,72 @@ mod tests {
         assert_eq!(Verdict::Reproduced.exit_code(), 0);
         assert_eq!(Verdict::Diverged.exit_code(), 6);
         assert_eq!(Verdict::Inconclusive.exit_code(), 7);
+    }
+
+    fn replayable_manifest() -> (RunManifest, Vec<String>) {
+        let mut manifest = RunManifest::new("variants");
+        manifest
+            .params
+            .insert("producer.name".to_string(), "rosalind".to_string());
+        manifest
+            .params
+            .insert("replay.kind".to_string(), "rosalind".to_string());
+        let mut capture = CommandCapture::new("variants");
+        capture.input_hashed("--index", "path with spaces/参考.idx", "index-hash");
+        capture.input_hashed("--alignments", "reads.bam", "bam-hash");
+        capture.opt("--quality-threshold", "value with spaces 和");
+        capture.output_hashed("-o", "calls.vcf", "output-hash");
+        capture.record_into(&mut manifest);
+        manifest.finalize();
+        let tokens = crate::provenance::command_template_tokens(&manifest).unwrap();
+        (manifest, tokens)
+    }
+
+    #[test]
+    fn strict_recipe_accepts_tokenized_spaces_and_unicode() {
+        let (manifest, tokens) = replayable_manifest();
+        validate_recipe_tokens(&manifest, &tokens, false).unwrap();
+    }
+
+    #[test]
+    fn strict_recipe_rejects_prefix_duplicate_and_unrecorded_output_operands() {
+        let (manifest, tokens) = replayable_manifest();
+
+        let mut wrong_prefix = tokens.clone();
+        wrong_prefix[0] = "sort".to_string();
+        assert!(validate_recipe_tokens(&manifest, &wrong_prefix, false).is_err());
+
+        let mut duplicate = tokens.clone();
+        duplicate.extend(["--index".to_string(), "@in:index-hash".to_string()]);
+        assert!(validate_recipe_tokens(&manifest, &duplicate, false).is_err());
+
+        let mut unrecorded_output = tokens;
+        unrecorded_output.extend(["--output".to_string(), "/tmp/escape.vcf".to_string()]);
+        assert!(validate_recipe_tokens(&manifest, &unrecorded_output, false).is_err());
+    }
+
+    #[test]
+    fn strict_recipe_rejects_manifest_paths_unsupported_builtins_and_legacy_externals() {
+        let (manifest, mut tokens) = replayable_manifest();
+        tokens.push("--manifest=/tmp/escape.json".to_string());
+        assert!(validate_recipe_tokens(&manifest, &tokens, false).is_err());
+
+        let (mut unsupported, unsupported_tokens) = replayable_manifest();
+        unsupported.subcommand = "index".to_string();
+        let mut unsupported_tokens = unsupported_tokens;
+        unsupported_tokens[0] = "index".to_string();
+        unsupported
+            .params
+            .insert("command".to_string(), unsupported_tokens.join(" "));
+        assert!(validate_recipe_tokens(&unsupported, &unsupported_tokens, false).is_err());
+
+        let (mut external, external_tokens) = replayable_manifest();
+        external
+            .params
+            .insert("replay.kind".to_string(), "external-analyzer".to_string());
+        external
+            .params
+            .insert("replay_schema".to_string(), "2".to_string());
+        assert!(validate_recipe_tokens(&external, &external_tokens, true).is_err());
     }
 }
