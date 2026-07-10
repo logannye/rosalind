@@ -9,7 +9,6 @@
 #![allow(clippy::result_large_err)]
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::fs::File;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -24,6 +23,7 @@ use crate::genomics::IndexReader;
 use crate::io::bam::StreamingBamSource;
 use crate::pileup::{PileupParams, SkipCounts};
 use crate::provenance::{CommandCapture, RunManifest, MEASUREMENT_KEYS};
+use crate::util::atomic::{write_atomic, AtomicFile};
 use crate::util::rss::peak_rss_bytes;
 
 /// Identity of the binary that owns a contract run.
@@ -125,6 +125,85 @@ pub enum OutputTarget {
     Stdout,
 }
 
+/// Maximum memory retained by an analyzer after the runner measures its baseline.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AnalyzerMemoryModel {
+    /// No pre-run analyzer bound is available. Record-only execution remains valid.
+    Unknown,
+    /// A versioned upper bound on additional retained bytes after runner startup.
+    Fixed {
+        /// Stable name for the estimator used by the analyzer producer.
+        model_id: String,
+        /// Maximum additional retained bytes after the process baseline is measured.
+        max_additional_bytes: u64,
+    },
+}
+
+impl AnalyzerMemoryModel {
+    fn additional_bytes(&self) -> Option<u64> {
+        match self {
+            Self::Unknown => None,
+            Self::Fixed {
+                max_additional_bytes,
+                ..
+            } => Some(*max_additional_bytes),
+        }
+    }
+}
+
+/// How strongly a run asks Rosalind to honor its memory declaration.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EnforcementMode {
+    /// Measure and report only; an unknown analyzer model is allowed.
+    RecordOnly,
+    /// Predict up front and use Rosalind's cooperative RSS governor.
+    Cooperative,
+    /// Require cooperative enforcement plus an existing Linux cgroup-v2 hard limit.
+    RequireOsLimit,
+}
+
+impl EnforcementMode {
+    fn is_enforced(self) -> bool {
+        self != Self::RecordOnly
+    }
+}
+
+/// Evidence supporting the resource-contract result.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EnforcementAssurance {
+    /// The run was measured without a declared analyzer bound.
+    ObservedOnly,
+    /// A declared bound and the cooperative process RSS governor were active.
+    DeclaredBoundCooperative,
+    /// Cooperative enforcement ran inside a matching Linux cgroup-v2 hard limit.
+    CgroupV2,
+}
+
+impl EnforcementAssurance {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::ObservedOnly => "observed-only",
+            Self::DeclaredBoundCooperative => "declared-bound-cooperative",
+            Self::CgroupV2 => "cgroup-v2",
+        }
+    }
+}
+
+/// Transaction policy for a file output and its receipt.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OutputPolicy {
+    /// Refuse existing destinations and atomically create a new artifact.
+    CreateNewAtomic,
+    /// Atomically replace an existing destination (`--force` at the CLI).
+    ReplaceAtomic,
+}
+
+impl OutputPolicy {
+    fn replace(self) -> bool {
+        self == Self::ReplaceAtomic
+    }
+}
+
 impl OutputTarget {
     fn path(&self) -> Option<&Path> {
         match self {
@@ -141,6 +220,8 @@ pub struct ContractRunSpec {
     pub producer: ProducerIdentity,
     /// Identity of the column analyzer implementation.
     pub analyzer: AnalyzerIdentity,
+    /// Analyzer-owned memory retained after the process baseline is measured.
+    pub analyzer_memory: AnalyzerMemoryModel,
     /// Tokenized replay command and analyzer-specific options.
     pub invocation: ReplayInvocation,
     /// Persisted Rosalind reference index.
@@ -149,6 +230,8 @@ pub struct ContractRunSpec {
     pub alignments: PathBuf,
     /// Primary artifact destination.
     pub output: OutputTarget,
+    /// Whether file destinations must be new or may be replaced atomically.
+    pub output_policy: OutputPolicy,
     /// Explicit receipt destination, or the output sidecar when omitted.
     pub manifest: Option<PathBuf>,
     /// Minimum accepted read mapping quality.
@@ -159,8 +242,8 @@ pub struct ContractRunSpec {
     pub max_read_len: u32,
     /// Optional declared process RSS budget in MiB.
     pub memory_budget_mb: Option<u64>,
-    /// Whether to refuse or breach instead of merely recording the budget result.
-    pub enforce: bool,
+    /// Requested resource-enforcement tier.
+    pub enforcement: EnforcementMode,
 }
 
 /// Recorded resource-contract verdict.
@@ -230,18 +313,26 @@ pub struct ContractRunOutcome {
     pub claim_hash: Option<String>,
     /// Written receipt path, when present.
     pub manifest_path: Option<PathBuf>,
+    /// Final successful primary output path, when file-backed.
+    pub output_path: Option<PathBuf>,
+    /// Preserved partial artifact after a governed breach.
+    pub partial_output_path: Option<PathBuf>,
     /// Up-front process RSS prediction.
     pub predicted_peak_rss_bytes: u64,
     /// Realized or governor-observed process RSS high-water mark.
     pub peak_rss_bytes: u64,
     /// Modeled analyzer working-set high-water mark.
     pub max_working_set_bytes: u64,
+    /// Analyzer contribution included in the up-front prediction, when known.
+    pub analyzer_predicted_bytes: Option<u64>,
     /// Reads skipped for each bounded-ingest reason.
     pub skips: SkipCounts,
     /// Result of comparing realized RSS with the declared budget.
     pub verdict: ContractVerdict,
     /// Live-governor state for the run.
     pub governor: GovernorState,
+    /// Strength of the evidence behind the resource-contract result.
+    pub assurance: EnforcementAssurance,
 }
 
 /// Typed failure modes for library callers. The CLI alone maps refusal/breach
@@ -250,6 +341,12 @@ pub struct ContractRunOutcome {
 pub enum ContractRunError {
     /// The requested contract cannot provide its stated guarantees.
     InvalidConfiguration(String),
+    /// Enforced execution cannot proceed without an analyzer memory bound.
+    UnknownAnalyzerBound,
+    /// Safe output creation refused an existing destination.
+    OutputExists(PathBuf),
+    /// The requested OS-level enforcement tier is unavailable or insufficient.
+    OsEnforcementUnavailable(String),
     /// Up-front prediction exceeded the enforced budget; no primary output exists.
     Refused(RefusalReport),
     /// Live RSS crossed the enforced budget after output creation.
@@ -264,6 +361,18 @@ impl std::fmt::Display for ContractRunError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::InvalidConfiguration(message) => write!(f, "invalid contract run: {message}"),
+            Self::UnknownAnalyzerBound => write!(
+                f,
+                "enforced contract run requires a declared analyzer memory model"
+            ),
+            Self::OutputExists(path) => write!(
+                f,
+                "output already exists: {} (choose another path or enable replacement)",
+                path.display()
+            ),
+            Self::OsEnforcementUnavailable(message) => {
+                write!(f, "OS memory enforcement unavailable: {message}")
+            }
             Self::Refused(report) => write!(
                 f,
                 "contract refused: predicted peak {} MiB exceeds budget {} MiB",
@@ -301,6 +410,42 @@ pub fn run_column_analysis(
     spec: ContractRunSpec,
 ) -> Result<ContractRunOutcome, ContractRunError> {
     validate_spec(&spec)?;
+    validate_destinations(&spec)?;
+
+    let analyzer_predicted_bytes = spec.analyzer_memory.additional_bytes();
+    if spec.enforcement.is_enforced() && analyzer_predicted_bytes.is_none() {
+        return Err(ContractRunError::UnknownAnalyzerBound);
+    }
+    let os_limit_bytes = if spec.enforcement == EnforcementMode::RequireOsLimit {
+        let budget_bytes = MemoryBudget::from_mb(
+            spec.memory_budget_mb
+                .expect("validated OS-enforced run has a budget"),
+        )
+        .bytes;
+        match effective_cgroup_v2_limit_bytes() {
+            Some(limit) if limit <= budget_bytes => Some(limit),
+            Some(limit) => {
+                return Err(ContractRunError::OsEnforcementUnavailable(format!(
+                    "active cgroup limit {} MiB exceeds declared budget {} MiB",
+                    limit / (1 << 20),
+                    budget_bytes / (1 << 20)
+                )))
+            }
+            None => {
+                return Err(ContractRunError::OsEnforcementUnavailable(
+                    "run inside a cgroup-v2 container/systemd scope whose memory.max is at or below the declared budget"
+                        .to_string(),
+                ))
+            }
+        }
+    } else {
+        None
+    };
+    let assurance = match spec.enforcement {
+        EnforcementMode::RecordOnly => EnforcementAssurance::ObservedOnly,
+        EnforcementMode::Cooperative => EnforcementAssurance::DeclaredBoundCooperative,
+        EnforcementMode::RequireOsLimit => EnforcementAssurance::CgroupV2,
+    };
 
     let loaded = IndexReader::open(&spec.index).map_err(|error| {
         ContractRunError::InvalidConfiguration(format!(
@@ -318,12 +463,17 @@ pub fn run_column_analysis(
     let source = StreamingBamSource::new(&spec.alignments, contigs)?;
     let largest = contigs.iter().map(|c| c.length as u64).max().unwrap_or(0);
     let baseline = peak_rss_bytes();
-    let predicted_ws =
-        estimate_variants_working_set(largest, spec.max_depth, spec.max_read_len).bytes;
+    let predicted_ws = estimate_variants_working_set(largest, spec.max_depth, spec.max_read_len)
+        .bytes
+        .saturating_add(analyzer_predicted_bytes.unwrap_or(0));
     let predicted_peak =
-        predicted_peak_rss_bytes(largest, spec.max_depth, spec.max_read_len, baseline);
+        predicted_peak_rss_bytes(largest, spec.max_depth, spec.max_read_len, baseline)
+            .saturating_add(analyzer_predicted_bytes.unwrap_or(0));
 
-    if let Some(budget_mb) = spec.memory_budget_mb.filter(|_| spec.enforce) {
+    if let Some(budget_mb) = spec
+        .memory_budget_mb
+        .filter(|_| spec.enforcement.is_enforced())
+    {
         if !MemoryBudget::from_mb(budget_mb).admits(predicted_peak) {
             return Err(ContractRunError::Refused(RefusalReport {
                 budget_mb,
@@ -346,7 +496,7 @@ pub fn run_column_analysis(
         .ok()
         .and_then(|v| v.parse::<u64>().ok())
         .unwrap_or(100);
-    let _governor = if spec.enforce {
+    let _governor = if spec.enforcement.is_enforced() {
         let budget = spec
             .memory_budget_mb
             .expect("validated enforced run has a budget");
@@ -365,10 +515,36 @@ pub fn run_column_analysis(
     let params = PileupParams {
         min_mapq: spec.mapq_threshold,
         max_depth: (spec.max_depth != 0).then_some(spec.max_depth),
-        max_read_len: spec.enforce.then_some(spec.max_read_len),
+        max_read_len: spec.enforcement.is_enforced().then_some(spec.max_read_len),
         ..PileupParams::default()
     };
-    let drive_result = drive(analyzer, source, &ref_view, contigs, params, &spec.output)?;
+    let mut atomic_output = match &spec.output {
+        OutputTarget::File(path) => Some(AtomicFile::create(path)?),
+        OutputTarget::Stdout => None,
+    };
+    let drive_result = match &mut atomic_output {
+        Some(file) => {
+            let mut writer = io::BufWriter::new(file.file_mut());
+            let result = drive(analyzer, source, &ref_view, contigs, params, &mut writer);
+            if result.is_ok() {
+                writer.flush()?;
+            } else {
+                let _ = writer.flush();
+            }
+            result
+        }
+        None => {
+            let stdout = io::stdout();
+            let mut writer = stdout.lock();
+            let result = drive(analyzer, source, &ref_view, contigs, params, &mut writer);
+            if result.is_ok() {
+                writer.flush()?;
+            } else {
+                let _ = writer.flush();
+            }
+            result
+        }
+    };
     let (max_ws, skips, breached, breach_peak) = match drive_result {
         Ok((working_set, skips)) => (working_set, skips, false, 0),
         Err(CoreError::BudgetExceeded { needed, .. }) => {
@@ -394,16 +570,34 @@ pub fn run_column_analysis(
     };
     let governor = if breached {
         GovernorState::Tripped
-    } else if spec.enforce {
+    } else if spec.enforcement.is_enforced() {
         GovernorState::Enforced
     } else {
         GovernorState::RecordOnly
     };
+    let is_breach =
+        breached || (spec.enforcement.is_enforced() && verdict == ContractVerdict::Over);
+    let (output_path, partial_output_path) = match (atomic_output, spec.output.path()) {
+        (Some(file), Some(requested)) if is_breach => {
+            let partial = partial_path(requested);
+            let written = file.commit_as(&partial, spec.output_policy.replace())?;
+            (None, Some(written))
+        }
+        (Some(file), Some(_)) => {
+            let written = file.commit(spec.output_policy.replace())?;
+            (Some(written), None)
+        }
+        _ => (None, None),
+    };
     let manifest_path = receipt_destination(&spec);
+    let mut receipt_spec = spec.clone();
+    if let Some(path) = output_path.as_ref().or(partial_output_path.as_ref()) {
+        receipt_spec.output = OutputTarget::File(path.clone());
+    }
     let claim_hash = if let Some(path) = &manifest_path {
         Some(write_receipt(
             analyzer,
-            &spec,
+            &receipt_spec,
             path,
             predicted_ws,
             predicted_peak,
@@ -413,6 +607,9 @@ pub fn run_column_analysis(
             skips,
             verdict,
             governor,
+            assurance,
+            os_limit_bytes,
+            is_breach,
         )?)
     } else {
         None
@@ -420,14 +617,18 @@ pub fn run_column_analysis(
     let outcome = ContractRunOutcome {
         claim_hash,
         manifest_path,
+        output_path,
+        partial_output_path,
         predicted_peak_rss_bytes: predicted_peak,
         peak_rss_bytes: peak,
         max_working_set_bytes: max_ws.bytes,
+        analyzer_predicted_bytes,
         skips,
         verdict,
         governor,
+        assurance,
     };
-    if breached || (spec.enforce && verdict == ContractVerdict::Over) {
+    if is_breach {
         Err(ContractRunError::Breached(outcome))
     } else {
         Ok(outcome)
@@ -535,12 +736,12 @@ fn validate_spec(spec: &ContractRunSpec) -> Result<(), ContractRunError> {
             "replay argv prefix must not be empty".to_string(),
         ));
     }
-    if spec.enforce && spec.memory_budget_mb.is_none() {
+    if spec.enforcement.is_enforced() && spec.memory_budget_mb.is_none() {
         return Err(ContractRunError::InvalidConfiguration(
             "--enforce requires a memory budget".to_string(),
         ));
     }
-    if spec.enforce && spec.max_depth == 0 {
+    if spec.enforcement.is_enforced() && spec.max_depth == 0 {
         return Err(ContractRunError::InvalidConfiguration(
             "--enforce requires max_depth > 0".to_string(),
         ));
@@ -553,6 +754,8 @@ fn validate_spec(spec: &ContractRunSpec) -> Result<(), ContractRunError> {
         "--max-read-len",
         "--memory-budget-mb",
         "--enforce",
+        "--require-os-limit",
+        "--force",
         "-o",
         "--output",
         "--manifest",
@@ -587,6 +790,63 @@ fn validate_spec(spec: &ContractRunSpec) -> Result<(), ContractRunError> {
     Ok(())
 }
 
+fn validate_destinations(spec: &ContractRunSpec) -> Result<(), ContractRunError> {
+    if spec.output_policy == OutputPolicy::ReplaceAtomic {
+        return Ok(());
+    }
+    if let Some(output) = spec.output.path() {
+        for path in [output.to_path_buf(), partial_path(output)] {
+            if path.exists() {
+                return Err(ContractRunError::OutputExists(path));
+            }
+        }
+    }
+    if let Some(receipt) = receipt_destination(spec) {
+        if receipt.exists() {
+            return Err(ContractRunError::OutputExists(receipt));
+        }
+    }
+    Ok(())
+}
+
+fn partial_path(path: &Path) -> PathBuf {
+    let mut name = path.as_os_str().to_os_string();
+    name.push(".partial");
+    PathBuf::from(name)
+}
+
+fn effective_cgroup_v2_limit_bytes() -> Option<u64> {
+    if let Ok(value) = std::env::var("ROSALIND_TEST_CGROUP_MEMORY_MAX") {
+        return (value != "max").then(|| value.parse().ok()).flatten();
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let cgroup = std::fs::read_to_string("/proc/self/cgroup").ok()?;
+        let relative = cgroup.lines().find_map(|line| {
+            let mut fields = line.splitn(3, ':');
+            let hierarchy = fields.next()?;
+            let controllers = fields.next()?;
+            let path = fields.next()?;
+            (hierarchy == "0" && controllers.is_empty()).then_some(path)
+        })?;
+        let path = Path::new("/sys/fs/cgroup")
+            .join(relative.trim_start_matches('/'))
+            .join("memory.max");
+        let value = std::fs::read_to_string(path).ok()?;
+        let value = value.trim();
+        return (value != "max").then(|| value.parse().ok()).flatten();
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        None
+    }
+}
+
+/// Detect the effective Linux cgroup-v2 `memory.max`, when finite and readable.
+pub fn detected_os_memory_limit_bytes() -> Option<u64> {
+    effective_cgroup_v2_limit_bytes()
+}
+
 fn governor_error(error: GovernorError) -> ContractRunError {
     ContractRunError::InvalidConfiguration(format!("failed to start memory governor: {error}"))
 }
@@ -597,34 +857,9 @@ fn drive<S: crate::pileup::ReadSource>(
     ref_view: &crate::genomics::ReferenceView,
     contigs: &crate::core::ContigSet,
     params: PileupParams,
-    output: &OutputTarget,
-) -> Result<Result<(WorkingSet, SkipCounts), CoreError>, ContractRunError> {
-    match output {
-        OutputTarget::File(path) => {
-            let file = File::create(path)?;
-            let mut writer = io::BufWriter::new(file);
-            let result =
-                run_bounded_whole_genome(analyzer, source, ref_view, contigs, params, &mut writer);
-            if result.is_ok() {
-                writer.flush()?;
-            } else {
-                let _ = writer.flush();
-            }
-            Ok(result)
-        }
-        OutputTarget::Stdout => {
-            let stdout = io::stdout();
-            let mut writer = stdout.lock();
-            let result =
-                run_bounded_whole_genome(analyzer, source, ref_view, contigs, params, &mut writer);
-            if result.is_ok() {
-                writer.flush()?;
-            } else {
-                let _ = writer.flush();
-            }
-            Ok(result)
-        }
-    }
+    writer: &mut dyn Write,
+) -> Result<(WorkingSet, SkipCounts), CoreError> {
+    run_bounded_whole_genome(analyzer, source, ref_view, contigs, params, writer)
 }
 
 fn receipt_destination(spec: &ContractRunSpec) -> Option<PathBuf> {
@@ -650,6 +885,9 @@ fn write_receipt(
     skips: SkipCounts,
     verdict: ContractVerdict,
     governor: GovernorState,
+    assurance: EnforcementAssurance,
+    os_limit_bytes: Option<u64>,
+    breached: bool,
 ) -> Result<String, ContractRunError> {
     let mut manifest = RunManifest::new(spec.invocation.argv_prefix.join(" "));
     manifest.tool_version = spec.producer.version.clone();
@@ -659,7 +897,12 @@ fn write_receipt(
     command.opt("--mapq-threshold", spec.mapq_threshold);
     command.opt("--max-depth", spec.max_depth);
     command.opt("--max-read-len", spec.max_read_len);
-    command.flag_if(spec.enforce, "--enforce");
+    command.flag_if(spec.enforcement.is_enforced(), "--enforce");
+    command.flag_if(
+        spec.enforcement == EnforcementMode::RequireOsLimit,
+        "--require-os-limit",
+    );
+    command.flag_if(spec.output_policy == OutputPolicy::ReplaceAtomic, "--force");
     if let Some(memory_mb) = spec.memory_budget_mb {
         command.opt("--memory-budget-mb", memory_mb);
     }
@@ -673,6 +916,15 @@ fn write_receipt(
         command.output("-o", output)?;
     }
     command.record_into(&mut manifest);
+    manifest.params.insert(
+        "replay.kind".to_string(),
+        if spec.producer.name == "rosalind" {
+            "rosalind"
+        } else {
+            "external-analyzer"
+        }
+        .to_string(),
+    );
 
     manifest
         .params
@@ -714,6 +966,38 @@ fn write_receipt(
         "predicted_working_set_bytes".to_string(),
         predicted_ws.to_string(),
     );
+    match &spec.analyzer_memory {
+        AnalyzerMemoryModel::Unknown => {
+            manifest
+                .params
+                .insert("analyzer.memory_model".to_string(), "unknown".to_string());
+        }
+        AnalyzerMemoryModel::Fixed {
+            model_id,
+            max_additional_bytes,
+        } => {
+            manifest
+                .params
+                .insert("analyzer.memory_model".to_string(), model_id.clone());
+            manifest.params.insert(
+                "analyzer.max_additional_bytes".to_string(),
+                max_additional_bytes.to_string(),
+            );
+        }
+    }
+    manifest.params.insert(
+        "contract.assurance".to_string(),
+        assurance.as_str().to_string(),
+    );
+    manifest.params.insert(
+        "run_status".to_string(),
+        if breached { "breached" } else { "completed" }.to_string(),
+    );
+    if let Some(limit) = os_limit_bytes {
+        manifest
+            .params
+            .insert("os.memory_limit_bytes".to_string(), limit.to_string());
+    }
     manifest
         .params
         .insert("peak_rss_bytes".to_string(), peak.to_string());
@@ -752,6 +1036,10 @@ fn write_receipt(
         .params
         .insert("contract_verdict".to_string(), verdict.as_str().to_string());
     manifest.finalize();
-    std::fs::write(destination, manifest.to_canonical_json())?;
+    write_atomic(
+        destination,
+        manifest.to_canonical_json().as_bytes(),
+        spec.output_policy.replace(),
+    )?;
     Ok(manifest.content_hash())
 }

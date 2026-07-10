@@ -114,6 +114,12 @@ enum Commands {
         /// `--memory-budget-mb` and `--max-depth > 0`.
         #[arg(long, default_value_t = false)]
         enforce: bool,
+        /// Require an existing Linux cgroup-v2 memory.max at or below the budget.
+        #[arg(long, requires = "enforce")]
+        require_os_limit: bool,
+        /// Atomically replace an existing output and receipt.
+        #[arg(long)]
+        force: bool,
         /// Where to write the reproducibility receipt. Default: `<output>.manifest.json`
         /// for file output, or `./rosalind.variants.manifest.json` for stdout output.
         #[arg(long)]
@@ -149,6 +155,12 @@ enum Commands {
         /// Honor the budget: refuse up front (exit 3) / fail after (exit 4).
         #[arg(long, default_value_t = false)]
         enforce: bool,
+        /// Require an existing Linux cgroup-v2 memory.max at or below the budget.
+        #[arg(long, requires = "enforce")]
+        require_os_limit: bool,
+        /// Atomically replace an existing output and receipt.
+        #[arg(long)]
+        force: bool,
         /// Output TSV path (stdout if omitted).
         #[arg(short, long)]
         output: Option<PathBuf>,
@@ -183,6 +195,12 @@ enum Commands {
         /// Honor the budget: refuse up front (exit 3) / fail after (exit 4).
         #[arg(long, default_value_t = false)]
         enforce: bool,
+        /// Require an existing Linux cgroup-v2 memory.max at or below the budget.
+        #[arg(long, requires = "enforce")]
+        require_os_limit: bool,
+        /// Atomically replace an existing output and receipt.
+        #[arg(long)]
+        force: bool,
         /// Output path (stdout if omitted).
         #[arg(short, long)]
         output: Option<PathBuf>,
@@ -422,6 +440,9 @@ enum Commands {
         /// a path recorded inside a receipt is never executed automatically.
         #[arg(long)]
         binary: Option<PathBuf>,
+        /// Validate and print the isolated execution plan without running it.
+        #[arg(long)]
+        dry_run: bool,
         /// Emit a stable JSON report instead of human-readable lines.
         #[arg(long)]
         json: bool,
@@ -556,6 +577,8 @@ fn main() -> Result<()> {
             max_depth,
             max_read_len,
             enforce,
+            require_os_limit,
+            force,
             manifest,
             gvcf,
         } => {
@@ -573,6 +596,8 @@ fn main() -> Result<()> {
                     max_depth,
                     max_read_len,
                     enforce,
+                    require_os_limit,
+                    force,
                     manifest,
                     gvcf,
                 )?
@@ -601,6 +626,8 @@ fn main() -> Result<()> {
             max_depth,
             max_read_len,
             enforce,
+            require_os_limit,
+            force,
             output,
             manifest,
         } => run_features(
@@ -611,6 +638,8 @@ fn main() -> Result<()> {
             max_depth,
             max_read_len,
             enforce,
+            require_os_limit,
+            force,
             output,
             manifest,
         )?,
@@ -623,6 +652,8 @@ fn main() -> Result<()> {
             max_depth,
             max_read_len,
             enforce,
+            require_os_limit,
+            force,
             output,
             manifest,
         } => {
@@ -644,6 +675,8 @@ fn main() -> Result<()> {
                         max_depth,
                         max_read_len,
                         enforce,
+                        require_os_limit,
+                        force,
                         output,
                         manifest,
                     )?
@@ -661,6 +694,8 @@ fn main() -> Result<()> {
                         max_depth,
                         max_read_len,
                         enforce,
+                        require_os_limit,
+                        force,
                         output,
                         manifest,
                     )?
@@ -760,8 +795,9 @@ fn main() -> Result<()> {
             no_attest,
             output,
             binary,
+            dry_run,
             json,
-        } => run_reproduce(manifest, inputs, no_attest, output, binary, json)?,
+        } => run_reproduce(manifest, inputs, no_attest, output, binary, dry_run, json)?,
         Commands::Badge {
             manifest,
             repro,
@@ -1603,9 +1639,35 @@ fn run_reproduce(
     no_attest: bool,
     output: Option<PathBuf>,
     binary: Option<PathBuf>,
+    dry_run: bool,
     json: bool,
 ) -> Result<()> {
     use rosalind::provenance::{ReproOutput, ReproReceipt};
+
+    if dry_run {
+        match rosalind::reproduce::plan_reproduction(&manifest, &inputs, binary.as_deref()) {
+            Ok(plan) => {
+                if json {
+                    println!("{}", plan.to_json());
+                } else {
+                    println!("reproduction plan: validated");
+                    println!("  binary: {}", plan.binary.display());
+                    println!("  argv: {}", plan.argv.join(" "));
+                    println!(
+                        "  inputs: {}; outputs: {}",
+                        plan.inputs.len(),
+                        plan.outputs.len()
+                    );
+                }
+                std::fs::remove_dir_all(&plan.work_dir).ok();
+                return Ok(());
+            }
+            Err(error) => {
+                eprintln!("reproduction plan rejected: {error}");
+                std::process::exit(7);
+            }
+        }
+    }
 
     let report = rosalind::reproduce::reproduce_with_binary(&manifest, &inputs, binary.as_deref())?;
     if json {
@@ -2299,12 +2361,14 @@ fn run_bounded_analysis(
     max_depth: u32,
     max_read_len: u32,
     enforce: bool,
+    require_os_limit: bool,
+    force: bool,
     output: Option<PathBuf>,
     manifest_out: Option<PathBuf>,
 ) -> Result<()> {
     use rosalind::contract::{
-        AnalyzerIdentity, ContractRunError, ContractRunSpec, ContractVerdict, OutputTarget,
-        ProducerIdentity, ReplayInvocation,
+        AnalyzerIdentity, AnalyzerMemoryModel, ContractRunError, ContractRunSpec, ContractVerdict,
+        EnforcementMode, OutputPolicy, OutputTarget, ProducerIdentity, ReplayInvocation,
     };
 
     let output_target = output
@@ -2318,16 +2382,31 @@ fn run_bounded_analysis(
             env!("CARGO_PKG_VERSION"),
         )
         .with_param_prefix(param_prefix),
+        analyzer_memory: AnalyzerMemoryModel::Fixed {
+            model_id: "fixed-additional-v1".to_string(),
+            max_additional_bytes: 0,
+        },
         invocation: ReplayInvocation::new(subcommand.split_whitespace()),
         index: index_path,
         alignments: alignments_path,
         output: output_target,
+        output_policy: if force {
+            OutputPolicy::ReplaceAtomic
+        } else {
+            OutputPolicy::CreateNewAtomic
+        },
         manifest: manifest_out,
         mapq_threshold,
         max_depth,
         max_read_len,
         memory_budget_mb,
-        enforce,
+        enforcement: if require_os_limit {
+            EnforcementMode::RequireOsLimit
+        } else if enforce {
+            EnforcementMode::Cooperative
+        } else {
+            EnforcementMode::RecordOnly
+        },
     };
 
     let render_outcome = |outcome: &rosalind::contract::ContractRunOutcome| {
@@ -2403,6 +2482,8 @@ fn run_features(
     max_depth: u32,
     max_read_len: u32,
     enforce: bool,
+    require_os_limit: bool,
+    force: bool,
     output: Option<PathBuf>,
     manifest_out: Option<PathBuf>,
 ) -> Result<()> {
@@ -2418,6 +2499,8 @@ fn run_features(
         max_depth,
         max_read_len,
         enforce,
+        require_os_limit,
+        force,
         output,
         manifest_out,
     )
@@ -2434,9 +2517,43 @@ fn run_variants_index(
     max_depth: u32,
     max_read_len: u32,
     enforce: bool,
+    require_os_limit: bool,
+    force: bool,
     manifest_out: Option<PathBuf>,
     gvcf: bool,
 ) -> Result<()> {
+    if require_os_limit {
+        let budget = memory_budget_mb.expect("clap requires --enforce; validation requires budget");
+        let required = budget.saturating_mul(1 << 20);
+        match rosalind::contract::detected_os_memory_limit_bytes() {
+            Some(limit) if limit <= required => {}
+            Some(limit) => bail!(
+                "OS memory enforcement unavailable: cgroup memory.max {} MiB exceeds budget {budget} MiB",
+                limit / (1 << 20)
+            ),
+            None => bail!(
+                "OS memory enforcement unavailable: run inside a cgroup-v2 scope limited to {budget} MiB"
+            ),
+        }
+    }
+    if !force {
+        if let Some(path) = &output {
+            if path.exists() {
+                bail!(
+                    "output already exists: {} (pass --force to replace it)",
+                    path.display()
+                );
+            }
+        }
+        if let Some(path) = &manifest_out {
+            if path.exists() {
+                bail!(
+                    "receipt already exists: {} (pass --force to replace it)",
+                    path.display()
+                );
+            }
+        }
+    }
     use rosalind::call::{
         call_germline_whole_genome, stream_gvcf_whole_genome, write_gvcf_header, GermlineParams,
     };

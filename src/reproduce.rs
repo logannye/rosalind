@@ -179,6 +179,108 @@ impl ReproReport {
     }
 }
 
+/// Whether replay uses the trusted upstream command surface or an explicitly supplied analyzer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ProducerKind {
+    /// A receipt produced by the upstream Rosalind binary (legacy receipts included).
+    Rosalind,
+    /// A third-party analyzer executable explicitly selected by the caller.
+    ExternalAnalyzer,
+}
+
+/// One input located by its recorded content hash.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LocatedArtifact {
+    /// Stable positional role such as `input[0]`.
+    pub role: String,
+    /// Recorded BLAKE3 digest.
+    pub blake3: String,
+    /// Local path whose bytes match the digest.
+    pub path: PathBuf,
+}
+
+/// One output path reserved inside the reproduction working directory.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PlannedOutput {
+    /// Stable positional role such as `output[0]`.
+    pub role: String,
+    /// Digest expected after replay.
+    pub recorded_blake3: String,
+    /// Fresh local destination used only for the re-run.
+    pub path: PathBuf,
+}
+
+/// A validated receipt-driven execution plan. Construct only through
+/// [`plan_reproduction`]; every content marker and executable policy has already
+/// been checked when this value is returned.
+#[derive(Debug, Clone)]
+pub struct ReproductionPlan {
+    /// Executable selected by policy, never by an untrusted recorded path.
+    pub binary: PathBuf,
+    /// Fully substituted argv passed directly to the executable (never a shell).
+    pub argv: Vec<String>,
+    /// Fresh isolated working directory.
+    pub work_dir: PathBuf,
+    /// Upstream or explicitly selected external producer.
+    pub producer_kind: ProducerKind,
+    /// Content-located inputs.
+    pub inputs: Vec<LocatedArtifact>,
+    /// Temporary output destinations.
+    pub outputs: Vec<PlannedOutput>,
+    manifest: RunManifest,
+    explicit_binary: bool,
+}
+
+impl ReproductionPlan {
+    /// Stable JSON suitable for `rosalind reproduce --dry-run --json`.
+    pub fn to_json(&self) -> String {
+        let argv = self
+            .argv
+            .iter()
+            .map(|value| format!("\"{}\"", json_escape(value)))
+            .collect::<Vec<_>>()
+            .join(",");
+        format!(
+            "{{\"schema\":1,\"binary\":\"{}\",\"producer_kind\":\"{}\",\"work_dir\":\"{}\",\"argv\":[{}],\"inputs\":{},\"outputs\":{}}}",
+            json_escape(&self.binary.display().to_string()),
+            match self.producer_kind {
+                ProducerKind::Rosalind => "rosalind",
+                ProducerKind::ExternalAnalyzer => "external-analyzer",
+            },
+            json_escape(&self.work_dir.display().to_string()),
+            argv,
+            self.inputs.len(),
+            self.outputs.len(),
+        )
+    }
+}
+
+/// Receipt recipes rejected before process execution.
+#[derive(Debug)]
+pub enum ReplaySafetyError {
+    /// Receipt integrity is absent or invalid.
+    Integrity(String),
+    /// Recipe shape or producer policy is unsafe or unsupported.
+    UnsafeRecipe(String),
+    /// A required input cannot be content-located.
+    InputNotLocated(String),
+    /// Filesystem or parsing failure while constructing the plan.
+    Io(String),
+}
+
+impl std::fmt::Display for ReplaySafetyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Integrity(message) => write!(f, "receipt integrity failed: {message}"),
+            Self::UnsafeRecipe(message) => write!(f, "unsafe replay recipe: {message}"),
+            Self::InputNotLocated(message) => write!(f, "input not located: {message}"),
+            Self::Io(message) => write!(f, "cannot plan reproduction: {message}"),
+        }
+    }
+}
+
+impl std::error::Error for ReplaySafetyError {}
+
 /// Output types `reproduce` can byte-compare in v1. BAM/bgzf is out of scope (a C zlib
 /// not captured by `deps_lock_blake3`).
 fn output_is_text(path: &str) -> bool {
@@ -195,7 +297,8 @@ fn index_inputs(inputs_dir: &Path) -> Result<BTreeMap<String, PathBuf>> {
         let p = entry?.path();
         if p.is_file() {
             if let Ok(h) = blake3_file(&p) {
-                idx.entry(h).or_insert(p);
+                let absolute = std::fs::canonicalize(&p).unwrap_or(p);
+                idx.entry(h).or_insert(absolute);
             }
         }
     }
@@ -240,6 +343,271 @@ fn read_rerun_manifest(output_temp: &Path) -> Option<RunManifest> {
     RunManifest::from_canonical_json(&text).ok()
 }
 
+/// Validate a receipt and construct a shell-free execution plan without running it.
+pub fn plan_reproduction(
+    manifest_path: &Path,
+    inputs_dir: &Path,
+    binary: Option<&Path>,
+) -> std::result::Result<ReproductionPlan, ReplaySafetyError> {
+    let text = std::fs::read_to_string(manifest_path)
+        .map_err(|error| ReplaySafetyError::Io(error.to_string()))?;
+    let manifest = RunManifest::from_canonical_json(&text)
+        .map_err(|error| ReplaySafetyError::Integrity(error.to_string()))?;
+    build_reproduction_plan(manifest, inputs_dir, binary)
+}
+
+fn build_reproduction_plan(
+    manifest: RunManifest,
+    inputs_dir: &Path,
+    binary: Option<&Path>,
+) -> std::result::Result<ReproductionPlan, ReplaySafetyError> {
+    if manifest.self_hash_ok() != Some(true) {
+        return Err(ReplaySafetyError::Integrity(
+            "claim self-hash is absent or does not match".to_string(),
+        ));
+    }
+    if manifest.measurement_hash_ok() == Some(false) {
+        return Err(ReplaySafetyError::Integrity(
+            "measurement self-hash does not match".to_string(),
+        ));
+    }
+    if manifest.outputs.is_empty() {
+        return Err(ReplaySafetyError::UnsafeRecipe(
+            "receipt records no output artifact".to_string(),
+        ));
+    }
+    if let Some(output) = manifest
+        .outputs
+        .iter()
+        .find(|output| !output_is_text(&output.path))
+    {
+        return Err(ReplaySafetyError::UnsafeRecipe(format!(
+            "output {} is not byte-comparable",
+            output.path
+        )));
+    }
+
+    let tokens = crate::provenance::command_template_tokens(&manifest)
+        .map_err(ReplaySafetyError::UnsafeRecipe)?;
+    validate_recipe_tokens(&manifest, &tokens, binary.is_some())?;
+
+    let producer_kind = producer_kind(&manifest);
+    let execution_binary = match (producer_kind, binary) {
+        (ProducerKind::Rosalind, Some(path)) | (ProducerKind::ExternalAnalyzer, Some(path)) => {
+            std::fs::canonicalize(path).map_err(|error| {
+                ReplaySafetyError::Io(format!("cannot resolve binary {}: {error}", path.display()))
+            })?
+        }
+        (ProducerKind::Rosalind, None) => {
+            std::env::current_exe().map_err(|error| ReplaySafetyError::Io(error.to_string()))?
+        }
+        (ProducerKind::ExternalAnalyzer, None) => {
+            return Err(ReplaySafetyError::UnsafeRecipe(
+                "external analyzer receipts require --binary PATH".to_string(),
+            ))
+        }
+    };
+
+    let index =
+        index_inputs(inputs_dir).map_err(|error| ReplaySafetyError::Io(error.to_string()))?;
+    let mut inputs = Vec::with_capacity(manifest.inputs.len());
+    for (position, input) in manifest.inputs.iter().enumerate() {
+        let path = index
+            .get(&input.blake3)
+            .cloned()
+            .ok_or_else(|| ReplaySafetyError::InputNotLocated(format!("@in:{}", input.blake3)))?;
+        inputs.push(LocatedArtifact {
+            role: format!("input[{position}]"),
+            blake3: input.blake3.clone(),
+            path,
+        });
+    }
+
+    let work_dir = make_temp_dir().map_err(|error| ReplaySafetyError::Io(error.to_string()))?;
+    let mut output_by_hash = BTreeMap::new();
+    let mut outputs = Vec::with_capacity(manifest.outputs.len());
+    for (position, output) in manifest.outputs.iter().enumerate() {
+        let extension = Path::new(&output.path)
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .unwrap_or("out");
+        let path = work_dir.join(format!("out_{position}.{extension}"));
+        output_by_hash.insert(output.blake3.clone(), path.clone());
+        outputs.push(PlannedOutput {
+            role: format!("output[{position}]"),
+            recorded_blake3: output.blake3.clone(),
+            path,
+        });
+    }
+    let input_by_hash = inputs
+        .iter()
+        .map(|input| (input.blake3.clone(), input.path.clone()))
+        .collect::<BTreeMap<_, _>>();
+    let argv = match CommandCapture::argv_from_manifest(
+        &manifest,
+        &|hash| {
+            input_by_hash
+                .get(hash)
+                .map(|path| path.display().to_string())
+        },
+        &|hash| {
+            output_by_hash
+                .get(hash)
+                .map(|path| path.display().to_string())
+                .unwrap_or_else(|| work_dir.join("out_unknown").display().to_string())
+        },
+    ) {
+        Ok(argv) => argv,
+        Err(error) => {
+            let _ = std::fs::remove_dir_all(&work_dir);
+            return Err(ReplaySafetyError::UnsafeRecipe(error));
+        }
+    };
+
+    Ok(ReproductionPlan {
+        binary: execution_binary,
+        argv,
+        work_dir,
+        producer_kind,
+        inputs,
+        outputs,
+        manifest,
+        explicit_binary: binary.is_some(),
+    })
+}
+
+fn producer_kind(manifest: &RunManifest) -> ProducerKind {
+    match manifest.params.get("replay.kind").map(String::as_str) {
+        Some("external-analyzer") => ProducerKind::ExternalAnalyzer,
+        Some("rosalind") => ProducerKind::Rosalind,
+        _ if manifest.params.get("producer.name").map(String::as_str) == Some("rosalind") => {
+            ProducerKind::Rosalind
+        }
+        _ if manifest.params.contains_key("producer.name") => ProducerKind::ExternalAnalyzer,
+        _ => ProducerKind::Rosalind,
+    }
+}
+
+fn validate_recipe_tokens(
+    manifest: &RunManifest,
+    tokens: &[String],
+    explicit_binary: bool,
+) -> std::result::Result<(), ReplaySafetyError> {
+    let prefix = manifest
+        .subcommand
+        .split_whitespace()
+        .map(str::to_string)
+        .collect::<Vec<_>>();
+    if tokens.len() < prefix.len() || tokens[..prefix.len()] != prefix {
+        return Err(ReplaySafetyError::UnsafeRecipe(
+            "command prefix does not match receipt subcommand".to_string(),
+        ));
+    }
+    if tokens.iter().any(|token| token == "--manifest") {
+        return Err(ReplaySafetyError::UnsafeRecipe(
+            "recorded --manifest paths are never replayed".to_string(),
+        ));
+    }
+
+    let kind = producer_kind(manifest);
+    if kind == ProducerKind::ExternalAnalyzer {
+        let replay_schema = manifest
+            .params
+            .get("replay_schema")
+            .and_then(|value| value.parse::<u32>().ok());
+        if replay_schema != Some(3) {
+            return Err(ReplaySafetyError::UnsafeRecipe(
+                "external analyzers require replay_schema=3".to_string(),
+            ));
+        }
+        if !explicit_binary {
+            return Err(ReplaySafetyError::UnsafeRecipe(
+                "external analyzer receipts require --binary PATH".to_string(),
+            ));
+        }
+    } else if !built_in_prefix_allowed(&prefix) {
+        return Err(ReplaySafetyError::UnsafeRecipe(format!(
+            "Rosalind subcommand {:?} is not in the replay allowlist",
+            manifest.subcommand
+        )));
+    }
+
+    let markers = |prefix: &str| {
+        let mut values = tokens
+            .iter()
+            .enumerate()
+            .filter_map(|(index, token)| {
+                token
+                    .strip_prefix(prefix)
+                    .map(|hash| (index, hash.to_string()))
+            })
+            .collect::<Vec<_>>();
+        values.sort_by(|a, b| a.1.cmp(&b.1));
+        values
+    };
+    let expected = |files: &[FileHash]| {
+        let mut hashes = files
+            .iter()
+            .map(|file| file.blake3.clone())
+            .collect::<Vec<_>>();
+        hashes.sort();
+        hashes
+    };
+    let inputs = markers("@in:");
+    let outputs = markers("@out:");
+    if inputs
+        .iter()
+        .map(|(_, hash)| hash.clone())
+        .collect::<Vec<_>>()
+        != expected(&manifest.inputs)
+    {
+        return Err(ReplaySafetyError::UnsafeRecipe(
+            "input markers do not match receipt inputs exactly".to_string(),
+        ));
+    }
+    if outputs
+        .iter()
+        .map(|(_, hash)| hash.clone())
+        .collect::<Vec<_>>()
+        != expected(&manifest.outputs)
+    {
+        return Err(ReplaySafetyError::UnsafeRecipe(
+            "output markers do not match receipt outputs exactly".to_string(),
+        ));
+    }
+    for (index, _) in inputs.iter().chain(outputs.iter()) {
+        if *index == 0 || !tokens[index - 1].starts_with('-') {
+            return Err(ReplaySafetyError::UnsafeRecipe(
+                "every content marker must be the value of an option flag".to_string(),
+            ));
+        }
+    }
+    for (index, token) in tokens.iter().enumerate() {
+        if token == "-o" || token == "--output" {
+            if !tokens
+                .get(index + 1)
+                .is_some_and(|value| value.starts_with("@out:"))
+            {
+                return Err(ReplaySafetyError::UnsafeRecipe(
+                    "output flags must target a recorded @out marker".to_string(),
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
+fn built_in_prefix_allowed(prefix: &[String]) -> bool {
+    matches!(
+        prefix.first().map(String::as_str),
+        Some("variants" | "features" | "somatic")
+    ) || (prefix.first().map(String::as_str) == Some("analyze")
+        && matches!(
+            prefix.get(1).map(String::as_str),
+            Some("features" | "coverage")
+        ))
+}
+
 /// Re-derive the result recorded in `manifest_path` from inputs content-located under
 /// `inputs_dir`, and compare byte-for-byte. See the module docs for scope.
 pub fn reproduce(manifest_path: &Path, inputs_dir: &Path) -> Result<ReproReport> {
@@ -262,7 +630,6 @@ pub fn reproduce_with_binary(
     let parent_subcommand = manifest.subcommand.clone();
     let original_code = build_identity_from_manifest(&manifest);
     let reproducer_code = current_build_identity();
-    let explicit_binary = binary.is_some();
     let execution_binary = match binary {
         Some(path) => path.to_path_buf(),
         None => std::env::current_exe().context("locating the rosalind binary to re-run")?,
@@ -338,51 +705,71 @@ pub fn reproduce_with_binary(
         ));
     }
 
-    // 4. Content-locate inputs; bind outputs to fresh temp paths.
-    let index = index_inputs(inputs_dir)?;
-    let located = index.len();
-    let locate = |h: &str| index.get(h).map(|p| p.display().to_string());
-
-    let work = make_temp_dir()?;
-    let mut out_temp: BTreeMap<String, PathBuf> = BTreeMap::new();
-    for (i, o) in manifest.outputs.iter().enumerate() {
-        let ext = Path::new(&o.path)
-            .extension()
-            .and_then(|e| e.to_str())
-            .unwrap_or("out");
-        out_temp.insert(o.blake3.clone(), work.join(format!("out_{i}.{ext}")));
-    }
-    let temp_output = |h: &str| {
-        out_temp
-            .get(h)
-            .map(|p| p.display().to_string())
-            .unwrap_or_else(|| work.join("out_unknown").display().to_string())
-    };
-
-    // 5. Reconstruct the argv; an unlocatable input is INCONCLUSIVE (not DIVERGED).
-    let argv = match CommandCapture::argv_from_manifest(&manifest, &locate, &temp_output) {
-        Ok(a) => a,
-        Err(e) => {
+    let plan = match build_reproduction_plan(manifest, inputs_dir, binary) {
+        Ok(plan) => plan,
+        Err(error) => {
             return Ok(report(
                 "INCONCLUSIVE",
                 7,
                 vec![
-                    format!("  cannot reproduce: {e}"),
-                    "  (pass --inputs pointing at a directory holding the recorded files)"
-                        .to_string(),
+                    format!("  cannot reproduce safely: {error}"),
                     "  VERDICT     : INCONCLUSIVE".to_string(),
                 ],
                 false,
             ))
         }
     };
+    execute_reproduction(plan)
+}
 
-    // 6. Re-execute the same binary.
-    let child = std::process::Command::new(&execution_binary)
+/// Execute a previously validated plan and compare every produced output byte-for-byte.
+pub fn execute_reproduction(plan: ReproductionPlan) -> Result<ReproReport> {
+    let ReproductionPlan {
+        binary: execution_binary,
+        argv,
+        work_dir: work,
+        producer_kind: _,
+        inputs,
+        outputs,
+        manifest,
+        explicit_binary,
+    } = plan;
+    let parent_claim = manifest.content_hash();
+    let parent_subcommand = manifest.subcommand.clone();
+    let original_code = build_identity_from_manifest(&manifest);
+    let reproducer_code = current_build_identity();
+    let report =
+        |verdict_label: &str, exit_code: i32, lines: Vec<String>, compared: bool| ReproReport {
+            verdict_label: verdict_label.to_string(),
+            exit_code,
+            lines,
+            parent_claim: parent_claim.clone(),
+            parent_subcommand: parent_subcommand.clone(),
+            outputs: Vec::new(),
+            resource_here: ResourceHere::default(),
+            original_code: original_code.clone(),
+            reproducer_code: reproducer_code.clone(),
+            execution_binary: execution_binary.clone(),
+            compared,
+        };
+
+    let mut command = std::process::Command::new(&execution_binary);
+    command
         .args(&argv)
+        .current_dir(&work)
+        .env_clear()
+        .env("HOME", &work)
+        .env("TMPDIR", &work)
+        .env("LC_ALL", "C")
+        .env("TZ", "UTC");
+    if let Some(path) = std::env::var_os("PATH") {
+        command.env("PATH", path);
+    }
+    let child = command
         .output()
-        .context("re-running the recorded command")?;
+        .context("re-running the validated recorded command")?;
     if !child.status.success() {
+        let _ = std::fs::remove_dir_all(&work);
         return Ok(report(
             "INCONCLUSIVE",
             7,
@@ -404,22 +791,19 @@ pub fn reproduce_with_binary(
     // 7. Hash produced outputs and classify.
     let mut produced: Vec<(String, String)> = Vec::new();
     let mut cmps: Vec<OutputCmp> = Vec::new();
-    for (i, o) in manifest.outputs.iter().enumerate() {
-        let temp = out_temp
-            .get(&o.blake3)
-            .expect("temp path per recorded output");
-        let observed = blake3_file(temp).with_context(|| {
+    for (i, (recorded, planned)) in manifest.outputs.iter().zip(outputs.iter()).enumerate() {
+        let observed = blake3_file(&planned.path).with_context(|| {
             format!(
                 "the re-run did not produce the expected output {}",
-                temp.display()
+                planned.path.display()
             )
         })?;
         produced.push((format!("output[{i}]"), observed.clone()));
         cmps.push(OutputCmp {
             role: format!("output[{i}]"),
-            recorded: o.blake3.clone(),
+            recorded: recorded.blake3.clone(),
             observed: observed.clone(),
-            matched: observed == o.blake3,
+            matched: observed == recorded.blake3,
         });
     }
     let outcome = classify_outputs(&manifest.outputs, &produced);
@@ -431,7 +815,7 @@ pub fn reproduce_with_binary(
     let rerun_manifest = manifest
         .outputs
         .first()
-        .and_then(|o| out_temp.get(&o.blake3))
+        .and_then(|_| outputs.first().map(|output| &output.path))
         .and_then(|p| read_rerun_manifest(p));
     let peak_here = rerun_manifest
         .as_ref()
@@ -466,7 +850,10 @@ pub fn reproduce_with_binary(
     let mut lines = vec![
         format!("  claim       : {} (re-derived)", short(&parent_claim)),
         code_line,
-        format!("  inputs      : {located} file(s) indexed by content hash"),
+        format!(
+            "  inputs      : {} file(s) located by content hash",
+            inputs.len()
+        ),
     ];
     for c in &cmps {
         if c.matched {

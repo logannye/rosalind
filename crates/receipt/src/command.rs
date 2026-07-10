@@ -10,9 +10,9 @@ use std::path::Path;
 
 use super::{blake3_file, json_escape, FileHash, RunManifest};
 
-/// Version of the replay recipe carried by new receipts. Version 2 adds a
-/// canonical JSON argv alongside the legacy, human-readable `command` string.
-pub const REPLAY_SCHEMA_VERSION: u32 = 2;
+/// Version of the replay recipe carried by new receipts. Version 3 requires
+/// strict one-to-one content operands and records the producer execution kind.
+pub const REPLAY_SCHEMA_VERSION: u32 = 3;
 
 /// One token of a recorded invocation.
 #[derive(Debug)]
@@ -197,6 +197,9 @@ impl CommandCapture {
             "replay_schema".to_string(),
             REPLAY_SCHEMA_VERSION.to_string(),
         );
+        m.params
+            .entry("replay.kind".to_string())
+            .or_insert_with(|| "rosalind".to_string());
         for t in &self.tokens {
             match t {
                 Token::Opt(f, v) => {

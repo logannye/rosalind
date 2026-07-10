@@ -87,8 +87,9 @@ pub use call::{
 pub use core::{MemoryBudget, WorkingSet};
 // Build-once → mmap index + the reproducibility receipt:
 pub use contract::{
-    run_column_analysis, AnalyzerIdentity, ContractRunError, ContractRunOutcome, ContractRunSpec,
-    ContractVerdict, GovernorState, OutputTarget, ProducerIdentity, RefusalReport,
+    detected_os_memory_limit_bytes, run_column_analysis, AnalyzerIdentity, AnalyzerMemoryModel,
+    ContractRunError, ContractRunOutcome, ContractRunSpec, ContractVerdict, EnforcementAssurance,
+    EnforcementMode, GovernorState, OutputPolicy, OutputTarget, ProducerIdentity, RefusalReport,
     ReplayInvocation,
 };
 pub use genomics::{GenomeIndex, IndexReader, ReferenceView};

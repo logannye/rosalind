@@ -7,8 +7,9 @@ use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use rosalind::contract::{
-    run_column_analysis, AnalyzerIdentity, ContractRunError, ContractRunSpec, ContractVerdict,
-    OutputTarget, ProducerIdentity, ReplayInvocation,
+    run_column_analysis, AnalyzerIdentity, AnalyzerMemoryModel, ContractRunError, ContractRunSpec,
+    ContractVerdict, EnforcementMode, OutputPolicy, OutputTarget, ProducerIdentity,
+    ReplayInvocation,
 };
 use rosalind::{ColumnAnalyzer, PileupColumn};
 
@@ -112,16 +113,18 @@ fn spec(index: PathBuf, alignments: PathBuf, output: PathBuf) -> ContractRunSpec
             binary: "external-test".to_string(),
         },
         analyzer: AnalyzerIdentity::new("depth", "4.5.6"),
+        analyzer_memory: AnalyzerMemoryModel::Unknown,
         invocation: ReplayInvocation::new(["run"]).option("--label", "value with spaces"),
         index,
         alignments,
         output: OutputTarget::File(output),
+        output_policy: OutputPolicy::CreateNewAtomic,
         manifest: None,
         mapq_threshold: 0,
         max_depth: 1000,
         max_read_len: 250,
         memory_budget_mb: None,
-        enforce: false,
+        enforcement: EnforcementMode::RecordOnly,
     }
 }
 
@@ -152,10 +155,73 @@ fn direct_runner_refuses_before_primary_output_creation() {
     let output = dir.join("must-not-exist.tsv");
     let mut configured = spec(index, bam, output.clone());
     configured.memory_budget_mb = Some(1);
-    configured.enforce = true;
+    configured.analyzer_memory = AnalyzerMemoryModel::Fixed {
+        model_id: "test-v1".to_string(),
+        max_additional_bytes: 0,
+    };
+    configured.enforcement = EnforcementMode::Cooperative;
     let error = run_column_analysis(&mut DepthAnalyzer, configured).unwrap_err();
     assert!(matches!(error, ContractRunError::Refused(_)));
     assert!(!output.exists());
+    std::fs::remove_dir_all(dir).ok();
+}
+
+#[test]
+fn enforced_unknown_analyzer_is_rejected_before_output_creation() {
+    let dir = unique_dir();
+    let (index, bam) = fixture(&dir);
+    let output = dir.join("unknown-must-not-exist.tsv");
+    let mut configured = spec(index, bam, output.clone());
+    configured.memory_budget_mb = Some(128);
+    configured.enforcement = EnforcementMode::Cooperative;
+    let error = run_column_analysis(&mut DepthAnalyzer, configured).unwrap_err();
+    assert!(matches!(error, ContractRunError::UnknownAnalyzerBound));
+    assert!(!output.exists());
+    assert!(!PathBuf::from(format!("{}.partial", output.display())).exists());
+    std::fs::remove_dir_all(dir).ok();
+}
+
+#[test]
+fn fixed_analyzer_contribution_is_reported_exactly_once() {
+    let dir = unique_dir();
+    let (index, bam) = fixture(&dir);
+    let output = dir.join("bounded.tsv");
+    let mut configured = spec(index, bam, output);
+    configured.analyzer_memory = AnalyzerMemoryModel::Fixed {
+        model_id: "retained-v1".to_string(),
+        max_additional_bytes: 12_345,
+    };
+    let outcome = run_column_analysis(&mut DepthAnalyzer, configured).unwrap();
+    assert_eq!(outcome.analyzer_predicted_bytes, Some(12_345));
+    let receipt = std::fs::read_to_string(outcome.manifest_path.unwrap()).unwrap();
+    assert!(receipt.contains("\"analyzer.max_additional_bytes\":\"12345\""));
+    std::fs::remove_dir_all(dir).ok();
+}
+
+#[test]
+fn create_new_policy_preserves_existing_output() {
+    let dir = unique_dir();
+    let (index, bam) = fixture(&dir);
+    let output = dir.join("existing.tsv");
+    std::fs::write(&output, b"keep me\n").unwrap();
+    let error =
+        run_column_analysis(&mut DepthAnalyzer, spec(index, bam, output.clone())).unwrap_err();
+    assert!(matches!(error, ContractRunError::OutputExists(path) if path == output));
+    assert_eq!(std::fs::read(&output).unwrap(), b"keep me\n");
+    std::fs::remove_dir_all(dir).ok();
+}
+
+#[test]
+fn replace_policy_atomically_replaces_existing_output() {
+    let dir = unique_dir();
+    let (index, bam) = fixture(&dir);
+    let output = dir.join("replace.tsv");
+    std::fs::write(&output, b"old bytes\n").unwrap();
+    let mut configured = spec(index, bam, output.clone());
+    configured.output_policy = OutputPolicy::ReplaceAtomic;
+    let outcome = run_column_analysis(&mut DepthAnalyzer, configured).unwrap();
+    assert_eq!(outcome.output_path.as_deref(), Some(output.as_path()));
+    assert_ne!(std::fs::read(&output).unwrap(), b"old bytes\n");
     std::fs::remove_dir_all(dir).ok();
 }
 

@@ -106,8 +106,8 @@ use std::path::PathBuf;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use rosalind::contract::{
-    run_column_analysis, AnalyzerIdentity, ContractRunError, ContractRunSpec,
-    OutputTarget, ProducerIdentity, ReplayInvocation,
+    run_column_analysis, AnalyzerIdentity, AnalyzerMemoryModel, ContractRunError, ContractRunSpec,
+    EnforcementMode, OutputPolicy, OutputTarget, ProducerIdentity, ReplayInvocation,
 };
 use rosalind::{ColumnAnalyzer, PileupColumn};
 
@@ -184,16 +184,25 @@ fn main() -> Result<()> {
             binary: "__PACKAGE_NAME__".to_string(),
         },
         analyzer: AnalyzerIdentity::new("__PACKAGE_NAME__", env!("CARGO_PKG_VERSION")),
+        analyzer_memory: AnalyzerMemoryModel::Fixed {
+            model_id: "fixed-additional-v1".to_string(),
+            max_additional_bytes: 0,
+        },
         invocation: ReplayInvocation::new(["run"]).option("--scale", scale),
         index,
         alignments,
         output: OutputTarget::File(output),
+        output_policy: OutputPolicy::CreateNewAtomic,
         manifest,
         mapq_threshold,
         max_depth,
         max_read_len,
         memory_budget_mb,
-        enforce,
+        enforcement: if enforce {
+            EnforcementMode::Cooperative
+        } else {
+            EnforcementMode::RecordOnly
+        },
     };
     match run_column_analysis(&mut analyzer, spec) {
         Ok(outcome) => {
