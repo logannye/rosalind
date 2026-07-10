@@ -1,0 +1,14 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  contract:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@1.83
+      - run: cargo install rosalind-bio --version 0.4.0 --locked
+      - run: cargo test
+      - run: bash scripts/contract-check.sh

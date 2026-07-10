@@ -60,6 +60,12 @@ enum Commands {
         /// Optional path to write the output (stdout if omitted for SAM).
         #[arg(short, long)]
         output: Option<PathBuf>,
+        /// Atomically replace existing output and receipt destinations.
+        #[arg(long)]
+        force: bool,
+        /// Receipt path (default: `<output>.manifest.json` for file output).
+        #[arg(long)]
+        manifest: Option<PathBuf>,
     },
     /// Call germline variants from aligned reads (streaming pileup engine +
     /// abstention-aware genotype-likelihood caller).
@@ -219,6 +225,12 @@ enum Commands {
         /// Memory budget (MiB) for in-memory sorting chunks.
         #[arg(long, default_value_t = 1024)]
         memory_mb: usize,
+        /// Atomically replace existing output and receipt destinations.
+        #[arg(long)]
+        force: bool,
+        /// Receipt path (default: `<output>.manifest.json`).
+        #[arg(long)]
+        manifest: Option<PathBuf>,
     },
     /// End-to-end tumor/normal somatic calling (align + sort + call).
     Somatic {
@@ -252,6 +264,9 @@ enum Commands {
         /// Sorting memory budget (MiB).
         #[arg(long, default_value_t = 1024)]
         memory_mb: usize,
+        /// Atomically replace existing outputs, receipts, and work artifacts.
+        #[arg(long)]
+        force: bool,
     },
     /// Compare a called somatic VCF against a truth VCF (optionally masked by BED).
     EvalSomatic {
@@ -302,6 +317,9 @@ enum Commands {
         /// not enforce (enforcement is a later phase).
         #[arg(long)]
         memory_budget_mb: Option<u64>,
+        /// Atomically replace existing index and receipt destinations.
+        #[arg(long)]
+        force: bool,
     },
     /// Scaffold a downstream project that inherits Rosalind's contract.
     New {
@@ -364,6 +382,11 @@ enum Commands {
     Receipt {
         #[command(subcommand)]
         action: ReceiptAction,
+    },
+    /// Validate an external analyzer against Rosalind's complete builder contract.
+    Conformance {
+        #[command(subcommand)]
+        action: ConformanceAction,
     },
     /// Locate exact occurrences of a pattern in a prebuilt index (load + query).
     Locate {
@@ -483,6 +506,9 @@ enum Commands {
         /// Validate and print the isolated execution plan without running it.
         #[arg(long)]
         dry_run: bool,
+        /// Atomically replace an existing reproduction certificate.
+        #[arg(long)]
+        force: bool,
         /// Emit a stable JSON report instead of human-readable lines.
         #[arg(long)]
         json: bool,
@@ -499,6 +525,9 @@ enum Commands {
         /// Output path; a `.svg` extension emits the static SVG, else a shields JSON.
         #[arg(short, long)]
         output: PathBuf,
+        /// Atomically replace an existing badge.
+        #[arg(long)]
+        force: bool,
     },
 }
 
@@ -548,6 +577,19 @@ enum ReceiptAction {
         /// New statement path; existing files are never overwritten.
         #[arg(short, long)]
         output: PathBuf,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum ConformanceAction {
+    /// Run embedded determinism, contract, receipt, replay, diff, and collision checks.
+    Analyzer {
+        /// External analyzer executable to test explicitly.
+        #[arg(long)]
+        binary: PathBuf,
+        /// Emit a stable badge-ready result.
+        #[arg(long)]
+        json: bool,
     },
 }
 
@@ -628,6 +670,8 @@ fn main() -> Result<()> {
             reference_offset,
             format,
             output,
+            force,
+            manifest,
         } => run_align(
             reference,
             reads,
@@ -637,6 +681,8 @@ fn main() -> Result<()> {
             reference_offset,
             format,
             output,
+            force,
+            manifest,
         )?,
         Commands::Variants {
             index,
@@ -690,6 +736,8 @@ fn main() -> Result<()> {
                     output,
                     1024,
                     quality_threshold,
+                    force,
+                    manifest,
                 )?
             }
         }
@@ -781,10 +829,9 @@ fn main() -> Result<()> {
             input,
             output,
             memory_mb,
-        } => {
-            let bytes = memory_mb.saturating_mul(1024 * 1024).max(1024 * 1024);
-            sort_bam_deterministic(input, output, bytes).context("sorting BAM failed")?;
-        }
+            force,
+            manifest,
+        } => run_sort(input, output, memory_mb, force, manifest)?,
         Commands::Somatic {
             reference,
             tumor,
@@ -796,10 +843,11 @@ fn main() -> Result<()> {
             output,
             workdir,
             memory_mb,
+            force,
         } => {
             run_somatic(
                 reference, tumor, tumor_r1, tumor_r2, normal, normal_r1, normal_r2, output,
-                workdir, memory_mb,
+                workdir, memory_mb, force,
             )?;
         }
         Commands::EvalSomatic {
@@ -824,7 +872,8 @@ fn main() -> Result<()> {
             reference,
             output,
             memory_budget_mb,
-        } => run_index(reference, output, memory_budget_mb)?,
+            force,
+        } => run_index(reference, output, memory_budget_mb, force)?,
         Commands::New { action } => match action {
             NewAction::Analyzer { name, output } => run_new_analyzer(&name, &output)?,
         },
@@ -867,6 +916,9 @@ fn main() -> Result<()> {
                 run_receipt_export_intoto(manifest, output)?
             }
         },
+        Commands::Conformance { action } => match action {
+            ConformanceAction::Analyzer { binary, json } => run_conformance_analyzer(binary, json)?,
+        },
         Commands::Locate {
             index,
             pattern,
@@ -902,13 +954,17 @@ fn main() -> Result<()> {
             output,
             binary,
             dry_run,
+            force,
             json,
-        } => run_reproduce(manifest, inputs, no_attest, output, binary, dry_run, json)?,
+        } => run_reproduce(
+            manifest, inputs, no_attest, output, binary, dry_run, force, json,
+        )?,
         Commands::Badge {
             manifest,
             repro,
             output,
-        } => run_badge(manifest, repro, output)?,
+            force,
+        } => run_badge(manifest, repro, output, force)?,
     }
 
     Ok(())
@@ -923,6 +979,29 @@ fn run_new_analyzer(name: &str, output: &std::path::Path) -> Result<()> {
     }
     println!("next: cd {} && cargo test", report.root.display());
     Ok(())
+}
+
+fn run_conformance_analyzer(binary: PathBuf, json: bool) -> Result<()> {
+    let report = rosalind::conform_analyzer(&binary)?;
+    if json {
+        println!("{}", report.to_json());
+    } else {
+        println!(
+            "analyzer conformance: {}",
+            if report.passed { "PASS" } else { "FAIL" }
+        );
+        for (name, passed) in &report.checks {
+            println!("  {} {name}", if *passed { "✓" } else { "✗" });
+        }
+        for failure in &report.failures {
+            eprintln!("  {failure}");
+        }
+    }
+    if report.passed {
+        Ok(())
+    } else {
+        std::process::exit(1);
+    }
 }
 
 fn run_doctor_command(
@@ -991,6 +1070,22 @@ fn status_word(value: bool) -> &'static str {
     }
 }
 
+fn sidecar_path(path: &std::path::Path, suffix: &str) -> PathBuf {
+    let mut value = path.as_os_str().to_os_string();
+    value.push(suffix);
+    PathBuf::from(value)
+}
+
+fn require_safe_cli_destination(path: &std::path::Path, force: bool, kind: &str) {
+    if !force && path.exists() {
+        eprintln!(
+            "{kind} already exists: {} (choose a new path or pass --force for atomic replacement)",
+            path.display()
+        );
+        std::process::exit(2);
+    }
+}
+
 fn run_demo(output_dir: PathBuf, budget_mb: u64, json: bool) -> Result<()> {
     use rosalind::provenance::RunManifest;
 
@@ -1008,13 +1103,15 @@ fn run_demo(output_dir: PathBuf, budget_mb: u64, json: bool) -> Result<()> {
     let index = output_dir.join("ref.idx");
     let calls = output_dir.join("calls.vcf");
     let manifest = output_dir.join("calls.vcf.manifest.json");
-    std::fs::write(
+    rosalind::util::atomic::write_atomic(
         &reference,
         include_str!("../assets/demo/reference.fa").as_bytes(),
+        false,
     )?;
-    std::fs::write(
+    rosalind::util::atomic::write_atomic(
         &reads,
         include_str!("../assets/demo/reads.fastq").as_bytes(),
+        false,
     )?;
 
     let exe = std::env::current_exe().context("locating the rosalind executable")?;
@@ -1133,21 +1230,35 @@ fn run_demo(output_dir: PathBuf, budget_mb: u64, json: bool) -> Result<()> {
     let receipt = RunManifest::from_canonical_json(&std::fs::read_to_string(&manifest)?)
         .map_err(|error| anyhow!("demo receipt could not be parsed: {error}"))?;
     let claim = receipt.content_hash();
+    let reproduction = sidecar_path(&manifest, ".repro.json");
+    let studio_command = format!(
+        "rosalind studio {} {} {} {} {}",
+        p(&output_dir.join("ref.idx.manifest.json")),
+        p(&output_dir.join("raw.bam.manifest.json")),
+        p(&output_dir.join("sorted.bam.manifest.json")),
+        p(&manifest),
+        p(&reproduction),
+    );
     if json {
         let escape = |s: &str| s.replace('\\', "\\\\").replace('"', "\\\"");
         println!(
-            "{{\"schema\":1,\"ok\":true,\"claim\":\"{}\",\"output_dir\":\"{}\",\"index\":\"{}\",\"alignments\":\"{}\",\"output\":\"{}\",\"manifest\":\"{}\",\"studio\":\"https://logannye.github.io/rosalind/verify/\"}}",
+            "{{\"schema\":2,\"ok\":true,\"trust\":\"reproduced\",\"claim\":\"{}\",\"output_dir\":\"{}\",\"index\":\"{}\",\"alignments\":\"{}\",\"output\":\"{}\",\"manifest\":\"{}\",\"reproduction_certificate\":\"{}\",\"studio_command\":\"{}\"}}",
             claim,
             escape(&p(&output_dir)),
             escape(&p(&index)),
             escape(&p(&sorted_bam)),
             escape(&p(&calls)),
             escape(&p(&manifest)),
+            escape(&p(&reproduction)),
+            escape(&studio_command),
         );
     } else {
-        println!("demo: COMPLETE — claim {}", &claim[..claim.len().min(10)]);
-        println!("demo: artifacts in {}", output_dir.display());
-        println!("demo: inspect the receipt at https://logannye.github.io/rosalind/verify/");
+        println!(
+            "demo: COMPLETE — reproduced · fits {budget_mb} MiB · claim {}",
+            &claim[..claim.len().min(10)]
+        );
+        println!("demo: artifacts {}", output_dir.display());
+        println!("demo: {studio_command}");
     }
     Ok(())
 }
@@ -1232,7 +1343,20 @@ fn run_eval(
 }
 
 /// Build a multi-contig index from a FASTA and persist it (B3c).
-fn run_index(reference: PathBuf, output: PathBuf, memory_budget_mb: Option<u64>) -> Result<()> {
+fn run_index(
+    reference: PathBuf,
+    output: PathBuf,
+    memory_budget_mb: Option<u64>,
+    force: bool,
+) -> Result<()> {
+    use rosalind::util::atomic::{write_atomic, AtomicFile};
+
+    let receipt_path = sidecar_path(&output, ".manifest.json");
+    require_safe_cli_destination(&output, force, "index output");
+    require_safe_cli_destination(&receipt_path, force, "index receipt");
+    let mut atomic_output = AtomicFile::create(&output)
+        .with_context(|| format!("failed to reserve index output {}", output.display()))?;
+    atomic_output.close_for_path_writer();
     // Read every FASTA record (all contigs) into (name, sequence) pairs.
     let fasta_reader = open_input(&reference)
         .with_context(|| format!("failed to open reference {}", reference.display()))?;
@@ -1262,10 +1386,13 @@ fn run_index(reference: PathBuf, output: PathBuf, memory_budget_mb: Option<u64>)
     let index = GenomeIndex::from_named_sequences(&named)
         .with_context(|| format!("failed to build index from {}", reference.display()))?;
 
-    IndexWriter::create(&output)
+    IndexWriter::create(atomic_output.temporary_path())
         .with_context(|| format!("failed to create index file {}", output.display()))?
         .write_genome_index(&index)
         .with_context(|| format!("failed to write index to {}", output.display()))?;
+    atomic_output
+        .commit(force)
+        .with_context(|| format!("failed to commit index {}", output.display()))?;
 
     // Deterministic build receipt → stdout.
     let index_bytes = std::fs::metadata(&output)
@@ -1318,7 +1445,7 @@ fn run_index(reference: PathBuf, output: PathBuf, memory_budget_mb: Option<u64>)
     // bit-identical to what `variants` records as its `--index` input, so the chain edge
     // resolves by construction. `--reference` records blake3(FASTA file) as the root.
     {
-        use rosalind::provenance::{blake3_hex, write_manifest, CommandCapture, RunManifest};
+        use rosalind::provenance::{blake3_hex, CommandCapture, RunManifest};
 
         let mut manifest = RunManifest::new("index");
         let mut cmd = CommandCapture::new("index");
@@ -1328,6 +1455,13 @@ fn run_index(reference: PathBuf, output: PathBuf, memory_budget_mb: Option<u64>)
         }
         cmd.output("--output", &output)?;
         cmd.record_into(&mut manifest);
+        manifest
+            .params
+            .insert("artifact.input.0.role".to_string(), "reference".to_string());
+        manifest.params.insert(
+            "artifact.output.0.role".to_string(),
+            "reference-index".to_string(),
+        );
         // `reference_blake3` is the in-memory NORMALIZED sequence hash (a "what genome"
         // id, stable across FASTA reformatting) — informational, NOT the chain edge.
         manifest.params.insert(
@@ -1342,10 +1476,60 @@ fn run_index(reference: PathBuf, output: PathBuf, memory_budget_mb: Option<u64>)
         // it does NOT claim the budget was honored.
         manifest.record_measurement("peak_rss_bytes", peak.to_string());
         manifest.finalize();
-        let dest = write_manifest(&output, &manifest)
-            .with_context(|| format!("failed to write index receipt for {}", output.display()))?;
-        eprintln!("wrote reproducibility receipt: {}", dest.display());
+        write_atomic(
+            &receipt_path,
+            manifest.to_canonical_json().as_bytes(),
+            force,
+        )
+        .with_context(|| format!("failed to write index receipt for {}", output.display()))?;
+        eprintln!("wrote reproducibility receipt: {}", receipt_path.display());
     }
+    Ok(())
+}
+
+fn run_sort(
+    input: PathBuf,
+    output: PathBuf,
+    memory_mb: usize,
+    force: bool,
+    manifest_out: Option<PathBuf>,
+) -> Result<()> {
+    use rosalind::provenance::{CommandCapture, RunManifest};
+    use rosalind::util::atomic::{write_atomic, AtomicFile};
+
+    let receipt_path = manifest_out.unwrap_or_else(|| sidecar_path(&output, ".manifest.json"));
+    require_safe_cli_destination(&output, force, "sorted BAM output");
+    require_safe_cli_destination(&receipt_path, force, "sort receipt");
+    let mut atomic_output = AtomicFile::create(&output)
+        .with_context(|| format!("failed to reserve sorted BAM {}", output.display()))?;
+    atomic_output.close_for_path_writer();
+    let bytes = memory_mb.saturating_mul(1024 * 1024).max(1024 * 1024);
+    sort_bam_deterministic(&input, atomic_output.temporary_path(), bytes)
+        .context("sorting BAM failed")?;
+    atomic_output
+        .commit(force)
+        .with_context(|| format!("failed to commit sorted BAM {}", output.display()))?;
+
+    let mut receipt = RunManifest::new("sort");
+    let mut command = CommandCapture::new("sort");
+    command.input("--input", &input)?;
+    command.opt("--memory-mb", memory_mb);
+    command.flag_if(force, "--force");
+    command.output("--output", &output)?;
+    command.record_into(&mut receipt);
+    receipt.params.insert(
+        "artifact.input.0.role".to_string(),
+        "raw-alignments".to_string(),
+    );
+    receipt.params.insert(
+        "artifact.output.0.role".to_string(),
+        "sorted-alignments".to_string(),
+    );
+    receipt.record_measurement("peak_rss_bytes", peak_rss_bytes().to_string());
+    receipt.finalize();
+    write_atomic(&receipt_path, receipt.to_canonical_json().as_bytes(), force)
+        .with_context(|| format!("failed to write sort receipt {}", receipt_path.display()))?;
+    eprintln!("wrote reproducibility receipt: {}", receipt_path.display());
     Ok(())
 }
 
@@ -1883,6 +2067,7 @@ fn run_reproduce(
     output: Option<PathBuf>,
     binary: Option<PathBuf>,
     dry_run: bool,
+    force: bool,
     json: bool,
 ) -> Result<()> {
     use rosalind::provenance::{ReproOutput, ReproReceipt};
@@ -1953,12 +2138,14 @@ fn run_reproduce(
                 PathBuf::from(s)
             }
         };
-        std::fs::write(&dest, cert.to_canonical_json()).with_context(|| {
-            format!(
-                "failed to write reproduction certificate {}",
-                dest.display()
-            )
-        })?;
+        require_safe_cli_destination(&dest, force, "reproduction certificate");
+        rosalind::util::atomic::write_atomic(&dest, cert.to_canonical_json().as_bytes(), force)
+            .with_context(|| {
+                format!(
+                    "failed to write reproduction certificate {}",
+                    dest.display()
+                )
+            })?;
         if !json {
             println!(
                 "  -> wrote reproduction certificate: {} (chains to {})",
@@ -1976,7 +2163,12 @@ fn run_reproduce(
 
 /// Emit a self-hosted status badge for a run without conflating an intact receipt with
 /// evidence that another execution reproduced its output bytes.
-fn run_badge(manifest: PathBuf, repro: Option<PathBuf>, output: PathBuf) -> Result<()> {
+fn run_badge(
+    manifest: PathBuf,
+    repro: Option<PathBuf>,
+    output: PathBuf,
+    force: bool,
+) -> Result<()> {
     use rosalind::provenance::{
         badge_json_for, badge_svg_for, ArtifactEvidence, BadgeStatus, CertificateEvidence,
         ReproReceipt, RunManifest, TrustReport, TrustState,
@@ -2016,7 +2208,8 @@ fn run_badge(manifest: PathBuf, repro: Option<PathBuf>, output: PathBuf) -> Resu
     } else {
         badge_json_for(status, fits_mb)
     };
-    std::fs::write(&output, &body)
+    require_safe_cli_destination(&output, force, "badge output");
+    rosalind::util::atomic::write_atomic(&output, body.as_bytes(), force)
         .with_context(|| format!("failed to write badge {}", output.display()))?;
     eprintln!("wrote badge: {}", output.display());
     Ok(())
@@ -2062,7 +2255,10 @@ fn run_somatic(
     output_vcf: PathBuf,
     workdir: Option<PathBuf>,
     memory_mb: usize,
+    force: bool,
 ) -> Result<()> {
+    use rosalind::util::atomic::{write_atomic, AtomicFile};
+
     let start_total = Instant::now();
     let fasta = read_fasta(&reference_path)
         .with_context(|| format!("failed to read reference from {}", reference_path.display()))?;
@@ -2081,13 +2277,31 @@ fn run_somatic(
     let tumor_sorted = workdir.join("tumor.sorted.bam");
     let normal_bam = workdir.join("normal.bam");
     let normal_sorted = workdir.join("normal.sorted.bam");
+    let manifest_path = sidecar_path(&output_vcf, ".manifest.json");
+    let perf_path = workdir.join("somatic.perf.txt");
+    for (path, kind) in [
+        (&output_vcf, "somatic VCF"),
+        (&manifest_path, "somatic receipt"),
+        (&tumor_bam, "tumor BAM"),
+        (&tumor_sorted, "sorted tumor BAM"),
+        (&normal_bam, "normal BAM"),
+        (&normal_sorted, "sorted normal BAM"),
+        (&perf_path, "performance report"),
+    ] {
+        require_safe_cli_destination(path, force, kind);
+    }
 
     // Align tumor reads.
     let start_align_tumor = Instant::now();
     {
-        let mut writer =
-            create_bam_writer(&tumor_bam, fasta.name.as_str(), fasta.sequence.len())
-                .with_context(|| format!("failed to create tumor BAM {}", tumor_bam.display()))?;
+        let mut artifact = AtomicFile::create(&tumor_bam)?;
+        artifact.close_for_path_writer();
+        let mut writer = create_bam_writer(
+            artifact.temporary_path(),
+            fasta.name.as_str(),
+            fasta.sequence.len(),
+        )
+        .with_context(|| format!("failed to create tumor BAM {}", tumor_bam.display()))?;
         let mut aligner = BWTAligner::new(&reference)?;
 
         match resolve_reads(
@@ -2105,14 +2319,22 @@ fn run_somatic(
                 write_bam_alignments_paired(&mut writer, 0, &pairs, &alignments)?;
             }
         }
+        drop(writer);
+        artifact.commit(force)?;
     }
     let dur_align_tumor = start_align_tumor.elapsed();
 
     // Align normal reads.
     let start_align_normal = Instant::now();
     {
-        let mut writer = create_bam_writer(&normal_bam, fasta.name.as_str(), fasta.sequence.len())
-            .with_context(|| format!("failed to create normal BAM {}", normal_bam.display()))?;
+        let mut artifact = AtomicFile::create(&normal_bam)?;
+        artifact.close_for_path_writer();
+        let mut writer = create_bam_writer(
+            artifact.temporary_path(),
+            fasta.name.as_str(),
+            fasta.sequence.len(),
+        )
+        .with_context(|| format!("failed to create normal BAM {}", normal_bam.display()))?;
         let mut aligner = BWTAligner::new(&reference)?;
 
         match resolve_reads(
@@ -2130,14 +2352,22 @@ fn run_somatic(
                 write_bam_alignments_paired(&mut writer, 0, &pairs, &alignments)?;
             }
         }
+        drop(writer);
+        artifact.commit(force)?;
     }
     let dur_align_normal = start_align_normal.elapsed();
 
     // Sort BAMs deterministically.
     let start_sort = Instant::now();
     let bytes = memory_mb.saturating_mul(1024 * 1024).max(1024 * 1024);
-    sort_bam_deterministic(&tumor_bam, &tumor_sorted, bytes)?;
-    sort_bam_deterministic(&normal_bam, &normal_sorted, bytes)?;
+    let mut tumor_sorted_artifact = AtomicFile::create(&tumor_sorted)?;
+    tumor_sorted_artifact.close_for_path_writer();
+    sort_bam_deterministic(&tumor_bam, tumor_sorted_artifact.temporary_path(), bytes)?;
+    tumor_sorted_artifact.commit(force)?;
+    let mut normal_sorted_artifact = AtomicFile::create(&normal_sorted)?;
+    normal_sorted_artifact.close_for_path_writer();
+    sort_bam_deterministic(&normal_bam, normal_sorted_artifact.temporary_path(), bytes)?;
+    normal_sorted_artifact.commit(force)?;
     let dur_sort = start_sort.elapsed();
 
     // Call somatic SNVs on the new engine (indels deferred to Phase C).
@@ -2146,7 +2376,7 @@ fn run_somatic(
     use rosalind::io::bam::BamSource;
     use rosalind::io::vcf::write_somatic_vcf;
     use rosalind::pileup::PileupParams;
-    use rosalind::provenance::{write_manifest, CommandCapture, RunManifest};
+    use rosalind::provenance::{CommandCapture, RunManifest};
 
     let start_call = Instant::now();
     let mut contigs = ContigSet::new();
@@ -2171,11 +2401,12 @@ fn run_somatic(
 
     // Write spec-valid somatic VCF (TUMOR/NORMAL).
     {
-        let file = File::create(&output_vcf)
-            .with_context(|| format!("failed to create somatic VCF {}", output_vcf.display()))?;
-        let mut writer = io::BufWriter::new(file);
+        let mut artifact = AtomicFile::create(&output_vcf)?;
+        let mut writer = io::BufWriter::new(artifact.file_mut());
         write_somatic_vcf(&mut writer, &contigs, &calls)?;
         writer.flush()?;
+        drop(writer);
+        artifact.commit(force)?;
     }
 
     // Reproducibility receipt (BLAKE3, canonical JSON).
@@ -2202,21 +2433,41 @@ fn run_somatic(
             cmd.input("--normal", p)?;
         }
     }
+    cmd.flag_if(force, "--force");
     cmd.output("-o", &output_vcf)?;
     cmd.record_into(&mut manifest);
     manifest
         .params
+        .insert("artifact.input.0.role".to_string(), "reference".to_string());
+    for index in 1..manifest.inputs.len() {
+        manifest.params.insert(
+            format!("artifact.input.{index}.role"),
+            if index <= tumor_inputs.len() {
+                "tumor-reads"
+            } else {
+                "normal-reads"
+            }
+            .to_string(),
+        );
+    }
+    manifest.params.insert(
+        "artifact.output.0.role".to_string(),
+        "somatic-calls".to_string(),
+    );
+    manifest
+        .params
         .insert("somatic_snv_only".to_string(), "true".to_string());
     manifest.finalize();
-    let manifest_path = write_manifest(&output_vcf, &manifest)?;
+    write_atomic(
+        &manifest_path,
+        manifest.to_canonical_json().as_bytes(),
+        force,
+    )?;
     eprintln!("wrote reproducibility receipt: {}", manifest_path.display());
 
     // Performance/RSS report (kept separate from determinism checks).
-    let perf_path = workdir.join("somatic.perf.txt");
-    let mut f = io::BufWriter::new(
-        File::create(&perf_path)
-            .with_context(|| format!("failed to create perf report {}", perf_path.display()))?,
-    );
+    let mut perf_artifact = AtomicFile::create(&perf_path)?;
+    let mut f = io::BufWriter::new(perf_artifact.file_mut());
     writeln!(f, "align_tumor_ms={}", dur_align_tumor.as_millis())?;
     writeln!(f, "align_normal_ms={}", dur_align_normal.as_millis())?;
     writeln!(f, "sort_ms={}", dur_sort.as_millis())?;
@@ -2224,6 +2475,8 @@ fn run_somatic(
     writeln!(f, "total_ms={}", start_total.elapsed().as_millis())?;
     writeln!(f, "peak_rss_bytes={}", peak_rss_bytes())?;
     f.flush()?;
+    drop(f);
+    perf_artifact.commit(force)?;
 
     Ok(())
 }
@@ -2238,7 +2491,40 @@ fn run_align(
     reference_offset: u32,
     format: OutputFormat,
     output: Option<PathBuf>,
+    force: bool,
+    manifest_out: Option<PathBuf>,
 ) -> Result<()> {
+    use rosalind::util::atomic::{write_atomic, AtomicFile};
+
+    if format == OutputFormat::Bam && output.is_none() {
+        bail!("--output <FILE> must be provided when writing BAM output");
+    }
+    let receipt_path = manifest_out.clone().or_else(|| {
+        output
+            .as_ref()
+            .map(|path| sidecar_path(path, ".manifest.json"))
+    });
+    if let Some(path) = &output {
+        require_safe_cli_destination(path, force, "alignment output");
+    }
+    if let Some(path) = &receipt_path {
+        require_safe_cli_destination(path, force, "alignment receipt");
+    }
+    let mut atomic_output = output
+        .as_ref()
+        .map(|path| AtomicFile::create(path))
+        .transpose()
+        .with_context(|| "failed to reserve atomic alignment output")?;
+    if format == OutputFormat::Bam {
+        if let Some(file) = &mut atomic_output {
+            file.close_for_path_writer();
+        }
+    }
+    let receipt_reads = [
+        ("--reads", reads_path.clone()),
+        ("--reads-r1", reads_r1.clone()),
+        ("--reads-r2", reads_r2.clone()),
+    ];
     let fasta = read_fasta(&reference_path)
         .with_context(|| format!("failed to read reference from {}", reference_path.display()))?;
     let reads = resolve_reads(reads_path, reads_r1, reads_r2, "reads")
@@ -2252,11 +2538,8 @@ fn run_align(
                 .context("aligning reads failed")?;
             match format {
                 OutputFormat::Sam => {
-                    if let Some(path) = output {
-                        let file = File::create(&path).with_context(|| {
-                            format!("failed to create SAM file {}", path.display())
-                        })?;
-                        let mut writer = io::BufWriter::new(file);
+                    if let Some(file) = &mut atomic_output {
+                        let mut writer = io::BufWriter::new(file.file_mut());
                         write_sam_alignments(
                             &mut writer,
                             &fasta.name,
@@ -2265,6 +2548,7 @@ fn run_align(
                             &records,
                             &alignments,
                         )?;
+                        writer.flush()?;
                     } else {
                         let stdout = io::stdout();
                         let mut handle = stdout.lock();
@@ -2279,13 +2563,15 @@ fn run_align(
                     }
                 }
                 OutputFormat::Bam => {
-                    let path = output.ok_or_else(|| {
-                        anyhow!("--output <FILE> must be provided when writing BAM output")
-                    })?;
-                    let mut writer = create_bam_writer(&path, &fasta.name, fasta.sequence.len())
-                        .with_context(|| {
-                            format!("failed to create BAM writer for {}", path.display())
-                        })?;
+                    let temporary = atomic_output
+                        .as_ref()
+                        .expect("BAM output was validated")
+                        .temporary_path();
+                    let mut writer =
+                        create_bam_writer(temporary, &fasta.name, fasta.sequence.len())
+                            .with_context(|| {
+                                format!("failed to create BAM writer for {}", temporary.display())
+                            })?;
                     write_bam_alignments(&mut writer, reference_offset, &records, &alignments)?;
                 }
             }
@@ -2295,11 +2581,8 @@ fn run_align(
                 .context("aligning reads failed")?;
             match format {
                 OutputFormat::Sam => {
-                    if let Some(path) = output {
-                        let file = File::create(&path).with_context(|| {
-                            format!("failed to create SAM file {}", path.display())
-                        })?;
-                        let mut writer = io::BufWriter::new(file);
+                    if let Some(file) = &mut atomic_output {
+                        let mut writer = io::BufWriter::new(file.file_mut());
                         write_sam_alignments_paired(
                             &mut writer,
                             &fasta.name,
@@ -2308,6 +2591,7 @@ fn run_align(
                             &pairs,
                             &alignments,
                         )?;
+                        writer.flush()?;
                     } else {
                         let stdout = io::stdout();
                         let mut handle = stdout.lock();
@@ -2322,13 +2606,15 @@ fn run_align(
                     }
                 }
                 OutputFormat::Bam => {
-                    let path = output.ok_or_else(|| {
-                        anyhow!("--output <FILE> must be provided when writing BAM output")
-                    })?;
-                    let mut writer = create_bam_writer(&path, &fasta.name, fasta.sequence.len())
-                        .with_context(|| {
-                            format!("failed to create BAM writer for {}", path.display())
-                        })?;
+                    let temporary = atomic_output
+                        .as_ref()
+                        .expect("BAM output was validated")
+                        .temporary_path();
+                    let mut writer =
+                        create_bam_writer(temporary, &fasta.name, fasta.sequence.len())
+                            .with_context(|| {
+                                format!("failed to create BAM writer for {}", temporary.display())
+                            })?;
                     write_bam_alignments_paired(
                         &mut writer,
                         reference_offset,
@@ -2340,6 +2626,62 @@ fn run_align(
         }
     }
 
+    if let Some(file) = atomic_output {
+        file.commit(force)
+            .with_context(|| "failed to commit atomic alignment output")?;
+    }
+    if let Some(receipt_path) = receipt_path {
+        use rosalind::provenance::{CommandCapture, RunManifest};
+
+        let mut receipt = RunManifest::new("align");
+        let mut command = CommandCapture::new("align");
+        command.input("--reference", &reference_path)?;
+        for (flag, path) in &receipt_reads {
+            if let Some(path) = path {
+                command.input(flag, path)?;
+            }
+        }
+        command.opt("--max-mismatches", max_mismatches);
+        command.opt("--reference-offset", reference_offset);
+        command.opt(
+            "--format",
+            match format {
+                OutputFormat::Sam => "sam",
+                OutputFormat::Bam => "bam",
+            },
+        );
+        command.flag_if(force, "--force");
+        if let Some(output) = &output {
+            command.output("--output", output)?;
+        }
+        command.record_into(&mut receipt);
+        receipt
+            .params
+            .insert("artifact.input.0.role".to_string(), "reference".to_string());
+        for index in 1..receipt.inputs.len() {
+            receipt.params.insert(
+                format!("artifact.input.{index}.role"),
+                if receipt.inputs.len() == 2 {
+                    "reads".to_string()
+                } else if index == 1 {
+                    "reads-r1".to_string()
+                } else {
+                    "reads-r2".to_string()
+                },
+            );
+        }
+        if !receipt.outputs.is_empty() {
+            receipt.params.insert(
+                "artifact.output.0.role".to_string(),
+                "raw-alignments".to_string(),
+            );
+        }
+        receipt.record_measurement("peak_rss_bytes", peak_rss_bytes().to_string());
+        receipt.finalize();
+        write_atomic(&receipt_path, receipt.to_canonical_json().as_bytes(), force)
+            .with_context(|| format!("failed to write align receipt {}", receipt_path.display()))?;
+        eprintln!("wrote reproducibility receipt: {}", receipt_path.display());
+    }
     Ok(())
 }
 
@@ -2468,13 +2810,28 @@ fn run_variants(
     output: Option<PathBuf>,
     _block_size: usize,
     quality_threshold: f32,
+    force: bool,
+    manifest_out: Option<PathBuf>,
 ) -> Result<()> {
     use rosalind::call::{call_germline_region, GermlineParams};
     use rosalind::core::ContigSet;
     use rosalind::io::bam::BamSource;
     use rosalind::io::vcf::{write_germline_vcf, GermlineRow};
     use rosalind::pileup::{PileupParams, SliceSource};
-    use rosalind::provenance::{write_manifest, CommandCapture, RunManifest};
+    use rosalind::provenance::{CommandCapture, RunManifest};
+    use rosalind::util::atomic::{write_atomic, AtomicFile};
+
+    let receipt_dest = manifest_out.clone().or_else(|| {
+        output
+            .as_ref()
+            .map(|path| sidecar_path(path, ".manifest.json"))
+    });
+    if let Some(path) = &output {
+        require_safe_cli_destination(path, force, "VCF output");
+    }
+    if let Some(path) = &receipt_dest {
+        require_safe_cli_destination(path, force, "VCF receipt");
+    }
 
     let fasta = read_fasta(&reference_path)
         .with_context(|| format!("failed to read reference from {}", reference_path.display()))?;
@@ -2547,38 +2904,60 @@ fn run_variants(
         })
         .collect();
 
-    match output {
+    match &output {
         Some(path) => {
-            let file = File::create(&path)
-                .with_context(|| format!("failed to create VCF file {}", path.display()))?;
-            let mut writer = io::BufWriter::new(file);
+            let mut file = AtomicFile::create(path)
+                .with_context(|| format!("failed to reserve VCF file {}", path.display()))?;
+            let mut writer = io::BufWriter::new(file.file_mut());
             write_germline_vcf(&mut writer, &contigs, &chrom_name, &rows)?;
             writer.flush()?;
             drop(writer);
-
-            // Reproducibility receipt next to the VCF.
-            let mut manifest = RunManifest::new("variants");
-            let mut cmd = CommandCapture::new("variants");
-            cmd.input("--reference", &reference_path)?;
-            cmd.input("--alignments", &alignments_path)?;
-            cmd.opt("--chrom", &chrom_name);
-            cmd.opt("--region-start", region_start);
-            cmd.opt("--mapq-threshold", mapq_threshold);
-            cmd.opt("--quality-threshold", quality_threshold as f64);
-            cmd.output("-o", &path)?;
-            cmd.record_into(&mut manifest);
-            manifest
-                .params
-                .insert("model.germline".to_string(), "baseq-mapq-v1".to_string());
-            manifest.finalize();
-            let manifest_path = write_manifest(&path, &manifest)?;
-            eprintln!("wrote reproducibility receipt: {}", manifest_path.display());
+            file.commit(force)
+                .with_context(|| format!("failed to commit VCF file {}", path.display()))?;
         }
         None => {
             let stdout = io::stdout();
             let mut handle = stdout.lock();
             write_germline_vcf(&mut handle, &contigs, &chrom_name, &rows)?;
         }
+    }
+
+    if let Some(receipt_dest) = receipt_dest {
+        let mut manifest = RunManifest::new("variants");
+        let mut cmd = CommandCapture::new("variants");
+        cmd.input("--reference", &reference_path)?;
+        cmd.input("--alignments", &alignments_path)?;
+        cmd.opt("--chrom", &chrom_name);
+        cmd.opt("--region-start", region_start);
+        cmd.opt("--mapq-threshold", mapq_threshold);
+        cmd.opt("--quality-threshold", quality_threshold as f64);
+        cmd.flag_if(force, "--force");
+        if let Some(path) = &output {
+            cmd.output("-o", path)?;
+        }
+        cmd.record_into(&mut manifest);
+        manifest
+            .params
+            .insert("artifact.input.0.role".to_string(), "reference".to_string());
+        manifest.params.insert(
+            "artifact.input.1.role".to_string(),
+            "alignments".to_string(),
+        );
+        if !manifest.outputs.is_empty() {
+            manifest
+                .params
+                .insert("artifact.output.0.role".to_string(), "calls".to_string());
+        }
+        manifest
+            .params
+            .insert("model.germline".to_string(), "baseq-mapq-v1".to_string());
+        manifest.finalize();
+        write_atomic(
+            &receipt_dest,
+            manifest.to_canonical_json().as_bytes(),
+            force,
+        )?;
+        eprintln!("wrote reproducibility receipt: {}", receipt_dest.display());
     }
 
     Ok(())
@@ -2706,6 +3085,21 @@ fn run_bounded_analysis(
             );
             std::process::exit(4);
         }
+        Err(ContractRunError::OutputExists(path)) => {
+            eprintln!(
+                "output collision: {} (choose a new path or pass --force for atomic replacement)",
+                path.display()
+            );
+            std::process::exit(2);
+        }
+        Err(ContractRunError::UnknownAnalyzerBound) => {
+            eprintln!("contract: REFUSE — the analyzer has no declared memory bound");
+            std::process::exit(3);
+        }
+        Err(ContractRunError::OsEnforcementUnavailable(message)) => {
+            eprintln!("contract: REFUSE — OS enforcement unavailable: {message}");
+            std::process::exit(3);
+        }
         Err(error) => Err(anyhow!(error)),
     }
 }
@@ -2762,6 +3156,26 @@ fn run_variants_index(
     manifest_out: Option<PathBuf>,
     gvcf: bool,
 ) -> Result<()> {
+    use rosalind::util::atomic::{write_atomic, AtomicFile};
+
+    let receipt_dest = manifest_out.clone().or_else(|| {
+        output
+            .as_ref()
+            .map(|path| sidecar_path(path, ".manifest.json"))
+    });
+    if !force {
+        if let Some(path) = &output {
+            require_safe_cli_destination(path, false, "VCF output");
+            require_safe_cli_destination(
+                &sidecar_path(path, ".partial"),
+                false,
+                "partial VCF output",
+            );
+        }
+        if let Some(path) = &receipt_dest {
+            require_safe_cli_destination(path, false, "VCF receipt");
+        }
+    }
     if require_os_limit {
         let budget = memory_budget_mb.expect("clap requires --enforce; validation requires budget");
         let required = budget.saturating_mul(1 << 20);
@@ -2774,24 +3188,6 @@ fn run_variants_index(
             None => bail!(
                 "OS memory enforcement unavailable: run inside a cgroup-v2 scope limited to {budget} MiB"
             ),
-        }
-    }
-    if !force {
-        if let Some(path) = &output {
-            if path.exists() {
-                bail!(
-                    "output already exists: {} (pass --force to replace it)",
-                    path.display()
-                );
-            }
-        }
-        if let Some(path) = &manifest_out {
-            if path.exists() {
-                bail!(
-                    "receipt already exists: {} (pass --force to replace it)",
-                    path.display()
-                );
-            }
         }
     }
     use rosalind::call::{
@@ -2970,14 +3366,17 @@ fn run_variants_index(
             r
         }};
     }
+    let mut atomic_output = output
+        .as_ref()
+        .map(|path| AtomicFile::create(path))
+        .transpose()
+        .with_context(|| "failed to reserve transactional VCF output")?;
     let drive_result: Result<
         (rosalind::core::WorkingSet, rosalind::pileup::SkipCounts),
         rosalind::core::CoreError,
-    > = match &output {
-        Some(path) => {
-            let file = File::create(path)
-                .with_context(|| format!("failed to create VCF file {}", path.display()))?;
-            let mut writer = io::BufWriter::new(file);
+    > = match &mut atomic_output {
+        Some(file) => {
+            let mut writer = io::BufWriter::new(file.file_mut());
             drive!(&mut writer)
         }
         None => {
@@ -3018,6 +3417,18 @@ fn run_variants_index(
         Some(true) => "within",
         Some(false) => "over",
     };
+    let is_breach = breached || (enforce && verdict == "over");
+    let receipt_output = match (atomic_output, output.as_ref()) {
+        (Some(file), Some(path)) if is_breach => Some(
+            file.commit_as(&sidecar_path(path, ".partial"), force)
+                .with_context(|| "failed to preserve breached VCF as a partial artifact")?,
+        ),
+        (Some(file), Some(_)) => Some(
+            file.commit(force)
+                .with_context(|| "failed to commit transactional VCF output")?,
+        ),
+        _ => None,
+    };
     // Distinguish a live-governed abort from a post-run-detected overrun in the receipt.
     let governor_state = if breached {
         "tripped"
@@ -3038,15 +3449,6 @@ fn run_variants_index(
     // explicit --manifest path, or a sidecar next to a `-o` VCF. A stdout run
     // without --manifest writes NO file (no surprise cwd write, no race on a fixed
     // filename) but says how to persist one.
-    let receipt_dest: Option<PathBuf> = match (&manifest_out, &output) {
-        (Some(m), _) => Some(m.clone()),
-        (None, Some(path)) => {
-            let mut s = path.as_os_str().to_os_string();
-            s.push(".manifest.json");
-            Some(PathBuf::from(s))
-        }
-        (None, None) => None,
-    };
     if let Some(dest) = receipt_dest {
         let mut manifest = RunManifest::new("variants");
         let mut cmd = CommandCapture::new("variants");
@@ -3061,13 +3463,74 @@ fn run_variants_index(
         if let Some(mb) = memory_budget_mb {
             cmd.opt("--memory-budget-mb", mb);
         }
-        if let Some(path) = &output {
+        cmd.flag_if(require_os_limit, "--require-os-limit");
+        cmd.flag_if(force, "--force");
+        if let Some(path) = &receipt_output {
             cmd.output("-o", path)?;
         }
         cmd.record_into(&mut manifest);
+        manifest.params.insert(
+            "artifact.input.0.role".to_string(),
+            "reference-index".to_string(),
+        );
+        manifest.params.insert(
+            "artifact.input.1.role".to_string(),
+            "sorted-alignments".to_string(),
+        );
+        if !manifest.outputs.is_empty() {
+            manifest.params.insert(
+                "artifact.output.0.role".to_string(),
+                if is_breach { "partial-calls" } else { "calls" }.to_string(),
+            );
+        }
         manifest
             .params
             .insert("model.germline".to_string(), "baseq-mapq-v1".to_string());
+        manifest
+            .params
+            .insert("producer.name".to_string(), "rosalind".to_string());
+        manifest.params.insert(
+            "producer.version".to_string(),
+            env!("CARGO_PKG_VERSION").to_string(),
+        );
+        manifest
+            .params
+            .insert("producer.binary".to_string(), "rosalind".to_string());
+        manifest.params.insert(
+            "analyzer.id".to_string(),
+            if gvcf {
+                "germline-gvcf"
+            } else {
+                "germline-sites"
+            }
+            .to_string(),
+        );
+        manifest.params.insert(
+            "analyzer.version".to_string(),
+            env!("CARGO_PKG_VERSION").to_string(),
+        );
+        manifest.params.insert(
+            "analyzer.memory_model".to_string(),
+            "fixed-additional-v1".to_string(),
+        );
+        manifest
+            .params
+            .insert("analyzer.max_additional_bytes".to_string(), "0".to_string());
+        manifest.params.insert(
+            "contract.assurance".to_string(),
+            if require_os_limit {
+                "cgroup-v2"
+            } else if enforce {
+                "declared-bound-cooperative"
+            } else {
+                "observed-only"
+            }
+            .to_string(),
+        );
+        manifest.params.insert(
+            "run_status".to_string(),
+            if is_breach { "breached" } else { "completed" }.to_string(),
+        );
         manifest
             .params
             .insert("peak_rss_bytes".to_string(), peak_rss.to_string());
@@ -3114,7 +3577,7 @@ fn run_variants_index(
             .params
             .insert("contract_verdict".to_string(), verdict.to_string());
         manifest.finalize();
-        std::fs::write(&dest, manifest.to_canonical_json())
+        write_atomic(&dest, manifest.to_canonical_json().as_bytes(), force)
             .with_context(|| format!("failed to write manifest {}", dest.display()))?;
         eprintln!("wrote reproducibility receipt: {}", dest.display());
     } else {
@@ -3155,7 +3618,7 @@ fn run_variants_index(
                 );
             } else {
                 eprintln!(
-                    "contract: VIOLATED — realized peak {} MiB exceeded declared {mb} MiB (output + receipt written)",
+                    "contract: VIOLATED — realized peak {} MiB exceeded declared {mb} MiB (partial output + receipt written)",
                     peak_rss / (1 << 20)
                 );
                 std::process::exit(4);

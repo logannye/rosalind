@@ -1,6 +1,6 @@
 [package]
 name = "rosalind-bio"
-version = "0.3.1"
+version = "0.4.0"
 edition = "2021"
 rust-version = "1.83"
 authors = ["Logan Nye <logannye@users.noreply.github.com>"]
@@ -45,7 +45,7 @@ path = "src/main.rs"
 [dependencies]
 # Reproducibility receipt model + offline verification, factored into a leaf crate
 # with no htslib (std + blake3 only) so the verifier can compile to wasm.
-rosalind-receipt = { path = "crates/receipt", version = "0.2.0" }
+rosalind-receipt = { path = "crates/receipt", version = "0.3.0" }
 # OS bindings (read-only mmap of large reference/index files; peak-RSS readout)
 libc = "0.2"
 # Fast hashing for the reproducibility receipts

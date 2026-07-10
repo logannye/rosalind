@@ -63,6 +63,12 @@ impl AtomicFile {
         &self.temporary
     }
 
+    /// Close the reservation handle while keeping the temporary path. This lets
+    /// path-based writers such as htslib create/truncate the reserved sibling file.
+    pub fn close_for_path_writer(&mut self) {
+        self.file.take();
+    }
+
     /// Flush, sync, close, and atomically move the file to its destination.
     pub fn commit(mut self, replace: bool) -> io::Result<PathBuf> {
         let destination = self.destination.clone();
@@ -78,6 +84,11 @@ impl AtomicFile {
         if let Some(mut file) = self.file.take() {
             file.flush()?;
             file.sync_all()?;
+        } else {
+            OpenOptions::new()
+                .write(true)
+                .open(&self.temporary)?
+                .sync_all()?;
         }
         if !replace && destination.exists() {
             return Err(io::Error::new(
@@ -92,6 +103,19 @@ impl AtomicFile {
         std::fs::rename(&self.temporary, destination)?;
         self.committed = true;
         Ok(destination.to_path_buf())
+    }
+}
+
+/// Refuse an existing final destination before computation unless replacement was
+/// explicitly requested.
+pub fn ensure_destination(path: &Path, replace: bool) -> io::Result<()> {
+    if !replace && path.exists() {
+        Err(io::Error::new(
+            io::ErrorKind::AlreadyExists,
+            format!("destination already exists: {}", path.display()),
+        ))
+    } else {
+        Ok(())
     }
 }
 

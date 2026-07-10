@@ -241,7 +241,7 @@ impl ReproductionPlan {
             .collect::<Vec<_>>()
             .join(",");
         format!(
-            "{{\"schema\":1,\"binary\":\"{}\",\"producer_kind\":\"{}\",\"work_dir\":\"{}\",\"argv\":[{}],\"inputs\":{},\"outputs\":{}}}",
+            "{{\"schema\":1,\"validated\":true,\"binary\":\"{}\",\"producer_kind\":\"{}\",\"work_dir\":\"{}\",\"argv\":[{}],\"inputs\":{},\"outputs\":{}}}",
             json_escape(&self.binary.display().to_string()),
             match self.producer_kind {
                 ProducerKind::Rosalind => "rosalind",
@@ -369,6 +369,17 @@ fn build_reproduction_plan(
     if manifest.measurement_hash_ok() == Some(false) {
         return Err(ReplaySafetyError::Integrity(
             "measurement self-hash does not match".to_string(),
+        ));
+    }
+    if manifest.claims_measurements() && manifest.measurement_hash_ok() != Some(true) {
+        return Err(ReplaySafetyError::Integrity(
+            "claimed measurement block is missing or unverifiable".to_string(),
+        ));
+    }
+    if manifest.params.get("run_status").map(String::as_str) == Some("breached") {
+        return Err(ReplaySafetyError::UnsafeRecipe(
+            "breach receipts preserve partial evidence and are not executable success recipes"
+                .to_string(),
         ));
     }
     if manifest.outputs.is_empty() {
@@ -508,6 +519,22 @@ fn validate_recipe_tokens(
             "recorded --manifest paths are never replayed".to_string(),
         ));
     }
+    if tokens.iter().any(|token| {
+        token.starts_with("--manifest=")
+            || token.starts_with("--output=")
+            || token.starts_with("-o=")
+    }) {
+        return Err(ReplaySafetyError::UnsafeRecipe(
+            "embedded manifest or output paths are never replayed".to_string(),
+        ));
+    }
+    if let Some(command) = manifest.params.get("command") {
+        if command != &tokens.join(" ") {
+            return Err(ReplaySafetyError::UnsafeRecipe(
+                "command and command_argv disagree".to_string(),
+            ));
+        }
+    }
 
     let kind = producer_kind(manifest);
     if kind == ProducerKind::ExternalAnalyzer {
@@ -593,6 +620,39 @@ fn validate_recipe_tokens(
                 ));
             }
         }
+    }
+    let mut index = prefix.len();
+    while index < tokens.len() {
+        let flag = &tokens[index];
+        if !flag.starts_with('-') {
+            return Err(ReplaySafetyError::UnsafeRecipe(format!(
+                "unrecorded positional operand {flag:?}"
+            )));
+        }
+        let next = tokens.get(index + 1);
+        if next.is_some_and(|value| value.starts_with("@in:") || value.starts_with("@out:")) {
+            index += 2;
+            continue;
+        }
+        let key = flag.trim_start_matches('-').replace('-', "_");
+        let recorded = manifest.params.get(&key).ok_or_else(|| {
+            ReplaySafetyError::UnsafeRecipe(format!(
+                "command option {flag} has no matching claim parameter"
+            ))
+        })?;
+        if recorded == "true" {
+            index += 1;
+            continue;
+        }
+        let value = next.ok_or_else(|| {
+            ReplaySafetyError::UnsafeRecipe(format!("command option {flag} has no value"))
+        })?;
+        if value != recorded {
+            return Err(ReplaySafetyError::UnsafeRecipe(format!(
+                "command option {flag} disagrees with claim parameter {key}"
+            )));
+        }
+        index += 2;
     }
     Ok(())
 }

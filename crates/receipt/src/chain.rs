@@ -32,6 +32,8 @@ pub struct ChainEdge {
     pub child_subcommand: String,
     pub flag: String,
     pub input_blake3: String,
+    /// Schema-5 artifact role, when recorded.
+    pub artifact_role: Option<String>,
     pub status: EdgeStatus,
 }
 
@@ -85,15 +87,36 @@ impl ChainReport {
 
 /// Operands for a node: from its recorded `command` when present (carries the flags),
 /// else a flag-less fallback over `inputs[]` (every input treated as external).
-fn operands_for(m: &RunManifest) -> Vec<(String, String)> {
+fn operands_for(m: &RunManifest) -> Vec<(String, String, Option<String>)> {
     let operands = manifest_operands(m, "@in:");
     if operands.is_empty() {
         m.inputs
             .iter()
-            .map(|f: &FileHash| ("?".to_string(), f.blake3.clone()))
+            .enumerate()
+            .map(|(index, f): (usize, &FileHash)| {
+                (
+                    "?".to_string(),
+                    f.blake3.clone(),
+                    m.params
+                        .get(&format!("artifact.input.{index}.role"))
+                        .cloned(),
+                )
+            })
             .collect()
     } else {
         operands
+            .into_iter()
+            .enumerate()
+            .map(|(index, (flag, hash))| {
+                (
+                    flag,
+                    hash,
+                    m.params
+                        .get(&format!("artifact.input.{index}.role"))
+                        .cloned(),
+                )
+            })
+            .collect()
     }
 }
 
@@ -123,12 +146,17 @@ pub fn walk_chain(receipts: &[RunManifest]) -> ChainReport {
 
     let mut edges = Vec::new();
     for (m, id) in receipts.iter().zip(&ids) {
-        for (flag, hash) in operands_for(m) {
+        for (flag, hash, artifact_role) in operands_for(m) {
             let status = if let Some(parent) = producer.get(&hash) {
                 EdgeStatus::Resolved {
                     parent_id: parent.clone(),
                 }
-            } else if EXPECTED_INTERNAL.contains(&flag.as_str()) {
+            } else if EXPECTED_INTERNAL.contains(&flag.as_str())
+                || matches!(
+                    artifact_role.as_deref(),
+                    Some("reference-index" | "raw-alignments" | "sorted-alignments")
+                )
+            {
                 EdgeStatus::Broken
             } else {
                 EdgeStatus::External
@@ -138,6 +166,7 @@ pub fn walk_chain(receipts: &[RunManifest]) -> ChainReport {
                 child_subcommand: m.subcommand.clone(),
                 flag,
                 input_blake3: hash,
+                artifact_role,
                 status,
             });
         }

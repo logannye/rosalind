@@ -917,6 +917,25 @@ fn write_receipt(
     }
     command.record_into(&mut manifest);
     manifest.params.insert(
+        "artifact.input.0.role".to_string(),
+        "reference-index".to_string(),
+    );
+    manifest.params.insert(
+        "artifact.input.1.role".to_string(),
+        "sorted-alignments".to_string(),
+    );
+    if !manifest.outputs.is_empty() {
+        manifest.params.insert(
+            "artifact.output.0.role".to_string(),
+            if breached {
+                "partial-analyzer-output"
+            } else {
+                "analyzer-output"
+            }
+            .to_string(),
+        );
+    }
+    manifest.params.insert(
         "replay.kind".to_string(),
         if spec.producer.name == "rosalind" {
             "rosalind"

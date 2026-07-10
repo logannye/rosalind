@@ -48,6 +48,8 @@
 // Each module is a layer of the genomics engine.
 /// The calling layer: probabilistically-grounded, abstention-aware variant calls from pileup columns.
 pub mod call;
+/// Offline conformance harness for external analyzer binaries.
+pub mod conformance;
 /// Public orchestration for inheriting planning, enforcement, and receipts.
 pub mod contract;
 /// Core types: the lingua franca shared by every layer (io, index, align, pileup, call).
@@ -95,6 +97,7 @@ pub use doctor::{run_doctor, DoctorReport, DoctorSpec};
 pub use receipt_tools::{export_intoto, inspect_receipt, sanitize_receipt, ReceiptInspection};
 pub use studio::{serve_studio, StudioSpec};
 // Build-once → mmap index + the reproducibility receipt:
+pub use conformance::{conform_analyzer, ConformanceReport};
 pub use contract::{
     detected_os_memory_limit_bytes, run_column_analysis, AnalyzerIdentity, AnalyzerMemoryModel,
     ContractRunError, ContractRunOutcome, ContractRunSpec, ContractVerdict, EnforcementAssurance,
