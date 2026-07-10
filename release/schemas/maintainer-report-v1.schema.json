@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://logannye.github.io/rosalind/schema/maintainer-report-v1.schema.json",
+  "title": "Rosalind maintainer plan and status report v1",
+  "type": "object",
+  "required": ["schema", "command", "status", "commit", "version", "checks", "blockers", "actions", "contract_fingerprint", "plan_id"],
+  "properties": {
+    "schema": { "const": 1 },
+    "command": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["ready", "blocked", "failed"] },
+    "commit": { "type": "string" },
+    "version": { "type": ["string", "null"] },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "ok", "detail"],
+        "properties": {
+          "id": { "type": "string" },
+          "ok": { "type": "boolean" },
+          "detail": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "blockers": { "type": "array", "items": { "type": "string" } },
+    "actions": { "type": "array", "items": { "type": "string" } },
+    "contract_fingerprint": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+    "plan_id": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "metadata": { "type": "object", "additionalProperties": { "type": "string" } }
+  },
+  "additionalProperties": false
+}

@@ -18,11 +18,18 @@ exclude = [
     "docs/findings/",
     "examples/data/",
     "tests/snapshots/",
-    ".github/",
+    "/.github/",
+    "/.cargo/",
+    "release/",
+    "benchmarks/giab/",
+    "scripts/release-publish.sh",
+    "scripts/post-publish-smoke.sh",
+    "scripts/stage-release.sh",
+    "scripts/verify-release-automation.py",
 ]
 
 [workspace]
-members = ["crates/receipt", "crates/build-info"]
+members = ["crates/receipt", "crates/build-info", "xtask"]
 # The wasm-bindgen verifier is its own standalone crate (built via wasm-pack), kept
 # out of this workspace so the normal build/test/clippy loop is unaffected.
 exclude = ["crates/receipt-wasm"]

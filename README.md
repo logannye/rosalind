@@ -451,6 +451,8 @@ Refresh golden snapshots with `ROSALIND_UPDATE_SNAPSHOTS=1 cargo test`. See [`do
 
 Contributions are welcome — the bounded `PileupColumn` kernel and the [ColumnKit SDK](#columnkit-implement-one-trait-inherit-the-contract) make a per-locus analytic (coverage, QC, methylation, a custom metric) a natural first PR that inherits the memory contract for free. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the dev loop (`cargo build`/`test`/`fmt`) and the two invariants every change must preserve — **determinism** and the **memory contract**. Curated entry points are labelled [`good first issue`](https://github.com/logannye/rosalind/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22); questions and ideas belong in [Discussions](https://github.com/logannye/rosalind/discussions).
 
+Release maintainers use the source-only, credential-free planning CLI documented in [`docs/MAINTAINER_RELEASES.md`](docs/MAINTAINER_RELEASES.md). The public `rosalind` CLI intentionally contains no crate, tag, image, or release-publishing commands.
+
 ## License
 
 Dual-licensed under Apache-2.0 and MIT. Use [GitHub Issues](https://github.com/logannye/rosalind/issues) for bugs and feature requests, and [Discussions](https://github.com/logannye/rosalind/discussions) for questions.

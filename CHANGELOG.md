@@ -22,6 +22,10 @@ All notable changes to Rosalind are recorded here. Versions follow [Semantic Ver
 - `align` and `sort` now emit replayable schema-5 receipts with artifact roles. The
   opt-in HG002 workflow adds checksum-pinned hap.py 0.3.15/RTG vcfeval evaluation
   and GIAB v3.1 genome contexts without changing the caller.
+- Added a maintainer-only `cargo xtask` release control plane with authenticated
+  plans, contract fingerprints, protected RC/stable workflows, resumable
+  byte-verified crates.io publication, pinned GHCR evaluator images, attested GIAB
+  baseline PRs, and anonymized design-partner release gates.
 
 Release candidates must soak for one week. After the v0.4.0 RC begins, public API,
 receipt-field, or CLI changes require restarting the soak.
