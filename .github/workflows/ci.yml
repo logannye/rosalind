@@ -9,9 +9,9 @@ jobs:
   rust:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Cache cargo artifacts
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             ~/.cargo/registry
@@ -20,17 +20,17 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
           toolchain: stable
-          profile: minimal
-          override: true
       - name: Cargo fmt
         run: cargo fmt --all -- --check
       - name: Cargo test
         run: cargo test --workspace
       - name: Synthetic chr20 GIAB smoke
-        run: benchmarks/giab/smoke.sh
+        run: |
+          benchmarks/giab/smoke.sh
+          python3 -m unittest discover -s benchmarks/giab -p 'test_*.py'
       - name: Build examples
         run: cargo build --examples
       - name: Build docs
@@ -41,7 +41,7 @@ jobs:
         run: |
           cargo package -p rosalind-build-info --allow-dirty
           cargo package -p rosalind-receipt --allow-dirty
-          cargo package -p rosalind-bio --allow-dirty --no-verify \
+          cargo package -p rosalind-bio --allow-dirty \
             --config 'patch.crates-io.rosalind-receipt.path="crates/receipt"' \
             --config 'patch.crates-io.rosalind-build-info.path="crates/build-info"'
           cargo package -p rosalind-bio --allow-dirty --list \
@@ -54,9 +54,9 @@ jobs:
   python:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Cache cargo artifacts
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             ~/.cargo/registry
@@ -66,18 +66,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
       - name: Cache pip
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('.github/workflows/ci.yml') }}
           restore-keys: |
             ${{ runner.os }}-pip-
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
           toolchain: stable
-          profile: minimal
-          override: true
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.11'
       - name: Install numpy
@@ -95,9 +93,9 @@ jobs:
     env:
       PYO3_PYTHON: python3
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Cache cargo artifacts
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             ~/.cargo/registry
@@ -107,20 +105,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cargo-
       - name: Cache pip
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.cache/pip
           key: ${{ runner.os }}-pip-${{ hashFiles('.github/workflows/ci.yml') }}
           restore-keys: |
             ${{ runner.os }}-pip-
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.11'
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
           toolchain: stable
-          profile: minimal
-          override: true
       - name: Verify the committed toy reference is intact (pinned hash)
         # A real anti-corruption gate, not the old self-referential check: pin the
         # COMMITTED reference.fa (the one the release bundle + every other job
@@ -228,7 +224,7 @@ jobs:
           cat badge.json
       - name: Upload the reproducibility badge
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: rosalind-reproducibility-badge
           path: badge.json
@@ -246,9 +242,9 @@ jobs:
     name: MSRV (1.83)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Cache cargo artifacts
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             ~/.cargo/registry
@@ -257,11 +253,9 @@ jobs:
           key: ${{ runner.os }}-cargo-msrv-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-msrv-
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
           toolchain: 1.83.0
-          profile: minimal
-          override: true
       - name: cargo check on the declared MSRV
         run: cargo check --all-targets
 
@@ -269,9 +263,9 @@ jobs:
     name: Clippy (-D warnings)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Cache cargo artifacts
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             ~/.cargo/registry
@@ -280,12 +274,10 @@ jobs:
           key: ${{ runner.os }}-cargo-clippy-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-clippy-
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
           toolchain: stable
-          profile: minimal
           components: clippy
-          override: true
       - name: Clippy as a gate
         run: cargo clippy --all-targets -- -D warnings
 
@@ -293,9 +285,9 @@ jobs:
     name: Claims harness
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Cache cargo artifacts
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             ~/.cargo/registry
@@ -304,12 +296,10 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
           toolchain: stable
-          profile: minimal
-          override: true
-      - uses: actions/setup-python@v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.11'
       - name: Run the claims harness (a standing regression gate on the contract + reproducibility)
@@ -319,12 +309,12 @@ jobs:
     name: Receipt Studio generated assets
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
           toolchain: 1.83.0
           targets: wasm32-unknown-unknown
-      - uses: taiki-e/install-action@v2
+      - uses: taiki-e/install-action@c7eb1735f09259a5035e8e5d44b1406b1cddc0fb # v2
         with:
           tool: wasm-pack@0.14.0
       - name: Rebuild committed client-only WASM
@@ -335,3 +325,48 @@ jobs:
         run: git diff --exit-code -- web/verify/pkg crates/receipt-wasm/Cargo.lock
       - name: WASM unit tests
         run: cargo test --manifest-path crates/receipt-wasm/Cargo.toml
+
+  release-automation:
+    name: Maintainer automation dry run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+      - name: Install pinned workflow linters
+        run: |
+          curl -fsSLO https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz
+          echo '023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757  actionlint_1.7.7_linux_amd64.tar.gz' | sha256sum --check
+          tar -xzf actionlint_1.7.7_linux_amd64.tar.gz actionlint
+          sudo install actionlint /usr/local/bin/actionlint
+          curl -fsSLO https://github.com/koalaman/shellcheck/releases/download/v0.10.0/shellcheck-v0.10.0.linux.x86_64.tar.xz
+          echo '6c881ab0698e4e6ea235245f22832860544f17ba386442fe7e9d629f8cbedf87  shellcheck-v0.10.0.linux.x86_64.tar.xz' | sha256sum --check
+          tar -xJf shellcheck-v0.10.0.linux.x86_64.tar.xz
+          sudo install shellcheck-v0.10.0/shellcheck /usr/local/bin/shellcheck
+          python3 -m pip install 'jsonschema==4.23.0'
+      - name: Maintainer CLI fake-remote integration suite
+        run: cargo test -p xtask --locked
+      - name: Validate schemas, workflows, and shell entry points
+        run: |
+          set +e
+          cargo xtask doctor --json > maintainer-report.json
+          doctor_code=$?
+          set -e
+          if [ "$doctor_code" -ne 0 ] && [ "$doctor_code" -ne 3 ]; then exit "$doctor_code"; fi
+          cargo xtask partners init --persona analyzer-builder --output partner-packet
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          from jsonschema import Draft202012Validator, validate
+          for path in Path("release/schemas").glob("*.json"):
+              Draft202012Validator.check_schema(json.load(open(path)))
+          validate(json.load(open("maintainer-report.json")), json.load(open("release/schemas/maintainer-report-v1.schema.json")))
+          validate(json.load(open("partner-packet/feedback.json")), json.load(open("release/schemas/design-partner-v1.schema.json")))
+          PY
+          scripts/verify-release-automation.py
+          actionlint
+          shellcheck scripts/release-publish.sh scripts/post-publish-smoke.sh \
+            scripts/stage-release.sh benchmarks/giab/prepare.sh benchmarks/giab/run.sh \
+            benchmarks/giab/happy/run.sh assets/scaffold/scripts/contract-check.sh
+          bash -n scripts/release-publish.sh scripts/post-publish-smoke.sh \
+            scripts/stage-release.sh benchmarks/giab/prepare.sh benchmarks/giab/run.sh \
+            benchmarks/giab/happy/run.sh assets/scaffold/scripts/contract-check.sh

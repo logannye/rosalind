@@ -5,13 +5,19 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HERE/../.." && pwd)"
 DATA="${GIAB_DATA_DIR:-$HERE/data}"
 BUDGET_MB="${GIAB_BUDGET_MB:-4096}"
-UPDATE_BASELINE=false
-if [ "${1:-}" = "--update-baseline" ]; then UPDATE_BASELINE=true; fi
-
-for tool in python3; do
-  command -v "$tool" >/dev/null || { echo "missing required tool: $tool" >&2; exit 2; }
-done
-case "${GIAB_HAPPY_IMAGE:-}" in *@sha256:????????????????????????????????????????????????????????????????) ;; *) echo "set GIAB_HAPPY_IMAGE to the immutable hap.py image NAME@sha256:DIGEST" >&2; exit 2 ;; esac
+command -v python3 >/dev/null || { echo "missing required tool: python3" >&2; exit 2; }
+LOCK_IMAGE="$(python3 - "$HERE/happy/lock.json" <<'PY'
+import json, sys
+image = json.load(open(sys.argv[1])).get("generated_image", {})
+repository, digest = image.get("repository"), image.get("digest")
+print(f"{repository}@{digest}" if repository and digest else "")
+PY
+)"
+GIAB_HAPPY_IMAGE="${GIAB_HAPPY_IMAGE:-$LOCK_IMAGE}"
+if [[ ! "$GIAB_HAPPY_IMAGE" =~ ^[^[:space:]@]+@sha256:[0-9a-f]{64}$ ]]; then
+  echo "no committed immutable hap.py image; run cargo xtask giab image plan" >&2
+  exit 2
+fi
 test -f "$DATA/data-manifest.json" || {
   echo "prepare the opt-in data first: benchmarks/giab/prepare.sh '$DATA'" >&2
   exit 2
@@ -53,6 +59,7 @@ report = {
     "calls_filter_all": json.loads((results / "metrics-all.json").read_text()),
     "calls_filter_pass": json.loads((results / "metrics-pass.json").read_text()),
     "external_happy_vcfeval": json.loads((results / "happy" / "report.json").read_text()),
+    "data_manifest": json.loads((root / "data-manifest.json").read_text()),
     "memory": {
         "budget_mb": int(os.environ["BUDGET_MB"]),
         "predicted_peak_rss_bytes": int(receipt["measurements"]["predicted_peak_rss_bytes"]),
@@ -60,33 +67,22 @@ report = {
         "max_working_set_bytes": int(receipt["measurements"]["max_working_set_bytes"]),
     },
     "receipt_claim": receipt["params"]["manifest_blake3"],
+    "producer_identity": {key: value for key, value in receipt["params"].items() if key.startswith("producer.") or key in {"code_git_sha", "code_dirty", "rustc_version", "target_triple", "deps_lock_blake3"}},
     "command": receipt["params"].get("command"),
     "command_argv": json.loads(receipt["params"]["command_argv"]),
 }
 (results / "latest.json").write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
 PY
 
-BASELINE="$HERE/baseline.json"
-if grep -q '"status": "not-yet-established"' "$BASELINE"; then
-  cp "$DATA/results/latest.json" "$BASELINE"
-  echo "Stored the first honest GIAB baseline at $BASELINE"
-elif ! python3 - "$BASELINE" "$DATA/results/latest.json" <<'PY'
-import json, sys
-a, b = (json.load(open(path)) for path in sys.argv[1:])
-keys = ("calls_filter_all", "calls_filter_pass", "external_happy_vcfeval")
-raise SystemExit(0 if all(a[k] == b[k] for k in keys) else 1)
-PY
-then
-  if [ "$UPDATE_BASELINE" != true ]; then
-    echo "GIAB metrics changed; rerun with --update-baseline after documenting the reason" >&2
-    exit 1
-  fi
-  grep -q 'GIAB baseline update' CHANGELOG.md || {
-    echo "baseline update requires a CHANGELOG entry containing 'GIAB baseline update'" >&2
-    exit 1
-  }
-  cp "$DATA/results/latest.json" "$BASELINE"
-  echo "Updated intentional GIAB baseline"
+set +e
+RESULT_STATUS="$(python3 "$HERE/compare.py" \
+  --baseline "$HERE/baseline.json" \
+  --latest "$DATA/results/latest.json" \
+  --results "$DATA/results")"
+COMPARE_CODE=$?
+set -e
+echo "GIAB v5.0q chr20 benchmark status: $RESULT_STATUS; latest report: $DATA/results/latest.json"
+if [ "$COMPARE_CODE" -eq 1 ]; then
+  echo "GIAB evidence diverged; review candidate and use cargo xtask giab baseline propose" >&2
 fi
-
-echo "GIAB v5.0q chr20 benchmark reproduced exactly; latest report: $DATA/results/latest.json"
+exit "$COMPARE_CODE"

@@ -1,14 +1,21 @@
 name: CI
 on: [push, pull_request]
+permissions:
+  contents: read
 jobs:
   contract:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      CARGO_HOME: ${{ runner.temp }}/cargo-home
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.83
-      - run: cargo install rosalind-bio --version 0.4.0 --locked
-      - run: cargo test
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: 1.83.0
+      - run: cargo install rosalind-bio --version '=0.4.0' --locked
+      - run: cargo generate-lockfile
+      - run: cargo test --locked
       - run: bash scripts/contract-check.sh

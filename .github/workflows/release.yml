@@ -1,160 +1,224 @@
-name: Release
+name: Stable release
+run-name: Stable v${{ inputs.version }} plan:${{ inputs.plan_id }}
 
-# Cut a release by pushing a tag: `git tag v0.1.0 && git push origin v0.1.0`.
-# `workflow_dispatch` builds the same artifacts WITHOUT publishing a release
-# (uploaded as workflow artifacts) — a safe dry run before tagging.
 on:
-  push:
-    tags:
-      - 'v*'
   workflow_dispatch:
+    inputs:
+      version:
+        description: SemVer without v prefix
+        required: true
+      rc_tag:
+        description: Soaked RC tag
+        required: true
+      ref:
+        description: Candidate ref or commit
+        required: true
+      plan_id:
+        description: Confirmed cargo-xtask plan ID
+        required: true
 
 permissions:
-  contents: write # required to create/attach a GitHub Release
-  id-token: write
-  attestations: write
+  contents: read
+
+concurrency:
+  group: stable-${{ inputs.version }}
+  cancel-in-progress: false
 
 jobs:
-  build:
+  authorize:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    permissions:
+      contents: read
+      attestations: read
+    timeout-minutes: 120
+    outputs:
+      commit: ${{ steps.commit.outputs.sha }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: 1.95.0
+      - id: commit
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Install pinned contract API tool
+        run: |
+          rustup toolchain install nightly-2026-04-15 --profile minimal
+          cargo install cargo-public-api --version '=0.50.1' --locked
+      - name: Recompute every promotion gate and verify plan
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+          RC_TAG: ${{ inputs.rc_tag }}
+          CANDIDATE_REF: ${{ inputs.ref }}
+          PLAN_ID: ${{ inputs.plan_id }}
+        run: |
+          cargo xtask release plan \
+            --version "$VERSION" \
+            --rc-tag "$RC_TAG" \
+            --ref "$CANDIDATE_REF" \
+            --output recomputed-plan.json --json > recomputed-plan-report.json
+          actual=$(python3 -c 'import json; print(json.load(open("recomputed-plan.json"))["plan_id"])')
+          test "$actual" = "$PLAN_ID"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: stable-plan
+          path: recomputed-plan.json
+
+  build-assets:
+    needs: authorize
     name: build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
     strategy:
       fail-fast: false
       matrix:
         include:
-          # Fully static Linux binaries (no glibc/bzip2/lzma runtime dependency):
-          # the -sys crates build htslib/bzip2/lzma/zlib from bundled C source.
-          # Each builds NATIVELY on its arch's runner — no cross-compiler needed.
           - target: x86_64-unknown-linux-musl
             os: ubuntu-latest
-          # aarch64-unknown-linux-musl is deferred: rust-htslib 0.44.1 fails to compile
-          # on aarch64 (a c_char signedness mismatch, E0308 — an upstream bug). Tracked
-          # as a separate issue; re-add the runner once rust-htslib builds on aarch64.
-          # macOS builds on Apple Silicon runners (macos-14, plentiful). The
-          # aarch64 build is native; the x86_64 build is cross-compiled from arm64
-          # (the SDK ships both arches; the cc crate adds `-arch x86_64`) so the
-          # release never waits on the scarce/deprecated Intel macos-13 runners.
           - target: aarch64-apple-darwin
             os: macos-14
           - target: x86_64-apple-darwin
             os: macos-14
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Install musl toolchain + cmake (Linux)
-        if: runner.os == 'Linux'
-        # cmake: hts-sys 2.2.0 forces libz-sys/zlib-ng, whose build uses CMake.
-        run: sudo apt-get update && sudo apt-get install -y musl-tools cmake
-
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
-          toolchain: stable
-          target: ${{ matrix.target }}
-          profile: minimal
-          override: true
-
-      - name: Cache cargo artifacts
-        uses: actions/cache@v4
+          ref: ${{ needs.authorize.outputs.commit }}
+      - name: Install native build dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y musl-tools cmake
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: 1.95.0
+          targets: ${{ matrix.target }}
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-release-${{ matrix.target }}-${{ hashFiles('Cargo.lock') }}
-
-      - name: Build (release, ${{ matrix.target }})
+          key: ${{ runner.os }}-stable-${{ matrix.target }}-${{ hashFiles('Cargo.lock') }}
+      - name: Build release binary
         env:
-          # musl needs the musl C compiler for the bundled htslib/bzip2/lzma builds.
           CC_x86_64_unknown_linux_musl: musl-gcc
-          # hts-sys 2.2.0 forces libz-sys/zlib-ng, whose CMake build probes for a C++
-          # compiler. zlib-ng's sources are C (built with the musl CC above); the host
-          # `g++` is the right arch on this native runner and satisfies CMake's probe.
           CXX_x86_64_unknown_linux_musl: g++
-        run: cargo build --release --target ${{ matrix.target }} --bin rosalind
-
-      - name: Stage the bundle
+        run: cargo build --release --locked --target '${{ matrix.target }}' --bin rosalind
+      - name: Stage bundle
+        run: scripts/stage-release.sh '${{ matrix.target }}'
+      - name: Install-smoke staged bundle
+        if: matrix.target != 'x86_64-apple-darwin'
         shell: bash
         run: |
-          set -euo pipefail
-          name="rosalind-${{ matrix.target }}"
-          stage="dist/$name"
-          mkdir -p "$stage"
-          cp "target/${{ matrix.target }}/release/rosalind" "$stage/"
-          cp README.md CONTRACT.md CHANGELOG.md LICENSE-APACHE LICENSE-MIT "$stage/"
-          mkdir -p "$stage/docs/schema"
-          cp docs/receipt-schema.md docs/receipt-trust.md docs/v0.4-migration.md "$stage/docs/"
-          cp docs/schema/receipt-v5.schema.json "$stage/docs/schema/"
-          cp docs/schema/trust-report-v2.schema.json "$stage/docs/schema/"
-          cp web/verify/schema/run-attestation-v1.schema.json "$stage/docs/schema/"
-          mkdir -p "$stage/examples/data"
-          cp -R examples/data/illumina_toy "$stage/examples/data/"
-          tar -C dist -czf "dist/$name.tar.gz" "$name"
-          # Portable checksum (shasum on macOS, sha256sum on Linux).
-          if command -v sha256sum >/dev/null 2>&1; then
-            (cd dist && sha256sum "$name.tar.gz" > "$name.tar.gz.sha256")
-          else
-            (cd dist && shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256")
-          fi
-
-      - name: Install Syft
-        uses: anchore/sbom-action/download-syft@v0
-
+          install_root=$(mktemp -d)
+          tar -xzf "dist/rosalind-${{ matrix.target }}.tar.gz" -C "$install_root"
+          "$install_root/rosalind-${{ matrix.target }}/rosalind" --version
+      - uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0
       - name: Generate SPDX SBOM
-        shell: bash
-        run: |
-          name="rosalind-${{ matrix.target }}"
-          syft "dir:dist/$name" -o "spdx-json=dist/$name.spdx.json"
-
-      - name: Attest build provenance
-        uses: actions/attest-build-provenance@v2
+        run: syft 'dir:dist/rosalind-${{ matrix.target }}' -o 'spdx-json=dist/rosalind-${{ matrix.target }}.spdx.json'
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          subject-path: dist/rosalind-${{ matrix.target }}.tar.gz
-
-      - name: Upload workflow artifact (dry run)
-        uses: actions/upload-artifact@v4
-        with:
-          name: rosalind-${{ matrix.target }}
+          name: stable-${{ matrix.target }}
           path: |
             dist/rosalind-${{ matrix.target }}.tar.gz
             dist/rosalind-${{ matrix.target }}.tar.gz.sha256
             dist/rosalind-${{ matrix.target }}.spdx.json
 
-      - name: Attach to the GitHub Release (tag builds only)
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            dist/rosalind-${{ matrix.target }}.tar.gz
-            dist/rosalind-${{ matrix.target }}.tar.gz.sha256
-            dist/rosalind-${{ matrix.target }}.spdx.json
-          fail_on_unmatched_files: true
-          body: |
-            Prebuilt `rosalind` binaries — the memory contract, runnable in 60 seconds.
-
-            ```sh
-            curl -fsSL https://raw.githubusercontent.com/logannye/rosalind/main/install.sh | sh
-            ```
-
-            Each tarball bundles the binary, the `illumina_toy` contract-demo fixtures, and the
-            licenses. See the README "Quickstart (60 seconds)".
-
   publish-crates:
-    name: publish crates in dependency order
-    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-rc.')
-    needs: build
+    needs: [authorize, build-assets]
     runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-      - name: Publish rosalind-build-info 0.1.0
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ needs.authorize.outputs.commit }}
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: 1.95.0
+      - name: Resume byte-verified crates.io publication
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: cargo publish -p rosalind-build-info --locked
-      - name: Publish rosalind-receipt 0.3.0
+        run: scripts/release-publish.sh
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: crate-publication-state
+          if-no-files-found: warn
+          path: publish-state.json
+
+  published-install-smoke:
+    needs: [authorize, publish-crates]
+    name: fresh registry install (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14]
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ needs.authorize.outputs.commit }}
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: 1.95.0
+      - name: Install native build dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y cmake
+      - name: Empty-cache install, demo, scaffold, and conformance
         env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: cargo publish -p rosalind-receipt --locked
-      - name: Publish rosalind-bio 0.4.0
+          VERSION: ${{ inputs.version }}
+        run: scripts/post-publish-smoke.sh "$VERSION"
+
+  publish-release:
+    needs: [authorize, build-assets, publish-crates, published-install-smoke]
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ needs.authorize.outputs.commit }}
+          fetch-depth: 0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: stable-*
+          path: release-assets
+          merge-multiple: true
+      - uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
+        with:
+          subject-path: release-assets/*.tar.gz
+      - name: Create stable tag and GitHub Release last
         env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        run: cargo publish -p rosalind-bio --locked
+          GH_TOKEN: ${{ github.token }}
+          TAG: v${{ inputs.version }}
+          COMMIT: ${{ needs.authorize.outputs.commit }}
+        shell: bash
+        run: |
+          remote=$(git ls-remote origin "refs/tags/$TAG" | awk '{print $1}')
+          if [ -n "$remote" ]; then
+            git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
+            test "$(git rev-list -n 1 "$TAG")" = "$COMMIT" || { echo "$TAG targets another commit" >&2; exit 5; }
+          else
+            git tag -a "$TAG" "$COMMIT" -m "Rosalind $TAG"
+            git push origin "refs/tags/$TAG"
+          fi
+          if gh release view "$TAG" --repo '${{ github.repository }}' >/dev/null 2>&1; then
+            test "$(gh release view "$TAG" --repo '${{ github.repository }}' --json isPrerelease --jq .isPrerelease)" = false
+          else
+            gh release create "$TAG" release-assets/* \
+              --repo '${{ github.repository }}' --verify-tag --target "$COMMIT" --latest \
+              --title "Rosalind $TAG" --generate-notes
+          fi

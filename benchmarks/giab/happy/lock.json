@@ -15,5 +15,12 @@
     "platform": "linux/amd64",
     "digest": "sha256:dca176c9663a7ba4c1f0e710986f5a25e672842963d95b960191e2d9f7185ebe"
   },
+  "generated_image": {
+    "repository": "ghcr.io/logannye/rosalind-happy",
+    "digest": null,
+    "platform": "linux/amd64",
+    "source_lock_blake3": null,
+    "built_from_commit": null
+  },
   "evaluation_policy": "The built image must be selected as NAME@sha256:DIGEST; mutable tags are rejected. build.sh prints the generated digest for release provenance."
 }

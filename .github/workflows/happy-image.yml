@@ -1,0 +1,127 @@
+name: Build pinned hap.py evaluator image
+run-name: hap.py image plan:${{ inputs.plan_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Commit or branch to build
+        required: true
+        default: main
+      plan_id:
+        description: Confirmed cargo-xtask plan ID
+        required: true
+
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: happy-image-${{ inputs.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment: release
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: 1.95.0
+      - id: commit
+        name: Record build commit
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Recompute and authorize the immutable plan
+        env:
+          CANDIDATE_REF: ${{ inputs.ref }}
+          PLAN_ID: ${{ inputs.plan_id }}
+        run: |
+          cargo xtask giab image plan --ref "$CANDIDATE_REF" --output image-plan.json --json
+          test "$(python3 -c 'import json; print(json.load(open("image-plan.json"))["plan_id"])')" = "$PLAN_ID"
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        name: Derive content-addressed tag
+        run: |
+          source_lock=$(python3 -c 'import json; print(json.load(open("image-plan.json"))["metadata"]["source_lock_blake3"])')
+          echo "source_lock=$source_lock" >> "$GITHUB_OUTPUT"
+          echo "tag=ghcr.io/logannye/rosalind-happy:0.3.15-$source_lock" >> "$GITHUB_OUTPUT"
+      - id: build
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: benchmarks/giab/happy
+          file: benchmarks/giab/happy/Dockerfile
+          platforms: linux/amd64
+          pull: false
+          push: true
+          tags: ${{ steps.meta.outputs.tag }}
+          provenance: mode=max
+          sbom: true
+      - name: Verify evaluator versions without networking
+        run: |
+          image='${{ steps.meta.outputs.tag }}@${{ steps.build.outputs.digest }}'
+          docker pull "$image"
+          docker run --rm --network none --platform linux/amd64 "$image" --version | grep -F '0.3.15'
+          docker run --rm --network none --platform linux/amd64 \
+            --entrypoint /opt/rtg-tools/rtg "$image" version | grep -F '3.12.1'
+      - uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
+        with:
+          image: ${{ steps.meta.outputs.tag }}@${{ steps.build.outputs.digest }}
+          format: spdx-json
+          output-file: happy-image.spdx.json
+      - uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
+        with:
+          subject-name: ghcr.io/logannye/rosalind-happy
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+      - name: Update the generated-image lock
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+          SOURCE_LOCK: ${{ steps.meta.outputs.source_lock }}
+          BUILD_COMMIT: ${{ steps.commit.outputs.sha }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          path = Path("benchmarks/giab/happy/lock.json")
+          lock = json.loads(path.read_text())
+          lock["generated_image"] = {
+              "repository": "ghcr.io/logannye/rosalind-happy",
+              "digest": os.environ["DIGEST"],
+              "platform": "linux/amd64",
+              "source_lock_blake3": os.environ["SOURCE_LOCK"],
+              "built_from_commit": os.environ["BUILD_COMMIT"],
+          }
+          path.write_text(json.dumps(lock, indent=2, sort_keys=True) + "\n")
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: happy-image-evidence
+          retention-days: 90
+          path: |
+            image-plan.json
+            happy-image.spdx.json
+            benchmarks/giab/happy/lock.json
+      - uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7
+        with:
+          branch: automation/happy-digest-${{ steps.meta.outputs.source_lock }}
+          delete-branch: true
+          commit-message: "chore(giab): lock attested hap.py image digest"
+          title: "Lock attested hap.py evaluator image"
+          body: |
+            Generated by the protected image workflow.
+
+            Source lock: `${{ steps.meta.outputs.source_lock }}`
+            OCI digest: `${{ steps.build.outputs.digest }}`

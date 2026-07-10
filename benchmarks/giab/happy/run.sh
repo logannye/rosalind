@@ -3,7 +3,10 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 DATA="${GIAB_DATA_DIR:-$HERE/../data}"
 IMAGE="${GIAB_HAPPY_IMAGE:-}"
-case "$IMAGE" in *@sha256:????????????????????????????????????????????????????????????????) ;; *) echo "GIAB_HAPPY_IMAGE must be an immutable NAME@sha256:DIGEST reference" >&2; exit 2 ;; esac
+if [[ ! "$IMAGE" =~ ^[^[:space:]@]+@sha256:[0-9a-f]{64}$ ]]; then
+  echo "GIAB_HAPPY_IMAGE must be an immutable NAME@sha256:DIGEST reference" >&2
+  exit 2
+fi
 command -v docker >/dev/null || { echo "docker is required" >&2; exit 2; }
 
 prepared="$DATA/prepared"
@@ -19,8 +22,12 @@ awk 'BEGIN{FS=OFS="\t"} /^#/ || $7=="PASS"' \
   "$DATA/results/HG002.rosalind.chr20.vcf" > "$results/calls-pass.vcf"
 
 run_happy() {
-  local label="$1" calls="$2" prefix="/data/results/happy/$label"
-  docker run --rm --network none --platform linux/amd64 -v "$DATA:/data" "$IMAGE" \
+  local label="$1" calls="$2"
+  local prefix="/data/results/happy/$label"
+  docker run --rm --network none --platform linux/amd64 \
+    -v "$prepared:/data/prepared:ro" \
+    -v "$DATA/results:/data/results" \
+    "$IMAGE" \
     /data/prepared/HG002.v5.0q.chr20.vcf "$calls" \
     -f /data/prepared/HG002.v5.0q.chr20.bed \
     -r /data/prepared/GRCh38.chr20.fa \
@@ -53,7 +60,7 @@ report = {
     "argv": {
         "all": ["/opt/hap.py/bin/hap.py", "/data/prepared/HG002.v5.0q.chr20.vcf", "/data/results/HG002.rosalind.chr20.vcf", "-f", "/data/prepared/HG002.v5.0q.chr20.bed", "-r", "/data/prepared/GRCh38.chr20.fa", "--engine=vcfeval", "--engine-vcfeval-path=/opt/rtg-tools/rtg", "--stratification", "/data/prepared/stratifications.tsv", "-o", "/data/results/happy/all"],
         "pass": ["/opt/hap.py/bin/hap.py", "/data/prepared/HG002.v5.0q.chr20.vcf", "/data/results/happy/calls-pass.vcf", "-f", "/data/prepared/HG002.v5.0q.chr20.bed", "-r", "/data/prepared/GRCh38.chr20.fa", "--engine=vcfeval", "--engine-vcfeval-path=/opt/rtg-tools/rtg", "--stratification", "/data/prepared/stratifications.tsv", "-o", "/data/results/happy/pass"],
-        "container": ["docker", "run", "--rm", "--network", "none", "--platform", "linux/amd64", "-v", f"{root}:/data", os.environ["IMAGE"]]
+        "container": ["docker", "run", "--rm", "--network", "none", "--platform", "linux/amd64", "-v", f"{root / 'prepared'}:/data/prepared:ro", "-v", f"{root / 'results'}:/data/results", os.environ["IMAGE"]]
     },
 }
 (results / "report.json").write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")

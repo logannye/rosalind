@@ -1,54 +1,134 @@
 name: GIAB v5.0q benchmark
+run-name: GIAB v5.0q plan:${{ inputs.plan_id }}
 
 on:
   workflow_dispatch:
     inputs:
-      update_baseline:
-        description: Intentionally update baseline (requires changelog entry)
+      image:
+        description: Immutable hap.py image override (NAME@sha256:DIGEST)
         required: false
-        default: false
-        type: boolean
-      happy_image:
-        description: Immutable hap.py image (NAME@sha256:DIGEST); defaults to the GIAB_HAPPY_IMAGE repository variable
-        required: false
-        type: string
+      plan_id:
+        description: Confirmed cargo-xtask plan ID
+        required: true
   schedule:
     - cron: '17 8 1 * *'
 
+permissions:
+  contents: read
+  id-token: write
+  attestations: write
+
+concurrency:
+  group: giab-hg002-v5-chr20
+  cancel-in-progress: false
+
 jobs:
   hg002-chr20:
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    env:
-      GIAB_HAPPY_IMAGE: ${{ inputs.happy_image || vars.GIAB_HAPPY_IMAGE }}
+    timeout-minutes: 360
     steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: 1.95.0
+      - name: Resolve and authorize evaluator image
+        id: plan
+        env:
+          REQUESTED_IMAGE: ${{ inputs.image }}
+          PLAN_ID: ${{ inputs.plan_id }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          image="$REQUESTED_IMAGE"
+          source_digest=""
+          if [ -z "$image" ]; then
+            image="$(python3 - <<'PY'
+          import json
+          image = json.load(open("benchmarks/giab/happy/lock.json"))["generated_image"]
+          print(f"{image['repository']}@{image['digest']}" if image.get("digest") else "")
+          PY
+          )"
+          fi
+          locked_image="$(python3 -c 'import json; i=json.load(open("benchmarks/giab/happy/lock.json"))["generated_image"]; print("{}@{}".format(i["repository"], i["digest"]) if i.get("digest") else "")')"
+          if [ "$image" = "$locked_image" ]; then
+            source_digest="$(python3 -c 'import json; print(json.load(open("benchmarks/giab/happy/lock.json"))["generated_image"]["built_from_commit"])')"
+          fi
+          if [[ ! "$image" =~ ^[^[:space:]@]+@sha256:[0-9a-f]{64}$ ]]; then
+            echo "immutable image missing" >&2
+            exit 2
+          fi
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "source_digest=$source_digest" >> "$GITHUB_OUTPUT"
+          if [ "$EVENT_NAME" = workflow_dispatch ]; then
+            cargo xtask giab benchmark plan --image "$image" --output benchmark-plan.json --json
+            test "$(python3 -c 'import json; print(json.load(open("benchmark-plan.json"))["plan_id"])')" = "$PLAN_ID"
+          else
+            cargo xtask giab benchmark plan --image "$image" --output benchmark-plan.json --json
+          fi
+      - name: Disk-space preflight
+        run: |
+          df -h .
+          available_kb=$(df -Pk . | awk 'NR==2 {print $4}')
+          test "$available_kb" -ge 12582912 || { echo "at least 12 GiB free disk is required" >&2; exit 2; }
+      - name: Verify evaluator platform and provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          IMAGE: ${{ steps.plan.outputs.image }}
+          SOURCE_DIGEST: ${{ steps.plan.outputs.source_digest }}
+        run: |
+          docker buildx imagetools inspect "$IMAGE" | tee evaluator-manifest.txt
+          grep -Fi 'linux/amd64' evaluator-manifest.txt
+          verify=(gh attestation verify "oci://$IMAGE" --repo '${{ github.repository }}' \
+            --signer-workflow '${{ github.repository }}/.github/workflows/happy-image.yml')
+          if [ -n "$SOURCE_DIGEST" ]; then verify+=(--source-digest "$SOURCE_DIGEST"); fi
+          "${verify[@]}"
       - name: Install samtools
         run: sudo apt-get update && sudo apt-get install -y samtools
-      - name: Restore pinned GIAB inputs
-        uses: actions/cache@v4
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
-          path: benchmarks/giab/data
+          path: |
+            benchmarks/giab/data/downloads
+            benchmarks/giab/data/prepared
+            benchmarks/giab/data/data-manifest.json
           key: giab-v5.0q-grch38-chr20-${{ hashFiles('benchmarks/giab/resources.tsv') }}
-      - name: Prepare inputs
+      - name: Prepare and revalidate every input
         run: benchmarks/giab/prepare.sh
-      - name: Run benchmark
+      - name: Build Rosalind
+        run: cargo build --release --locked --bin rosalind
+      - name: Run internal and external evaluation
+        id: benchmark
+        env:
+          GIAB_HAPPY_IMAGE: ${{ steps.plan.outputs.image }}
         run: |
-          case "$GIAB_HAPPY_IMAGE" in
-            *@sha256:????????????????????????????????????????????????????????????????) ;;
-            *) echo "Configure repository variable GIAB_HAPPY_IMAGE or dispatch with an immutable NAME@sha256:DIGEST" >&2; exit 2 ;;
-          esac
-          if [ "${{ inputs.update_baseline || false }}" = "true" ]; then
-            benchmarks/giab/run.sh --update-baseline
-          else
-            benchmarks/giab/run.sh
-          fi
-      - name: Upload report and receipt
-        uses: actions/upload-artifact@v4
+          set +e
+          benchmarks/giab/run.sh
+          code=$?
+          set -e
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+      - uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
+        if: always() && steps.benchmark.outputs.exit_code != ''
+        with:
+          subject-path: benchmarks/giab/data/results/latest.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
         with:
           name: hg002-v5.0q-grch38-chr20
+          retention-days: 90
+          if-no-files-found: error
           path: |
+            benchmark-plan.json
+            evaluator-manifest.txt
+            benchmarks/giab/data/data-manifest.json
             benchmarks/giab/data/results/latest.json
-            benchmarks/giab/data/results/happy/report.json
+            benchmarks/giab/data/results/comparison.json
+            benchmarks/giab/data/results/baseline-candidate.json
+            benchmarks/giab/data/results/credibility.md
+            benchmarks/giab/data/results/metrics-all.json
+            benchmarks/giab/data/results/metrics-pass.json
+            benchmarks/giab/data/results/happy/
+            benchmarks/giab/data/results/HG002.rosalind.chr20.vcf
             benchmarks/giab/data/results/HG002.rosalind.chr20.vcf.manifest.json
+      - name: Preserve benchmark comparison outcome
+        if: always()
+        run: test '${{ steps.benchmark.outputs.exit_code }}' = 0

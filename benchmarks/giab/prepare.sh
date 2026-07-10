@@ -23,7 +23,7 @@ while IFS=$'\t' read -r id filename sha256 url; do
   case "$id" in ''|'#'*) continue ;; esac
   target="$DEST/downloads/$filename"
   if [ ! -f "$target" ]; then
-    curl --fail --location --retry 3 --output "$target.part" "$url"
+    curl --fail --location --retry 3 --continue-at - --output "$target.part" "$url"
     mv "$target.part" "$target"
   fi
   verify_sha256 "$sha256" "$target"

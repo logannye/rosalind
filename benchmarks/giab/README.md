@@ -12,9 +12,9 @@ extraction with a version-neutral header, and writes a local SHA-256 data manife
 
 ```sh
 benchmarks/giab/prepare.sh
-benchmarks/giab/happy/build.sh
-# Push the image to a controlled registry, then select its generated digest:
-export GIAB_HAPPY_IMAGE='registry.example/rosalind-happy@sha256:…'
+cargo xtask giab image plan --output image-plan.json --json
+cargo xtask giab image dispatch --plan image-plan.json --confirm PLAN_ID
+# Merge the generated digest-lock PR, then:
 benchmarks/giab/run.sh
 ```
 
@@ -27,10 +27,11 @@ network and must be selected by immutable digest. Source archives, RTG, and the
 linux/amd64 base image are checksum-pinned in [`happy/lock.json`](happy/lock.json).
 
 The combined report also carries genotype concordance and call counts, memory
-prediction/realization, receipt claim, tool versions, and exact argv. The first
-successful run replaces the explicit pending baseline. Later metric changes fail unless invoked with
-`--update-baseline` and accompanied by a changelog entry containing
-`GIAB baseline update`.
+prediction/realization, receipt claim, tool versions, and exact argv. Routine runs
+never edit the committed baseline. The first run emits a pending candidate; later
+divergence emits an honest candidate and marks the workflow failed only after its
+evidence is attested and uploaded. `cargo xtask giab baseline propose` requires a
+reason-specific `GIAB baseline update` changelog entry and opens a pull request.
 
 This is a credibility baseline, not a competitive threshold. Rosalind remains
 SNV-focused, and the v5.0q truth includes difficult regions and variant classes
