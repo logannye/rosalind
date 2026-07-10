@@ -18,7 +18,6 @@ exclude = [
     "docs/findings/",
     "examples/data/",
     "tests/snapshots/",
-    "web/",
     ".github/",
 ]
 

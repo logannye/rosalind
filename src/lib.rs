@@ -52,6 +52,8 @@ pub mod call;
 pub mod contract;
 /// Core types: the lingua franca shared by every layer (io, index, align, pileup, call).
 pub mod core;
+/// Read-only preflight diagnostics with actionable remediation.
+pub mod doctor;
 /// Genomics primitives: the FM-index, persisted memory-mapped index, alignment, sort, eval.
 pub mod genomics;
 /// IO layer: spec-valid VCF writer + streaming FASTA/FASTQ/BAM readers.
@@ -62,10 +64,14 @@ pub mod pileup;
 /// Extracted to the `rosalind-receipt` leaf crate (no htslib — wasm-friendly) and
 /// re-exported here, so `rosalind::provenance::*` is unchanged.
 pub use rosalind_receipt as provenance;
+/// Receipt inspection, sanitization, and standards export.
+pub mod receipt_tools;
 /// Third-party byte re-derivation from a receipt (the `reproduce` verb).
 pub mod reproduce;
 /// Generate standalone downstream analyzer projects.
 pub mod scaffold;
+/// Loopback-only embedded Receipt Studio server.
+pub mod studio;
 /// Helper utilities: read-only mmap + peak-RSS measurement.
 pub mod util;
 
@@ -85,6 +91,9 @@ pub use call::{
     PackOutcome,
 };
 pub use core::{MemoryBudget, WorkingSet};
+pub use doctor::{run_doctor, DoctorReport, DoctorSpec};
+pub use receipt_tools::{export_intoto, inspect_receipt, sanitize_receipt, ReceiptInspection};
+pub use studio::{serve_studio, StudioSpec};
 // Build-once → mmap index + the reproducibility receipt:
 pub use contract::{
     detected_os_memory_limit_bytes, run_column_analysis, AnalyzerIdentity, AnalyzerMemoryModel,

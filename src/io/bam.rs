@@ -15,6 +15,37 @@ use rust_htslib::bam::{self, Read as BamRead};
 use crate::core::{AlignedRead, CigarOp, CigarOpKind, ContigSet, CoreError, Position, SamFlags};
 use crate::pileup::ReadSource;
 
+/// Lightweight BAM-header facts used by preflight diagnostics.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct BamHeaderInspection {
+    /// `SO` value declared on the `@HD` line, when present.
+    pub sort_order: Option<String>,
+    /// Number of `@SQ` reference sequences in the BAM header.
+    pub reference_sequences: u32,
+}
+
+/// Open a BAM, validate its reference names and lengths against `contigs`, and
+/// inspect its declared sort order without scanning records.
+pub fn inspect_bam_header(
+    path: &Path,
+    contigs: &ContigSet,
+) -> Result<BamHeaderInspection, CoreError> {
+    let reader = bam::Reader::from_path(path)
+        .map_err(|e| CoreError::MalformedRecord(format!("open BAM {}: {e}", path.display())))?;
+    let header = reader.header().to_owned();
+    validate_contig_lengths(&header, contigs)?;
+    let text = String::from_utf8_lossy(header.as_bytes());
+    let sort_order = text
+        .lines()
+        .find(|line| line.starts_with("@HD\t") || *line == "@HD")
+        .and_then(|line| line.split('\t').find_map(|field| field.strip_prefix("SO:")))
+        .map(str::to_string);
+    Ok(BamHeaderInspection {
+        sort_order,
+        reference_sequences: header.target_count(),
+    })
+}
+
 /// Map one BAM `Record` to a canonical `AlignedRead`, or `None` if it is
 /// unmapped, has no tid, a negative pos, or a reference name absent from
 /// `contigs`. Shared by `read_bam_as_core_reads` and `StreamingBamSource`.

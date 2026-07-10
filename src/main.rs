@@ -125,8 +125,8 @@ enum Commands {
         #[arg(long)]
         manifest: Option<PathBuf>,
         /// Emit a banded gVCF (every callable locus → a variant or a `<NON_REF>`
-        /// reference block) instead of a sites-only VCF — cohort-ready
-        /// (GLnexus/GATK), bounded, byte-reproducible. (`--index` path.)
+        /// reference block) instead of a sites-only VCF. Output is bounded and
+        /// byte-reproducible; cohort integration is not yet qualified. (`--index` path.)
         #[arg(long)]
         gvcf: bool,
     },
@@ -320,10 +320,50 @@ enum Commands {
         #[arg(long)]
         json: bool,
     },
+    /// Preflight index/BAM compatibility, output safety, and memory feasibility.
+    Doctor {
+        /// Persisted reference index.
+        #[arg(long)]
+        index: PathBuf,
+        /// Coordinate-sorted BAM to validate against the index.
+        #[arg(long)]
+        alignments: PathBuf,
+        /// Planned output path whose collision safety should be checked.
+        #[arg(long)]
+        output: Option<PathBuf>,
+        /// Intended memory budget in MiB.
+        #[arg(long)]
+        budget_mb: Option<u64>,
+        /// Scan every mapped read to prove coordinate order and maximum read length.
+        #[arg(long)]
+        deep: bool,
+        /// Emit a stable machine-readable report.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Open the embedded, loopback-only Receipt Studio with optional preloaded receipts.
+    Studio {
+        /// Run receipts and reproduction certificates to preload.
+        receipts: Vec<PathBuf>,
+        /// Print the URL without opening the system browser.
+        #[arg(long)]
+        no_open: bool,
+        /// Loopback port; zero chooses an unused port.
+        #[arg(long, default_value_t = 0)]
+        port: u16,
+        /// Emit one startup JSON object before serving.
+        #[arg(long)]
+        json: bool,
+    },
     /// Walk a directory of receipts as a provenance DAG and verify it offline.
     Chain {
         #[command(subcommand)]
         action: ChainAction,
+    },
+    /// Inspect, sanitize, or export reproducibility receipts.
+    Receipt {
+        #[command(subcommand)]
+        action: ReceiptAction,
     },
     /// Locate exact occurrences of a pattern in a prebuilt index (load + query).
     Locate {
@@ -471,6 +511,43 @@ enum ChainAction {
         /// Emit a compact JSON report instead of human-readable lines.
         #[arg(long)]
         json: bool,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum ReceiptAction {
+    /// Explain independent trust dimensions and exactly which evidence is missing.
+    Inspect {
+        /// Run receipt to inspect.
+        #[arg(long)]
+        manifest: PathBuf,
+        /// Artifact file to content-match; repeat for multiple inputs and outputs.
+        #[arg(long)]
+        artifact: Vec<PathBuf>,
+        /// Optional reproduction certificate to validate and link.
+        #[arg(long)]
+        certificate: Option<PathBuf>,
+        /// Emit a stable machine-readable trust report.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Replace recorded paths with stable role labels without changing the claim ID.
+    Sanitize {
+        /// Schema-3 through schema-5 run receipt.
+        #[arg(long)]
+        manifest: PathBuf,
+        /// New sanitized receipt path; existing files are never overwritten.
+        #[arg(short, long)]
+        output: PathBuf,
+    },
+    /// Export an unsigned in-toto Statement v1 using the Rosalind predicate.
+    ExportIntoto {
+        /// Intact native schema-5 run receipt.
+        #[arg(long)]
+        manifest: PathBuf,
+        /// New statement path; existing files are never overwritten.
+        #[arg(short, long)]
+        output: PathBuf,
     },
 }
 
@@ -756,8 +833,39 @@ fn main() -> Result<()> {
             budget_mb,
             json,
         } => run_demo(output_dir, budget_mb, json)?,
+        Commands::Doctor {
+            index,
+            alignments,
+            output,
+            budget_mb,
+            deep,
+            json,
+        } => run_doctor_command(index, alignments, output, budget_mb, deep, json)?,
+        Commands::Studio {
+            receipts,
+            no_open,
+            port,
+            json,
+        } => rosalind::serve_studio(&rosalind::StudioSpec {
+            receipts,
+            no_open,
+            port,
+            json,
+        })?,
         Commands::Chain { action } => match action {
             ChainAction::Verify { dir, json } => run_chain_verify(dir, json)?,
+        },
+        Commands::Receipt { action } => match action {
+            ReceiptAction::Inspect {
+                manifest,
+                artifact,
+                certificate,
+                json,
+            } => run_receipt_inspect(manifest, artifact, certificate, json)?,
+            ReceiptAction::Sanitize { manifest, output } => run_receipt_sanitize(manifest, output)?,
+            ReceiptAction::ExportIntoto { manifest, output } => {
+                run_receipt_export_intoto(manifest, output)?
+            }
         },
         Commands::Locate {
             index,
@@ -815,6 +923,72 @@ fn run_new_analyzer(name: &str, output: &std::path::Path) -> Result<()> {
     }
     println!("next: cd {} && cargo test", report.root.display());
     Ok(())
+}
+
+fn run_doctor_command(
+    index: PathBuf,
+    alignments: PathBuf,
+    output: Option<PathBuf>,
+    budget_mb: Option<u64>,
+    deep: bool,
+    json: bool,
+) -> Result<()> {
+    let report = rosalind::run_doctor(&rosalind::DoctorSpec {
+        index,
+        alignments,
+        output,
+        budget_mb,
+        deep,
+    });
+    if json {
+        println!("{}", report.to_json());
+    } else {
+        println!(
+            "doctor: {}",
+            if report.ok {
+                "READY"
+            } else {
+                "ACTION REQUIRED"
+            }
+        );
+        println!(
+            "  index / alignments : {} / {}",
+            status_word(report.index_readable),
+            status_word(report.alignments_readable)
+        );
+        println!(
+            "  declared sort      : {}",
+            report.declared_sort_order.as_deref().unwrap_or("unknown")
+        );
+        if let Some(proven) = report.coordinate_order_proven {
+            println!("  deep order proof   : {}", status_word(proven));
+        }
+        println!(
+            "  predicted memory   : {} MiB (minimum budget {} MiB)",
+            report.predicted_peak_rss_bytes.div_ceil(1 << 20),
+            report.required_budget_mb
+        );
+        println!("  assurance available: {}", report.available_assurance);
+        for issue in &report.issues {
+            eprintln!("  issue: {issue}");
+        }
+        for action in &report.remediation {
+            println!("  next: {action}");
+        }
+    }
+    if report.ok {
+        Ok(())
+    } else {
+        std::process::exit(2);
+    }
+}
+
+fn status_word(value: bool) -> &'static str {
+    if value {
+        "ok"
+    } else {
+        "failed"
+    }
 }
 
 fn run_demo(output_dir: PathBuf, budget_mb: u64, json: bool) -> Result<()> {
@@ -1442,6 +1616,77 @@ fn run_verify(
         }
         std::process::exit(5);
     }
+}
+
+fn run_receipt_inspect(
+    manifest: PathBuf,
+    artifacts: Vec<PathBuf>,
+    certificate: Option<PathBuf>,
+    json: bool,
+) -> Result<()> {
+    use rosalind::provenance::TrustState;
+
+    let report = rosalind::inspect_receipt(&manifest, &artifacts, certificate.as_deref())?;
+    if json {
+        println!("{}", report.to_json());
+    } else {
+        let facets = [
+            ("receipt integrity", &report.trust.receipt_integrity),
+            ("artifact completeness", &report.trust.artifact_completeness),
+            ("resource contract", &report.trust.resource_contract),
+            ("reproduction evidence", &report.trust.reproduction_evidence),
+            ("signature", &report.trust.signature),
+        ];
+        println!(
+            "receipt: {}",
+            report
+                .trust
+                .claim_id
+                .as_deref()
+                .map(|claim| &claim[..claim.len().min(12)])
+                .unwrap_or("unavailable")
+        );
+        for (name, facet) in facets {
+            println!("  {name}: {}", facet.status);
+            println!("    why: {}", facet.explanation);
+        }
+        if !report.missing_artifacts.is_empty() {
+            println!("  missing content hashes:");
+            for hash in &report.missing_artifacts {
+                println!("    {hash}");
+            }
+        }
+    }
+    let failed = [
+        &report.trust.receipt_integrity,
+        &report.trust.artifact_completeness,
+        &report.trust.resource_contract,
+        &report.trust.reproduction_evidence,
+    ]
+    .iter()
+    .any(|facet| facet.state == TrustState::Failed);
+    if failed {
+        std::process::exit(5);
+    }
+    Ok(())
+}
+
+fn run_receipt_sanitize(manifest: PathBuf, output: PathBuf) -> Result<()> {
+    let claim = rosalind::sanitize_receipt(&manifest, &output)?;
+    eprintln!("wrote sanitized receipt: {}", output.display());
+    eprintln!("claim unchanged: {}", &claim[..claim.len().min(12)]);
+    eprintln!(
+        "warning: claim-bearing extension parameters were retained and may still contain sensitive text"
+    );
+    Ok(())
+}
+
+fn run_receipt_export_intoto(manifest: PathBuf, output: PathBuf) -> Result<()> {
+    let claim = rosalind::export_intoto(&manifest, &output)?;
+    eprintln!("wrote unsigned in-toto Statement v1: {}", output.display());
+    eprintln!("native claim: {}", &claim[..claim.len().min(12)]);
+    eprintln!("note: this export is neither signed nor a claim of SLSA compliance");
+    Ok(())
 }
 
 /// Walk a directory of receipts as a provenance DAG: every node self-hashes and every
