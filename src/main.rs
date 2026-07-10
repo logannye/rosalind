@@ -265,6 +265,12 @@ enum Commands {
         /// Optional high-confidence BED mask (0-based half-open).
         #[arg(long)]
         regions: Option<PathBuf>,
+        /// Which emitted calls participate in the comparison.
+        #[arg(long, value_enum, default_value_t = CallsFilter::All)]
+        calls_filter: CallsFilter,
+        /// Emit a machine-readable metrics object.
+        #[arg(long)]
+        json: bool,
     },
     /// Build a reference index once into a portable, memory-mappable artifact.
     Index {
@@ -278,6 +284,23 @@ enum Commands {
         /// not enforce (enforcement is a later phase).
         #[arg(long)]
         memory_budget_mb: Option<u64>,
+    },
+    /// Scaffold a downstream project that inherits Rosalind's contract.
+    New {
+        #[command(subcommand)]
+        action: NewAction,
+    },
+    /// Run the complete contract story offline on embedded toy data.
+    Demo {
+        /// Directory to create. It must be absent or empty.
+        #[arg(long, default_value = "rosalind-demo")]
+        output_dir: PathBuf,
+        /// Declared budget for the enforced demo run.
+        #[arg(long, default_value_t = 128)]
+        budget_mb: u64,
+        /// Emit one JSON summary after the demo completes.
+        #[arg(long)]
+        json: bool,
     },
     /// Walk a directory of receipts as a provenance DAG and verify it offline.
     Chain {
@@ -363,6 +386,9 @@ enum Commands {
         /// Fails verify on a mismatch, or on a clean match from a dirty build.
         #[arg(long)]
         expect_code: Option<String>,
+        /// Emit a stable JSON report instead of human-readable lines.
+        #[arg(long)]
+        json: bool,
     },
     /// Localize how two run receipts' claims differ, bucketed by causal role: inputs /
     /// code-identity / params (causes), outputs (effect), measurements (noise). Exit
@@ -392,6 +418,13 @@ enum Commands {
         /// Where to write the certificate (default: `<manifest>.repro.json`).
         #[arg(short, long)]
         output: Option<PathBuf>,
+        /// Executable to use for replay. Required for third-party analyzer receipts;
+        /// a path recorded inside a receipt is never executed automatically.
+        #[arg(long)]
+        binary: Option<PathBuf>,
+        /// Emit a stable JSON report instead of human-readable lines.
+        #[arg(long)]
+        json: bool,
     },
     /// Emit a self-hosted status badge — a shields.io endpoint JSON or a static SVG —
     /// asserting "reproducible · fits N MiB" for a run. With `--repro` the reproducible
@@ -422,10 +455,28 @@ enum ChainAction {
     },
 }
 
+#[derive(Subcommand, Debug)]
+enum NewAction {
+    /// Create a standalone Rust `ColumnAnalyzer` binary and contract tests.
+    Analyzer {
+        /// Lowercase kebab-case package and analyzer name.
+        name: String,
+        /// Destination directory (must be absent or empty).
+        #[arg(short, long)]
+        output: PathBuf,
+    },
+}
+
 #[derive(Copy, Clone, Debug, ValueEnum, Eq, PartialEq)]
 enum OutputFormat {
     Sam,
     Bam,
+}
+
+#[derive(Copy, Clone, Debug, ValueEnum, Eq, PartialEq)]
+enum CallsFilter {
+    All,
+    Pass,
 }
 
 /// Registered per-locus analyzers for `rosalind analyze <kind>`. A compile-time
@@ -647,21 +698,31 @@ fn main() -> Result<()> {
             truth,
             regions,
         } => {
-            run_eval(reference, calls, truth, regions)?;
+            run_eval(reference, calls, truth, regions, CallsFilter::All, false)?;
         }
         Commands::EvalGermline {
             reference,
             calls,
             truth,
             regions,
+            calls_filter,
+            json,
         } => {
-            run_eval(reference, calls, truth, regions)?;
+            run_eval(reference, calls, truth, regions, calls_filter, json)?;
         }
         Commands::Index {
             reference,
             output,
             memory_budget_mb,
         } => run_index(reference, output, memory_budget_mb)?,
+        Commands::New { action } => match action {
+            NewAction::Analyzer { name, output } => run_new_analyzer(&name, &output)?,
+        },
+        Commands::Demo {
+            output_dir,
+            budget_mb,
+            json,
+        } => run_demo(output_dir, budget_mb, json)?,
         Commands::Chain { action } => match action {
             ChainAction::Verify { dir, json } => run_chain_verify(dir, json)?,
         },
@@ -690,14 +751,17 @@ fn main() -> Result<()> {
             manifest,
             budget_mb,
             expect_code,
-        } => run_verify(manifest, budget_mb, expect_code)?,
+            json,
+        } => run_verify(manifest, budget_mb, expect_code, json)?,
         Commands::Diff { a, b, json } => run_diff(a, b, json)?,
         Commands::Reproduce {
             manifest,
             inputs,
             no_attest,
             output,
-        } => run_reproduce(manifest, inputs, no_attest, output)?,
+            binary,
+            json,
+        } => run_reproduce(manifest, inputs, no_attest, output, binary, json)?,
         Commands::Badge {
             manifest,
             repro,
@@ -705,6 +769,178 @@ fn main() -> Result<()> {
         } => run_badge(manifest, repro, output)?,
     }
 
+    Ok(())
+}
+
+fn run_new_analyzer(name: &str, output: &std::path::Path) -> Result<()> {
+    let report = rosalind::scaffold::create_analyzer_project(name, output)
+        .with_context(|| format!("failed to scaffold analyzer {name:?}"))?;
+    println!("created analyzer project: {}", report.root.display());
+    for path in report.files {
+        println!("  {}", path.display());
+    }
+    println!("next: cd {} && cargo test", report.root.display());
+    Ok(())
+}
+
+fn run_demo(output_dir: PathBuf, budget_mb: u64, json: bool) -> Result<()> {
+    use rosalind::provenance::RunManifest;
+
+    if output_dir.exists() && std::fs::read_dir(&output_dir)?.next().is_some() {
+        bail!(
+            "demo output directory is not empty: {} (choose another --output-dir)",
+            output_dir.display()
+        );
+    }
+    std::fs::create_dir_all(&output_dir)?;
+    let reference = output_dir.join("reference.fa");
+    let reads = output_dir.join("reads.fastq");
+    let raw_bam = output_dir.join("raw.bam");
+    let sorted_bam = output_dir.join("sorted.bam");
+    let index = output_dir.join("ref.idx");
+    let calls = output_dir.join("calls.vcf");
+    let manifest = output_dir.join("calls.vcf.manifest.json");
+    std::fs::write(
+        &reference,
+        include_str!("../assets/demo/reference.fa").as_bytes(),
+    )?;
+    std::fs::write(
+        &reads,
+        include_str!("../assets/demo/reads.fastq").as_bytes(),
+    )?;
+
+    let exe = std::env::current_exe().context("locating the rosalind executable")?;
+    let run = |step: &str, args: &[String]| -> Result<std::process::Output> {
+        if !json {
+            println!("demo: {step}");
+        }
+        let output = std::process::Command::new(&exe)
+            .args(args)
+            .output()
+            .with_context(|| format!("demo step {step} could not start"))?;
+        if !json {
+            print!("{}", String::from_utf8_lossy(&output.stdout));
+            eprint!("{}", String::from_utf8_lossy(&output.stderr));
+        }
+        if !output.status.success() {
+            bail!(
+                "demo step {step} failed with exit {:?}: {}",
+                output.status.code(),
+                String::from_utf8_lossy(&output.stderr).trim()
+            );
+        }
+        Ok(output)
+    };
+    let p = |path: &std::path::Path| path.display().to_string();
+
+    run(
+        "build the portable index",
+        &[
+            "index".into(),
+            "--reference".into(),
+            p(&reference),
+            "--output".into(),
+            p(&index),
+        ],
+    )?;
+    run(
+        "align the embedded reads",
+        &[
+            "align".into(),
+            "--reference".into(),
+            p(&reference),
+            "--reads".into(),
+            p(&reads),
+            "--format".into(),
+            "bam".into(),
+            "--output".into(),
+            p(&raw_bam),
+        ],
+    )?;
+    run(
+        "sort deterministically",
+        &[
+            "sort".into(),
+            "--input".into(),
+            p(&raw_bam),
+            "--output".into(),
+            p(&sorted_bam),
+        ],
+    )?;
+    run(
+        "predict before running",
+        &[
+            "plan".into(),
+            "--index".into(),
+            p(&index),
+            "--budget-mb".into(),
+            budget_mb.to_string(),
+        ],
+    )?;
+    run(
+        "honor the declared budget",
+        &[
+            "variants".into(),
+            "--index".into(),
+            p(&index),
+            "--alignments".into(),
+            p(&sorted_bam),
+            "--memory-budget-mb".into(),
+            budget_mb.to_string(),
+            "--enforce".into(),
+            "-o".into(),
+            p(&calls),
+        ],
+    )?;
+    run(
+        "verify the receipt and artifacts",
+        &[
+            "verify".into(),
+            "--manifest".into(),
+            p(&manifest),
+            "--json".into(),
+        ],
+    )?;
+    run(
+        "reproduce the result byte-for-byte",
+        &[
+            "reproduce".into(),
+            "--manifest".into(),
+            p(&manifest),
+            "--inputs".into(),
+            p(&output_dir),
+            "--json".into(),
+        ],
+    )?;
+    run(
+        "verify the local provenance chain",
+        &[
+            "chain".into(),
+            "verify".into(),
+            p(&output_dir),
+            "--json".into(),
+        ],
+    )?;
+
+    let receipt = RunManifest::from_canonical_json(&std::fs::read_to_string(&manifest)?)
+        .map_err(|error| anyhow!("demo receipt could not be parsed: {error}"))?;
+    let claim = receipt.content_hash();
+    if json {
+        let escape = |s: &str| s.replace('\\', "\\\\").replace('"', "\\\"");
+        println!(
+            "{{\"schema\":1,\"ok\":true,\"claim\":\"{}\",\"output_dir\":\"{}\",\"index\":\"{}\",\"alignments\":\"{}\",\"output\":\"{}\",\"manifest\":\"{}\",\"studio\":\"https://logannye.github.io/rosalind/verify/\"}}",
+            claim,
+            escape(&p(&output_dir)),
+            escape(&p(&index)),
+            escape(&p(&sorted_bam)),
+            escape(&p(&calls)),
+            escape(&p(&manifest)),
+        );
+    } else {
+        println!("demo: COMPLETE — claim {}", &claim[..claim.len().min(10)]);
+        println!("demo: artifacts in {}", output_dir.display());
+        println!("demo: inspect the receipt at https://logannye.github.io/rosalind/verify/");
+    }
     Ok(())
 }
 
@@ -716,6 +952,8 @@ fn run_eval(
     calls_path: PathBuf,
     truth_path: PathBuf,
     regions_path: Option<PathBuf>,
+    calls_filter: CallsFilter,
+    json: bool,
 ) -> Result<()> {
     let references = read_fasta_map(&reference_path)
         .with_context(|| format!("failed to read reference from {}", reference_path.display()))?;
@@ -725,8 +963,11 @@ fn run_eval(
     let truth_txt = std::fs::read_to_string(&truth_path)
         .with_context(|| format!("failed to read truth VCF {}", truth_path.display()))?;
 
-    let calls = read_vcf_variants(&calls_txt)
+    let mut calls = read_vcf_variants(&calls_txt)
         .with_context(|| format!("failed to parse calls VCF {}", calls_path.display()))?;
+    if calls_filter == CallsFilter::Pass {
+        calls.retain(|call| call.filter == "PASS");
+    }
     let truth = read_vcf_variants(&truth_txt)
         .with_context(|| format!("failed to parse truth VCF {}", truth_path.display()))?;
 
@@ -739,26 +980,45 @@ fn run_eval(
     };
 
     let report = compare_callsets(&references, &calls, &truth, bed.as_ref())?;
-    println!("truth_total={}", report.total_truth);
-    println!("calls_total={}", report.total_calls);
-    println!("tp={}", report.true_positive);
-    println!("fp={}", report.false_positive);
-    println!("fn={}", report.false_negative);
     let (p, r) = (report.precision(), report.recall());
     let f1 = if p + r == 0.0 {
         0.0
     } else {
         2.0 * p * r / (p + r)
     };
-    println!("precision={p:.6}");
-    println!("recall={r:.6}");
-    println!("f1={f1:.6}");
-    println!("genotype_concordant={}", report.genotype_concordant);
-    println!("genotype_discordant={}", report.genotype_discordant);
-    println!("genotype_unknown={}", report.genotype_unknown);
-    println!("genotype_concordance={:.6}", report.genotype_concordance());
-    for (ty, (tp, fp, fn_)) in report.by_type.iter() {
-        println!("type={:?} tp={} fp={} fn={}", ty, tp, fp, fn_);
+    if json {
+        println!(
+            "{{\"schema\":1,\"calls_filter\":\"{}\",\"truth_total\":{},\"calls_total\":{},\"tp\":{},\"fp\":{},\"fn\":{},\"precision\":{p:.9},\"recall\":{r:.9},\"f1\":{f1:.9},\"genotype_concordant\":{},\"genotype_discordant\":{},\"genotype_unknown\":{},\"genotype_concordance\":{:.9}}}",
+            match calls_filter {
+                CallsFilter::All => "all",
+                CallsFilter::Pass => "pass",
+            },
+            report.total_truth,
+            report.total_calls,
+            report.true_positive,
+            report.false_positive,
+            report.false_negative,
+            report.genotype_concordant,
+            report.genotype_discordant,
+            report.genotype_unknown,
+            report.genotype_concordance(),
+        );
+    } else {
+        println!("truth_total={}", report.total_truth);
+        println!("calls_total={}", report.total_calls);
+        println!("tp={}", report.true_positive);
+        println!("fp={}", report.false_positive);
+        println!("fn={}", report.false_negative);
+        println!("precision={p:.6}");
+        println!("recall={r:.6}");
+        println!("f1={f1:.6}");
+        println!("genotype_concordant={}", report.genotype_concordant);
+        println!("genotype_discordant={}", report.genotype_discordant);
+        println!("genotype_unknown={}", report.genotype_unknown);
+        println!("genotype_concordance={:.6}", report.genotype_concordance());
+        for (ty, (tp, fp, fn_)) in report.by_type.iter() {
+            println!("type={:?} tp={} fp={} fn={}", ty, tp, fp, fn_);
+        }
     }
     Ok(())
 }
@@ -1106,6 +1366,7 @@ fn run_verify(
     manifest_path: PathBuf,
     budget_mb: Option<u64>,
     expect_code: Option<String>,
+    json: bool,
 ) -> Result<()> {
     use rosalind::provenance::{verify_receipt, VerifyOpts};
 
@@ -1119,23 +1380,31 @@ fn run_verify(
             rehash_files: true,
         },
     );
-    for n in &report.notes {
-        println!("verify: {n}");
+    if json {
+        println!("{}", report.to_json());
+    } else {
+        for n in &report.notes {
+            println!("verify: {n}");
+        }
     }
     if report.ok {
-        let m = report
-            .manifest
-            .as_ref()
-            .expect("a passing report always carries the parsed manifest");
-        println!(
-            "verify: OK — {} input(s), {} output(s) match",
-            m.inputs.len(),
-            m.outputs.len()
-        );
+        if !json {
+            let m = report
+                .manifest
+                .as_ref()
+                .expect("a passing report always carries the parsed manifest");
+            println!(
+                "verify: OK — {} input(s), {} output(s) match",
+                m.inputs.len(),
+                m.outputs.len()
+            );
+        }
         Ok(())
     } else {
-        for p in &report.problems {
-            eprintln!("verify: FAIL — {p}");
+        if !json {
+            for p in &report.problems {
+                eprintln!("verify: FAIL — {p}");
+            }
         }
         std::process::exit(5);
     }
@@ -1333,12 +1602,18 @@ fn run_reproduce(
     inputs: PathBuf,
     no_attest: bool,
     output: Option<PathBuf>,
+    binary: Option<PathBuf>,
+    json: bool,
 ) -> Result<()> {
     use rosalind::provenance::{ReproOutput, ReproReceipt};
 
-    let report = rosalind::reproduce::reproduce(&manifest, &inputs)?;
-    for line in &report.lines {
-        println!("{line}");
+    let report = rosalind::reproduce::reproduce_with_binary(&manifest, &inputs, binary.as_deref())?;
+    if json {
+        println!("{}", report.to_json());
+    } else {
+        for line in &report.lines {
+            println!("{line}");
+        }
     }
 
     // Mint a chainable reproduction certificate when a real comparison happened
@@ -1354,7 +1629,7 @@ fn run_reproduce(
                 matched: c.matched,
             })
             .collect();
-        let cert = ReproReceipt::build(
+        let cert = ReproReceipt::build_with_identities(
             &report.parent_claim,
             &report.parent_subcommand,
             &report.verdict_label,
@@ -1362,6 +1637,8 @@ fn run_reproduce(
             &outputs,
             report.resource_here.peak_rss_bytes,
             report.resource_here.declared_budget_mb,
+            &report.original_code,
+            &report.reproducer_code,
         );
         let dest = match &output {
             Some(p) => p.clone(),
@@ -1377,11 +1654,13 @@ fn run_reproduce(
                 dest.display()
             )
         })?;
-        println!(
-            "  -> wrote reproduction certificate: {} (chains to {})",
-            dest.display(),
-            &report.parent_claim[..report.parent_claim.len().min(10)]
-        );
+        if !json {
+            println!(
+                "  -> wrote reproduction certificate: {} (chains to {})",
+                dest.display(),
+                &report.parent_claim[..report.parent_claim.len().min(10)]
+            );
+        }
     }
 
     if report.exit_code != 0 {
@@ -1986,6 +2265,9 @@ fn run_variants(
             cmd.opt("--quality-threshold", quality_threshold as f64);
             cmd.output("-o", &path)?;
             cmd.record_into(&mut manifest);
+            manifest
+                .params
+                .insert("model.germline".to_string(), "baseq-mapq-v1".to_string());
             manifest.finalize();
             let manifest_path = write_manifest(&path, &manifest)?;
             eprintln!("wrote reproducibility receipt: {}", manifest_path.display());
@@ -2020,301 +2302,93 @@ fn run_bounded_analysis(
     output: Option<PathBuf>,
     manifest_out: Option<PathBuf>,
 ) -> Result<()> {
-    use rosalind::call::run_bounded_whole_genome;
-    use rosalind::core::governor::MemoryGovernor;
-    use rosalind::core::PILEUP_IO_RSS_OVERHEAD;
-    use rosalind::genomics::IndexReader;
-    use rosalind::io::bam::StreamingBamSource;
-    use rosalind::pileup::PileupParams;
-    use rosalind::provenance::{CommandCapture, RunManifest};
-
-    let loaded = IndexReader::open(&index_path)
-        .with_context(|| format!("failed to open index {}", index_path.display()))?;
-    let ref_view = loaded.reference_view().with_context(|| {
-        format!(
-            "failed to read reference from index {}",
-            index_path.display()
-        )
-    })?;
-    let contigs = loaded.contigs();
-
-    let pileup_params = PileupParams {
-        min_mapq: mapq_threshold,
-        max_depth: if max_depth == 0 {
-            None
-        } else {
-            Some(max_depth)
-        },
-        max_read_len: if enforce { Some(max_read_len) } else { None },
-        ..PileupParams::default()
+    use rosalind::contract::{
+        AnalyzerIdentity, ContractRunError, ContractRunSpec, ContractVerdict, OutputTarget,
+        ProducerIdentity, ReplayInvocation,
     };
 
-    let is_bam = alignments_path
-        .extension()
-        .and_then(|e| e.to_str())
-        .map(|e| e.eq_ignore_ascii_case("bam"))
-        .unwrap_or(false);
-    if !is_bam {
-        bail!("features --index requires a coordinate-sorted BAM (use `rosalind sort`)");
-    }
-    let source = StreamingBamSource::new(&alignments_path, contigs)
-        .map_err(|e| anyhow!("failed to open BAM {}: {e}", alignments_path.display()))?;
+    let output_target = output
+        .clone()
+        .map(OutputTarget::File)
+        .unwrap_or(OutputTarget::Stdout);
+    let spec = ContractRunSpec {
+        producer: ProducerIdentity::rosalind(),
+        analyzer: AnalyzerIdentity::new(
+            subcommand.strip_prefix("analyze ").unwrap_or(subcommand),
+            env!("CARGO_PKG_VERSION"),
+        )
+        .with_param_prefix(param_prefix),
+        invocation: ReplayInvocation::new(subcommand.split_whitespace()),
+        index: index_path,
+        alignments: alignments_path,
+        output: output_target,
+        manifest: manifest_out,
+        mapq_threshold,
+        max_depth,
+        max_read_len,
+        memory_budget_mb,
+        enforce,
+    };
 
-    // Same prediction + `--enforce` admission as `variants` — it is the same
-    // pileup engine, so the predicted working set is identical. Computed
-    // unconditionally and recorded in the receipt.
-    let largest = contigs.iter().map(|c| c.length as u64).max().unwrap_or(0);
-    let baseline = peak_rss_bytes();
-    let predicted_peak =
-        rosalind::call::plan::predicted_peak_rss_bytes(largest, max_depth, max_read_len, baseline);
-    if enforce {
-        if memory_budget_mb.is_none() {
-            bail!("--enforce requires --memory-budget-mb");
-        }
-        if max_depth == 0 {
-            bail!(
-                "--enforce requires --max-depth > 0 (an uncapped active set has no a-priori bound)"
+    let render_outcome = |outcome: &rosalind::contract::ContractRunOutcome| {
+        if let Some(path) = &outcome.manifest_path {
+            eprintln!("wrote reproducibility receipt: {}", path.display());
+        } else {
+            eprintln!(
+                "no receipt written (stdout output) — pass --manifest <path> or -o <tsv> to persist one"
             );
         }
-        let mb = memory_budget_mb.unwrap();
-        if !MemoryBudget::from_mb(mb).admits(predicted_peak) {
+        eprintln!(
+            "{subcommand}: peak RSS {} MiB; max pileup working set {} KiB",
+            outcome.peak_rss_bytes / (1 << 20),
+            outcome.max_working_set_bytes / 1024
+        );
+        if outcome.skips.over_max_depth > 0 {
+            eprintln!(
+                "pileup: dropped {} reads at --max-depth {} (deep-site downsampling — \
+                 feature counts at those sites use a bounded unbiased sample)",
+                outcome.skips.over_max_depth, max_depth
+            );
+        }
+    };
+
+    match rosalind::contract::run_column_analysis(analyzer, spec) {
+        Ok(outcome) => {
+            render_outcome(&outcome);
+            if enforce && outcome.verdict == ContractVerdict::Within {
+                eprintln!(
+                    "contract: OK — realized peak {} MiB within declared {} MiB",
+                    outcome.peak_rss_bytes / (1 << 20),
+                    memory_budget_mb.expect("enforced run has a budget")
+                );
+            }
+            Ok(())
+        }
+        Err(ContractRunError::Refused(report)) => {
             eprintln!(
                 "contract: REFUSE — declared {} MiB, predicted peak ~{} MiB (largest contig {} MiB \
                  + active @ max-depth {} / max-read-len {} atop a {} MiB baseline). Raise \
                  --memory-budget-mb, lower --max-depth, or drop --enforce.",
-                mb,
-                predicted_peak / (1 << 20),
-                largest / (1 << 20),
-                max_depth,
-                max_read_len,
-                baseline / (1 << 20),
+                report.budget_mb,
+                report.predicted_peak_rss_bytes / (1 << 20),
+                report.largest_contig_bytes / (1 << 20),
+                report.max_depth,
+                report.max_read_len,
+                report.baseline_rss_bytes / (1 << 20),
             );
             std::process::exit(3);
         }
-    }
-
-    // Live RSS source for the governor (test seam ROSALIND_FORCE_LIVE_RSS_BYTES, else
-    // the real high-water). Under --enforce the governor fails the run LOUD the moment
-    // live RSS crosses the budget — never a silent kernel OOM.
-    let live_rss = || {
-        std::env::var("ROSALIND_FORCE_LIVE_RSS_BYTES")
-            .ok()
-            .and_then(|v| v.parse::<u64>().ok())
-            .unwrap_or_else(peak_rss_bytes)
-    };
-    let poll_ms = std::env::var("ROSALIND_GOVERNOR_POLL_MS")
-        .ok()
-        .and_then(|v| v.parse::<u64>().ok())
-        .unwrap_or(100);
-    let _governor_guard = if enforce {
-        let mb = memory_budget_mb.expect("--enforce requires --memory-budget-mb (checked above)");
-        Some(
-            MemoryGovernor::start(
-                MemoryBudget::from_mb(mb).bytes,
-                std::time::Duration::from_millis(poll_ms),
-                live_rss,
-            )
-            .map_err(|e| anyhow!("failed to start memory governor: {e}"))?,
-        )
-    } else {
-        None
-    };
-
-    // Drive the analyzer's bounded whole-genome walk straight to the writer (header
-    // once, one row per callable locus) — no genome-wide buffer accumulates. This is
-    // the ONE analyzer-agnostic path: `features` and `analyze <kind>` both run here.
-    // Inline both arms (match arms are exclusive, so moving source/pileup_params in
-    // each is fine). Flush on BOTH paths so partial output survives a governed abort;
-    // inspect the Result rather than `?`-propagating it.
-    let drive_result: Result<
-        (rosalind::core::WorkingSet, rosalind::pileup::SkipCounts),
-        rosalind::core::CoreError,
-    > = match &output {
-        Some(path) => {
-            let file = File::create(path)
-                .with_context(|| format!("failed to create features file {}", path.display()))?;
-            let mut writer = io::BufWriter::new(file);
-            let r = run_bounded_whole_genome(
-                &mut *analyzer,
-                source,
-                &ref_view,
-                contigs,
-                pileup_params,
-                &mut writer,
+        Err(ContractRunError::Breached(outcome)) => {
+            render_outcome(&outcome);
+            eprintln!(
+                "contract: VIOLATED — realized peak {} MiB exceeded declared {} MiB (output + receipt written)",
+                outcome.peak_rss_bytes / (1 << 20),
+                memory_budget_mb.expect("breached run has a budget")
             );
-            if r.is_ok() {
-                writer.flush()?;
-            } else {
-                let _ = writer.flush();
-            }
-            r
+            std::process::exit(4);
         }
-        None => {
-            let stdout = io::stdout();
-            let mut handle = stdout.lock();
-            let r = run_bounded_whole_genome(
-                &mut *analyzer,
-                source,
-                &ref_view,
-                contigs,
-                pileup_params,
-                &mut handle,
-            );
-            if r.is_ok() {
-                handle.flush()?;
-            } else {
-                let _ = handle.flush();
-            }
-            r
-        }
-    };
-    let (max_ws, skips, breached, breach_peak) = match drive_result {
-        Ok((ws, sk)) => (ws, sk, false, 0u64),
-        Err(rosalind::core::CoreError::BudgetExceeded { needed, .. }) => (
-            rosalind::core::WorkingSet { bytes: 0 },
-            rosalind::pileup::SkipCounts::default(),
-            true,
-            needed,
-        ),
-        Err(e) => return Err(anyhow!("feature streaming failed: {e}")),
-    };
-    let peak_rss = if breached {
-        breach_peak
-    } else {
-        std::env::var("ROSALIND_FORCE_PEAK_RSS_BYTES")
-            .ok()
-            .and_then(|v| v.parse::<u64>().ok())
-            .unwrap_or_else(peak_rss_bytes)
-    };
-    let verdict = match memory_budget_mb.map(|mb| MemoryBudget::from_mb(mb).admits(peak_rss)) {
-        None => "unset",
-        Some(true) => "within",
-        Some(false) => "over",
-    };
-    let governor_state = if breached {
-        "tripped"
-    } else if enforce {
-        "enforced"
-    } else {
-        "record-only"
-    };
-    let baseline_rss_bytes = baseline;
-    let rss_residual_bytes = peak_rss
-        .saturating_sub(max_ws.bytes)
-        .saturating_sub(baseline_rss_bytes);
-
-    let receipt_dest: Option<PathBuf> = match (&manifest_out, &output) {
-        (Some(m), _) => Some(m.clone()),
-        (None, Some(path)) => {
-            let mut s = path.as_os_str().to_os_string();
-            s.push(".manifest.json");
-            Some(PathBuf::from(s))
-        }
-        (None, None) => None,
-    };
-    if let Some(dest) = receipt_dest {
-        let mut manifest = RunManifest::new(subcommand);
-        let mut cmd = CommandCapture::new(subcommand);
-        cmd.input("--index", &index_path)?;
-        cmd.input("--alignments", &alignments_path)?;
-        cmd.opt("--mapq-threshold", mapq_threshold);
-        cmd.opt("--max-depth", max_depth);
-        cmd.opt("--max-read-len", max_read_len);
-        cmd.flag_if(enforce, "--enforce");
-        if let Some(mb) = memory_budget_mb {
-            cmd.opt("--memory-budget-mb", mb);
-        }
-        if let Some(path) = &output {
-            cmd.output("-o", path)?;
-        }
-        cmd.record_into(&mut manifest);
-        manifest
-            .params
-            .insert("peak_rss_bytes".to_string(), peak_rss.to_string());
-        manifest.params.insert(
-            "predicted_peak_rss_bytes".to_string(),
-            predicted_peak.to_string(),
-        );
-        manifest.params.insert(
-            "max_working_set_bytes".to_string(),
-            max_ws.bytes.to_string(),
-        );
-        manifest
-            .params
-            .insert("governor".to_string(), governor_state.to_string());
-        manifest.params.insert(
-            "baseline_rss_bytes".to_string(),
-            baseline_rss_bytes.to_string(),
-        );
-        manifest.params.insert(
-            "rss_residual_bytes".to_string(),
-            rss_residual_bytes.to_string(),
-        );
-        manifest.params.insert(
-            "io_rss_overhead_assumed_bytes".to_string(),
-            PILEUP_IO_RSS_OVERHEAD.to_string(),
-        );
-        // Merge the analyzer's own params into the CLAIM under the caller's prefix
-        // (`""` for features → byte-identical `feature_rows`; `analyzer.` for analyze).
-        // The prefix keeps an analyzer from shadowing a measured field out of the claim.
-        for (k, v) in analyzer.params() {
-            let key = format!("{param_prefix}{k}");
-            debug_assert!(
-                !rosalind::provenance::MEASUREMENT_KEYS.contains(&key.as_str()),
-                "analyzer param {key} collides with a measurement key"
-            );
-            manifest.params.insert(key, v);
-        }
-        manifest.params.insert(
-            "over_max_depth".to_string(),
-            skips.over_max_depth.to_string(),
-        );
-        manifest
-            .params
-            .insert("reads_skipped_total".to_string(), skips.total().to_string());
-        manifest
-            .params
-            .insert("contract_verdict".to_string(), verdict.to_string());
-        manifest.finalize();
-        std::fs::write(&dest, manifest.to_canonical_json())
-            .with_context(|| format!("failed to write manifest {}", dest.display()))?;
-        eprintln!("wrote reproducibility receipt: {}", dest.display());
-    } else {
-        eprintln!(
-            "no receipt written (stdout output) — pass --manifest <path> or -o <tsv> to persist one"
-        );
+        Err(error) => Err(anyhow!(error)),
     }
-    eprintln!(
-        "{subcommand}: peak RSS {} MiB; max pileup working set {} KiB",
-        peak_rss / (1 << 20),
-        max_ws.bytes / 1024
-    );
-    if skips.over_max_depth > 0 {
-        eprintln!(
-            "pileup: dropped {} reads at --max-depth {} (deep-site downsampling — \
-             feature counts at those sites use a bounded unbiased sample)",
-            skips.over_max_depth, max_depth
-        );
-    }
-    if let Some(mb) = memory_budget_mb {
-        let budget = MemoryBudget::from_mb(mb);
-        let within = budget.admits(peak_rss);
-        if enforce {
-            if within {
-                eprintln!(
-                    "contract: OK — realized peak {} MiB within declared {mb} MiB",
-                    peak_rss / (1 << 20)
-                );
-            } else {
-                eprintln!(
-                    "contract: VIOLATED — realized peak {} MiB exceeded declared {mb} MiB (output + receipt written)",
-                    peak_rss / (1 << 20)
-                );
-                std::process::exit(4);
-            }
-        }
-    }
-    Ok(())
 }
 
 /// The shipped `features` egress: the FeatureAnalyzer through the one bounded-analysis
@@ -2634,6 +2708,9 @@ fn run_variants_index(
             cmd.output("-o", path)?;
         }
         cmd.record_into(&mut manifest);
+        manifest
+            .params
+            .insert("model.germline".to_string(), "baseq-mapq-v1".to_string());
         manifest
             .params
             .insert("peak_rss_bytes".to_string(), peak_rss.to_string());

@@ -48,6 +48,8 @@
 // Each module is a layer of the genomics engine.
 /// The calling layer: probabilistically-grounded, abstention-aware variant calls from pileup columns.
 pub mod call;
+/// Public orchestration for inheriting planning, enforcement, and receipts.
+pub mod contract;
 /// Core types: the lingua franca shared by every layer (io, index, align, pileup, call).
 pub mod core;
 /// Genomics primitives: the FM-index, persisted memory-mapped index, alignment, sort, eval.
@@ -62,6 +64,8 @@ pub mod pileup;
 pub use rosalind_receipt as provenance;
 /// Third-party byte re-derivation from a receipt (the `reproduce` verb).
 pub mod reproduce;
+/// Generate standalone downstream analyzer projects.
+pub mod scaffold;
 /// Helper utilities: read-only mmap + peak-RSS measurement.
 pub mod util;
 
@@ -82,5 +86,10 @@ pub use call::{
 };
 pub use core::{MemoryBudget, WorkingSet};
 // Build-once → mmap index + the reproducibility receipt:
+pub use contract::{
+    run_column_analysis, AnalyzerIdentity, ContractRunError, ContractRunOutcome, ContractRunSpec,
+    ContractVerdict, GovernorState, OutputTarget, ProducerIdentity, RefusalReport,
+    ReplayInvocation,
+};
 pub use genomics::{GenomeIndex, IndexReader, ReferenceView};
 pub use provenance::{verify_receipt, CommandCapture, RunManifest, VerifyOpts, VerifyReport};

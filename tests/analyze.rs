@@ -115,6 +115,19 @@ fn analyze_coverage_writes_a_verifiable_receipt_with_analyzer_params() {
         json.contains("\"analyzer.analyzer\":\"coverage\""),
         "receipt missing analyzer.analyzer=coverage: {json}"
     );
+    for identity in [
+        "\"producer.name\":\"rosalind\"",
+        "\"producer.binary\":\"rosalind\"",
+        "\"analyzer.id\":\"coverage\"",
+        "\"analyzer.version\":",
+        "\"replay_schema\":\"2\"",
+        "\"command_argv\":",
+    ] {
+        assert!(
+            json.contains(identity),
+            "receipt missing {identity}: {json}"
+        );
+    }
 
     // And it verifies.
     let v = run(&["verify", "--manifest", &manifest]);

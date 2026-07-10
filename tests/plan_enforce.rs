@@ -261,6 +261,19 @@ fn verify_passes_on_an_untampered_run_and_fails_on_a_tampered_output() {
     );
     assert!(String::from_utf8_lossy(&ok.stdout).contains("verify: OK"));
 
+    let json = Command::new(bin())
+        .args(["verify", "--manifest"])
+        .arg(&manifest)
+        .arg("--json")
+        .output()
+        .unwrap();
+    assert!(json.status.success());
+    let report = String::from_utf8_lossy(&json.stdout);
+    assert!(
+        report.starts_with('{') && report.contains("\"ok\":true"),
+        "{report}"
+    );
+
     // Tamper with the output VCF → verify FAILS (exit 5).
     std::fs::write(&vcf, b"##tampered\n").unwrap();
     let bad = Command::new(bin())
