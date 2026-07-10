@@ -11,6 +11,8 @@ on:
       - "crates/receipt/**"
       - "crates/receipt-wasm/**"
       - "scripts/build-wasm-verifier.sh"
+      - "docs/schema/**"
+      - "release/schemas/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -28,15 +30,26 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Add the wasm target
-        run: rustup target add wasm32-unknown-unknown
-      - name: Install wasm-pack
-        run: cargo install wasm-pack --locked
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: 1.83.0
+          targets: wasm32-unknown-unknown
+      - uses: taiki-e/install-action@c7eb1735f09259a5035e8e5d44b1406b1cddc0fb # v2
+        with:
+          tool: wasm-pack@0.14.0
       - name: Build the verifier (wasm -> web/verify/pkg)
-        run: ./scripts/build-wasm-verifier.sh
-      - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+        env:
+          RUSTUP_TOOLCHAIN: 1.83.0
+        run: scripts/build-wasm-verifier.sh
+      - name: Publish receipt and attestation schemas
+        run: |
+          mkdir -p web/schema
+          cp docs/schema/*.json web/schema/
+          cp release/schemas/*.json web/schema/
+          cp web/verify/schema/run-attestation-v1.schema.json web/schema/
+      - uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+      - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
           # Publish the whole site: web/index.html is the landing page (root),
           # web/verify/ is the in-browser verifier (built into web/verify/pkg above).
@@ -50,4 +63,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4

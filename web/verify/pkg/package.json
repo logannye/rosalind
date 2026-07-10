@@ -1,0 +1,17 @@
+{
+  "name": "rosalind-receipt-wasm",
+  "type": "module",
+  "description": "Browser (wasm) bindings for rosalind-receipt: drag in a receipt, verify its tamper-evident BLAKE3 self-hash entirely client-side.",
+  "version": "0.1.0",
+  "license": "MIT OR Apache-2.0",
+  "files": [
+    "rosalind_verify_bg.wasm",
+    "rosalind_verify.js",
+    "rosalind_verify.d.ts"
+  ],
+  "main": "rosalind_verify.js",
+  "types": "rosalind_verify.d.ts",
+  "sideEffects": [
+    "./snippets/*"
+  ]
+}

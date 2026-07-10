@@ -3,8 +3,8 @@
 //! Call variants across a whole genome on a laptop, with memory you can **predict
 //! and verify**, and results that are **byte-for-byte reproducible**. Rosalind
 //! treats memory as a *contract*: you declare a RAM budget, `rosalind plan` tells
-//! you up front whether the job fits, the run honors it (fits-or-refuses cleanly —
-//! never a silent OOM-kill), and `rosalind verify` re-checks a BLAKE3 receipt
+//! you up front whether the job fits, the runner applies cooperative or cgroup-backed
+//! assurance explicitly, and `rosalind verify` re-checks a BLAKE3 receipt
 //! proving the realized peak landed inside your budget.
 //!
 //! The kernel is a streaming, CIGAR-aware **pileup column stream** bounded by local
@@ -48,8 +48,14 @@
 // Each module is a layer of the genomics engine.
 /// The calling layer: probabilistically-grounded, abstention-aware variant calls from pileup columns.
 pub mod call;
+/// Offline conformance harness for external analyzer binaries.
+pub mod conformance;
+/// Public orchestration for inheriting planning, enforcement, and receipts.
+pub mod contract;
 /// Core types: the lingua franca shared by every layer (io, index, align, pileup, call).
 pub mod core;
+/// Read-only preflight diagnostics with actionable remediation.
+pub mod doctor;
 /// Genomics primitives: the FM-index, persisted memory-mapped index, alignment, sort, eval.
 pub mod genomics;
 /// IO layer: spec-valid VCF writer + streaming FASTA/FASTQ/BAM readers.
@@ -60,8 +66,14 @@ pub mod pileup;
 /// Extracted to the `rosalind-receipt` leaf crate (no htslib — wasm-friendly) and
 /// re-exported here, so `rosalind::provenance::*` is unchanged.
 pub use rosalind_receipt as provenance;
+/// Receipt inspection, sanitization, and standards export.
+pub mod receipt_tools;
 /// Third-party byte re-derivation from a receipt (the `reproduce` verb).
 pub mod reproduce;
+/// Generate standalone downstream analyzer projects.
+pub mod scaffold;
+/// Loopback-only embedded Receipt Studio server.
+pub mod studio;
 /// Helper utilities: read-only mmap + peak-RSS measurement.
 pub mod util;
 
@@ -81,6 +93,16 @@ pub use call::{
     PackOutcome,
 };
 pub use core::{MemoryBudget, WorkingSet};
+pub use doctor::{run_doctor, DoctorReport, DoctorSpec};
+pub use receipt_tools::{export_intoto, inspect_receipt, sanitize_receipt, ReceiptInspection};
+pub use studio::{serve_studio, StudioSpec};
 // Build-once → mmap index + the reproducibility receipt:
+pub use conformance::{conform_analyzer, ConformanceReport};
+pub use contract::{
+    detected_os_memory_limit_bytes, run_column_analysis, AnalyzerIdentity, AnalyzerMemoryModel,
+    ContractRunError, ContractRunOutcome, ContractRunSpec, ContractVerdict, EnforcementAssurance,
+    EnforcementMode, GovernorState, OutputPolicy, OutputTarget, ProducerIdentity, RefusalReport,
+    ReplayInvocation,
+};
 pub use genomics::{GenomeIndex, IndexReader, ReferenceView};
 pub use provenance::{verify_receipt, CommandCapture, RunManifest, VerifyOpts, VerifyReport};

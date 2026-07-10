@@ -261,6 +261,19 @@ fn verify_passes_on_an_untampered_run_and_fails_on_a_tampered_output() {
     );
     assert!(String::from_utf8_lossy(&ok.stdout).contains("verify: OK"));
 
+    let json = Command::new(bin())
+        .args(["verify", "--manifest"])
+        .arg(&manifest)
+        .arg("--json")
+        .output()
+        .unwrap();
+    assert!(json.status.success());
+    let report = String::from_utf8_lossy(&json.stdout);
+    assert!(
+        report.starts_with('{') && report.contains("\"ok\":true"),
+        "{report}"
+    );
+
     // Tamper with the output VCF → verify FAILS (exit 5).
     std::fs::write(&vcf, b"##tampered\n").unwrap();
     let bad = Command::new(bin())
@@ -278,12 +291,13 @@ fn verify_passes_on_an_untampered_run_and_fails_on_a_tampered_output() {
 }
 
 #[test]
-fn enforce_breach_exits_4_after_writing_output_and_receipt() {
+fn enforce_breach_exits_4_after_preserving_partial_and_receipt() {
     // Budget 4096 MiB passes the pre-run exit-3 gate (tiny fixture), but a forced
-    // realized peak of 8 GiB trips the post-run breach -> exit 4, with the VCF +
-    // receipt still written (the documented "output + receipt written" semantics).
+    // realized peak of 8 GiB trips the post-run breach -> exit 4. The requested
+    // success path is never exposed; flushed bytes survive as `<output>.partial`.
     let (dir, idx, bam) = build_sorted_bam_fixture();
     let vcf = dir.join("calls.vcf");
+    let partial = dir.join("calls.vcf.partial");
     let manifest = dir.join("calls.vcf.manifest.json");
     let out = Command::new(bin())
         .args(["variants", "--index"])
@@ -305,13 +319,21 @@ fn enforce_breach_exits_4_after_writing_output_and_receipt() {
         stderr.contains("VIOLATED"),
         "missing VIOLATED line: {stderr}"
     );
-    // Output + receipt were still written before the breach exit.
-    assert!(vcf.exists(), "VCF must be written before exit 4");
+    assert!(
+        !vcf.exists(),
+        "a breached run must not expose a success artifact"
+    );
+    assert!(
+        partial.exists(),
+        "flushed bytes must survive as a partial artifact"
+    );
     let json = std::fs::read_to_string(&manifest).expect("receipt written");
     assert!(
         json.contains("\"contract_verdict\":\"over\""),
         "verdict should be over: {json}"
     );
+    assert!(json.contains("\"run_status\":\"breached\""), "{json}");
+    assert!(json.contains("calls.vcf.partial"), "{json}");
     std::fs::remove_dir_all(&dir).ok();
 }
 

@@ -1,0 +1,6 @@
+{
+  "benchmark": "HG002 GIAB v5.0q small variants",
+  "note": "Replaced atomically by run.sh after the first successful opt-in chr20 run; no score is claimed before then.",
+  "schema": 1,
+  "status": "not-yet-established"
+}

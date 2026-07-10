@@ -6,7 +6,7 @@
 
 use std::collections::HashMap;
 
-use crate::{FileHash, RunManifest};
+use crate::{command::manifest_operands, FileHash, RunManifest};
 
 /// Input operand flags that MUST resolve to a producing node. An unresolved one is a
 /// broken chain (a missing/mismatched upstream receipt). Everything else (reads,
@@ -32,6 +32,8 @@ pub struct ChainEdge {
     pub child_subcommand: String,
     pub flag: String,
     pub input_blake3: String,
+    /// Schema-5 artifact role, when recorded.
+    pub artifact_role: Option<String>,
     pub status: EdgeStatus,
 }
 
@@ -83,30 +85,38 @@ impl ChainReport {
     }
 }
 
-/// Recover `(flag, input_blake3)` pairs from a recorded `command` string: each
-/// `@in:<hash>` token is preceded by its operand flag.
-fn input_operands(command: &str) -> Vec<(String, String)> {
-    let toks: Vec<&str> = command.split(' ').collect();
-    let mut out = Vec::new();
-    for (i, t) in toks.iter().enumerate() {
-        if let Some(h) = t.strip_prefix("@in:") {
-            let flag = if i > 0 { toks[i - 1] } else { "?" };
-            out.push((flag.to_string(), h.to_string()));
-        }
-    }
-    out
-}
-
 /// Operands for a node: from its recorded `command` when present (carries the flags),
 /// else a flag-less fallback over `inputs[]` (every input treated as external).
-fn operands_for(m: &RunManifest) -> Vec<(String, String)> {
-    match m.params.get("command") {
-        Some(c) if !c.is_empty() => input_operands(c),
-        _ => m
-            .inputs
+fn operands_for(m: &RunManifest) -> Vec<(String, String, Option<String>)> {
+    let operands = manifest_operands(m, "@in:");
+    if operands.is_empty() {
+        m.inputs
             .iter()
-            .map(|f: &FileHash| ("?".to_string(), f.blake3.clone()))
-            .collect(),
+            .enumerate()
+            .map(|(index, f): (usize, &FileHash)| {
+                (
+                    "?".to_string(),
+                    f.blake3.clone(),
+                    m.params
+                        .get(&format!("artifact.input.{index}.role"))
+                        .cloned(),
+                )
+            })
+            .collect()
+    } else {
+        operands
+            .into_iter()
+            .enumerate()
+            .map(|(index, (flag, hash))| {
+                (
+                    flag,
+                    hash,
+                    m.params
+                        .get(&format!("artifact.input.{index}.role"))
+                        .cloned(),
+                )
+            })
+            .collect()
     }
 }
 
@@ -136,12 +146,17 @@ pub fn walk_chain(receipts: &[RunManifest]) -> ChainReport {
 
     let mut edges = Vec::new();
     for (m, id) in receipts.iter().zip(&ids) {
-        for (flag, hash) in operands_for(m) {
+        for (flag, hash, artifact_role) in operands_for(m) {
             let status = if let Some(parent) = producer.get(&hash) {
                 EdgeStatus::Resolved {
                     parent_id: parent.clone(),
                 }
-            } else if EXPECTED_INTERNAL.contains(&flag.as_str()) {
+            } else if EXPECTED_INTERNAL.contains(&flag.as_str())
+                || matches!(
+                    artifact_role.as_deref(),
+                    Some("reference-index" | "raw-alignments" | "sorted-alignments")
+                )
+            {
                 EdgeStatus::Broken
             } else {
                 EdgeStatus::External
@@ -151,6 +166,7 @@ pub fn walk_chain(receipts: &[RunManifest]) -> ChainReport {
                 child_subcommand: m.subcommand.clone(),
                 flag,
                 input_blake3: hash,
+                artifact_role,
                 status,
             });
         }

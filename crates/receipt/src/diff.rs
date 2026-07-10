@@ -6,12 +6,17 @@
 
 use std::collections::BTreeMap;
 
-use crate::{RunManifest, BUILD_IDENTITY_KEYS};
+use crate::{command::manifest_operands, RunManifest, BUILD_IDENTITY_KEYS};
 
 /// Params that are derived or redundant, excluded from the science-params bucket:
 /// `manifest_blake3` is the self-hash (a function of everything else); `command` is the
 /// recipe whose operands/opts are already surfaced by the input/output/param buckets.
-const SKIP_PARAMS: &[&str] = &["manifest_blake3", "command"];
+const SKIP_PARAMS: &[&str] = &[
+    "manifest_blake3",
+    "command",
+    "command_argv",
+    "replay_schema",
+];
 
 /// One differing scalar claim/measurement field. `None` = absent on that side.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -42,32 +47,9 @@ pub struct ReceiptDiff {
     pub claims_identical: bool,
 }
 
-/// Recover `(flag, hash)` operand pairs of `marker` (`"@in:"` or `"@out:"`) from a command.
-fn operands(command: &str, marker: &str) -> BTreeMap<String, String> {
-    let toks: Vec<&str> = command.split(' ').collect();
-    let mut out = BTreeMap::new();
-    for (i, t) in toks.iter().enumerate() {
-        if let Some(h) = t.strip_prefix(marker) {
-            let flag = if i > 0 {
-                toks[i - 1].to_string()
-            } else {
-                "?".to_string()
-            };
-            out.insert(flag, h.to_string());
-        }
-    }
-    out
-}
-
 fn operand_changes(a: &RunManifest, b: &RunManifest, marker: &str) -> Vec<OperandChange> {
-    let ma = operands(
-        a.params.get("command").map(String::as_str).unwrap_or(""),
-        marker,
-    );
-    let mb = operands(
-        b.params.get("command").map(String::as_str).unwrap_or(""),
-        marker,
-    );
+    let ma: BTreeMap<String, String> = manifest_operands(a, marker).into_iter().collect();
+    let mb: BTreeMap<String, String> = manifest_operands(b, marker).into_iter().collect();
     let mut flags: Vec<String> = ma.keys().chain(mb.keys()).cloned().collect();
     flags.sort();
     flags.dedup();

@@ -19,10 +19,11 @@
 use std::collections::BTreeMap;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
 
 mod command;
-pub use command::CommandCapture;
+pub use command::{command_template_tokens, CommandCapture, REPLAY_SCHEMA_VERSION};
 
 mod chain;
 pub use chain::{walk_chain, ChainEdge, ChainNode, ChainReport, EdgeStatus};
@@ -33,8 +34,11 @@ pub use diff::{diff_receipts, FieldChange, OperandChange, ReceiptDiff};
 mod repro;
 pub use repro::{ReproOutput, ReproReceipt};
 
+mod trust;
+pub use trust::{ArtifactEvidence, CertificateEvidence, TrustFacet, TrustReport, TrustState};
+
 mod badge;
-pub use badge::{badge_json, badge_svg};
+pub use badge::{badge_json, badge_json_for, badge_svg, badge_svg_for, BadgeStatus};
 
 /// Current receipt/feature schema version. Bump on any breaking schema change.
 /// v2: split into a deterministic *claim* and a machine-dependent *measurement* block;
@@ -114,7 +118,8 @@ pub const MEASUREMENT_KEYS: &[&str] = &[
 ];
 
 /// The claim keys that record build identity (code / toolchain / deps). Segregated by
-/// `rosalind diff` as a distinct cause bucket. Must track [`build_identity_pairs`].
+/// `rosalind diff` as a distinct cause bucket. Must track the internal
+/// `build_identity_pairs` helper.
 pub const BUILD_IDENTITY_KEYS: &[&str] = &[
     "code_git_sha",
     "code_dirty",
@@ -251,7 +256,11 @@ impl RunManifest {
             b: s.as_bytes(),
             i: 0,
         };
-        p.parse_manifest()
+        let manifest = p.parse_manifest()?;
+        if p.i != p.b.len() {
+            return Err(p.err("trailing content"));
+        }
+        Ok(manifest)
     }
 
     /// BLAKE3 hex of the **claim** canonical JSON with the self-hash excluded — the
@@ -686,6 +695,43 @@ pub struct VerifyReport {
     pub notes: Vec<String>,
     /// The parsed manifest, when parsing succeeded.
     pub manifest: Option<RunManifest>,
+    /// Independent evidence dimensions shared with Studio and badge generation.
+    pub trust: TrustReport,
+}
+
+impl VerifyReport {
+    /// Stable machine-readable summary for `rosalind verify --json` and other
+    /// clients. The full receipt remains the source of detailed claim data.
+    pub fn to_json(&self) -> String {
+        let strings = |values: &[String]| {
+            let body = values
+                .iter()
+                .map(|v| format!("\"{}\"", json_escape(v)))
+                .collect::<Vec<_>>()
+                .join(",");
+            format!("[{body}]")
+        };
+        let (claim, inputs, outputs) = self.manifest.as_ref().map_or_else(
+            || ("null".to_string(), 0, 0),
+            |m| {
+                (
+                    format!("\"{}\"", m.content_hash()),
+                    m.inputs.len(),
+                    m.outputs.len(),
+                )
+            },
+        );
+        format!(
+            "{{\"schema\":2,\"ok\":{},\"claim\":{},\"inputs\":{},\"outputs\":{},\"notes\":{},\"problems\":{},\"trust\":{}}}",
+            self.ok,
+            claim,
+            inputs,
+            outputs,
+            strings(&self.notes),
+            strings(&self.problems),
+            self.trust.to_json(),
+        )
+    }
 }
 
 /// Check a receipt's internal integrity — self-hashes, cross-field consistency, optional
@@ -701,11 +747,13 @@ pub fn verify_receipt(text: &str, opts: &VerifyOpts) -> VerifyReport {
                 problems: vec![format!("parse error: {e}")],
                 notes: Vec::new(),
                 manifest: None,
+                trust: TrustReport::unparseable(e.to_string()),
             }
         }
     };
     let mut problems: Vec<String> = Vec::new();
     let mut notes: Vec<String> = Vec::new();
+    let mut artifacts_complete = true;
 
     // Re-hash inputs + outputs against the recorded digests (CLI sets this).
     if opts.rehash_files {
@@ -713,11 +761,17 @@ pub fn verify_receipt(text: &str, opts: &VerifyOpts) -> VerifyReport {
             for f in files {
                 match blake3_file(Path::new(&f.path)) {
                     Ok(h) if h == f.blake3 => {}
-                    Ok(h) => problems.push(format!(
-                        "{kind} {} hash mismatch: recorded {}, now {}",
-                        f.path, f.blake3, h
-                    )),
-                    Err(e) => problems.push(format!("{kind} {} unreadable: {e}", f.path)),
+                    Ok(h) => {
+                        artifacts_complete = false;
+                        problems.push(format!(
+                            "{kind} {} hash mismatch: recorded {}, now {}",
+                            f.path, f.blake3, h
+                        ));
+                    }
+                    Err(e) => {
+                        artifacts_complete = false;
+                        problems.push(format!("{kind} {} unreadable: {e}", f.path));
+                    }
                 }
             }
         }
@@ -740,6 +794,54 @@ pub fn verify_receipt(text: &str, opts: &VerifyOpts) -> VerifyReport {
     let recorded_peak = parse_num("peak_rss_bytes", &mut problems);
     let recorded_ws = parse_num("max_working_set_bytes", &mut problems);
     let recorded_budget = parse_num("memory_budget_mb", &mut problems);
+
+    // Replay-recipe consistency. `command_template_tokens` prefers replay-schema-2
+    // `command_argv` and falls back to the historical display command, so verify,
+    // reproduce, diff, and chain all interpret one source of truth.
+    if manifest.params.contains_key("command_argv") || manifest.params.contains_key("command") {
+        match command_template_tokens(&manifest) {
+            Ok(tokens) => {
+                let prefix: Vec<&str> = manifest.subcommand.split_whitespace().collect();
+                if tokens
+                    .iter()
+                    .take(prefix.len())
+                    .map(String::as_str)
+                    .ne(prefix.iter().copied())
+                {
+                    problems.push(
+                        "replay recipe command prefix does not match receipt subcommand"
+                            .to_string(),
+                    );
+                }
+                let hashes = |marker: &str| {
+                    let mut values = tokens
+                        .iter()
+                        .filter_map(|token| token.strip_prefix(marker).map(ToOwned::to_owned))
+                        .collect::<Vec<_>>();
+                    values.sort();
+                    values
+                };
+                let file_hashes = |files: &[FileHash]| {
+                    let mut values = files
+                        .iter()
+                        .map(|file| file.blake3.clone())
+                        .collect::<Vec<_>>();
+                    values.sort();
+                    values
+                };
+                if hashes("@in:") != file_hashes(&manifest.inputs) {
+                    problems
+                        .push("replay recipe input hashes do not match receipt inputs".to_string());
+                }
+                if hashes("@out:") != file_hashes(&manifest.outputs) {
+                    problems.push(
+                        "replay recipe output hashes do not match receipt outputs".to_string(),
+                    );
+                }
+            }
+            Err(error) => problems.push(error),
+        }
+    }
 
     // Re-check the recorded realized peak against the budget (CLI overrides manifest).
     let budget_mb = opts.budget_mb.or(recorded_budget);
@@ -858,11 +960,25 @@ pub fn verify_receipt(text: &str, opts: &VerifyOpts) -> VerifyReport {
         }
     }
 
+    let trust = TrustReport::evaluate(
+        &manifest,
+        if opts.rehash_files {
+            if artifacts_complete {
+                ArtifactEvidence::Complete
+            } else {
+                ArtifactEvidence::Incomplete
+            }
+        } else {
+            ArtifactEvidence::NotChecked
+        },
+        CertificateEvidence::NotSupplied,
+    );
     VerifyReport {
         ok: problems.is_empty(),
         notes,
         manifest: Some(manifest),
         problems,
+        trust,
     }
 }
 
@@ -871,9 +987,56 @@ pub fn write_manifest(output_path: &Path, manifest: &RunManifest) -> io::Result<
     let mut name = output_path.as_os_str().to_os_string();
     name.push(".manifest.json");
     let manifest_path = PathBuf::from(name);
-    let mut file = std::fs::File::create(&manifest_path)?;
-    file.write_all(manifest.to_canonical_json().as_bytes())?;
-    file.flush()?;
+    if manifest_path.exists() {
+        return Err(io::Error::new(
+            io::ErrorKind::AlreadyExists,
+            format!("receipt already exists: {}", manifest_path.display()),
+        ));
+    }
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let parent = manifest_path.parent().unwrap_or_else(|| Path::new("."));
+    let filename = manifest_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("receipt.json");
+    let mut reservation = None;
+    for _ in 0..128 {
+        let temporary = parent.join(format!(
+            ".{filename}.rosalind-{}-{}.partial",
+            std::process::id(),
+            COUNTER.fetch_add(1, Ordering::Relaxed)
+        ));
+        match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temporary)
+        {
+            Ok(file) => {
+                reservation = Some((temporary, file));
+                break;
+            }
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error),
+        }
+    }
+    let (temporary, mut file) = reservation.ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::AlreadyExists,
+            "could not reserve a unique transactional receipt path",
+        )
+    })?;
+    let result = (|| {
+        file.write_all(manifest.to_canonical_json().as_bytes())?;
+        file.flush()?;
+        file.sync_all()?;
+        drop(file);
+        std::fs::hard_link(&temporary, &manifest_path)?;
+        std::fs::remove_file(&temporary)
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_file(&temporary);
+    }
+    result?;
     Ok(manifest_path)
 }
 
@@ -1289,6 +1452,13 @@ mod tests {
         let written = std::fs::read_to_string(&manifest_path).unwrap();
         assert_eq!(written, m.to_canonical_json());
 
+        let error = write_manifest(&out, &m).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::AlreadyExists);
+        assert_eq!(
+            std::fs::read_to_string(&manifest_path).unwrap(),
+            m.to_canonical_json()
+        );
+
         std::fs::remove_dir_all(&dir).ok();
     }
 
@@ -1329,6 +1499,9 @@ mod tests {
     fn parse_rejects_malformed() {
         assert!(RunManifest::from_canonical_json("not json").is_err());
         assert!(RunManifest::from_canonical_json("{\"inputs\":[}").is_err());
+        let canonical =
+            r#"{"inputs":[],"outputs":[],"params":{},"subcommand":"x","tool_version":"0.1.0"}"#;
+        assert!(RunManifest::from_canonical_json(&format!("{canonical}garbage")).is_err());
     }
 
     #[test]

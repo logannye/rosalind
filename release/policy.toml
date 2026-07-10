@@ -1,0 +1,63 @@
+schema = 1
+repository = "logannye/rosalind"
+default_branch = "main"
+msrv = "1.83.0"
+release_toolchain = "1.95.0"
+soak_seconds = 604800
+foundation_test_baseline = 336
+cargo_public_api_version = "0.50.1"
+public_api_toolchain = "nightly-2026-04-15"
+wasm_pack_version = "0.14.0"
+actionlint_version = "1.7.7"
+shellcheck_version = "0.10.0"
+jsonschema_version = "4.23.0"
+happy_repository = "ghcr.io/logannye/rosalind-happy"
+giab_required_from = "0.4.1"
+required_environments = ["rc", "release"]
+required_secrets = ["CARGO_REGISTRY_TOKEN"]
+partner_personas = ["analyzer-builder", "workflow-hpc", "constrained-offline"]
+publish_order = ["rosalind-build-info", "rosalind-receipt", "rosalind-bio"]
+
+package_versions = { rosalind-build-info = "0.1.0", rosalind-receipt = "0.3.0", rosalind-bio = "0.4.0" }
+
+cli_help = [
+  "",
+  "align",
+  "variants",
+  "features",
+  "analyze",
+  "sort",
+  "somatic",
+  "eval-somatic",
+  "eval-germline",
+  "index",
+  "new",
+  "new analyzer",
+  "demo",
+  "doctor",
+  "studio",
+  "chain",
+  "chain verify",
+  "receipt",
+  "receipt inspect",
+  "receipt sanitize",
+  "receipt export-intoto",
+  "conformance",
+  "conformance analyzer",
+  "locate",
+  "plan",
+  "pack",
+  "verify",
+  "diff",
+  "reproduce",
+  "badge"
+]
+
+schema_files = [
+  "docs/schema/receipt-v5.schema.json",
+  "docs/schema/trust-report-v2.schema.json",
+  "web/verify/schema/run-attestation-v1.schema.json"
+]
+
+legacy_fixture_dir = "crates/receipt/fixtures"
+partner_record_dir = "release/design-partners"

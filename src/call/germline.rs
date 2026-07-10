@@ -1,6 +1,6 @@
-//! The germline diploid genotype-likelihood model: per-observation base-quality
-//! error integrated into [0/0, 0/1, 1/1] log-likelihoods, then a prior, then a
-//! probabilistically-grounded, abstention-aware call.
+//! The germline diploid genotype-likelihood model: per-observation base and
+//! mapping quality integrated into [0/0, 0/1, 1/1] log-likelihoods, then a
+//! prior, then a probabilistically-grounded, abstention-aware call.
 
 use crate::call::types::{Filter, Genotype, GermlineCall, GermlineParams, ACGT};
 use crate::core::allele_index;
@@ -20,9 +20,45 @@ struct SiteLikelihoods {
     dp: u32,
 }
 
-/// Accumulate diploid genotype log-likelihoods from per-observation base
-/// qualities. Returns `None` when the reference base is non-callable or no
-/// non-reference allele is observed (nothing to call).
+/// Return the probability of an observed allele under one haploid allele,
+/// marginalizing mapping uncertainty. MAPQ 255 means unavailable and therefore
+/// preserves the historical base-quality-only likelihood.
+fn observation_probability(observed: usize, haplotype: usize, base_qual: u8, mapq: u8) -> f64 {
+    // Cap the base error at 0.75 so q=0 is a random draw rather than evidence
+    // against the reported base, and every logarithm remains finite.
+    let base_error = (10f64.powf(-(base_qual as f64) / 10.0)).min(0.75);
+    let base_probability = if observed == haplotype {
+        1.0 - base_error
+    } else {
+        base_error / 3.0
+    };
+    if mapq == 255 {
+        return base_probability;
+    }
+
+    let mismapped = 10f64.powf(-(mapq as f64) / 10.0);
+    (1.0 - mismapped) * base_probability + mismapped * 0.25
+}
+
+/// Shared sites-only and gVCF likelihood accumulator.
+fn genotype_log_likelihoods(column: &PileupColumn, ref_idx: usize, alt_idx: usize) -> [f64; 3] {
+    let mut log_l = [0.0f64; 3];
+    for observation in &column.obs {
+        let observed = observation.allele as usize;
+        let p_ref =
+            observation_probability(observed, ref_idx, observation.base_qual, observation.mapq);
+        let p_alt =
+            observation_probability(observed, alt_idx, observation.base_qual, observation.mapq);
+        log_l[0] += p_ref.ln();
+        log_l[1] += (0.5 * p_ref + 0.5 * p_alt).ln();
+        log_l[2] += p_alt.ln();
+    }
+    log_l
+}
+
+/// Accumulate diploid genotype log-likelihoods from per-observation base and
+/// mapping qualities. Returns `None` when the reference base is non-callable or
+/// no non-reference allele is observed (nothing to call).
 fn site_likelihoods(column: &PileupColumn) -> Option<SiteLikelihoods> {
     let ref_idx = allele_index(column.ref_base)?;
     let counts = column.allele_counts();
@@ -44,18 +80,7 @@ fn site_likelihoods(column: &PileupColumn) -> Option<SiteLikelihoods> {
         return None;
     }
 
-    let mut log_l = [0.0f64; 3];
-    for o in &column.obs {
-        // ε from Phred base quality, capped at 0.75 so 1−ε stays positive (and
-        // the log finite) even at q=0 — no base is worse than a random draw.
-        let eps = (10f64.powf(-(o.base_qual as f64) / 10.0)).min(0.75);
-        let a = o.allele as usize;
-        let p_ref = if a == ref_idx { 1.0 - eps } else { eps / 3.0 };
-        let p_alt = if a == alt_idx { 1.0 - eps } else { eps / 3.0 };
-        log_l[0] += p_ref.ln();
-        log_l[1] += (0.5 * p_ref + 0.5 * p_alt).ln();
-        log_l[2] += p_alt.ln();
-    }
+    let log_l = genotype_log_likelihoods(column, ref_idx, alt_idx);
 
     Some(SiteLikelihoods {
         log_l,
@@ -182,16 +207,7 @@ pub fn genotype_column_gvcf(column: &PileupColumn, params: &GermlineParams) -> G
         }
     }
 
-    let mut log_l = [0.0f64; 3];
-    for o in &column.obs {
-        let eps = (10f64.powf(-(o.base_qual as f64) / 10.0)).min(0.75);
-        let a = o.allele as usize;
-        let p_ref = if a == ref_idx { 1.0 - eps } else { eps / 3.0 };
-        let p_alt = if a == alt_idx { 1.0 - eps } else { eps / 3.0 };
-        log_l[0] += p_ref.ln();
-        log_l[1] += (0.5 * p_ref + 0.5 * p_alt).ln();
-        log_l[2] += p_alt.ln();
-    }
+    let log_l = genotype_log_likelihoods(column, ref_idx, alt_idx);
 
     let theta = params.heterozygosity;
     let log_prior = [(1.0 - 1.5 * theta).ln(), theta.ln(), (theta / 2.0).ln()];
@@ -269,12 +285,16 @@ mod tests {
     /// Build a column at chr0:100 with `ref_base` and observations given as
     /// `(allele_index, base_qual)` pairs (all forward strand, mapq 60).
     fn col(ref_base: u8, obs_spec: &[(u8, u8)]) -> PileupColumn {
+        col_with_mapq(ref_base, obs_spec, 60)
+    }
+
+    fn col_with_mapq(ref_base: u8, obs_spec: &[(u8, u8)], mapq: u8) -> PileupColumn {
         let obs: Vec<Obs> = obs_spec
             .iter()
             .map(|&(allele, base_qual)| Obs {
                 allele,
                 base_qual,
-                mapq: 60,
+                mapq,
                 reverse: false,
             })
             .collect();
@@ -287,6 +307,27 @@ mod tests {
             raw_depth: obs.len() as u32,
             obs,
         }
+    }
+
+    #[test]
+    fn mapping_quality_is_marginalized_and_255_preserves_the_legacy_model() {
+        let base_only_match = observation_probability(0, 0, 30, 255);
+        let expected_match = 1.0 - 10f64.powf(-3.0);
+        assert!((base_only_match - expected_match).abs() < 1e-12);
+
+        // MAPQ 0 means the observation is wholly uninformative about genotype.
+        for haplotype in 0..4 {
+            assert_eq!(observation_probability(0, haplotype, 30, 0), 0.25);
+        }
+
+        // High MAPQ converges on the base-only model without special-casing it.
+        let high_mapq_match = observation_probability(0, 0, 30, 60);
+        assert!((high_mapq_match - base_only_match).abs() < 1e-6);
+
+        let evidence = [(0, 30), (1, 30)];
+        let uninformative = genotype_log_likelihoods(&col_with_mapq(b'A', &evidence, 0), 0, 1);
+        assert!((uninformative[0] - uninformative[1]).abs() < 1e-12);
+        assert!((uninformative[1] - uninformative[2]).abs() < 1e-12);
     }
 
     #[test]

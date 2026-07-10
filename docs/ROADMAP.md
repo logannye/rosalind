@@ -1,6 +1,6 @@
 # Rosalind — Implementation Roadmap
 
-**Status:** Living engineering-direction document — revised 2026-06-02 (v2). Supersedes the earlier
+**Status:** Living engineering-direction document — revised 2026-07-09 (v3). Supersedes the earlier
 receipt-first draft with a sharper, honestly-scoped synthesis. Companion to
 [`docs/OPEN_PROBLEMS.md`](OPEN_PROBLEMS.md) (the research thesis) and [`CONTRACT.md`](../CONTRACT.md)
 (the shipped contract). Audience: builders deciding what to build *on* Rosalind, and contributors
@@ -19,7 +19,7 @@ Rosalind has one moat, and it is not the caller, the aligner, or a new complexit
 
 You declare the RAM you have. Rosalind predicts — *before a byte of compute runs* — whether the job
 fits; honors that ceiling (refuse cleanly up front, or fail **loud** the instant a breach is detected,
-never a silent OOM-kill); produces a **byte-identical** result; and hands you a **tamper-evident,
+records the enforcement assurance and any detected breach); produces a **byte-identical** result; and hands you a **tamper-evident,
 content-addressed receipt** you can verify offline, months later, without re-running.
 
 Today that contract is true for **calling, query, and the feature stream**. The one stage where it is
@@ -45,7 +45,7 @@ Each is tagged **[shipped]** or **[to build]** and tied to the persona who actua
 | **Never a silent OOM — predict, then refuse / fail loud** [shipped] | Field/outbreak operator on a no-swap laptop driving a MinION | GATK `-Xmx` crashes; DeepVariant OOM-kills; pSAscan/Big-BWT/ropebwt3 have no governor. `plan` gives a FITS/REFUSE verdict in ms; the runtime governor (`core/governor.rs`) fails loud at exit 4. |
 | **Verify-without-rerun** [shipped] | Air-gapped / regulated / CRO auditor | A non-deterministic caller can't emit a byte-reproducible hash, so it can't anchor an audit at all. `rosalind verify` re-checks inputs/outputs + realized-peak-vs-budget offline in seconds. |
 | **Input-size-independent calling peak** [shipped] | Anyone calling on fixed-RAM nodes | Peak ≈ largest-contig reference + a depth-capped active set, *not* BAM size. Emergent-RAM callers can't bound this. |
-| **Inherit-the-contract SDK (ColumnKit)** [shipped] | A builder shipping a per-locus analytic | Implement one `ColumnAnalyzer` method → inherit the bounded walk + governor + receipt. No genomics library lets a third party inherit a verifiable memory budget. |
+| **Inherit-the-contract SDK (ColumnKit)** [shipped] | A builder shipping a per-locus analytic | Implement `ColumnAnalyzer` and call the public contract runner → inherit prediction, typed refusal/breach, the bounded walk, governor, replay, and receipt without forking the CLI. |
 | **The dial for construction — build a genome index on a box that would OOM** [to build, D1a] | T2T/human-index builder on a 16–32 GB workstation, not a fat node | bwa-index/samtools build in *emergent* RAM (you find the ceiling by crashing). External-memory tools exist but at *fixed* points with no declared budget, no feasibility prediction, no degrade-contract, no receipt. |
 
 **Table-stakes — real value, but NOT the moat (say so):**
@@ -73,9 +73,10 @@ INPUTS?"** If inputs, the √t dial does nothing.
 - **Single-threaded** (only the governor spawns a thread) — so a budget-tunable build's time overhead is
   *on top of* a single-threaded baseline; vs *parallel* pSAscan the realistic gap is large. Time is
   telemetry, not a contract — you cannot quote a guaranteed wall-clock up front.
-- **Accuracy is 100% simulated today** — the caller is untested on real GIAB. Until that is fixed, the
-  regulated/clinical personas (the ones with budget) are unreachable. This is a **precondition, not
-  polish** (Phase 2).
+- **The committed accuracy baseline is still simulated** — the current HG002 v5.0q GRCh38 workflow is
+  pinned and runnable, but the repository deliberately records “not yet established” until the first
+  successful opt-in chr20 run. No real-GIAB score is claimed prematurely. This is a **precondition,
+  not polish** (Phase 2).
 
 ---
 
@@ -104,6 +105,11 @@ INPUTS?"** If inputs, the √t dial does nothing.
   self-hashing receipt**; forkability hygiene; **MSRV 1.83 + a clippy `-D warnings` CI gate**.
 - **Sprint 2.1 (this session):** **genotype-aware GIAB-grade eval** — `eval-germline` now scores
   genotype concordance + decomposes multi-allelic records (synthetic: 40× clean concordance 1.00).
+- **Fork-builder foundation (shipped):** public `rosalind::contract` orchestration; tokenized external
+  replay and dual producer identity; `rosalind new analyzer`; contract testkit; embedded offline demo;
+  Receipt Studio; canonical schema 1–5 fixtures; and structured verify/reproduce reports.
+- **Scientific hardening (shipped):** shared base-quality + MAPQ germline/gVCF likelihood and the pinned
+  HG002 v5.0q GRCh38 preparation/evaluation workflow. The first real score remains pending by design.
 
 ---
 
@@ -156,12 +162,12 @@ The strongest *differentiated* claims are real **today**. Make them legible and 
 - **P1.1 — Harden + document the contract as the product.** *(S)* Governor fail-loud, offline
   `verify`-without-rerun, `pack` as a k8s/Slurm scheduling input, ColumnKit promoted to a documented SDK
   with 2–3 reference analyzers. Sell what ships.
-- **P1.2 — The tamper-evident "caught-you" demo + a WASM receipt verifier.** *(S–M, the front door)*
-  An asciinema: `variants` → `verify` OK → a human edits one byte → `verify` exits 5. Then compile
-  `provenance/mod.rs` (std + hand-rolled canonical-JSON + blake3, zero htslib) to `wasm32` for a
-  drag-a-receipt-in-the-browser verifier — the most viral artifact in the repo and a structural
-  capability we're not aware of in incumbent callers. **Honest copy:** catches corruption/casual edits, *not* a motivated
-  forger who re-runs `finalize()` — that needs the signature (Phase 3).
+- **P1.2 — Receipt Studio.** *(DONE, the front door)*
+  The existing `/verify/` URL now accepts receipts, certificates, and artifacts; hashes large files
+  incrementally, matches by content, renders causal diffs and provenance, and reports independent trust
+  levels. It is static, framework-free, client-only, and makes zero third-party requests. **Honest copy:**
+  claim fields and measurements are protected; modern recorded paths are intentionally portable; a
+  motivated party can reseal an unsigned receipt, so authorship still needs a signature.
 - **P1.3 — A scope-boundary benchmark + a README scope table.** *(S, the anti-hype guardrail)* A
   reproducible benchmark showing **both** the in-scope win (construction peak slides down the curve)
   **and** the out-of-scope null (cohort/pangenome memory *unmoved* by the dial). Publish the table:
@@ -171,32 +177,28 @@ The strongest *differentiated* claims are real **today**. Make them legible and 
 
 ### Phase 2 — Earn the accuracy gate (the precondition for the big markets)
 
-- **P2.1 — One real GIAB HG002 (chr20 + CMRG) number, paired with the receipt.** *(M, the gate)* The
-  genotype-aware comparator is ready (Sprint 2.1); run it on real GIAB truth, on an externally-mapped
-  BAM, and attach precision/recall/F1 + genotype concordance to the flagship receipt. Frame honestly:
-  *"accuracy is now measured, not assumed; the contract is the contribution"* — the realistic first
-  result is SNV-competitive, indels trailing. (Blocked in this environment only by missing samtools/
-  aligner tooling; runs anywhere they exist.)
-- **P2.2 — Fold MAPQ into the germline likelihood.** *(M)* Today MAPQ is a hardcoded placeholder the
-  likelihood ignores; weight each read by `P(mismapped) = 10^(-MAPQ/10)`. Behavior-changing → its own
-  before/after on synthetic noise; pairs naturally with the real (externally-mapped) GIAB BAM.
+- **P2.1 — One real GIAB HG002 v5.0q chr20 number, paired with the receipt.** *(workflow DONE; first
+  baseline pending)* Exact GRCh38 truth, callable BED, reference, and externally aligned reads are
+  SHA-256 pinned under `benchmarks/giab`; preparation validates `samtools`, performs indexed chr20
+  extraction, and records a local data manifest. Reports contain all-emitted and PASS-only metrics,
+  memory telemetry, receipt claim, and exact argv. The pending baseline is replaced only by a real run.
+- **P2.2 — Fold MAPQ into the germline likelihood.** *(DONE)* Sites-only and gVCF use one helper for
+  `P(mapped) × Pbase + P(mismapped) × 0.25`; MAPQ 255 retains base-only behavior. New germline claims
+  record `model.germline=baseq-mapq-v1`; somatic calling is unchanged.
 
 ### Phase 3 — Extend the proofs (the provenance frontier)
 
-- **P3.1 — Close the provenance CHAIN; `verify --chain`.** *(M, keystone)* `index` writes a `RunManifest`
+- **P3.1 — Close the provenance chain; `chain verify`.** *(DONE, keystone)* `index` writes a `RunManifest`
   sidecar (reuse `provenance/mod.rs`; the header already has `reference_blake3`); downstream receipts pin
   the index by **artifact content hash** (stable across rebuilds), with the upstream receipt hash as a
   secondary attestation. `verify --chain` walks the DAG and checks every node re-hashes + every edge
   resolves — "this VCF came from exactly this index built from exactly this reference," offline.
   **Beats:** nf-core/WDL provenance (path/timestamp text over command lines, not content-addressed bytes
   — and they can't upgrade because the callers underneath are non-deterministic).
-- **P3.2 — `rosalind reproduce`: third-party byte re-derivation, CI-fenced.** *(M, the headline proof)*
-  Re-run the recorded subcommand against content-located inputs; assert fresh BLAKE3 == recorded output
-  hash → REPRODUCED / DIVERGED with a per-field diff. Pair with a frozen golden chain in CI = a
-  regression fence on determinism itself. **Why ONLY Rosalind:** GATK/DeepVariant/bwa would report
-  DIVERGED on a *correct* run. *Needs P0.2 (cross-machine stable receipt) first.* Add a determinism
-  conformance test pinning `rust-htslib` to a deterministic-by-construction mode (htslib has
-  multi-threaded bgzf — the I/O layer is C you don't control).
+- **P3.2 — `rosalind reproduce`: third-party byte re-derivation, CI-fenced.** *(DONE, the headline proof)*
+  Replays canonical argv against content-located inputs and compares fresh BLAKE3 output. Third-party
+  binaries are selected only through explicit `--binary PATH`; the certificate preserves original and
+  rerun identities and chains to `parent_claim`. CI and the claims harness fence byte determinism.
 - **P3.3 — `verify-attest`: Ed25519-signed receipts + signed chain root.** *(M, niche)* Sign the
   (now-deterministic) `content_hash()` into a detached `.sig`; `verify-attest --pubkey` checks it.
   Optional, default-features-off. *Build the capability ready; don't bet the economics on the regulated

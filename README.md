@@ -11,7 +11,7 @@
 
 > ⚡ **Install:** `cargo install rosalind-bio` (the crate is `rosalind-bio`; the installed binary is `rosalind`) — or `curl -fsSL https://raw.githubusercontent.com/logannye/rosalind/main/install.sh | sh` for a prebuilt binary (macOS · Linux, no toolchain). Then jump to the [60-second Quickstart](#quickstart-60-seconds).
 
-Call variants across a whole genome on a laptop, in RAM you declare up front, and get results that reproduce byte-for-byte — with a receipt to prove it. Most variant callers spend memory that grows with your data, so "will this finish on my machine?" is something you find out the hard way. Rosalind inverts that: you state a budget, and it tells you *before committing a byte* whether the job fits, then honors that ceiling while it runs. It streams a coordinate-sorted BAM one read at a time, reads the reference from a compact memory-mapped index (no second copy of the genome in RAM), and keeps its working set proportional to *local read depth* rather than file size. Every run prints — and records — the memory it actually used. Where the evidence is too thin to be sure, it **abstains** instead of guessing.
+Call variants across a whole genome on a laptop, in RAM you declare up front, and get results that reproduce byte-for-byte — with a receipt to prove it. Most variant callers spend memory that grows with your data, so "will this finish on my machine?" is something you find out the hard way. Rosalind inverts that: you state a budget, and it tells you *before committing a byte* whether the job fits, then cooperatively governs the run; on Linux, `--require-os-limit` can additionally require an existing cgroup v2 ceiling. It streams a coordinate-sorted BAM one read at a time, reads the reference from a compact memory-mapped index (no second copy of the genome in RAM), and keeps its working set proportional to *local read depth* rather than file size. Every run prints — and records — the memory it actually used and the assurance actually available. Where the evidence is too thin to be sure, it **abstains** instead of guessing.
 
 The bounded engine is a substrate, not just a caller: **the receipt is the product, and variant calling is the first workload that runs on it.** It's a Rust **library and CLI** you can call directly, extend with one trait, or drive from Python — not a black-box pipeline.
 
@@ -52,7 +52,7 @@ What makes this different:
 
 - **Bounded memory, independent of BAM size.** Reads stream one record at a time; peak memory is roughly *the largest contig's reference + the local pileup working set* — not the size of your alignments. A human genome calls comfortably on a laptop.
 - **Self-contained.** The reference comes from the `.idx`; you don't need the original FASTA at call time.
-- **A contract, honored.** `rosalind plan` predicts the peak *before you commit a byte*; `--enforce` honors the budget — refusing up front (exit 3) or failing loud (exit 4) rather than silently OOM-killing you; `rosalind verify` re-checks the receipt without re-running. Without `--enforce`, the budget is record-only. The full story: [the memory contract](CONTRACT.md).
+- **A contract with explicit assurance.** `rosalind plan` predicts the peak *before you commit a byte*; `--enforce` refuses unsound plans and cooperatively detects breaches (exit 3/4), while `--require-os-limit` requires an already-active Linux cgroup ceiling. `rosalind verify` re-checks the recorded evidence without re-running. Without `--enforce`, the budget is record-only. The full story: [the memory contract](CONTRACT.md).
 - **Reproducible + auditable.** Identical inputs produce a byte-identical VCF; a BLAKE3 manifest records the index, the BAM, the output, and the memory used.
 
 **Proof — the contract on a real genome.** On the real *E. coli* K-12 MG1655 chromosome (4,641,652 bp, 30× simulated reads), a declared **256 MiB** budget *fits* — `plan` → `variants --enforce` → `verify: OK`, **realized peak 22 MiB** — while an **8 MiB** budget is *refused up front* (exit 3, no work). The contract honored both ways; this demo's claim is *memory* (the reads are simulated) — calling accuracy is measured separately ([Accuracy](#accuracy)). Full numbers + one-command reproduction (`bash scripts/flagship_ecoli_demo.sh`): [`docs/findings/2026-06-01-flagship-ecoli-contract.md`](docs/findings/2026-06-01-flagship-ecoli-contract.md).
@@ -60,6 +60,27 @@ What makes this different:
 ---
 
 ## Quickstart (60 seconds)
+
+For a completely offline guided run after installation, use:
+
+```sh
+rosalind demo
+```
+
+It writes embedded FASTA/FASTQ assets to `./rosalind-demo`, then narrates index →
+align → sort → plan → enforced variants → verify → reproduce → chain. Use
+`--json` for a smoke test or `--budget-mb N` to change the default 128 MiB budget.
+The command refuses to write into a non-empty destination.
+
+Then open the complete local provenance graph without uploading anything:
+
+```sh
+rosalind studio rosalind-demo/*.manifest.json rosalind-demo/*.repro.json
+```
+
+Rosalind v0.4 never overwrites file outputs by default. Existing destinations are
+an error; use `--force` when atomic replacement is intentional. A governed breach
+is preserved as `<output>.partial`, never under the successful output name.
 
 Grab a prebuilt binary and watch the contract fire on the bundled data — no toolchain, no build:
 
@@ -90,7 +111,8 @@ You'll see `plan` predict `[FITS]`, `variants --enforce` print `contract: OK —
 - **Deterministic coordinate sort** — `rosalind sort`: an external merge sort (spills to disk) that orders a BAM by position within a configurable memory budget.
 - **Somatic (tumor/normal) calling** — `rosalind somatic` calls somatic SNVs from a paired tumor/normal BAM set using a deterministic binomial log-likelihood-ratio model with explicit depth and allele-fraction filters.
 - **Truth-set evaluation** — `rosalind eval-germline` / `rosalind eval-somatic` compare a call set against a truth VCF over confident regions (BED), with variant normalization (left-align + trim) and precision / recall / F1. `eval-germline` is the drop-in interface for a GIAB benchmark.
-- **Extensibility** — Build custom bounded per-locus analytics by implementing one trait ([ColumnKit](#columnkit-implement-one-trait-inherit-the-contract); see [`examples/columnkit_coverage.rs`](examples/columnkit_coverage.rs)) — inheriting bounded memory, determinism, and a verifiable receipt for free. Or iterate the raw `PileupColumn` substrate directly ([`examples/custom_pileup_analytics.rs`](examples/custom_pileup_analytics.rs)).
+- **Fork-builder foundation** — `rosalind new analyzer NAME --output DIR` creates a standalone Rust binary, build identity, contract tests, README, and CI workflow. Its `ColumnAnalyzer` runs through the public `rosalind::contract` runner, inheriting typed refusal/breach, deterministic streaming, and a replayable receipt without copying this CLI.
+- **Receipt Studio** — the existing [`/verify/`](https://logannye.github.io/rosalind/verify/) URL accepts multiple receipts, reproduction certificates, and artifacts entirely client-side; it streams artifact hashes, shows distinct trust levels, causal diffs, and provenance chains, and makes no third-party network request.
 - **Determinism by design** — Primary artifacts are emitted in a canonical, stable order, byte-for-byte identical across repeated runs given identical inputs. See [`docs/determinism.md`](docs/determinism.md).
 - **A self-scrutinizing claims harness** — `bash benchmarks/run.sh` re-derives five contract + reproducibility properties on bundled data (predicted ≥ realized peak; honor-or-refuse; byte-identical output; `reproduce` + tamper-evidence; `pack`), each of which **fails the run if false**. It runs in CI, so a broken claim turns the build red. Re-run it yourself — don't trust the numbers. See [`benchmarks/`](benchmarks/).
 
@@ -111,7 +133,7 @@ The contract wraps a real caller, and its detection accuracy is **measured, not 
 - **40× / 0.5% error (clean):** precision **1.00**, recall **1.00**, F1 **1.00** — every het/hom SNV recovered, zero false positives — and **genotype concordance 1.00** (40/40 zygosities correct).
 - **12× / 1.5% error (stress):** the caller still finds *every* true variant (unfiltered recall 1.00); the default `min_qual` / `min_depth` PASS filter then trades a little recall for precision under noise (0.90 / 0.68), at **genotype concordance 0.97**.
 
-The comparator is **GIAB-grade**: it scores **genotype concordance** (a het called as hom is a genotype error, not a free pass) and **decomposes multi-allelic records**, not just detection. Scope is honest: simulated (not yet GIAB), SNV-focused, zygosity (not phase). A real **GIAB HG002** benchmark plugs into the same comparator via `rosalind eval-germline --reference … --calls … --truth … --regions highconf.bed`. Full numbers: [`docs/findings/2026-06-02-genotype-aware-eval.md`](docs/findings/2026-06-02-genotype-aware-eval.md) (genotype-aware) and [`…/2026-06-02-germline-accuracy.md`](docs/findings/2026-06-02-germline-accuracy.md) (detection).
+The comparator scores **genotype concordance** (a het called as hom is a genotype error, not a free pass) and **decomposes multi-allelic records**, not just detection. `eval-germline --calls-filter all|pass --json` supports both emitted and PASS-only reports. The germline and gVCF paths share the `baseq-mapq-v1` likelihood, which marginalizes mapping uncertainty and treats MAPQ 255 as unavailable; somatic calling is unchanged. Scope remains honest: the published numbers above are simulated, SNV-focused, and zygosity-only. The opt-in [`benchmarks/giab`](benchmarks/giab) workflow pins the current HG002 v5.0q GRCh38 truth resources and establishes a real baseline only after a successful local/scheduled run.
 
 ## Who it's for
 
@@ -163,7 +185,7 @@ pack: 37 job(s) → 3 node(s) of 64000 MiB — every node within capacity by pre
 
 ## Reproduce a result — a command a stranger can run
 
-> 🔍 **Try it in your browser:** [**verify a receipt live**](https://logannye.github.io/rosalind/verify/) — drag in a `*.manifest.json` (or edit one byte of the bundled sample) and watch its tamper-evident hash flip to **TAMPERED**. 100% client-side, running the same Rust check that ships in the CLI, compiled to wasm.
+> 🔍 **Try Receipt Studio in your browser:** [**inspect receipts and artifacts**](https://logannye.github.io/rosalind/verify/) — claim fields and measurements are hash-protected; schema-3+ recorded paths are intentionally relocatable metadata. Artifact matching, reproduction evidence, budget status, and signature status are displayed as separate trust levels. Everything runs client-side in WASM.
 
 Hand someone a `*.vcf` and its `*.manifest.json`. On a *different machine*, with one offline command, they re-derive it byte-for-byte — no GATK, no Docker, no Nextflow, no re-aligning:
 
@@ -177,7 +199,7 @@ rosalind reproduce --manifest sample.vcf.manifest.json --inputs ./data
 #   -> wrote reproduction certificate: sample.vcf.manifest.json.repro.json (chains to a1b2c3…)
 ```
 
-It content-locates the recorded inputs by their BLAKE3 hash (paths don't matter), re-runs the exact recorded command (schema-5 receipts carry a normalized, replayable `command`), and compares output bytes — exit **0 REPRODUCED / 6 DIVERGED / 7 INCONCLUSIVE** (and **5** for a tampered receipt). **A non-deterministic caller can't do this:** GATK/DeepVariant would report DIVERGED on a *correct* run, because their output is not byte-deterministic.
+It content-locates the recorded inputs by BLAKE3 hash (paths don't matter), validates a schema-3 execution plan, re-runs the exact recorded argv without a shell, and compares output bytes — exit **0 REPRODUCED / 6 DIVERGED / 7 INCONCLUSIVE** (and **5** for a tampered receipt). Use `--dry-run --json` to inspect the validated plan without executing it. Applicable historical Rosalind schema-5 receipts remain replayable; legacy external receipts are inconclusive until upgraded. Use `--binary PATH` to reproduce a third-party analyzer explicitly. A path recorded in an untrusted receipt is never executed. The certificate preserves both original and rerun build identities, even when the output bytes match.
 
 Each run writes a **reproduction certificate** (`.repro.json`) — a content-addressed, self-hashing attestation that names the original receipt's claim hash. Independent parties who reproduce the same result mint certificates that all name the same parent — **N independent confirmations, with no server**: a reproducibility web. (Tamper-evident today; cryptographic signing is the next step.)
 
@@ -206,22 +228,19 @@ A dependency-light Python boundary ([`python/rosalind.py`](python/rosalind.py), 
 
 Want your *own* per-locus metric — methylation, a coverage/QC track, custom ML features, a star-allele genotyper? Implement one trait and run it through the driver; you inherit the **same** bounded whole-genome walk, the **same** working-set bound that `plan`/`--enforce` admit, and the **same** verifiable receipt the shipped subcommands enjoy — without re-deriving any of it.
 
-```rust
-use rosalind::{ColumnAnalyzer, run_bounded_whole_genome, PileupColumn};
-use std::io::{self, Write};
-
-struct CoverageTrack;
-impl ColumnAnalyzer for CoverageTrack {
-    fn header(&self) -> Option<String> { Some("#contig\tpos\tdepth\n".into()) }
-    fn on_column(&mut self, col: &PileupColumn, contig: &str, out: &mut dyn Write) -> io::Result<()> {
-        writeln!(out, "{contig}\t{}\t{}", col.locus.pos.0 + 1, col.depth())
-    }
-}
-// run_bounded_whole_genome(&mut CoverageTrack, source, &ref_view, contigs, params, &mut out)
-//   → returns the bounded WorkingSet `plan`/`--enforce` reason about.
+```sh
+rosalind new analyzer coverage-track --output ./coverage-track
+cd coverage-track
+cargo test
 ```
 
-The trait is *welded* to the bounded kernel — `run_bounded_whole_genome` drives the exact same column stream as the shipped `features` egress (which is itself just the first `ColumnAnalyzer`), so the estimator that admits a run upper-bounds the realized working set of *your* analyzer too, by construction. Implement one trait and you inherit a machine-checkable memory budget and a hash-verifiable receipt for your own metric — what a library without a memory contract can't hand you. See [`examples/columnkit_coverage.rs`](examples/columnkit_coverage.rs).
+The generated binary shows the complete `ColumnAnalyzer` and `ContractRunSpec` wiring. The public
+`run_column_analysis` runner drives the same kernel as `features` and `analyze`, but also owns
+preflight prediction, output creation, the live governor, receipt sealing, replay identity, and typed
+outcomes. It never calls `process::exit`; the host binary decides how to map errors. Enable the
+`contract-testkit` feature for repeat-run, integrity, relocation, completion, and refusal assertions.
+Only one enforced runner may own the process-wide RSS governor at a time. See
+[`docs/architecture.md`](docs/architecture.md) and [`docs/receipt-schema.md`](docs/receipt-schema.md).
 
 ## Roadmap
 
@@ -229,11 +248,11 @@ The core primitive is a streaming, CIGAR-aware pileup column stream; variant cal
 
 - **Phase A (done):** the streaming pileup engine; genotype-likelihood, abstention-aware germline SNV calling; tumor/normal somatic calling; spec-valid VCF; a BLAKE3 reproducibility receipt per run.
 - **Phase B (done):** streaming gzip/bgzf input; a multi-contig FM-index over the concatenated genome with `(contig, position)` resolution; a build-once, memory-mapped, byte-reproducible persisted index (`rosalind index`/`locate`); zero-copy reference access from the index; and **bounded whole-genome germline calling over a sorted BAM** (`rosalind variants --index`) with a realized-memory receipt.
-- **Phase C (done):** memory as a *verifiable contract* — `rosalind plan` (a checkable envelope before you commit), `--enforce` (honor-or-refuse: refuse up front / fail loud, never a silent OOM-kill), and `rosalind verify`. See [CONTRACT.md](CONTRACT.md).
+- **Phase C (done):** memory as a *verifiable contract* — `rosalind plan` (a checkable envelope before you commit), `--enforce` (cooperative refusal/breach detection), optional Linux cgroup-v2 assurance, and `rosalind verify`. See [CONTRACT.md](CONTRACT.md).
 - **Hardening & reach (done):** unbiased depth-cap downsampling (no silent variant drops) and a CI-enforced memory gate; **measured** germline detection accuracy ([Accuracy](#accuracy)); the **`rosalind features`** reproducible ML feature substrate; and a one-command adoption on-ramp — prebuilt binaries (`install.sh`, with checksum verification) plus the **Rosalind budget GitHub Action** (`action.yml`, used as `logannye/rosalind@v0.1.0`) that enforces the contract in *your* CI.
 - **Fleet scheduling (done):** [prediction → placement](#pack-a-fleet-prediction--placement) — `rosalind pack` shows a co-location of N calling jobs fits within budget before launching a byte (predicted peaks are additive and read from the index header); `plan --index --json` for a scheduler to read.
-- **ColumnKit SDK (done):** [implement one trait, inherit the contract](#columnkit-implement-one-trait-inherit-the-contract) — a `ColumnAnalyzer` trait + `run_bounded_whole_genome` driver so a builder's own per-locus analyzer inherits bounded memory, determinism, and a verifiable receipt. The shipped `features` egress is the first impl.
-- **Bounded gVCF (done):** `variants --index --gvcf` emits a banded gVCF (every callable locus → a variant record or a `<NON_REF>` reference block with an `END=` span), so per-sample output joins into GLnexus/GATK cohort pipelines — bounded (O(1) banding state) and byte-reproducible run-to-run, a property production gVCF pipelines generally don't provide.
+- **ColumnKit SDK (done):** [implement one trait, inherit the contract](#columnkit-implement-one-trait-inherit-the-contract) — a source-compatible `ColumnAnalyzer`, public contract runner, scaffold generator, testkit, argv-safe external replay, and producer/analyzer identity. The shipped `features` and `analyze` commands delegate to this same runner.
+- **Bounded gVCF (done, single-sample):** `variants --index --gvcf` emits a banded gVCF (every callable locus → a variant record or a `<NON_REF>` reference block with an `END=` span) with O(1) banding state and byte-reproducible output. Interoperability with a cohort joiner is not yet claimed; stronger cohort language is deferred until a pinned GLnexus or GATK integration test exists.
 - **Phase D (research):** sublinear-space index construction — the `~√t` space/time knob across the full curve — extending the contract to the index *build* step (today's build is `O(reference)`). The keystone that completes the memory contract end to end; see [`docs/OPEN_PROBLEMS.md`](docs/OPEN_PROBLEMS.md).
 - **Later:** the aligner over the persisted multi-contig index (`align --index`, whole-genome alignment); germline indels and richer read QC; deterministic multithreading; a Python/tensor binding over the pileup stream.
 
@@ -325,6 +344,8 @@ Run `rosalind <subcommand> --help` for exact flags.
 
 - `rosalind plan` — predict a job's peak memory vs a declared budget *before* committing (`--index` for the variants peak, `--reference` for the index build).
 - `rosalind verify` — re-check a reproducibility receipt without re-running: re-hash its inputs/outputs and confirm the realized peak landed within budget.
+- `rosalind demo` — complete embedded offline walkthrough; add `--json` for automation.
+- `rosalind new analyzer NAME --output DIR` — scaffold a standalone inheriting analyzer binary.
 - `rosalind features --index genome.idx --alignments sorted.bam -o features.tsv` — stream a bounded, byte-identical per-locus feature table (TSV) under the same memory contract (see [the ML substrate](#a-reproducible-feature-substrate-for-ml)).
 - `rosalind locate --index genome.idx --pattern GATTACA` — exact-match positions in a prebuilt index (memory-mapped, never rebuilt). Exact-match only; seed/chain/extend alignment against the persisted index is a later phase.
 - `rosalind sort` — deterministic coordinate sort of a BAM within a memory budget.
@@ -429,6 +450,8 @@ Refresh golden snapshots with `ROSALIND_UPDATE_SNAPSHOTS=1 cargo test`. See [`do
 ## Contributing
 
 Contributions are welcome — the bounded `PileupColumn` kernel and the [ColumnKit SDK](#columnkit-implement-one-trait-inherit-the-contract) make a per-locus analytic (coverage, QC, methylation, a custom metric) a natural first PR that inherits the memory contract for free. See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the dev loop (`cargo build`/`test`/`fmt`) and the two invariants every change must preserve — **determinism** and the **memory contract**. Curated entry points are labelled [`good first issue`](https://github.com/logannye/rosalind/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22); questions and ideas belong in [Discussions](https://github.com/logannye/rosalind/discussions).
+
+Release maintainers use the source-only, credential-free planning CLI documented in [`docs/MAINTAINER_RELEASES.md`](docs/MAINTAINER_RELEASES.md). The public `rosalind` CLI intentionally contains no crate, tag, image, or release-publishing commands.
 
 ## License
 

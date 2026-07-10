@@ -4,55 +4,97 @@ All notable changes to Rosalind are recorded here. Versions follow [Semantic Ver
 
 ## [Unreleased]
 
-A contract-hardening pass followed by moat-compounding capabilities, all on the
-canonical bounded-memory substrate.
+### v0.4 trustworthy builder train
 
-### Reproducibility — a stranger can re-derive your result (Track D)
-- **`rosalind reproduce`** re-derives a recorded result byte-for-byte from its receipt and
-  content-located inputs, reporting REPRODUCED / DIVERGED / INCONCLUSIVE (exit 0 / 6 / 7; a
-  tampered receipt is exit 5). A non-deterministic caller can't offer this — it
-  reports DIVERGED on a *correct* run. Honest scope: the deterministic text outputs
-  (`variants → VCF`, `features → TSV`); BAM/bgzf is reported INCONCLUSIVE, never a false DIVERGED.
-- **Chainable reproduction certificate** (`<receipt>.repro.json`): a content-addressed,
-  self-hashing attestation that names the original receipt's claim hash. N certificates over the
-  same parent are N independent confirmations — a serverless reproducibility web. Signing-ready,
-  and itself `verify`-able.
-- **Schema 5 — a replayable command.** Every receipt now records a normalized, machine-independent
-  `command` recipe (one `CommandCapture` chokepoint), closing the prior gap where
-  `gvcf`/`chrom`/index-vs-reference mode went unrecorded. Pre-v5 receipts still parse and verify.
-- **`rosalind badge`** emits a self-hosted shields.io endpoint JSON + a static SVG
-  ("reproducible · fits N MiB") with no shields.io runtime dependency (works offline).
-- **CI reproduce fence:** the `cli-e2e` job re-derives a result on the GitHub runner (a different
-  machine than the author's) and confirms a byte-changed input is reported INCONCLUSIVE.
-- Internals: `verify_receipt` is now a shared library function — `verify`, `reproduce`, and a
-  future WASM verifier consume one source of truth, so they cannot drift.
+- Sound public analyzer contracts now distinguish unknown and fixed memory models,
+  cooperative enforcement, observed-only evidence, and Linux cgroup-v2 assurance.
+- File outputs and receipts are create-new and atomic by default; `--force` requests
+  atomic replacement, while governed breaches preserve only `<output>.partial`.
+- Replay schema 3 validates explicit execution plans before running, allowlists
+  built-ins, requires `--binary` for external analyzers, isolates the working
+  directory, and exposes non-executing `--dry-run` plans.
+- One shared structured trust report powers `verify`, Receipt Studio, WASM, and
+  badges. Missing reproduction evidence is neutral; only linked certificates earn
+  `reproduced`.
+- Added `doctor`, `receipt inspect`, `receipt sanitize`, unsigned in-toto export,
+  local-only `studio`, complete demo provenance, analyzer conformance, and embedded
+  maintained scaffold templates.
+- `align` and `sort` now emit replayable schema-5 receipts with artifact roles. The
+  opt-in HG002 workflow adds checksum-pinned hap.py 0.3.15/RTG vcfeval evaluation
+  and GIAB v3.1 genome contexts without changing the caller.
+- Added a maintainer-only `cargo xtask` release control plane with authenticated
+  plans, contract fingerprints, protected RC/stable workflows, resumable
+  byte-verified crates.io publication, pinned GHCR evaluator images, attested GIAB
+  baseline PRs, and anonymized design-partner release gates.
 
-### Contract hardening (true & trusted on real genomes)
-- **Predicted peak is a true upper bound.** The per-contig reference decode no longer holds a
-  transient second copy (`decode_window_arc`); the prediction is recorded in the receipt and carries an
-  honest I/O margin. The contract's core inequality (predicted peak ≥ realized peak RSS) is now tested.
-- **Real-genome correctness.** `eval-germline`/`eval-somatic` normalize each variant against its own
-  contig (multi-contig benchmarks no longer miscompare or crash); a contig-naming mismatch (UCSC `chr1`
-  vs Ensembl `1`) is refused up front instead of silently writing an empty VCF; `index` maps IUPAC
-  ambiguity codes to `N` (stock references ingest).
-- **Trust on-ramp.** The GitHub Action snippet resolves (`logannye/rosalind@v0.1.0`); `install.sh`
-  verifies the `.sha256` it advertises; the CI fixture check is a real pinned hash, not a tautology;
-  `verify` cross-checks the receipt's internal consistency; `Cargo.lock` is tracked.
+Release candidates must soak for one week. After the v0.4.0 RC begins, public API,
+receipt-field, or CLI changes require restarting the soak.
 
-### Fleet scheduling — prediction → placement
-- **`rosalind pack`** packs many bounded `variants` jobs onto fixed-size nodes by their predicted peaks
-  (read from each index header, additive) and *shows* a co-location fits within budget before launching a byte, or
-  refuses (exit 3). `plan --index --json` emits the predicted peak for a scheduler to read.
+## [0.3.1] — 2026-07-09
 
-### ColumnKit SDK — implement one trait, inherit the contract
-- **`ColumnAnalyzer` trait + `run_bounded_whole_genome` driver.** A builder's own per-locus analyzer
-  inherits the bounded whole-genome walk, the working-set bound, and the verifiable receipt. The shipped
-  `features` egress is the first impl (the SDK is the production path, not a parallel one).
+### Scientific credibility and release hardening
 
-### Cohort-ready gVCF
-- **`variants --index --gvcf`** emits a banded gVCF (every callable locus → a variant or a `<NON_REF>`
-  reference block with an `END=` span), so per-sample output joins into GLnexus/GATK — bounded (O(1)
-  banding state) and byte-reproducible.
+- Germline sites and gVCF now share the `baseq-mapq-v1` likelihood: mapping
+  uncertainty is marginalized into every observation; MAPQ 255 retains the historical
+  base-quality-only model. Somatic calling is unchanged.
+- `eval-germline --calls-filter all|pass --json` publishes both emitted and
+  PASS-only metrics, including genotype concordance and call counts.
+- The opt-in HG002 GIAB v5.0q GRCh38 chr20 workflow pins exact source URLs and
+  SHA-256 hashes, verifies downloads, writes a local data manifest, and guards the
+  first honest baseline. Pull requests run only a synthetic chr20-shaped smoke test.
+- Packaged assets, workspace tests, clippy, MSRV, and release packaging remain gates.
+
+## [0.3.0] — 2026-07-09
+
+### Receipt Studio
+
+- The existing `/verify/` page is now a framework-free, client-only studio with
+  multi-file drag/drop, streaming BLAKE3 artifact hashing, content-based matching,
+  causal receipt diff, provenance-chain traversal, mobile layout, keyboard access,
+  and no third-party network requests.
+- Trust is no longer collapsed into “verified”: receipt integrity, artifacts,
+  resource contract, reproduction evidence, independent attestation, and signatures
+  are distinct levels. Schema-3+ paths are visibly relocatable metadata.
+
+## [0.2.1] — 2026-07-09
+
+### Fork-builder onboarding
+
+- `rosalind new analyzer NAME --output DIR` scaffolds a standalone analyzer binary,
+  build identity, contract tests, CI, and a full external replay check without
+  overwriting non-empty destinations.
+- The `contract-testkit` feature exposes repeat-run, receipt-integrity, path-
+  relocation, completion, and refusal assertions.
+- `rosalind demo` is an embedded, offline index → align → sort → plan → enforce →
+  verify → reproduce → chain walkthrough with human and JSON output.
+
+## [0.2.0] — 2026-07-09
+
+### Public contract runner and external replay
+
+- `rosalind::contract::run_column_analysis` exposes typed configuration, refusal,
+  breach, and successful outcomes. It owns output lifetime, the process-wide governor,
+  and receipt sealing and never exits the host process. `features` and `analyze`
+  delegate to it.
+- Receipts bind producer and analyzer identity and add replay schema 2 with canonical
+  `command_argv`; the legacy display command remains readable and replayable.
+- `reproduce --binary PATH --json` explicitly selects third-party code, never trusts
+  a recorded executable path, and preserves both original and rerun build identities.
+- Added the publishable `rosalind-build-info` build dependency.
+- Bumped the leaf `rosalind-receipt` crate to 0.2.0 for the argv replay and dual-identity API.
+
+## [0.1.1] — 2026-07-09
+
+### Trust and compatibility baseline
+
+- Corrected receipt promises: claim fields and measurements are protected, while
+  schema-3+ paths are portable metadata excluded from the claim hash.
+- Published the schema-5 JSON envelope, extension namespaces, trust-level model, and
+  canonical schema 1–5 fixtures. Historical receipts remain parseable and verify at
+  their original capability level.
+- `verify --json` and `reproduce --json` expose structured reports.
+- Preserved the existing memory governor, replay, badge, causal diff, chain,
+  deterministic gVCF, fleet packer, and build-identity foundations.
 
 ## [0.1.0] — 2026-06-02
 
@@ -62,7 +104,7 @@ contract** — predict it before you commit, honor it during the run, and verify
 ### The memory contract
 - `rosalind plan` — predict a job's peak memory against a declared budget *before* committing a byte.
 - `rosalind variants … --enforce` — honor the budget: refuse up front (exit 3) or fail loud (exit 4),
-  never a silent OOM-kill. Record-only without `--enforce`.
+  with an explicit cooperative verdict. Record-only without `--enforce`.
 - `rosalind verify` — re-check a run's BLAKE3 receipt without re-running.
 - The **Rosalind budget GitHub Action** (`action.yml`, used as `logannye/rosalind@v0.1.0`) — enforce the
   contract in *your* CI (fail the build on breach).
@@ -96,5 +138,10 @@ contract** — predict it before you commit, honor it during the run, and verify
   construction** (Phase D); today's index build is `O(reference)` and the contract covers call/query.
   See [`docs/OPEN_PROBLEMS.md`](docs/OPEN_PROBLEMS.md).
 
-[Unreleased]: https://github.com/logannye/rosalind/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/logannye/rosalind/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/logannye/rosalind/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/logannye/rosalind/compare/v0.2.1...v0.3.0
+[0.2.1]: https://github.com/logannye/rosalind/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/logannye/rosalind/compare/v0.1.1...v0.2.0
+[0.1.1]: https://github.com/logannye/rosalind/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/logannye/rosalind/releases/tag/v0.1.0

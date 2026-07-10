@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Rosalind — memory is a contract</title>
-<meta name="description" content="A deterministic, low-memory genomics engine in Rust. Declare your RAM; it proves the job fits before it runs, never silently OOM-kills you, and emits a receipt anyone can reproduce byte-for-byte." />
+<meta name="description" content="A deterministic, low-memory genomics engine in Rust. Declare your RAM; it predicts fit, records enforcement assurance, and emits receipts for byte-level reproduction." />
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -57,7 +57,7 @@
   <p class="lede">
     Most variant callers spend memory that grows with your data, so <em>“will this finish on my
     machine?”</em> is something you find out the hard way. Rosalind declares the RAM you have, proves
-    the job fits <strong>before it runs</strong>, never silently OOM-kills you, and emits a receipt
+    the job fits <strong>before it runs</strong>, governs it cooperatively (or requires a Linux cgroup ceiling), and emits a receipt
     anyone can reproduce <strong>byte-for-byte</strong>.
   </p>
 

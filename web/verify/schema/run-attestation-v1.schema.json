@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://logannye.github.io/rosalind/schema/run-attestation-v1.schema.json",
+  "title": "Rosalind run attestation predicate v1",
+  "type": "object",
+  "required": [
+    "nativeClaim",
+    "nativeReceiptSchema",
+    "subcommand",
+    "identity",
+    "invocation",
+    "artifactRoles",
+    "materials",
+    "resourceMeasurements",
+    "enforcementAssurance"
+  ],
+  "properties": {
+    "nativeClaim": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "nativeReceiptSchema": { "const": 5 },
+    "subcommand": { "type": "string", "minLength": 1 },
+    "identity": { "type": "object", "additionalProperties": { "type": "string" } },
+    "invocation": {
+      "type": "object",
+      "required": ["argv"],
+      "properties": {
+        "argv": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+      },
+      "additionalProperties": false
+    },
+    "artifactRoles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["direction", "index", "role"],
+        "properties": {
+          "direction": { "enum": ["input", "output"] },
+          "index": { "type": "integer", "minimum": 0 },
+          "role": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "materials": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["uri", "digest"],
+        "properties": {
+          "uri": { "type": "string" },
+          "digest": {
+            "type": "object",
+            "required": ["blake3"],
+            "properties": { "blake3": { "type": "string", "pattern": "^[0-9a-f]{64}$" } },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "resourceMeasurements": { "type": "object", "additionalProperties": { "type": "string" } },
+    "enforcementAssurance": { "type": ["string", "null"] }
+  },
+  "additionalProperties": false
+}

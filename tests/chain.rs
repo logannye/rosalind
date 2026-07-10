@@ -197,7 +197,7 @@ fn chain_verify_is_intact_on_a_real_index_variants_chain() {
     .status
     .success());
 
-    // d now holds ref.idx.manifest.json + calls.vcf.manifest.json.
+    // Every file-producing demo stage now contributes a chainable receipt.
     let out = run(&["chain", "verify", d.to_str().unwrap()]);
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(
@@ -210,7 +210,7 @@ fn chain_verify_is_intact_on_a_real_index_variants_chain() {
     let j = run(&["chain", "verify", d.to_str().unwrap(), "--json"]);
     let js = String::from_utf8_lossy(&j.stdout);
     assert!(js.contains("\"intact\":true"), "json: {js}");
-    assert!(js.contains("\"edges_resolved\":1"), "json: {js}");
+    assert!(js.contains("\"edges_resolved\":3"), "json: {js}");
 
     std::fs::remove_dir_all(&d).ok();
 }
@@ -258,7 +258,7 @@ fn chain_verify_breaks_when_the_index_receipt_is_tampered() {
 }
 
 #[test]
-fn chain_verify_reports_the_bam_input_as_external_not_a_failure() {
+fn chain_verify_resolves_the_bam_input_through_sort_and_align_receipts() {
     let d = tmpdir();
     let seq = "ACGTACGTACGTACGTACGTACGTACGTACGT";
     let fa = write_fasta(&d, "chr1", seq);
@@ -279,15 +279,16 @@ fn chain_verify_reports_the_bam_input_as_external_not_a_failure() {
 
     let out = run(&["chain", "verify", d.to_str().unwrap()]);
     let stdout = String::from_utf8_lossy(&out.stdout);
-    // The BAM alignments input has no producing receipt → external/integrity-only,
-    // and it must NOT fail the chain.
+    // The sorted BAM links to sort, which links to align; only the FASTA/FASTQ roots
+    // remain external.
     assert!(
         out.status.success(),
-        "external inputs must not break the chain: {stdout}"
+        "resolved provenance must not break the chain: {stdout}"
     );
     assert!(
-        stdout.contains("--alignments-->  (external)  [integrity-only]"),
-        "the BAM edge must be reported external: {stdout}"
+        stdout.contains("--alignments-->  sort  [resolved]")
+            && stdout.contains("--input-->  align  [resolved]"),
+        "the BAM edges must resolve through sort and align: {stdout}"
     );
 
     std::fs::remove_dir_all(&d).ok();

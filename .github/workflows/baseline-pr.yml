@@ -1,0 +1,128 @@
+name: Propose GIAB baseline PR
+run-name: GIAB baseline ${{ inputs.run_id }} plan:${{ inputs.plan_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Attested GIAB workflow run ID
+        required: true
+      reason:
+        description: Intentional baseline-update reason
+        required: true
+      plan_id:
+        description: Confirmed cargo-xtask plan ID
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  attestations: read
+
+concurrency:
+  group: giab-baseline-${{ inputs.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  propose:
+    runs-on: ubuntu-latest
+    environment: release
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: 1.95.0
+      - name: Recompute and verify proposal plan
+        shell: bash
+        env:
+          RUN_ID: ${{ inputs.run_id }}
+          REASON: ${{ inputs.reason }}
+          PLAN_ID: ${{ inputs.plan_id }}
+        run: |
+          cargo xtask giab baseline propose \
+            --run-id "$RUN_ID" \
+            --reason "$REASON" --json > baseline-plan.json
+          actual=$(python3 -c 'import json; print(json.load(open("baseline-plan.json"))["plan_id"])')
+          test "$actual" = "$PLAN_ID"
+      - name: Verify source workflow and download evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.run_id }}
+        shell: bash
+        run: |
+          gh run view "$RUN_ID" --repo '${{ github.repository }}' \
+            --json conclusion,workflowName,headSha > source-run.json
+          python3 - <<'PY'
+          import json
+          run = json.load(open("source-run.json"))
+          if run["conclusion"] not in {"success", "failure"} or run["workflowName"] != "GIAB v5.0q benchmark":
+              raise SystemExit(f"run is not a completed GIAB workflow: {run}")
+          PY
+          mkdir evidence
+          gh run download "$RUN_ID" --repo '${{ github.repository }}' \
+            --name hg002-v5.0q-grch38-chr20 --dir evidence
+          test -s evidence/baseline-candidate.json
+          test -s evidence/latest.json
+          cmp evidence/baseline-candidate.json evidence/latest.json
+          source_digest=$(python3 -c 'import json; print(json.load(open("source-run.json"))["headSha"])')
+          gh attestation verify evidence/latest.json --repo '${{ github.repository }}' \
+            --source-digest "$source_digest" \
+            --signer-workflow '${{ github.repository }}/.github/workflows/giab.yml'
+      - name: Validate and stage baseline plus credibility report
+        env:
+          REASON: ${{ inputs.reason }}
+          RUN_ID: ${{ inputs.run_id }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+
+          candidate = json.load(open("evidence/baseline-candidate.json"))
+          required = {
+              "calls_filter_all", "calls_filter_pass", "external_happy_vcfeval",
+              "memory", "receipt_claim", "producer_identity", "command_argv",
+              "data_manifest",
+          }
+          missing = sorted(required - candidate.keys())
+          if missing:
+              raise SystemExit(f"candidate lacks required evidence: {missing}")
+          comparison = json.load(open("evidence/comparison.json"))
+          if comparison.get("status") not in {"candidate-pending-review", "diverged"}:
+              raise SystemExit(f"run did not emit a reviewable candidate: {comparison}")
+          source_run = json.load(open("source-run.json"))
+          candidate["baseline_review"] = {
+              "workflow_run_id": int(os.environ["RUN_ID"]),
+              "source_commit": source_run["headSha"],
+              "reason": os.environ["REASON"],
+              "attestation_verified": True,
+          }
+
+          baseline = Path("benchmarks/giab/baseline.json")
+          temporary = baseline.with_suffix(".json.new")
+          temporary.write_text(json.dumps(candidate, indent=2, sort_keys=True) + "\n")
+          os.replace(temporary, baseline)
+
+          report = Path("docs/credibility/HG002-v5.0q-GRCh38-chr20.md")
+          report.parent.mkdir(parents=True, exist_ok=True)
+          body = Path("evidence/credibility.md").read_text()
+          body += f"\nBaseline review reason: {os.environ['REASON']}\n"
+          temporary = report.with_suffix(".md.new")
+          temporary.write_text(body)
+          os.replace(temporary, report)
+          PY
+      - uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7
+        with:
+          branch: automation/giab-baseline-${{ inputs.run_id }}
+          delete-branch: true
+          commit-message: "chore(giab): propose baseline from run ${{ inputs.run_id }}"
+          title: "chore(giab): review baseline from run ${{ inputs.run_id }}"
+          body: |
+            Automated, attested HG002 v5.0q GRCh38 chr20 baseline proposal.
+
+            Reason: ${{ inputs.reason }}
+            Source workflow run: ${{ inputs.run_id }}
+
+            This PR records the result honestly; it does not assert a competitive quality threshold.

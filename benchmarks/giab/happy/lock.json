@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "hap_py": {
+    "version": "0.3.15",
+    "url": "https://github.com/Illumina/hap.py/archive/refs/tags/v0.3.15.tar.gz",
+    "sha256": "838912f1ab805224110af3c1035849d5483b5ce4c565ae0f0db7f7284af06676"
+  },
+  "rtg_tools": {
+    "version": "3.12.1",
+    "url": "https://github.com/RealTimeGenomics/rtg-tools/releases/download/3.12.1/rtg-tools-3.12.1-nojre.zip",
+    "sha256": "5efc8cb1a44019b97dce8d324e3a0b3dc3328d022fc9db13c80b09996757c4aa"
+  },
+  "base_image": {
+    "name": "docker.io/library/ubuntu:18.04",
+    "platform": "linux/amd64",
+    "digest": "sha256:dca176c9663a7ba4c1f0e710986f5a25e672842963d95b960191e2d9f7185ebe"
+  },
+  "generated_image": {
+    "repository": "ghcr.io/logannye/rosalind-happy",
+    "digest": null,
+    "platform": "linux/amd64",
+    "source_lock_blake3": null,
+    "built_from_commit": null
+  },
+  "evaluation_policy": "The built image must be selected as NAME@sha256:DIGEST; mutable tags are rejected. build.sh prints the generated digest for release provenance."
+}

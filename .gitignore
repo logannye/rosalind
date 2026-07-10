@@ -28,6 +28,8 @@ Thumbs.db
 
 # Benchmarks
 /benches/results/
+/benchmarks/giab/data/
+/release/private-design-partners/
 
 # Profiling
 *.profdata

@@ -1,46 +1,52 @@
-# The "caught-you" receipt verifier (in your browser)
+# Receipt Studio (entirely in your browser)
 
-A static page that checks a Rosalind reproducibility receipt's tamper-evident BLAKE3
-self-hash **entirely client-side** — drag in a `*.manifest.json`, then edit one byte and
-watch it flip to **TAMPERED**. It runs the *same* Rust verification that ships in
-`rosalind verify`, compiled to WebAssembly from the [`rosalind-receipt`](../../crates/receipt)
-crate (std + blake3, no htslib).
+Receipt Studio is a static, framework-free client for Rosalind receipts. Drop run
+receipts, reproduction certificates, and artifacts together to inspect trust evidence
+without uploading data or contacting a third party.
+
+It uses the same `rosalind-receipt` Rust crate as the CLI, compiled to WebAssembly.
+The browser can:
+
+- check the claim and measurement self-hashes;
+- stream artifacts through BLAKE3 in fixed-size chunks and match by content, not name;
+- distinguish receipt integrity, artifact completeness, resource-contract result,
+  reproduction evidence, and signature status;
+- localize causal parameter/output differences between two run receipts; and
+- render a compact provenance chain for multiple receipts and certificates.
 
 ## Build
 
 ```sh
-# one-time: rustup target add wasm32-unknown-unknown && cargo install wasm-pack
-./scripts/build-wasm-verifier.sh        # -> web/verify/pkg/  (71 KB wasm)
+rustup target add wasm32-unknown-unknown --toolchain 1.83.0
+cargo install wasm-pack --version 0.14.0
+RUSTUP_TOOLCHAIN=1.83.0 ./scripts/build-wasm-verifier.sh
 ```
 
 ## Run locally
 
-ES modules + the `.wasm` fetch need http (not `file://`):
+ES modules and the WASM fetch require HTTP rather than `file://`:
 
 ```sh
-cd web/verify && python3 -m http.server 8000
+cd web/verify
+python3 -m http.server 8000
 # open http://localhost:8000/
 ```
 
-The page loads with a real sample receipt; edit any character to break the hash. Drag a
-`*.manifest.json` from a `rosalind variants` / `features` run onto the box to check your own.
+## Precise integrity guarantee
 
-## What it proves (and doesn't)
+The deterministic claim protects content hashes, output-affecting parameters, replay
+recipe, and producer/analyzer/build identity. The independent measurement hash protects
+recorded resource telemetry. In schema 3 and newer, recorded paths are intentionally
+portable metadata excluded from the claim hash, so a path-only edit is displayed as a
+non-claim change rather than tampering.
 
-It re-derives the receipt's own integrity — `manifest_blake3` over the canonical claim,
-plus the independent `measurement_blake3` — exactly the self-hash check `rosalind verify`
-runs, minus re-hashing the input/output *files* (which aren't in the browser). **VERIFIED**
-means intact + untampered; a single edited byte breaks the hash. It does **not** re-run the
-analysis, and it is tamper-*evident*, not tamper-*proof* (cryptographic signing is a
-separate, planned step).
+“Receipt intact” does not mean artifacts were supplied, the computation was reproduced,
+or an author was authenticated. Those are separate trust levels documented in
+[receipt trust levels](../../docs/receipt-trust.md). Receipts are tamper-evident, not
+signed; signature status is explicitly unavailable until signing ships.
 
 ## Native equivalent
 
 ```sh
-cargo run -p rosalind-receipt --example verify_file -- path/to/sample.manifest.json
+rosalind verify --manifest path/to/sample.manifest.json --json
 ```
-
-## Deploy
-
-`pkg/` is a build artifact (git-ignored). To publish this as a shareable link, build it in
-CI and serve `web/verify/` from GitHub Pages — a follow-up.

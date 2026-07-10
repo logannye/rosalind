@@ -1,0 +1,32 @@
+[package]
+name = "rosalind-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[workspace]
+
+[dependencies]
+libfuzzer-sys = "0.4"
+rosalind-receipt = { path = "../crates/receipt" }
+
+[[bin]]
+name = "canonical_json"
+path = "fuzz_targets/canonical_json.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "legacy_command"
+path = "fuzz_targets/legacy_command.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "command_argv"
+path = "fuzz_targets/command_argv.rs"
+test = false
+doc = false

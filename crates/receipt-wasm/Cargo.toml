@@ -17,3 +17,4 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 rosalind-receipt = { path = "../receipt" }
 wasm-bindgen = "0.2"
+blake3 = "=1.8.2"

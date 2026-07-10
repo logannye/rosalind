@@ -20,14 +20,14 @@ Machine-dependent numbers (peak RSS) are *recorded* but the PASS/FAIL is always 
 qualitative property (predicted ≥ realized, exit codes, byte equality, verdicts), never a
 fixed MiB figure.
 
-## The five claims
+## The seven claims
 
 1. **Predicted peak is a conservative upper bound.** `plan` predicts a peak from the index
    header alone — *before the BAM is read* — and the realized `peak_rss_bytes` in the
    receipt is ≤ it. *Asserts predicted ≥ realized, same `--max-depth`.*
 2. **Honor-or-refuse, up front.** `plan`'s verdict flips `fits` → `refuse` as the budget
    shrinks; `variants --enforce` at a too-small budget exits **3** and writes **no** output
-   — never a silent OOM.
+   with cooperative assurance; the receipt says exactly which assurance applied.
 3. **Byte-identical text output.** Three `variants` runs produce byte-identical VCFs (one
    recorded BLAKE3); two `features` runs produce byte-identical TSVs. *(Deterministic text
    outputs only; BAM/bgzf is reported INCONCLUSIVE by design.)*
@@ -36,6 +36,11 @@ fixed MiB figure.
    `verify` exit **5** (TAMPERED). *(Tamper-evident, not tamper-proof — signing is planned.)*
 5. **`pack` is a placement decision, run-free.** It sums additive per-job predicted peaks;
    every node stays within capacity, and an impossible packing refuses (exit **3**).
+6. **External analyzers inherit the platform.** A generated analyzer builds, runs through
+   the public contract, verifies, reproduces through its explicitly selected binary,
+   and localizes a parameter diff.
+7. **The offline front door completes.** `rosalind demo --json` finishes the complete
+   index → align → sort → call → reproduce provenance journey from embedded assets.
 
 These are *properties an emergent-peak, non-deterministic caller does not provide* — stated
 as properties, not as head-to-head speed or accuracy comparisons (no other tool is run).

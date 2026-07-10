@@ -23,6 +23,7 @@ import tempfile
 from pathlib import Path
 
 BIN = os.environ.get("ROSALIND_BIN", "target/release/rosalind")
+ROOT = Path.cwd().resolve()
 DATA = Path("examples/data/illumina_toy")
 RESULTS = Path("benchmarks/results.json")
 MiB = 1 << 20
@@ -51,8 +52,10 @@ def manifest_of(vcf):
 
 
 def main():
+    global BIN
     if Path(BIN).exists() is False and shutil.which(BIN) is None:
         sys.exit(f"binary not found: {BIN} (build it: cargo build --release)")
+    BIN = str(Path(BIN).resolve()) if Path(BIN).exists() else shutil.which(BIN)
     if not (DATA / "reference.fa").exists():
         sys.exit(f"bundled data missing: {DATA} (run from the repo root)")
 
@@ -80,14 +83,14 @@ def main():
             r1.returncode == 0 and predicted >= realized,
         )
 
-        # 2) honor-or-refuse before any work — never a silent OOM.
+        # 2) cooperative honor-or-refuse evidence before any work.
         v_fit = json.loads(run(["plan", "--index", str(idx), "--budget-mb", "512", "--json"]).stdout)["verdict"]
         v_ref = json.loads(run(["plan", "--index", str(idx), "--budget-mb", "1", "--json"]).stdout)["verdict"]
         refused = work / "refused.vcf"
         r2 = run(["variants", "--index", str(idx), "--alignments", str(sbam),
                   "--memory-budget-mb", "1", "--enforce", "-o", str(refused)])
         add(
-            "the declared budget is honored or refused up front (never a silent OOM)",
+            "the declared budget is cooperatively governed or refused up front",
             "plan verdict flips fits@512MiB -> refuse@1MiB; variants --enforce@1MiB exits 3 and writes NO output file",
             "fits / refuse / exit 3 + no output",
             f"plan@512={v_fit}, plan@1={v_ref}, enforce@1 exit={r2.returncode}, output_written={refused.exists()}",
@@ -153,6 +156,85 @@ def main():
             "within capacity / exit 3",
             f"nodes={len(pk['nodes'])}, max_node={max_used/MiB:.1f} MiB <= {pk['node_mb']} MiB ({within}), impossible_pack_exit={toosmall.returncode}",
             within and toosmall.returncode == 3,
+        )
+
+        # 6) A downstream binary inherits the complete contract without copying the CLI.
+        project = work / "external-analyzer"
+        scaffold = run(["new", "analyzer", "external-analyzer", "--output", str(project)])
+        cargo_toml = project / "Cargo.toml"
+        if scaffold.returncode == 0:
+            cargo_lines = []
+            for line in cargo_toml.read_text().splitlines():
+                if line.startswith("rosalind-bio ="):
+                    line = f'rosalind-bio = {{ path = "{ROOT}", features = ["contract-testkit"] }}'
+                elif line.startswith("rosalind-build-info ="):
+                    line = f'rosalind-build-info = {{ path = "{ROOT / "crates/build-info"}" }}'
+                cargo_lines.append(line)
+            cargo_toml.write_text("\n".join(cargo_lines) + "\n")
+        built = subprocess.run(
+            ["cargo", "build", "--quiet", "--offline"],
+            cwd=project,
+            capture_output=True,
+            text=True,
+        ) if scaffold.returncode == 0 else scaffold
+        external_bin = project / "target" / "debug" / "external-analyzer"
+        external_outputs = []
+        for label, scale in (("a", 1), ("b", 1), ("scaled", 2)):
+            output = work / f"external-{label}.tsv"
+            external_outputs.append(output)
+            if built.returncode == 0:
+                subprocess.run(
+                    [str(external_bin), "run", "--index", str(idx), "--alignments", str(sbam),
+                     "--scale", str(scale), "--output", str(output)],
+                    capture_output=True,
+                    text=True,
+                )
+        ext_manifest = Path(str(external_outputs[0]) + ".manifest.json")
+        verified = run(["verify", "--manifest", str(ext_manifest), "--json"]) if ext_manifest.exists() else None
+        reproduced_ext = run([
+            "reproduce", "--manifest", str(ext_manifest), "--inputs", str(work),
+            "--binary", str(external_bin), "--json",
+        ]) if ext_manifest.exists() else None
+        scaled_manifest = Path(str(external_outputs[2]) + ".manifest.json")
+        causal = run(["diff", str(ext_manifest), str(scaled_manifest)]) \
+            if ext_manifest.exists() and scaled_manifest.exists() else None
+        inherited = (
+            scaffold.returncode == 0
+            and built.returncode == 0
+            and verified is not None and verified.returncode == 0
+            and reproduced_ext is not None and reproduced_ext.returncode == 0
+            and causal is not None and causal.returncode == 1
+            and external_outputs[0].read_bytes() == external_outputs[1].read_bytes()
+            and "analyzer.scale" in causal.stdout
+        )
+        add(
+            "an external analyzer inherits the bounded, receipted, replayable contract",
+            "scaffold -> offline build -> run -> verify -> reproduce --binary -> causal parameter diff",
+            "all stages succeed; diff exits 1 with a parameter cause",
+            f"scaffold={scaffold.returncode}, build={built.returncode}, verify={getattr(verified, 'returncode', None)}, reproduce={getattr(reproduced_ext, 'returncode', None)}, diff={getattr(causal, 'returncode', None)}",
+            inherited,
+        )
+
+        # 7) The front-door demo is packaged, offline, and completes end to end.
+        demo_dir = work / "demo"
+        demo = run(["demo", "--output-dir", str(demo_dir), "--json"])
+        try:
+            demo_json = json.loads(demo.stdout)
+        except json.JSONDecodeError:
+            demo_json = {}
+        demo_complete = (
+            demo.returncode == 0
+            and demo_json.get("ok") is True
+            and (demo_dir / "calls.vcf").exists()
+            and (demo_dir / "calls.vcf.manifest.json").exists()
+            and (demo_dir / "calls.vcf.manifest.json.repro.json").exists()
+        )
+        add(
+            "the packaged offline demo completes the full trust journey",
+            "demo --json runs embedded index -> align -> sort -> plan -> enforce -> verify -> reproduce -> chain",
+            "exit 0, ok=true, output + receipt + certificate exist",
+            f"exit={demo.returncode}, ok={demo_json.get('ok')}, receipt={bool(demo_dir / 'calls.vcf.manifest.json')}",
+            demo_complete,
         )
     finally:
         shutil.rmtree(work, ignore_errors=True)

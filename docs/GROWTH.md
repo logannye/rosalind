@@ -1,6 +1,6 @@
 # Rosalind — Production & Growth Roadmap
 
-**Status:** Living growth/GTM plan — 2026-06-09. Companion to [`ROADMAP.md`](ROADMAP.md)
+**Status:** Living growth/GTM plan — revised 2026-07-09. Companion to [`ROADMAP.md`](ROADMAP.md)
 (engineering sequence) and [`OPEN_PROBLEMS.md`](OPEN_PROBLEMS.md) (the research thesis). Where
 those order work by *capability*, this orders it by *adoption* for the post-Hacker-News moment.
 
@@ -47,9 +47,9 @@ Meet every audience where they live.
   auto-built docs.rs, and `cargo binstall`. Also permanently locks the name.
 - **1.2 PyPI wheel** for the Python boundary (maturin/abi3) → `pip install`. Highest *end-user* reach:
   genomics is Python/notebook-first (the polars/sourmash playbook).
-- **1.3 Demo A — "Caught you" WASM verifier**: drag a receipt into a browser → VERIFIED; flip one byte
-  → TAMPERED, naming the drifted field; 100% client-side. `provenance/mod.rs` is already zero-htslib,
-  so it compiles to `wasm32` with no surgery. (ROADMAP P1.2.)
+- **1.3 Receipt Studio — done**: multi-file receipts/certificates/artifacts, streaming content hashing,
+  distinct trust levels, causal diff, and provenance DAG; 100% client-side. Copy is precise that claim
+  fields and measurements are protected while modern recorded paths are portable metadata.
 - **1.4 Demo B — the reproduce duel**: split-screen asciinema, `rosalind reproduce` → REPRODUCED
   byte-identical offline vs. a non-deterministic caller that would DIVERGE on a *correct* run.
 - **1.5** Add `aarch64-unknown-linux-musl` (and optionally Windows) release targets + `install.sh` arch
@@ -72,10 +72,11 @@ A single spike decays; a cadence compounds.
 
 ## Wave 3 — Earn the credibility skeptics named (weeks 4–8, parallel)
 
-- **3.1 A real GIAB HG002 number** (chr20 + CMRG), paired with the receipt — the genotype-aware
-  comparator is ready; run it on real externally-mapped reads, framed honestly (SNV-competitive,
-  indels trailing). Retires the "simulated only" critique. (ROADMAP P2.1.)
-- **3.2 MAPQ into the germline likelihood** (today it is ignored). (ROADMAP P2.2.)
+- **3.1 HG002 v5.0q GRCh38 workflow — shipped; first baseline pending.** Exact inputs are SHA-256
+  pinned, preparation is opt-in, and reports pair all/PASS metrics with the receipt and memory telemetry.
+  The committed baseline says “not yet established” until a real run completes.
+- **3.2 MAPQ-aware germline likelihood — done.** Sites and gVCF share the recorded
+  `baseq-mapq-v1` model; somatic behavior is unchanged.
 
 ## Wave 4 — Begin the moat, de-risked (weeks 6–12, research track, off the critical path)
 
@@ -110,6 +111,15 @@ crates.io + PyPI + release-download counts · `cargo install` / `pip install` ·
 
 ## Progress log
 
+**2026-07-09 — fork-builder foundation.**
+
+- Public typed contract runner now powers `features` and `analyze`; external binaries inherit replay,
+  resource enforcement, and receipt sealing without forking the CLI.
+- Shipped `rosalind new analyzer`, the `contract-testkit`, and an embedded offline `rosalind demo`.
+- Expanded the browser verifier into Receipt Studio and published the schema/trust compatibility model.
+- Shipped MAPQ-aware germline/gVCF likelihoods and the pinned current HG002 v5.0q workflow; a real
+  baseline remains intentionally pending.
+
 **2026-06-09 (autonomous session).**
 
 Done / merged to `main`:
@@ -120,10 +130,13 @@ Done / merged to `main`:
 - **Wave 2.1 — reproducible claims harness** `benchmarks/run.sh` (+ `claims.py`): five contract/reproducibility claims, each fails the run if false, on bundled toy data, framed on verifiability (not speed/accuracy). Wired in as a CI **Claims harness** gate (green on the ubuntu runner). (PR #72)
 
 Open / needs you:
-- **Wave 1.1 — crates.io publish-ready** (PR #67, supersedes #63): name `rosalind-genomics` (lib/bin stay `rosalind`); receipt dry-run clean. **Publish is two crates and needs your token:** `cargo publish -p rosalind-receipt` then `cargo publish -p rosalind-genomics`. Confirm the name first (changeable until publish).
+- **Wave 1.1 — crates.io publish-ready:** package name is `rosalind-bio` (lib/bin stay `rosalind`).
+  Publish order is `rosalind-receipt`, `rosalind-build-info`, then `rosalind-bio`; publishing still
+  requires the maintainer's token.
 - **Wave 1.5 — aarch64-linux release** deferred: `rust-htslib` won't compile on aarch64 (E0308, upstream). Tracked in #69. x86_64-linux + both macOS build fine.
 
 Not started (need your input / decisions):
 - **Wave 1.2 — PyPI wheel:** needs a binary-distribution decision (the Python boundary shells out to the `rosalind` binary) + a PyPI token. Deferred for the debrief.
 - **Wave 1.6 — Action on Marketplace:** the listing is a manual GitHub UI step; the `action.yml` + README recipe are already in place.
-- **Wave 2+** (benchmark harness, deep-dive post + landing page, second-act "Show HN"); **Wave 3** (GIAB, MAPQ); **Wave 4** (√t build).
+- **Wave 2+** (deep-dive post + landing page, second-act "Show HN"); **Wave 3** first real GIAB
+  baseline; **Wave 4** √t build.

@@ -1,0 +1,237 @@
+name: Release candidate
+run-name: RC v${{ inputs.version }}-rc.${{ inputs.number }} plan:${{ inputs.plan_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: SemVer without v prefix
+        required: true
+      number:
+        description: RC sequence number
+        required: true
+      ref:
+        description: Candidate ref or commit
+        required: true
+      plan_id:
+        description: Confirmed cargo-xtask plan ID
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rc-${{ inputs.version }}-${{ inputs.number }}
+  cancel-in-progress: false
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    outputs:
+      commit: ${{ steps.commit.outputs.sha }}
+      tag: ${{ steps.values.outputs.tag }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: 1.95.0
+          components: clippy,rustfmt
+      - name: Resolve immutable values
+        id: values
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+          NUMBER: ${{ inputs.number }}
+        run: |
+          echo "tag=v$VERSION-rc.$NUMBER" >> "$GITHUB_OUTPUT"
+      - name: Record candidate commit
+        id: commit
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Install pinned contract API tool
+        run: |
+          rustup toolchain install 1.83.0 --profile minimal --target wasm32-unknown-unknown
+          rustup toolchain install nightly-2026-04-15 --profile minimal
+          cargo install cargo-public-api --version '=0.50.1' --locked
+      - uses: taiki-e/install-action@c7eb1735f09259a5035e8e5d44b1406b1cddc0fb # v2
+        with:
+          tool: wasm-pack@0.14.0
+      - name: Install pinned workflow linters
+        run: |
+          curl -fsSLO https://github.com/rhysd/actionlint/releases/download/v1.7.7/actionlint_1.7.7_linux_amd64.tar.gz
+          echo '023070a287cd8cccd71515fedc843f1985bf96c436b7effaecce67290e7e0757  actionlint_1.7.7_linux_amd64.tar.gz' | sha256sum --check
+          tar -xzf actionlint_1.7.7_linux_amd64.tar.gz actionlint
+          sudo install actionlint /usr/local/bin/actionlint
+          curl -fsSLO https://github.com/koalaman/shellcheck/releases/download/v0.10.0/shellcheck-v0.10.0.linux.x86_64.tar.xz
+          echo '6c881ab0698e4e6ea235245f22832860544f17ba386442fe7e9d629f8cbedf87  shellcheck-v0.10.0.linux.x86_64.tar.xz' | sha256sum --check
+          tar -xJf shellcheck-v0.10.0.linux.x86_64.tar.xz
+          sudo install shellcheck-v0.10.0/shellcheck /usr/local/bin/shellcheck
+      - name: Recompute and verify submitted plan
+        shell: bash
+        env:
+          VERSION: ${{ inputs.version }}
+          NUMBER: ${{ inputs.number }}
+          CANDIDATE_REF: ${{ inputs.ref }}
+          PLAN_ID: ${{ inputs.plan_id }}
+        run: |
+          cargo xtask rc plan \
+            --version "$VERSION" \
+            --number "$NUMBER" \
+            --ref "$CANDIDATE_REF" \
+            --output recomputed-plan.json --json > recomputed-plan-report.json
+          actual=$(python3 -c 'import json; print(json.load(open("recomputed-plan.json"))["plan_id"])')
+          test "$actual" = "$PLAN_ID"
+      - name: Freeze public contract
+        env:
+          CANDIDATE_REF: ${{ inputs.ref }}
+        run: cargo xtask contract snapshot --ref "$CANDIDATE_REF" --output contract-snapshot.json --json
+      - name: Release gates
+        run: |
+          cargo fmt --all -- --check
+          cargo test --workspace --locked
+          cargo clippy --workspace --all-targets --locked -- -D warnings
+          cargo +1.83.0 check --workspace --all-targets --locked
+          cargo doc --workspace --no-deps --locked
+          cargo build --examples --locked
+          cargo check --manifest-path fuzz/Cargo.toml --bins --locked
+          RUSTUP_TOOLCHAIN=1.83.0 scripts/build-wasm-verifier.sh
+          git diff --exit-code -- web/verify/pkg crates/receipt-wasm/Cargo.lock
+          cargo +1.83.0 test --manifest-path crates/receipt-wasm/Cargo.toml
+          python3 -m unittest discover -s benchmarks/giab -p 'test_*.py'
+          scripts/verify-release-automation.py
+          actionlint
+          shellcheck scripts/release-publish.sh scripts/post-publish-smoke.sh \
+            scripts/stage-release.sh benchmarks/giab/prepare.sh benchmarks/giab/run.sh \
+            benchmarks/giab/happy/run.sh assets/scaffold/scripts/contract-check.sh
+          benchmarks/giab/smoke.sh
+          benchmarks/run.sh
+      - name: Package crates and embedded assets
+        run: |
+          cargo package -p rosalind-build-info --locked
+          cargo package -p rosalind-receipt --locked
+          cargo package -p rosalind-bio --locked \
+            --config 'patch.crates-io.rosalind-receipt.path="crates/receipt"' \
+            --config 'patch.crates-io.rosalind-build-info.path="crates/build-info"'
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: rc-contract
+          retention-days: 30
+          path: |
+            contract-snapshot.json
+            recomputed-plan.json
+
+  build:
+    needs: gates
+    name: build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-latest
+          - target: aarch64-apple-darwin
+            os: macos-14
+          - target: x86_64-apple-darwin
+            os: macos-14
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ needs.gates.outputs.commit }}
+      - name: Install native build dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y musl-tools cmake
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: 1.95.0
+          targets: ${{ matrix.target }}
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-rc-${{ matrix.target }}-${{ hashFiles('Cargo.lock') }}
+      - name: Build release binary
+        env:
+          CC_x86_64_unknown_linux_musl: musl-gcc
+          CXX_x86_64_unknown_linux_musl: g++
+        run: cargo build --release --locked --target '${{ matrix.target }}' --bin rosalind
+      - name: Smoke native binary
+        if: matrix.target != 'x86_64-apple-darwin'
+        shell: bash
+        run: |
+          binary="target/${{ matrix.target }}/release/rosalind"
+          "$binary" --version
+          temp=$(mktemp -d)
+          "$binary" demo --output-dir "$temp/demo" --json > "$temp/demo.json"
+          python3 -c 'import json,sys; assert json.load(open(sys.argv[1]))["ok"]' "$temp/demo.json"
+      - name: Stage release bundle
+        run: scripts/stage-release.sh '${{ matrix.target }}'
+      - name: Install-smoke staged bundle
+        if: matrix.target != 'x86_64-apple-darwin'
+        shell: bash
+        run: |
+          install_root=$(mktemp -d)
+          tar -xzf "dist/rosalind-${{ matrix.target }}.tar.gz" -C "$install_root"
+          "$install_root/rosalind-${{ matrix.target }}/rosalind" --version
+      - uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0
+      - name: Generate SPDX SBOM
+        run: syft 'dir:dist/rosalind-${{ matrix.target }}' -o 'spdx-json=dist/rosalind-${{ matrix.target }}.spdx.json'
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: rc-${{ matrix.target }}
+          retention-days: 30
+          path: |
+            dist/rosalind-${{ matrix.target }}.tar.gz
+            dist/rosalind-${{ matrix.target }}.tar.gz.sha256
+            dist/rosalind-${{ matrix.target }}.spdx.json
+
+  publish-prerelease:
+    needs: [gates, build]
+    runs-on: ubuntu-latest
+    environment: rc
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ needs.gates.outputs.commit }}
+          fetch-depth: 0
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          path: release-assets
+          merge-multiple: true
+      - uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
+        with:
+          subject-path: release-assets/*
+      - name: Create immutable RC tag and prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.gates.outputs.tag }}
+          COMMIT: ${{ needs.gates.outputs.commit }}
+        shell: bash
+        run: |
+          remote=$(git ls-remote origin "refs/tags/$TAG" | awk '{print $1}')
+          if [ -n "$remote" ]; then
+            git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
+            test "$(git rev-list -n 1 "$TAG")" = "$COMMIT" || { echo "$TAG targets another commit" >&2; exit 5; }
+          else
+            git tag -a "$TAG" "$COMMIT" -m "Rosalind $TAG"
+            git push origin "refs/tags/$TAG"
+          fi
+          if gh release view "$TAG" --repo '${{ github.repository }}' >/dev/null 2>&1; then
+            test "$(gh release view "$TAG" --repo '${{ github.repository }}' --json isPrerelease --jq .isPrerelease)" = true
+          else
+            gh release create "$TAG" release-assets/* \
+              --repo '${{ github.repository }}' --verify-tag --target "$COMMIT" --prerelease \
+              --title "Rosalind $TAG" \
+              --notes "Attested release candidate. The seven-day soak begins at this prerelease's GitHub server-side published_at timestamp."
+          fi

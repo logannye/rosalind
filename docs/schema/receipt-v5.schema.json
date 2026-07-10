@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://logannye.github.io/rosalind/schema/receipt-v5.schema.json",
+  "title": "Rosalind schema-5 receipt envelope",
+  "description": "The canonical on-disk run or reproduction receipt. All scalar values are strings. Canonical key ordering and self-hash semantics are defined by docs/receipt-schema.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["inputs", "outputs", "params", "subcommand", "tool_version"],
+  "properties": {
+    "inputs": { "$ref": "#/$defs/files" },
+    "measurements": {
+      "type": "object",
+      "description": "Machine- and run-local telemetry excluded from the portable claim and protected by measurement_blake3.",
+      "additionalProperties": { "type": "string" }
+    },
+    "outputs": { "$ref": "#/$defs/files" },
+    "params": {
+      "type": "object",
+      "description": "Deterministic claim fields. Unprefixed keys and non-x namespaces are reserved to Rosalind. producer.* and analyzer.* are standardized identities. Extensions must use x.<reverse-dns>.*.",
+      "required": ["schema_version", "manifest_blake3"],
+      "additionalProperties": { "type": "string" },
+      "properties": {
+        "schema_version": { "const": "5" },
+        "manifest_blake3": { "$ref": "#/$defs/blake3" },
+        "command": { "type": "string" },
+        "command_argv": {
+          "type": "string",
+          "description": "Canonical JSON string containing an argv string array. Present when replay_schema is 2 or 3. Replay schema 3 additionally binds a validated producer kind and strict operand markers."
+        },
+        "replay_schema": { "enum": ["1", "2", "3"] },
+        "replay.kind": { "enum": ["rosalind", "external-analyzer"] },
+        "producer.name": { "type": "string", "minLength": 1 },
+        "producer.version": { "type": "string", "minLength": 1 },
+        "producer.repository": { "type": "string" },
+        "producer.binary": { "type": "string", "minLength": 1 },
+        "analyzer.id": { "type": "string", "minLength": 1 },
+        "analyzer.version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "subcommand": { "type": "string", "minLength": 1 },
+    "tool_version": { "type": "string", "minLength": 1 }
+  },
+  "$defs": {
+    "blake3": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "file": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["blake3", "path"],
+      "properties": {
+        "blake3": { "$ref": "#/$defs/blake3" },
+        "path": {
+          "type": "string",
+          "description": "Portable lookup metadata. For schema 3 and newer it is excluded from the deterministic claim hash."
+        }
+      }
+    },
+    "files": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/file" }
+    }
+  }
+}

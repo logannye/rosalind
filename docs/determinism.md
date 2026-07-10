@@ -25,12 +25,15 @@ Rosalind aims to guarantee deterministic bytes for:
 
 - **BAM/CRAM**: alignment records and headers emitted by Rosalind.
 - **VCF**: variant records and headers emitted by Rosalind.
-- **Run manifest**: a machine-readable file recording inputs, parameters, and versions.
+- **Receipt claim**: a canonical, path-portable content address over inputs, parameters,
+  identities, replay tokens, and outputs. The on-disk receipt's machine-local
+  measurement block can differ without changing the claim.
 
 ### Not covered (unless explicitly stated)
 
 - **Wall-clock timestamps** in logs or headers (Rosalind should avoid emitting them into primary artifacts).
-- **OS-dependent path prefixes** in provenance unless normalized.
+- **Recorded paths** in schema-3+ receipts. They are relocatable lookup metadata and
+  are deliberately excluded from the claim hash; artifact bytes remain covered.
 - **Nondeterministic hardware behavior** outside our control (e.g., bit flips, kernel bugs).
 
 ### Engineering rules (hard requirements)
@@ -73,4 +76,12 @@ a reproducible artifact, so no determinism guarantee is affected. (The receipt's
 `peak_rss_bytes` / `baseline_rss_bytes` / `rss_residual_bytes` are machine-dependent
 measurements, like any realized-memory field — the primary output stays byte-identical.)
 
+### Replay determinism
+
+New schema-5 receipts record both a legacy display command and `command_argv`, a
+canonical JSON argv array. Replay passes these tokens directly to a selected binary;
+it never invokes a shell. Option values and relocated paths containing spaces therefore
+retain their exact token boundaries. `rosalind reproduce --binary PATH` is the explicit
+mechanism for replaying a third-party analyzer; recorded executable paths are never
+trusted as execution targets.
 

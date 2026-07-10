@@ -3,157 +3,194 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Rosalind — verify a receipt in your browser</title>
+<meta name="color-scheme" content="dark" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22><rect width=%2264%22 height=%2264%22 rx=%2212%22 fill=%22%232f81f7%22/><path d=%22M17 46V18h15c10 0 15 5 15 13 0 6-3 10-9 12l10 3H36l-8-12h5c4 0 6-1 6-4s-2-4-6-4h-8v20z%22 fill=%22white%22/></svg>" />
+<title>Rosalind Receipt Studio</title>
 <style>
-  :root { color-scheme: dark; }
+  :root { color-scheme: dark; --bg:#0b0e14; --panel:#0d1117; --line:#30363d; --muted:#8b949e; --text:#c9d1d9; --blue:#2f81f7; --green:#56d364; --red:#ff7b72; --yellow:#e3b341; }
   * { box-sizing: border-box; }
-  body {
-    margin: 0; padding: 2rem 1rem 4rem;
-    font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    background: #0b0e14; color: #c9d1d9;
-    display: flex; flex-direction: column; align-items: center;
-  }
-  main { width: 100%; max-width: 820px; }
-  h1 { font-size: 1.6rem; margin: 0 0 .25rem; color: #f0f6fc; }
-  .tag { color: #8b949e; margin: 0 0 1.5rem; }
-  .tag code { background: #161b22; padding: .1em .4em; border-radius: 4px; }
-  .verdict {
-    border-radius: 10px; padding: 1rem 1.25rem; margin: 0 0 1rem;
-    font-weight: 700; font-size: 1.15rem; display: flex; align-items: center; gap: .6rem;
-    border: 1px solid transparent;
-  }
-  .verdict small { display:block; font-weight: 400; font-size: .85rem; opacity: .9; margin-top: .25rem; }
-  .v-verified     { background: #0f2417; border-color: #238636; color: #56d364; }
-  .v-tampered     { background: #2d1316; border-color: #da3633; color: #ff7b72; }
-  .v-unverifiable { background: #2b2412; border-color: #9e6a03; color: #e3b341; }
-  .v-unparseable  { background: #161b22; border-color: #30363d; color: #8b949e; }
-  .dot { font-size: 1.4rem; line-height: 1; }
-  textarea {
-    width: 100%; min-height: 220px; resize: vertical;
-    background: #0d1117; color: #c9d1d9; border: 1px solid #30363d; border-radius: 8px;
-    padding: .75rem; font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    white-space: pre-wrap; word-break: break-all;
-  }
-  textarea.drag { border-color: #2f81f7; box-shadow: 0 0 0 2px rgba(47,129,247,.3); }
-  .row { display: flex; gap: .75rem; align-items: center; margin: .6rem 0 1rem; flex-wrap: wrap; }
-  button {
-    background: #21262d; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px;
-    padding: .4rem .8rem; cursor: pointer; font-size: .9rem;
-  }
-  button:hover { background: #30363d; }
-  .hint { color: #8b949e; font-size: .85rem; }
-  table.checks { width: 100%; border-collapse: collapse; margin-top: .5rem; font-size: .9rem; }
-  table.checks td { padding: .35rem .5rem; border-top: 1px solid #21262d; }
-  table.checks td:first-child { color: #8b949e; width: 14rem; }
-  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-  .scope { margin-top: 2rem; padding: 1rem; border: 1px solid #21262d; border-radius: 8px; background: #0d1117; font-size: .88rem; color: #8b949e; }
-  .scope b { color: #c9d1d9; }
-  a { color: #2f81f7; }
+  body { margin:0; padding:2rem 1rem 4rem; font:15px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; background:var(--bg); color:var(--text); }
+  main { width:100%; max-width:1080px; margin:auto; }
+  h1 { margin:.1rem 0; color:#f0f6fc; font-size:1.8rem; }
+  h2 { color:#f0f6fc; font-size:1rem; margin:0 0 .75rem; }
+  p { margin:.35rem 0 1rem; }
+  a { color:var(--blue); }
+  code,.mono { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; overflow-wrap:anywhere; word-break:break-word; }
+  code { background:#161b22; padding:.1em .35em; border-radius:4px; }
+  .muted { color:var(--muted); }
+  .toolbar { display:flex; gap:.65rem; flex-wrap:wrap; align-items:center; margin:1rem 0; }
+  button,.button { appearance:none; border:1px solid var(--line); background:#21262d; color:var(--text); border-radius:7px; padding:.55rem .8rem; cursor:pointer; font:inherit; }
+  button:hover,.button:hover { background:#30363d; }
+  button:focus-visible,.button:focus-visible,.receipt:focus-visible,summary:focus-visible { outline:3px solid var(--blue); outline-offset:2px; }
+  input[type=file] { position:absolute; width:1px; height:1px; opacity:0; }
+  #dropzone { border:1px dashed #43658f; background:#0d1420; border-radius:12px; padding:1.1rem; text-align:center; transition:.15s; }
+  #dropzone.drag { border-color:var(--blue); box-shadow:0 0 0 3px #2f81f733; }
+  .grid { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:.65rem; margin:1rem 0; }
+  .card,.panel { border:1px solid #21262d; background:var(--panel); border-radius:10px; padding:.85rem; }
+  .card strong { display:block; color:#f0f6fc; margin-bottom:.25rem; }
+  .card small { display:block; margin-top:.4rem; line-height:1.35; }
+  .status { font-weight:700; }
+  .ok { color:var(--green); } .bad { color:var(--red); } .warn { color:var(--yellow); } .idle { color:var(--muted); }
+  .two { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:1rem; margin-top:1rem; }
+  .two > *,.panel { min-width:0; }
+  ul { padding-left:1.2rem; margin:.4rem 0; }
+  .receipt { display:flex; justify-content:space-between; gap:.5rem; padding:.45rem .55rem; border-radius:6px; cursor:pointer; }
+  .receipt:hover,.receipt.selected { background:#161b22; }
+  .claim { color:var(--muted); font-size:.8rem; }
+  textarea { width:100%; min-height:220px; resize:vertical; padding:.7rem; border:1px solid var(--line); border-radius:8px; background:#080b10; color:var(--text); font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace; word-break:break-all; }
+  table { width:100%; border-collapse:collapse; table-layout:fixed; font-size:.88rem; }
+  td { border-top:1px solid #21262d; padding:.35rem .45rem; vertical-align:top; }
+  td:first-child { color:var(--muted); width:12rem; }
+  .node { display:inline-block; border:1px solid var(--line); border-radius:7px; padding:.45rem .6rem; margin:.25rem; background:#111720; }
+  .edge { color:var(--muted); padding:.2rem .5rem; }
+  .portable { border-left:3px solid var(--blue); padding:.55rem .75rem; background:#0d1420; margin-top:.75rem; }
+  progress { width:180px; accent-color:var(--blue); }
+  details { margin-top:1rem; }
+  summary { cursor:pointer; color:#f0f6fc; }
+  @media (max-width:850px) { .grid { grid-template-columns:repeat(2,minmax(0,1fr)); } .two { grid-template-columns:minmax(0,1fr); } }
+  @media (max-width:500px) { body { padding:1rem .65rem 3rem; } .grid { grid-template-columns:1fr; } }
 </style>
 </head>
 <body>
 <main>
-  <p style="margin:0 0 1rem"><a href="../" style="color:#8b949e;text-decoration:none">← Rosalind</a></p>
-  <h1>Verify a Rosalind receipt</h1>
-  <p class="tag">
-    Drag in (or paste) a <code>*.manifest.json</code> and this checks its tamper-evident
-    BLAKE3 self-hash — <b>entirely in your browser</b>. Nothing is uploaded. Then edit a
-    single character below and watch it flip to <span style="color:#ff7b72">TAMPERED</span>.
-  </p>
+  <a href="../" class="muted" style="text-decoration:none">← Rosalind</a>
+  <h1>Receipt Studio</h1>
+  <p class="muted">Inspect receipts, re-hash local artifacts, compare claims, and walk provenance entirely in your browser. Nothing is uploaded.</p>
 
-  <div id="verdict" class="verdict v-unparseable">
-    <span class="dot">•</span>
-    <span><span id="verdict-label">Loading…</span><small id="detail"></small></span>
+  <div id="dropzone" aria-label="Drop area for Rosalind receipts and artifacts">
+    <strong>Drop receipts, reproduction certificates, and artifacts here</strong><br />
+    <span class="muted">Files are matched by BLAKE3 content—not by path or filename.</span>
+  </div>
+  <div class="toolbar" aria-label="Receipt Studio actions">
+    <label id="choose-files" class="button" for="files" tabindex="0">Choose receipts and artifacts</label><input id="files" type="file" multiple />
+    <button id="sample" type="button">Load sample chain</button>
+    <button id="clear" type="button">Clear</button>
+    <span id="hash-progress" class="muted" aria-live="polite"></span>
   </div>
 
-  <textarea id="receipt" spellcheck="false" aria-label="receipt JSON"></textarea>
-  <div class="row">
-    <button id="reset" type="button">↺ Reset to sample</button>
-    <span class="hint">…or drop a <span class="mono">.manifest.json</span> onto the box. Edit any byte to see the hash break.</span>
+  <section class="grid" aria-label="Trust levels">
+    <div class="card"><strong>1 · Receipt</strong><span id="integrity" class="status idle">No receipt</span><small id="integrity-detail" class="muted"></small></div>
+    <div class="card"><strong>2 · Artifacts</strong><span id="artifacts" class="status idle">Not checked</span><small id="artifacts-detail" class="muted"></small></div>
+    <div class="card"><strong>3 · Resource</strong><span id="resource" class="status idle">Unknown</span><small id="resource-detail" class="muted"></small></div>
+    <div class="card"><strong>4 · Reproduced</strong><span id="reproduced" class="status idle">No certificate</span><small id="reproduced-detail" class="muted"></small></div>
+    <div class="card"><strong>5 · Signature</strong><span id="signature" class="status idle">Not supplied</span><small id="signature-detail" class="muted">Cryptographic identity is not part of schema 5.</small></div>
+  </section>
+
+  <div class="two">
+    <section class="panel"><h2>Loaded receipts</h2><div id="receipt-list" class="muted">None</div></section>
+    <section class="panel"><h2>Selected claim</h2><table id="summary"></table><div class="portable"><strong>Paths are portable metadata.</strong> Modern claim hashes commit to file contents, not machine-specific locations. Editing only a path does not make a receipt tampered.</div></section>
   </div>
 
-  <table class="checks">
-    <tbody id="checks"></tbody>
-  </table>
-
-  <div class="scope">
-    <b>What this proves.</b> It re-derives the receipt's own integrity — the
-    <span class="mono">manifest_blake3</span> over the canonical claim, plus the independent
-    <span class="mono">measurement_blake3</span> — the same check <span class="mono">rosalind verify</span>
-    runs, minus re-hashing the input/output <i>files</i> (which aren't in your browser). It does
-    <b>not</b> re-run the analysis. A <span style="color:#56d364">VERIFIED</span> receipt is intact
-    and untampered; a single edited byte breaks the hash. Runs the same Rust verification code that
-    ships in the CLI, compiled to WebAssembly via the
-    <span class="mono">rosalind-receipt</span> crate.
+  <div class="two">
+    <section class="panel"><h2>Causal diff</h2><div id="diff" class="muted">Load exactly two run receipts to compare them.</div></section>
+    <section class="panel"><h2>Provenance chain</h2><div id="chain" class="muted">Load related run receipts to render their content-addressed edges.</div></section>
   </div>
+
+  <details><summary>Advanced · canonical receipt JSON</summary><p class="muted">Claim or measurement edits are detected immediately. Path-only edits remain intact by design.</p><textarea id="editor" spellcheck="false" aria-label="selected receipt JSON"></textarea></details>
 </main>
 
-<!-- A real schema-5 receipt produced by `rosalind variants` on the bundled toy data. -->
-<script type="application/json" id="sample">
-{"inputs":[{"blake3":"4f536cde7bb27fefd71e5e9406508752355b1e1e178c6a7e395386cf29b6c687","path":"/tmp/rv.idx"},{"blake3":"1352f1c6e114cd61c9c32f7ab5072b3231765181ec882c42d12d89711737b6f5","path":"/tmp/rv.sorted.bam"}],"measurements":{"baseline_rss_bytes":"5390336","contract_verdict":"unset","governor":"record-only","max_working_set_bytes":"73356","measurement_blake3":"7e58915350347cc6581ae7fbd2bb29f17d7b82367b60e7b3936b4e6b7a01c4c3","peak_rss_bytes":"6193152","predicted_peak_rss_bytes":"18347200","rss_residual_bytes":"729460"},"outputs":[{"blake3":"2dfc6ec5b834c1eb5e85e722aa26e4b8c81c17fb5aac22b5bf22c3689557cbd7","path":"/tmp/rv.vcf"}],"params":{"code_dirty":"true","code_git_sha":"d1197289422672fcb4db9cb7bb5aa5379ff4e367","command":"variants --index @in:4f536cde7bb27fefd71e5e9406508752355b1e1e178c6a7e395386cf29b6c687 --alignments @in:1352f1c6e114cd61c9c32f7ab5072b3231765181ec882c42d12d89711737b6f5 --mapq-threshold 0 --max-depth 1000 --max-read-len 250 --quality-threshold 10 -o @out:2dfc6ec5b834c1eb5e85e722aa26e4b8c81c17fb5aac22b5bf22c3689557cbd7","deps_lock_blake3":"b079439c085f2462fdd322fd53d4df5e438e212bae75f81e80e3388ccefa0863","has_measurements":"true","io_rss_overhead_assumed_bytes":"8388608","manifest_blake3":"76b5ea38fe61bbda13b3a047978f6ea4355fb5bac7f669bedf07c87a140c91bb","mapq_threshold":"0","max_depth":"1000","max_read_len":"250","mode":"index","over_max_depth":"0","quality_threshold":"10","reads_skipped_total":"0","rustc_version":"rustc 1.95.0 (59807616e 2026-04-14)","schema_version":"5","target_triple":"aarch64-apple-darwin"},"subcommand":"variants","tool_version":"0.1.0"}
+<script type="application/json" id="sample-receipts">
+[{"name":"ref.idx.manifest.json","text":"{\"inputs\":[{\"blake3\":\"acc369b4dfbc0cf336acae3d2bba86b8c55db272f77c9fe20aa750b3a85fd1bb\",\"path\":\"/tmp/rosalind-studio-sample.D6VEe6/reference.fa\"}],\"measurements\":{\"measurement_blake3\":\"5863fb6760df823da84ca46516c2825dc482de11ebfc9d69a8dfecdfe13be999\",\"peak_rss_bytes\":\"6438912\"},\"outputs\":[{\"blake3\":\"4f4e75d65cf9099850c2192db2e2126b2180544e5563b1a793941d39872e1d7b\",\"path\":\"/tmp/rosalind-studio-sample.D6VEe6/ref.idx\"}],\"params\":{\"artifact.input.0.role\":\"reference\",\"artifact.output.0.role\":\"reference-index\",\"code_dirty\":\"true\",\"code_git_sha\":\"697991df737ba5c413d606de0febdae3e42c5083\",\"command\":\"index --reference @in:acc369b4dfbc0cf336acae3d2bba86b8c55db272f77c9fe20aa750b3a85fd1bb --output @out:4f4e75d65cf9099850c2192db2e2126b2180544e5563b1a793941d39872e1d7b\",\"command_argv\":\"[\\\"index\\\",\\\"--reference\\\",\\\"@in:acc369b4dfbc0cf336acae3d2bba86b8c55db272f77c9fe20aa750b3a85fd1bb\\\",\\\"--output\\\",\\\"@out:4f4e75d65cf9099850c2192db2e2126b2180544e5563b1a793941d39872e1d7b\\\"]\",\"deps_lock_blake3\":\"e31ec87f72ae9d93665b320a501ae31d6a34442db27cb2b070a01d0e09ba49de\",\"has_measurements\":\"true\",\"manifest_blake3\":\"301fb5cd4af75deb29ad64e0a6c4d8e05d3227d8578cd9081f1f8a67ab12a274\",\"mode\":\"reference\",\"reference_blake3\":\"db99ef045916309d219b21e3471dfadcb6db7d246ef077c55010ebc0d50622f7\",\"replay.kind\":\"rosalind\",\"replay_schema\":\"3\",\"rustc_version\":\"rustc 1.95.0 (59807616e 2026-04-14)\",\"schema_version\":\"5\",\"target_triple\":\"aarch64-apple-darwin\",\"total_bp\":\"400\"},\"subcommand\":\"index\",\"tool_version\":\"0.4.0\"}"},{"name":"raw.bam.manifest.json","text":"{\"inputs\":[{\"blake3\":\"51a558db8ce020a886b1cd0d4928269b86fa3c82caed40417846ed81e0a6a8a4\",\"path\":\"/tmp/rosalind-studio-sample.D6VEe6/reads.fastq\"},{\"blake3\":\"acc369b4dfbc0cf336acae3d2bba86b8c55db272f77c9fe20aa750b3a85fd1bb\",\"path\":\"/tmp/rosalind-studio-sample.D6VEe6/reference.fa\"}],\"measurements\":{\"measurement_blake3\":\"1f7e0793a64819b02eb103ad67c32a304bb3c8e1d7f8ffcc0325251d33b209bb\",\"peak_rss_bytes\":\"7929856\"},\"outputs\":[{\"blake3\":\"a22351a1c295c36ad2b892d2bac0c7bf264afa6581c994227567c15695bcaffe\",\"path\":\"/tmp/rosalind-studio-sample.D6VEe6/raw.bam\"}],\"params\":{\"artifact.input.0.role\":\"reference\",\"artifact.input.1.role\":\"reads\",\"artifact.output.0.role\":\"raw-alignments\",\"code_dirty\":\"true\",\"code_git_sha\":\"697991df737ba5c413d606de0febdae3e42c5083\",\"command\":\"align --reference @in:acc369b4dfbc0cf336acae3d2bba86b8c55db272f77c9fe20aa750b3a85fd1bb --reads @in:51a558db8ce020a886b1cd0d4928269b86fa3c82caed40417846ed81e0a6a8a4 --format bam --max-mismatches 2 --reference-offset 0 --output @out:a22351a1c295c36ad2b892d2bac0c7bf264afa6581c994227567c15695bcaffe\",\"command_argv\":\"[\\\"align\\\",\\\"--reference\\\",\\\"@in:acc369b4dfbc0cf336acae3d2bba86b8c55db272f77c9fe20aa750b3a85fd1bb\\\",\\\"--reads\\\",\\\"@in:51a558db8ce020a886b1cd0d4928269b86fa3c82caed40417846ed81e0a6a8a4\\\",\\\"--format\\\",\\\"bam\\\",\\\"--max-mismatches\\\",\\\"2\\\",\\\"--reference-offset\\\",\\\"0\\\",\\\"--output\\\",\\\"@out:a22351a1c295c36ad2b892d2bac0c7bf264afa6581c994227567c15695bcaffe\\\"]\",\"deps_lock_blake3\":\"e31ec87f72ae9d93665b320a501ae31d6a34442db27cb2b070a01d0e09ba49de\",\"format\":\"bam\",\"has_measurements\":\"true\",\"manifest_blake3\":\"b80edc152733e610c0507517297dd316c4077d86a4c0a823565a17e0d3b48ac3\",\"max_mismatches\":\"2\",\"mode\":\"reference\",\"reference_offset\":\"0\",\"replay.kind\":\"rosalind\",\"replay_schema\":\"3\",\"rustc_version\":\"rustc 1.95.0 (59807616e 2026-04-14)\",\"schema_version\":\"5\",\"target_triple\":\"aarch64-apple-darwin\"},\"subcommand\":\"align\",\"tool_version\":\"0.4.0\"}"},{"name":"sorted.bam.manifest.json","text":"{\"inputs\":[{\"blake3\":\"a22351a1c295c36ad2b892d2bac0c7bf264afa6581c994227567c15695bcaffe\",\"path\":\"/tmp/rosalind-studio-sample.D6VEe6/raw.bam\"}],\"measurements\":{\"measurement_blake3\":\"b0db113f6936520e6cad9de2472a870ed6ba97061a455a96422589c9108804f5\",\"peak_rss_bytes\":\"7405568\"},\"outputs\":[{\"blake3\":\"0a69d02bc7f422e9faff950460a6e76b9abd8467e8e43b6b40f3479375416adb\",\"path\":\"/tmp/rosalind-studio-sample.D6VEe6/sorted.bam\"}],\"params\":{\"artifact.input.0.role\":\"raw-alignments\",\"artifact.output.0.role\":\"sorted-alignments\",\"code_dirty\":\"true\",\"code_git_sha\":\"697991df737ba5c413d606de0febdae3e42c5083\",\"command\":\"sort --input @in:a22351a1c295c36ad2b892d2bac0c7bf264afa6581c994227567c15695bcaffe --memory-mb 1024 --output @out:0a69d02bc7f422e9faff950460a6e76b9abd8467e8e43b6b40f3479375416adb\",\"command_argv\":\"[\\\"sort\\\",\\\"--input\\\",\\\"@in:a22351a1c295c36ad2b892d2bac0c7bf264afa6581c994227567c15695bcaffe\\\",\\\"--memory-mb\\\",\\\"1024\\\",\\\"--output\\\",\\\"@out:0a69d02bc7f422e9faff950460a6e76b9abd8467e8e43b6b40f3479375416adb\\\"]\",\"deps_lock_blake3\":\"e31ec87f72ae9d93665b320a501ae31d6a34442db27cb2b070a01d0e09ba49de\",\"has_measurements\":\"true\",\"manifest_blake3\":\"4527b9ad21c7035de802b92c27f56aaef8e3dbe460bdcb3dc2e86940e9eb6c67\",\"memory_mb\":\"1024\",\"replay.kind\":\"rosalind\",\"replay_schema\":\"3\",\"rustc_version\":\"rustc 1.95.0 (59807616e 2026-04-14)\",\"schema_version\":\"5\",\"target_triple\":\"aarch64-apple-darwin\"},\"subcommand\":\"sort\",\"tool_version\":\"0.4.0\"}"},{"name":"calls.vcf.manifest.json","text":"{\"inputs\":[{\"blake3\":\"4f4e75d65cf9099850c2192db2e2126b2180544e5563b1a793941d39872e1d7b\",\"path\":\"/tmp/rosalind-studio-sample.D6VEe6/ref.idx\"},{\"blake3\":\"0a69d02bc7f422e9faff950460a6e76b9abd8467e8e43b6b40f3479375416adb\",\"path\":\"/tmp/rosalind-studio-sample.D6VEe6/sorted.bam\"}],\"measurements\":{\"baseline_rss_bytes\":\"6455296\",\"contract_verdict\":\"within\",\"governor\":\"enforced\",\"max_working_set_bytes\":\"12688\",\"measurement_blake3\":\"b07b3dcf4e7891de1d766513e2ba34c3f5865e7d95d6df4650d61a8f09bbdcce\",\"peak_rss_bytes\":\"7077888\",\"predicted_peak_rss_bytes\":\"19408560\",\"rss_residual_bytes\":\"609904\"},\"outputs\":[{\"blake3\":\"4f0926e0e18a66abe4326e1e002bfff574b7cad5592bd05adf1e4f513e33de42\",\"path\":\"/tmp/rosalind-studio-sample.D6VEe6/calls.vcf\"}],\"params\":{\"analyzer.id\":\"germline-sites\",\"analyzer.max_additional_bytes\":\"0\",\"analyzer.memory_model\":\"fixed-additional-v1\",\"analyzer.version\":\"0.4.0\",\"artifact.input.0.role\":\"reference-index\",\"artifact.input.1.role\":\"sorted-alignments\",\"artifact.output.0.role\":\"calls\",\"code_dirty\":\"true\",\"code_git_sha\":\"697991df737ba5c413d606de0febdae3e42c5083\",\"command\":\"variants --index @in:4f4e75d65cf9099850c2192db2e2126b2180544e5563b1a793941d39872e1d7b --alignments @in:0a69d02bc7f422e9faff950460a6e76b9abd8467e8e43b6b40f3479375416adb --mapq-threshold 0 --max-depth 1000 --max-read-len 250 --memory-budget-mb 128 --quality-threshold 10 --enforce -o @out:4f0926e0e18a66abe4326e1e002bfff574b7cad5592bd05adf1e4f513e33de42\",\"command_argv\":\"[\\\"variants\\\",\\\"--index\\\",\\\"@in:4f4e75d65cf9099850c2192db2e2126b2180544e5563b1a793941d39872e1d7b\\\",\\\"--alignments\\\",\\\"@in:0a69d02bc7f422e9faff950460a6e76b9abd8467e8e43b6b40f3479375416adb\\\",\\\"--mapq-threshold\\\",\\\"0\\\",\\\"--max-depth\\\",\\\"1000\\\",\\\"--max-read-len\\\",\\\"250\\\",\\\"--memory-budget-mb\\\",\\\"128\\\",\\\"--quality-threshold\\\",\\\"10\\\",\\\"--enforce\\\",\\\"-o\\\",\\\"@out:4f0926e0e18a66abe4326e1e002bfff574b7cad5592bd05adf1e4f513e33de42\\\"]\",\"contract.assurance\":\"declared-bound-cooperative\",\"deps_lock_blake3\":\"e31ec87f72ae9d93665b320a501ae31d6a34442db27cb2b070a01d0e09ba49de\",\"enforce\":\"true\",\"has_measurements\":\"true\",\"io_rss_overhead_assumed_bytes\":\"8388608\",\"manifest_blake3\":\"3a5add58533f28fd0fa88c0d7bf1b2fd56236061e7d326e958a689cc6b66b753\",\"mapq_threshold\":\"0\",\"max_depth\":\"1000\",\"max_read_len\":\"250\",\"memory_budget_mb\":\"128\",\"mode\":\"index\",\"model.germline\":\"baseq-mapq-v1\",\"over_max_depth\":\"0\",\"predicted_working_set_bytes\":\"4564656\",\"producer.binary\":\"rosalind\",\"producer.name\":\"rosalind\",\"producer.version\":\"0.4.0\",\"quality_threshold\":\"10\",\"reads_skipped_total\":\"0\",\"replay.kind\":\"rosalind\",\"replay_schema\":\"3\",\"run_status\":\"completed\",\"rustc_version\":\"rustc 1.95.0 (59807616e 2026-04-14)\",\"schema_version\":\"5\",\"target_triple\":\"aarch64-apple-darwin\"},\"subcommand\":\"variants\",\"tool_version\":\"0.4.0\"}"},{"name":"calls.vcf.manifest.json.repro.json","text":"{\"inputs\":[],\"measurements\":{\"measurement_blake3\":\"ffe04c991a22c454bfcdf5aac73fc4799f2e2e3d77333fed449789c952f51e43\",\"peak_rss_bytes\":\"7110656\"},\"outputs\":[],\"params\":{\"chain_depth\":\"1\",\"code_dirty\":\"true\",\"code_git_sha\":\"697991df737ba5c413d606de0febdae3e42c5083\",\"declared_budget_mb\":\"128\",\"deps_lock_blake3\":\"e31ec87f72ae9d93665b320a501ae31d6a34442db27cb2b070a01d0e09ba49de\",\"has_measurements\":\"true\",\"manifest_blake3\":\"863dfc2ee365756cb2e0e8c4a908393446748f228bcebb59f17c316753cb8bb2\",\"out0_matched\":\"true\",\"out0_observed\":\"4f0926e0e18a66abe4326e1e002bfff574b7cad5592bd05adf1e4f513e33de42\",\"out0_recorded\":\"4f0926e0e18a66abe4326e1e002bfff574b7cad5592bd05adf1e4f513e33de42\",\"out0_role\":\"output[0]\",\"out_count\":\"1\",\"parent_claim\":\"3a5add58533f28fd0fa88c0d7bf1b2fd56236061e7d326e958a689cc6b66b753\",\"parent_code.code_dirty\":\"true\",\"parent_code.code_git_sha\":\"697991df737ba5c413d606de0febdae3e42c5083\",\"parent_code.deps_lock_blake3\":\"e31ec87f72ae9d93665b320a501ae31d6a34442db27cb2b070a01d0e09ba49de\",\"parent_code.rustc_version\":\"rustc 1.95.0 (59807616e 2026-04-14)\",\"parent_code.target_triple\":\"aarch64-apple-darwin\",\"parent_subcommand\":\"variants\",\"reproducer_code.code_dirty\":\"true\",\"reproducer_code.code_git_sha\":\"697991df737ba5c413d606de0febdae3e42c5083\",\"reproducer_code.deps_lock_blake3\":\"e31ec87f72ae9d93665b320a501ae31d6a34442db27cb2b070a01d0e09ba49de\",\"reproducer_code.rustc_version\":\"rustc 1.95.0 (59807616e 2026-04-14)\",\"reproducer_code.target_triple\":\"aarch64-apple-darwin\",\"rustc_version\":\"rustc 1.95.0 (59807616e 2026-04-14)\",\"schema_version\":\"5\",\"target_triple\":\"aarch64-apple-darwin\",\"verdict\":\"REPRODUCED\"},\"subcommand\":\"reproduce\",\"tool_version\":\"0.4.0\"}"}]
 </script>
+<script type="application/json" id="studio-preload">[]</script>
 
 <script type="module">
-import init, { verify } from './pkg/rosalind_verify.js';
+import init, { inspect_receipt, evaluate_trust, diff_receipts, walk_receipt_chain, Blake3Hasher } from './pkg/rosalind_verify.js';
 
-const ta = document.getElementById('receipt');
-const banner = document.getElementById('verdict');
-const label = document.getElementById('verdict-label');
-const detailEl = document.getElementById('detail');
-const checksEl = document.getElementById('checks');
-const sample = document.getElementById('sample').textContent.trim();
+const state = { receipts: [], artifacts: new Map(), selected: -1 };
+const $ = id => document.getElementById(id);
+const setStatus = (id, text, cls, detail='') => { const el=$(id); el.textContent=text; el.className='status '+cls; const d=$(id+'-detail'); if(d) d.textContent=detail; };
+const short = value => value ? value.slice(0,10) : '—';
+const basename = path => String(path || '').split(/[\\/]/).pop();
 
-const STYLE = {
-  verified:     { cls: 'v-verified',     dot: '✓', text: 'VERIFIED' },
-  tampered:     { cls: 'v-tampered',     dot: '✗', text: 'TAMPERED' },
-  unverifiable: { cls: 'v-unverifiable', dot: '?', text: 'UNVERIFIABLE' },
-  unparseable:  { cls: 'v-unparseable',  dot: '•', text: 'NOT A RECEIPT' },
-};
-
-function triLabel(v) { return v === true ? 'matches ✓' : v === false ? 'MISMATCH ✗' : '—'; }
-
-function render() {
-  let r;
-  try { r = JSON.parse(verify(ta.value)); }
-  catch (_) { r = { verdict: 'unparseable', detail: 'could not run verifier', self_hash_ok: null, measurement_hash_ok: null, schema_version: null, subcommand: null }; }
-  const s = STYLE[r.verdict] || STYLE.unparseable;
-  banner.className = 'verdict ' + s.cls;
-  banner.querySelector('.dot').textContent = s.dot;
-  label.textContent = s.text;
-  detailEl.textContent = r.detail || '';
-  checksEl.innerHTML = '';
-  const rows = [
-    ['claim self-hash (manifest_blake3)', triLabel(r.self_hash_ok)],
-    ['measurement hash (measurement_blake3)', triLabel(r.measurement_hash_ok)],
-    ['schema version', r.schema_version == null ? '—' : String(r.schema_version)],
-    ['subcommand', r.subcommand == null ? '—' : r.subcommand],
-  ];
-  for (const [k, v] of rows) {
-    const tr = document.createElement('tr');
-    const td1 = document.createElement('td'); td1.textContent = k;
-    const td2 = document.createElement('td'); td2.className = 'mono'; td2.textContent = v;
-    tr.append(td1, td2); checksEl.append(tr);
+async function hashFile(file) {
+  const hasher = new Blake3Hasher();
+  const chunk = 4 * 1024 * 1024;
+  for (let offset=0; offset<file.size; offset+=chunk) {
+    hasher.update(new Uint8Array(await file.slice(offset, offset+chunk).arrayBuffer()));
+    $('hash-progress').innerHTML = `Hashing ${file.name} <progress max="${file.size}" value="${Math.min(file.size,offset+chunk)}"></progress>`;
   }
+  const hash=hasher.finalize_hex();
+  if (hasher.free) hasher.free();
+  $('hash-progress').textContent='';
+  return hash;
 }
 
-// Drag-and-drop a receipt file onto the textarea.
-['dragenter', 'dragover'].forEach(ev => ta.addEventListener(ev, e => { e.preventDefault(); ta.classList.add('drag'); }));
-['dragleave', 'drop'].forEach(ev => ta.addEventListener(ev, () => ta.classList.remove('drag')));
-ta.addEventListener('drop', e => {
-  e.preventDefault();
-  const f = e.dataTransfer.files && e.dataTransfer.files[0];
-  if (!f) return;
-  f.text().then(t => { ta.value = t; render(); });
-});
+function addReceipt(name, text) {
+  try {
+    const json=JSON.parse(text); const info=JSON.parse(inspect_receipt(text));
+    if (!info.ok) throw new Error('not a canonical Rosalind receipt');
+    state.receipts.push({name,text,json,info});
+    if (state.selected < 0) state.selected=0;
+  } catch (error) { throw new Error(`${name}: ${error.message}`); }
+}
 
-document.getElementById('reset').addEventListener('click', () => { ta.value = sample; render(); });
-
-(async () => {
-  await init();
-  ta.value = sample;
-  ta.addEventListener('input', render);
+async function addFiles(files) {
+  for (const file of files) {
+    if (file.name.endsWith('.json')) {
+      try { addReceipt(file.name, await file.text()); continue; } catch (_) { /* artifact JSON */ }
+    }
+    const hash=await hashFile(file); state.artifacts.set(hash,{name:file.name,size:file.size});
+  }
   render();
-})();
+}
+
+function render() {
+  const list=$('receipt-list'); list.innerHTML='';
+  if (!state.receipts.length) { list.textContent='None'; $('editor').value=''; renderTrust(null); renderDiff(); renderChain(); return; }
+  state.receipts.forEach((receipt,index) => {
+    const row=document.createElement('div'); row.className='receipt'+(index===state.selected?' selected':''); row.tabIndex=0;
+    row.innerHTML=`<span>${receipt.name}<br><span class="claim">${receipt.info.subcommand}</span></span><span class="mono claim">${short(receipt.info.claim)}</span>`;
+    const select=()=>{ state.selected=index; $('editor').value=receipt.text; render(); };
+    row.addEventListener('click',select); row.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();select();}}); list.append(row);
+  });
+  const selected=state.receipts[state.selected]; $('editor').value=selected.text;
+  const rows=[['claim',selected.info.claim],['subcommand',selected.info.subcommand],['producer',selected.info.producer_name||'legacy Rosalind'],['analyzer',selected.info.analyzer_id||'—'],['inputs / outputs',`${selected.info.inputs} / ${selected.info.outputs}`]];
+  $('summary').innerHTML=rows.map(([a,b])=>`<tr><td>${a}</td><td class="mono"></td></tr>`).join('');
+  [...$('summary').querySelectorAll('tr')].forEach((tr,i)=>tr.children[1].textContent=rows[i][1]);
+  renderTrust(selected); renderDiff(); renderChain();
+}
+
+function renderTrust(receipt) {
+  if (!receipt) { setStatus('integrity','No receipt','idle',''); setStatus('artifacts','Not checked','idle',''); setStatus('resource','Unknown','idle',''); setStatus('reproduced','Not supplied','idle',''); setStatus('signature','Not supplied','idle',''); return; }
+  const expected=[...(receipt.json.inputs||[]),...(receipt.json.outputs||[])];
+  const matched=expected.filter(file=>state.artifacts.has(file.blake3)).length;
+  const artifactStatus=!state.artifacts.size?'not-checked':expected.length&&matched===expected.length?'complete':'incomplete';
+  const certificates=state.receipts.filter(r=>r.json.subcommand==='reproduce');
+  const cert=certificates.find(r=>r.json.params?.parent_claim===receipt.info.claim)||certificates.find(r=>!state.receipts.some(candidate=>candidate.info.claim===r.json.params?.parent_claim));
+  const trust=JSON.parse(evaluate_trust(receipt.text,artifactStatus,cert?.text||''));
+  const cls=facet=>facet.state==='satisfied'?'ok':facet.state==='failed'?'bad':'idle';
+  const label=value=>value.split('-').map(word=>word.charAt(0).toUpperCase()+word.slice(1)).join(' ');
+  setStatus('integrity',label(trust.receipt_integrity.status),cls(trust.receipt_integrity),trust.receipt_integrity.explanation);
+  setStatus('artifacts',label(trust.artifact_completeness.status),cls(trust.artifact_completeness),`${trust.artifact_completeness.explanation} ${matched}/${expected.length} content hashes are loaded.`);
+  setStatus('resource',label(trust.resource_contract.status),cls(trust.resource_contract),trust.resource_contract.explanation);
+  setStatus('reproduced',label(trust.reproduction_evidence.status),cls(trust.reproduction_evidence),trust.reproduction_evidence.explanation);
+  setStatus('signature',label(trust.signature.status),cls(trust.signature),trust.signature.explanation);
+}
+
+function renderDiff() {
+  const runs=state.receipts.filter(r=>r.json.subcommand!=='reproduce');
+  if (runs.length!==2) { $('diff').textContent='Load exactly two run receipts to compare them.'; return; }
+  const diff=JSON.parse(diff_receipts(runs[0].text,runs[1].text));
+  if (!diff.ok) { $('diff').textContent=diff.error; return; }
+  const sections=[['inputs',diff.inputs],['code',diff.code_identity],['parameters',diff.science_params],['outputs',diff.outputs],['measurement noise',diff.measurements]];
+  $('diff').innerHTML=`<p class="${diff.claims_identical?'ok':'warn'}"><strong>${diff.verdict}</strong></p>`+sections.filter(([,v])=>v.length).map(([name,values])=>`<strong>${name}</strong><ul>${values.map(v=>`<li><code>${v.key||v.flag}</code>: ${v.a??'(absent)'} → ${v.b??'(absent)'}</li>`).join('')}</ul>`).join('');
+}
+
+function renderChain() {
+  if (!state.receipts.length) { $('chain').textContent='Load related run receipts to render their content-addressed edges.'; return; }
+  const report=JSON.parse(walk_receipt_chain(state.receipts.map(r=>JSON.stringify(r.json)).join('\n')));
+  if (!report.ok) { $('chain').textContent=report.error; return; }
+  $('chain').innerHTML=`<p class="${report.intact?'ok':'bad'}"><strong>${report.intact?'CHAIN INTACT':'CHAIN BROKEN'}</strong></p><div>${report.nodes.map(n=>`<span class="node"><strong>${n.subcommand}</strong><br><span class="claim mono">${short(n.id)}</span></span>`).join('')}</div><div>${report.edges.map(e=>`<div class="edge"><code>${e.flag}</code> → ${e.status==='external'?'not supplied':e.status}${e.parent?' '+short(e.parent):''}</div>`).join('')}</div>`;
+}
+
+$('editor').addEventListener('input',event=>{ if(state.selected<0)return; const receipt=state.receipts[state.selected]; receipt.text=event.target.value; try{receipt.json=JSON.parse(receipt.text);receipt.info=JSON.parse(inspect_receipt(receipt.text));}catch(_){receipt.info={integrity:'unparseable',detail:'not parseable',claim:null,subcommand:'—',inputs:0,outputs:0};} renderTrust(receipt); renderDiff(); renderChain(); });
+const drop=$('dropzone'); ['dragenter','dragover'].forEach(type=>drop.addEventListener(type,e=>{e.preventDefault();drop.classList.add('drag');})); ['dragleave','drop'].forEach(type=>drop.addEventListener(type,()=>drop.classList.remove('drag'))); drop.addEventListener('drop',e=>{e.preventDefault();addFiles(e.dataTransfer.files).catch(error=>alert(error.message));}); $('choose-files').addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();$('files').click();}}); $('files').addEventListener('change',e=>addFiles(e.target.files).catch(error=>alert(error.message)));
+$('sample').addEventListener('click',()=>{for(const item of JSON.parse($('sample-receipts').textContent))addReceipt(item.name,item.text);state.selected=state.receipts.findIndex(receipt=>receipt.json.subcommand==='variants');render();}); $('clear').addEventListener('click',()=>{state.receipts=[];state.artifacts.clear();state.selected=-1;render();});
+
+await init();
+const preload=JSON.parse($('studio-preload').textContent||'[]');
+if(preload.length){for(const item of preload)addReceipt(item.name,item.text);const linked=state.receipts.findIndex(run=>state.receipts.some(cert=>cert.json.subcommand==='reproduce'&&cert.json.params?.parent_claim===run.info.claim));if(linked>=0)state.selected=linked;render();}else{$('sample').click();}
 </script>
 </body>
 </html>

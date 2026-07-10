@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://logannye.github.io/rosalind/schema/design-partner-v1.schema.json",
+  "title": "Anonymized Rosalind design-partner evidence v1",
+  "type": "object",
+  "required": ["schema", "partner_id", "persona", "tested_commit", "contract_fingerprint", "environment", "scenarios", "blocker_severity", "contract_change_requested", "resolution", "consent_to_publish"],
+  "properties": {
+    "schema": { "const": 1 },
+    "partner_id": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+    "persona": { "enum": ["analyzer-builder", "workflow-hpc", "constrained-offline"] },
+    "tested_commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+    "contract_fingerprint": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "environment": { "type": "string", "minLength": 1 },
+    "scenarios": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "passed", "notes"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "passed": { "type": "boolean" },
+          "notes": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "blocker_severity": { "enum": ["none", "low", "medium", "release-blocking"] },
+    "contract_change_requested": { "type": "boolean" },
+    "resolution": { "type": "string" },
+    "consent_to_publish": { "type": "boolean" }
+  },
+  "additionalProperties": false
+}
