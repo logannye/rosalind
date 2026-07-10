@@ -25,9 +25,10 @@
         "command": { "type": "string" },
         "command_argv": {
           "type": "string",
-          "description": "Canonical JSON string containing an argv string array. Present when replay_schema is 2."
+          "description": "Canonical JSON string containing an argv string array. Present when replay_schema is 2 or 3. Replay schema 3 additionally binds a validated producer kind and strict operand markers."
         },
-        "replay_schema": { "enum": ["1", "2"] },
+        "replay_schema": { "enum": ["1", "2", "3"] },
+        "replay.kind": { "enum": ["rosalind", "external-analyzer"] },
         "producer.name": { "type": "string", "minLength": 1 },
         "producer.version": { "type": "string", "minLength": 1 },
         "producer.repository": { "type": "string" },

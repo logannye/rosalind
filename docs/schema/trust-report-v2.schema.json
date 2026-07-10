@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://logannye.github.io/rosalind/schema/trust-report-v2.schema.json",
+  "title": "Rosalind verification and trust report v2",
+  "type": "object",
+  "required": ["schema", "ok", "claim", "inputs", "outputs", "notes", "problems", "trust"],
+  "properties": {
+    "schema": { "const": 2 },
+    "ok": { "type": "boolean" },
+    "claim": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+    "inputs": { "type": "integer", "minimum": 0 },
+    "outputs": { "type": "integer", "minimum": 0 },
+    "notes": { "type": "array", "items": { "type": "string" } },
+    "problems": { "type": "array", "items": { "type": "string" } },
+    "trust": {
+      "type": "object",
+      "required": ["claim_id", "receipt_integrity", "artifact_completeness", "resource_contract", "reproduction_evidence", "signature", "enforcement_assurance", "budget_mb"],
+      "properties": {
+        "claim_id": { "type": ["string", "null"], "pattern": "^[0-9a-f]{64}$" },
+        "receipt_integrity": { "$ref": "#/$defs/facet" },
+        "artifact_completeness": { "$ref": "#/$defs/facet" },
+        "resource_contract": { "$ref": "#/$defs/facet" },
+        "reproduction_evidence": { "$ref": "#/$defs/facet" },
+        "signature": { "$ref": "#/$defs/facet" },
+        "enforcement_assurance": { "type": ["string", "null"] },
+        "budget_mb": { "type": ["integer", "null"], "minimum": 0 }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "facet": {
+      "type": "object",
+      "required": ["status", "state", "explanation"],
+      "properties": {
+        "status": { "type": "string" },
+        "state": { "enum": ["satisfied", "missing", "failed", "not-applicable"] },
+        "explanation": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

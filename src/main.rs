@@ -1076,6 +1076,12 @@ fn sidecar_path(path: &std::path::Path, suffix: &str) -> PathBuf {
     PathBuf::from(value)
 }
 
+fn new_run_manifest(subcommand: &str) -> rosalind::provenance::RunManifest {
+    let mut manifest = rosalind::provenance::RunManifest::new(subcommand);
+    manifest.tool_version = env!("CARGO_PKG_VERSION").to_string();
+    manifest
+}
+
 fn require_safe_cli_destination(path: &std::path::Path, force: bool, kind: &str) {
     if !force && path.exists() {
         eprintln!(
@@ -1445,9 +1451,9 @@ fn run_index(
     // bit-identical to what `variants` records as its `--index` input, so the chain edge
     // resolves by construction. `--reference` records blake3(FASTA file) as the root.
     {
-        use rosalind::provenance::{blake3_hex, CommandCapture, RunManifest};
+        use rosalind::provenance::{blake3_hex, CommandCapture};
 
-        let mut manifest = RunManifest::new("index");
+        let mut manifest = new_run_manifest("index");
         let mut cmd = CommandCapture::new("index");
         cmd.input("--reference", &reference)?;
         if let Some(mb) = memory_budget_mb {
@@ -1494,7 +1500,7 @@ fn run_sort(
     force: bool,
     manifest_out: Option<PathBuf>,
 ) -> Result<()> {
-    use rosalind::provenance::{CommandCapture, RunManifest};
+    use rosalind::provenance::CommandCapture;
     use rosalind::util::atomic::{write_atomic, AtomicFile};
 
     let receipt_path = manifest_out.unwrap_or_else(|| sidecar_path(&output, ".manifest.json"));
@@ -1510,7 +1516,7 @@ fn run_sort(
         .commit(force)
         .with_context(|| format!("failed to commit sorted BAM {}", output.display()))?;
 
-    let mut receipt = RunManifest::new("sort");
+    let mut receipt = new_run_manifest("sort");
     let mut command = CommandCapture::new("sort");
     command.input("--input", &input)?;
     command.opt("--memory-mb", memory_mb);
@@ -2060,6 +2066,7 @@ fn run_diff(a: PathBuf, b: PathBuf, json: bool) -> Result<()> {
 /// Re-derive a recorded result and report REPRODUCED / DIVERGED / INCONCLUSIVE (and
 /// TAMPERED for a modified receipt), exiting 0 / 6 / 7 / 5 respectively. Writes a
 /// `.repro.json` reproduction certificate next to the receipt unless `--no-attest`.
+#[allow(clippy::too_many_arguments)] // CLI entry point: each replay safety switch is independent.
 fn run_reproduce(
     manifest: PathBuf,
     inputs: PathBuf,
@@ -2119,7 +2126,7 @@ fn run_reproduce(
                 matched: c.matched,
             })
             .collect();
-        let cert = ReproReceipt::build_with_identities(
+        let mut cert = ReproReceipt::build_with_identities(
             &report.parent_claim,
             &report.parent_subcommand,
             &report.verdict_label,
@@ -2130,6 +2137,7 @@ fn run_reproduce(
             &report.original_code,
             &report.reproducer_code,
         );
+        cert.set_tool_version(env!("CARGO_PKG_VERSION"));
         let dest = match &output {
             Some(p) => p.clone(),
             None => {
@@ -2376,7 +2384,7 @@ fn run_somatic(
     use rosalind::io::bam::BamSource;
     use rosalind::io::vcf::write_somatic_vcf;
     use rosalind::pileup::PileupParams;
-    use rosalind::provenance::{CommandCapture, RunManifest};
+    use rosalind::provenance::CommandCapture;
 
     let start_call = Instant::now();
     let mut contigs = ContigSet::new();
@@ -2420,7 +2428,7 @@ fn run_somatic(
         (None, Some(r1), Some(r2)) => vec![r1.clone(), r2.clone()],
         _ => Vec::new(),
     };
-    let mut manifest = RunManifest::new("somatic");
+    let mut manifest = new_run_manifest("somatic");
     let mut cmd = CommandCapture::new("somatic");
     cmd.input("--reference", &reference_path)?;
     for p in tumor_inputs.iter() {
@@ -2631,9 +2639,9 @@ fn run_align(
             .with_context(|| "failed to commit atomic alignment output")?;
     }
     if let Some(receipt_path) = receipt_path {
-        use rosalind::provenance::{CommandCapture, RunManifest};
+        use rosalind::provenance::CommandCapture;
 
-        let mut receipt = RunManifest::new("align");
+        let mut receipt = new_run_manifest("align");
         let mut command = CommandCapture::new("align");
         command.input("--reference", &reference_path)?;
         for (flag, path) in &receipt_reads {
@@ -2818,7 +2826,7 @@ fn run_variants(
     use rosalind::io::bam::BamSource;
     use rosalind::io::vcf::{write_germline_vcf, GermlineRow};
     use rosalind::pileup::{PileupParams, SliceSource};
-    use rosalind::provenance::{CommandCapture, RunManifest};
+    use rosalind::provenance::CommandCapture;
     use rosalind::util::atomic::{write_atomic, AtomicFile};
 
     let receipt_dest = manifest_out.clone().or_else(|| {
@@ -2923,7 +2931,7 @@ fn run_variants(
     }
 
     if let Some(receipt_dest) = receipt_dest {
-        let mut manifest = RunManifest::new("variants");
+        let mut manifest = new_run_manifest("variants");
         let mut cmd = CommandCapture::new("variants");
         cmd.input("--reference", &reference_path)?;
         cmd.input("--alignments", &alignments_path)?;
@@ -3079,7 +3087,7 @@ fn run_bounded_analysis(
         Err(ContractRunError::Breached(outcome)) => {
             render_outcome(&outcome);
             eprintln!(
-                "contract: VIOLATED — realized peak {} MiB exceeded declared {} MiB (output + receipt written)",
+                "contract: VIOLATED — realized peak {} MiB exceeded declared {} MiB (partial output + receipt written)",
                 outcome.peak_rss_bytes / (1 << 20),
                 memory_budget_mb.expect("breached run has a budget")
             );
@@ -3176,20 +3184,28 @@ fn run_variants_index(
             require_safe_cli_destination(path, false, "VCF receipt");
         }
     }
-    if require_os_limit {
+    let os_limit_bytes = if require_os_limit {
         let budget = memory_budget_mb.expect("clap requires --enforce; validation requires budget");
         let required = budget.saturating_mul(1 << 20);
         match rosalind::contract::detected_os_memory_limit_bytes() {
-            Some(limit) if limit <= required => {}
-            Some(limit) => bail!(
-                "OS memory enforcement unavailable: cgroup memory.max {} MiB exceeds budget {budget} MiB",
-                limit / (1 << 20)
-            ),
-            None => bail!(
-                "OS memory enforcement unavailable: run inside a cgroup-v2 scope limited to {budget} MiB"
-            ),
+            Some(limit) if limit <= required => Some(limit),
+            Some(limit) => {
+                eprintln!(
+                    "contract: REFUSE — OS enforcement unavailable: cgroup v2 memory.max {} MiB exceeds the declared {budget} MiB budget. Lower the container/systemd memory limit to at most {budget} MiB.",
+                    limit / (1 << 20)
+                );
+                std::process::exit(3);
+            }
+            None => {
+                eprintln!(
+                    "contract: REFUSE — OS enforcement unavailable: run inside a cgroup-v2 container or systemd scope with memory.max at most {budget} MiB. Rosalind does not create privileged cgroups."
+                );
+                std::process::exit(3);
+            }
         }
-    }
+    } else {
+        None
+    };
     use rosalind::call::{
         call_germline_whole_genome, stream_gvcf_whole_genome, write_gvcf_header, GermlineParams,
     };
@@ -3199,7 +3215,7 @@ fn run_variants_index(
     use rosalind::io::bam::StreamingBamSource;
     use rosalind::io::vcf::{write_germline_header, write_germline_row, GermlineRow};
     use rosalind::pileup::PileupParams;
-    use rosalind::provenance::{CommandCapture, RunManifest};
+    use rosalind::provenance::CommandCapture;
 
     let loaded = IndexReader::open(&index_path)
         .with_context(|| format!("failed to open index {}", index_path.display()))?;
@@ -3253,7 +3269,7 @@ fn run_variants_index(
     // unconditionally and recorded in the receipt — it is the contract's up-front
     // claim, which the post-run check and `verify` assert the realized peak honors.
     // Under `--enforce` it also gates the run: refuse cleanly before any work,
-    // never a silent OOM.
+    // with the cooperative assurance recorded in the receipt.
     let largest = contigs.iter().map(|c| c.length as u64).max().unwrap_or(0);
     let baseline = peak_rss_bytes();
     let predicted_peak =
@@ -3299,7 +3315,7 @@ fn run_variants_index(
         .and_then(|v| v.parse::<u64>().ok())
         .unwrap_or(100);
     // Under --enforce, the governor fails the run LOUD the moment live RSS crosses
-    // the budget (exit 4 with output + receipt) — never a silent kernel OOM. Held
+    // the budget (exit 4 with partial output + receipt). Held
     // for the duration of the calling pass; dropped (thread stopped) at scope end.
     let _governor_guard = if enforce {
         let mb = memory_budget_mb.expect("--enforce requires --memory-budget-mb (checked above)");
@@ -3450,7 +3466,7 @@ fn run_variants_index(
     // without --manifest writes NO file (no surprise cwd write, no race on a fixed
     // filename) but says how to persist one.
     if let Some(dest) = receipt_dest {
-        let mut manifest = RunManifest::new("variants");
+        let mut manifest = new_run_manifest("variants");
         let mut cmd = CommandCapture::new("variants");
         cmd.input("--index", &index_path)?;
         cmd.input("--alignments", &alignments_path)?;
@@ -3527,6 +3543,11 @@ fn run_variants_index(
             }
             .to_string(),
         );
+        if let Some(limit) = os_limit_bytes {
+            manifest
+                .params
+                .insert("os.memory_limit_bytes".to_string(), limit.to_string());
+        }
         manifest.params.insert(
             "run_status".to_string(),
             if is_breach { "breached" } else { "completed" }.to_string(),

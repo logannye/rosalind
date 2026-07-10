@@ -17,9 +17,9 @@ The browser can:
 ## Build
 
 ```sh
-rustup target add wasm32-unknown-unknown
-cargo install wasm-pack
-./scripts/build-wasm-verifier.sh
+rustup target add wasm32-unknown-unknown --toolchain 1.83.0
+cargo install wasm-pack --version 0.14.0
+RUSTUP_TOOLCHAIN=1.83.0 ./scripts/build-wasm-verifier.sh
 ```
 
 ## Run locally

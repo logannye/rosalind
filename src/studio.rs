@@ -102,7 +102,7 @@ fn respond(stream: &mut TcpStream, html: &[u8]) -> std::io::Result<()> {
     };
     write!(
         stream,
-        "HTTP/1.1 {status}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nCache-Control: no-store\r\nContent-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'\r\nX-Content-Type-Options: nosniff\r\nConnection: close\r\n\r\n",
+        "HTTP/1.1 {status}\r\nContent-Type: {content_type}\r\nContent-Length: {}\r\nCache-Control: no-store\r\nContent-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'\r\nX-Content-Type-Options: nosniff\r\nConnection: close\r\n\r\n",
         body.len()
     )?;
     stream.write_all(body)
@@ -154,7 +154,7 @@ mod tests {
             std::process::id()
         ));
         std::fs::write(&path, "{\"path\":\"</script>\"}").unwrap();
-        let html = inject_preloads(INDEX_HTML, &[path.clone()]).unwrap();
+        let html = inject_preloads(INDEX_HTML, std::slice::from_ref(&path)).unwrap();
         let preload = html
             .split("id=\"studio-preload\">")
             .nth(1)

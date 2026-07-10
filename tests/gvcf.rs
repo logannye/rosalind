@@ -1,6 +1,6 @@
 //! `variants --index --gvcf` — a bounded, byte-reproducible banded gVCF: every
 //! callable locus is a variant record or a `<NON_REF>` reference block (`END=`
-//! span), so per-sample output joins into GLnexus/GATK cohort pipelines.
+//! span), providing single-sample reference confidence for future joiner testing.
 
 use std::path::PathBuf;
 use std::process::Command;

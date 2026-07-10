@@ -891,6 +891,7 @@ fn write_receipt(
 ) -> Result<String, ContractRunError> {
     let mut manifest = RunManifest::new(spec.invocation.argv_prefix.join(" "));
     manifest.tool_version = spec.producer.version.clone();
+    manifest.tool_version = spec.producer.version.clone();
     let mut command = CommandCapture::from_argv_prefix(spec.invocation.argv_prefix.clone());
     command.input("--index", &spec.index)?;
     command.input("--alignments", &spec.alignments)?;

@@ -49,7 +49,7 @@ rosalind-receipt = { path = "crates/receipt", version = "0.3.0" }
 # OS bindings (read-only mmap of large reference/index files; peak-RSS readout)
 libc = "0.2"
 # Fast hashing for the reproducibility receipts
-blake3 = "1.5"
+blake3 = "=1.8.2"
 # Transparent gzip/bgzf-sequential decompression for FASTA/FASTQ ingestion
 flate2 = "1.0"
 # Bit manipulation - compact rank/select bitvectors in the FM-index

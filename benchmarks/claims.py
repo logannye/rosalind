@@ -83,14 +83,14 @@ def main():
             r1.returncode == 0 and predicted >= realized,
         )
 
-        # 2) honor-or-refuse before any work — never a silent OOM.
+        # 2) cooperative honor-or-refuse evidence before any work.
         v_fit = json.loads(run(["plan", "--index", str(idx), "--budget-mb", "512", "--json"]).stdout)["verdict"]
         v_ref = json.loads(run(["plan", "--index", str(idx), "--budget-mb", "1", "--json"]).stdout)["verdict"]
         refused = work / "refused.vcf"
         r2 = run(["variants", "--index", str(idx), "--alignments", str(sbam),
                   "--memory-budget-mb", "1", "--enforce", "-o", str(refused)])
         add(
-            "the declared budget is honored or refused up front (never a silent OOM)",
+            "the declared budget is cooperatively governed or refused up front",
             "plan verdict flips fits@512MiB -> refuse@1MiB; variants --enforce@1MiB exits 3 and writes NO output file",
             "fits / refuse / exit 3 + no output",
             f"plan@512={v_fit}, plan@1={v_ref}, enforce@1 exit={r2.returncode}, output_written={refused.exists()}",

@@ -120,7 +120,8 @@ fn analyze_coverage_writes_a_verifiable_receipt_with_analyzer_params() {
         "\"producer.binary\":\"rosalind\"",
         "\"analyzer.id\":\"coverage\"",
         "\"analyzer.version\":",
-        "\"replay_schema\":\"2\"",
+        "\"replay_schema\":\"3\"",
+        "\"replay.kind\":\"rosalind\"",
         "\"command_argv\":",
     ] {
         assert!(

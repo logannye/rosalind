@@ -11,6 +11,7 @@ on:
       - "crates/receipt/**"
       - "crates/receipt-wasm/**"
       - "scripts/build-wasm-verifier.sh"
+      - "docs/schema/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -29,12 +30,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Add the wasm target
-        run: rustup target add wasm32-unknown-unknown
-      - name: Install wasm-pack
-        run: cargo install wasm-pack --locked
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.83.0
+          targets: wasm32-unknown-unknown
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack@0.14.0
       - name: Build the verifier (wasm -> web/verify/pkg)
-        run: ./scripts/build-wasm-verifier.sh
+        env:
+          RUSTUP_TOOLCHAIN: 1.83.0
+        run: scripts/build-wasm-verifier.sh
+      - name: Publish receipt and attestation schemas
+        run: |
+          mkdir -p web/schema
+          cp docs/schema/*.json web/schema/
+          cp web/verify/schema/run-attestation-v1.schema.json web/schema/
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -139,6 +139,7 @@ fn direct_runner_completes_and_seals_external_identity() {
     assert!(outcome.claim_hash.is_some());
     let receipt = std::fs::read_to_string(format!("{}.manifest.json", output.display())).unwrap();
     for expected in [
+        "\"tool_version\":\"1.2.3\"",
         "\"producer.name\":\"external-test\"",
         "\"analyzer.id\":\"depth\"",
         "value with spaces",
@@ -239,5 +240,72 @@ fn analyzer_replay_options_cannot_shadow_contract_flags() {
         error,
         ContractRunError::InvalidConfiguration(message) if message.contains("collides")
     ));
+    std::fs::remove_dir_all(dir).ok();
+}
+
+#[test]
+fn required_os_limit_accepts_a_finite_cgroup_ceiling() {
+    let dir = unique_dir();
+    let (index, bam) = fixture(&dir);
+    let output = dir.join("cgroup.tsv");
+    let result = Command::new(bin())
+        .args([
+            "features",
+            "--index",
+            index.to_str().unwrap(),
+            "--alignments",
+            bam.to_str().unwrap(),
+            "--memory-budget-mb",
+            "128",
+            "--enforce",
+            "--require-os-limit",
+            "--output",
+            output.to_str().unwrap(),
+        ])
+        .env("ROSALIND_TEST_CGROUP_MEMORY_MAX", "134217728")
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let receipt = std::fs::read_to_string(format!("{}.manifest.json", output.display())).unwrap();
+    assert!(receipt.contains("\"contract.assurance\":\"cgroup-v2\""));
+    assert!(receipt.contains("\"os.memory_limit_bytes\":\"134217728\""));
+    std::fs::remove_dir_all(dir).ok();
+}
+
+#[test]
+fn required_os_limit_refuses_unavailable_or_broad_limits_before_output() {
+    let dir = unique_dir();
+    let (index, bam) = fixture(&dir);
+    for (label, limit) in [("unlimited", "max"), ("too-broad", "268435456")] {
+        let output = dir.join(format!("{label}.tsv"));
+        let result = Command::new(bin())
+            .args([
+                "features",
+                "--index",
+                index.to_str().unwrap(),
+                "--alignments",
+                bam.to_str().unwrap(),
+                "--memory-budget-mb",
+                "128",
+                "--enforce",
+                "--require-os-limit",
+                "--output",
+                output.to_str().unwrap(),
+            ])
+            .env("ROSALIND_TEST_CGROUP_MEMORY_MAX", limit)
+            .output()
+            .unwrap();
+        assert_eq!(result.status.code(), Some(3), "{label}");
+        assert!(!output.exists(), "{label}");
+        assert!(
+            String::from_utf8_lossy(&result.stderr).contains("OS enforcement unavailable"),
+            "{label}: {}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+    }
     std::fs::remove_dir_all(dir).ok();
 }

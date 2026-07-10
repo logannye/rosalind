@@ -19,6 +19,7 @@
 use std::collections::BTreeMap;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::OnceLock;
 
 mod command;
@@ -117,7 +118,8 @@ pub const MEASUREMENT_KEYS: &[&str] = &[
 ];
 
 /// The claim keys that record build identity (code / toolchain / deps). Segregated by
-/// `rosalind diff` as a distinct cause bucket. Must track [`build_identity_pairs`].
+/// `rosalind diff` as a distinct cause bucket. Must track the internal
+/// `build_identity_pairs` helper.
 pub const BUILD_IDENTITY_KEYS: &[&str] = &[
     "code_git_sha",
     "code_dirty",
@@ -985,9 +987,56 @@ pub fn write_manifest(output_path: &Path, manifest: &RunManifest) -> io::Result<
     let mut name = output_path.as_os_str().to_os_string();
     name.push(".manifest.json");
     let manifest_path = PathBuf::from(name);
-    let mut file = std::fs::File::create(&manifest_path)?;
-    file.write_all(manifest.to_canonical_json().as_bytes())?;
-    file.flush()?;
+    if manifest_path.exists() {
+        return Err(io::Error::new(
+            io::ErrorKind::AlreadyExists,
+            format!("receipt already exists: {}", manifest_path.display()),
+        ));
+    }
+    static COUNTER: AtomicU64 = AtomicU64::new(0);
+    let parent = manifest_path.parent().unwrap_or_else(|| Path::new("."));
+    let filename = manifest_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("receipt.json");
+    let mut reservation = None;
+    for _ in 0..128 {
+        let temporary = parent.join(format!(
+            ".{filename}.rosalind-{}-{}.partial",
+            std::process::id(),
+            COUNTER.fetch_add(1, Ordering::Relaxed)
+        ));
+        match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&temporary)
+        {
+            Ok(file) => {
+                reservation = Some((temporary, file));
+                break;
+            }
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error),
+        }
+    }
+    let (temporary, mut file) = reservation.ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::AlreadyExists,
+            "could not reserve a unique transactional receipt path",
+        )
+    })?;
+    let result = (|| {
+        file.write_all(manifest.to_canonical_json().as_bytes())?;
+        file.flush()?;
+        file.sync_all()?;
+        drop(file);
+        std::fs::hard_link(&temporary, &manifest_path)?;
+        std::fs::remove_file(&temporary)
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_file(&temporary);
+    }
+    result?;
     Ok(manifest_path)
 }
 
@@ -1402,6 +1451,13 @@ mod tests {
         assert_eq!(manifest_path, dir.join("calls.vcf.manifest.json"));
         let written = std::fs::read_to_string(&manifest_path).unwrap();
         assert_eq!(written, m.to_canonical_json());
+
+        let error = write_manifest(&out, &m).unwrap_err();
+        assert_eq!(error.kind(), io::ErrorKind::AlreadyExists);
+        assert_eq!(
+            std::fs::read_to_string(&manifest_path).unwrap(),
+            m.to_canonical_json()
+        );
 
         std::fs::remove_dir_all(&dir).ok();
     }

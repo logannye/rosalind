@@ -55,15 +55,15 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
+    readonly verify: (a: number, b: number) => [number, number];
+    readonly inspect_receipt: (a: number, b: number) => [number, number];
+    readonly evaluate_trust: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
+    readonly diff_receipts: (a: number, b: number, c: number, d: number) => [number, number];
+    readonly walk_receipt_chain: (a: number, b: number) => [number, number];
     readonly __wbg_blake3hasher_free: (a: number, b: number) => void;
-    readonly blake3hasher_finalize_hex: (a: number) => [number, number];
     readonly blake3hasher_new: () => number;
     readonly blake3hasher_update: (a: number, b: number, c: number) => void;
-    readonly diff_receipts: (a: number, b: number, c: number, d: number) => [number, number];
-    readonly evaluate_trust: (a: number, b: number, c: number, d: number, e: number, f: number) => [number, number];
-    readonly inspect_receipt: (a: number, b: number) => [number, number];
-    readonly verify: (a: number, b: number) => [number, number];
-    readonly walk_receipt_chain: (a: number, b: number) => [number, number];
+    readonly blake3hasher_finalize_hex: (a: number) => [number, number];
     readonly __wbindgen_externrefs: WebAssembly.Table;
     readonly __wbindgen_free: (a: number, b: number, c: number) => void;
     readonly __wbindgen_malloc: (a: number, b: number) => number;

@@ -36,6 +36,13 @@ pub struct ReproReceipt {
 }
 
 impl ReproReceipt {
+    /// Override the host tool version when the receipt crate is used as a leaf library.
+    pub fn set_tool_version(&mut self, version: impl Into<String>) {
+        self.inner.tool_version = version.into();
+        self.inner.params.remove("manifest_blake3");
+        self.inner.finalize();
+    }
+
     /// Build (and seal) a certificate for one reproduction.
     ///
     /// `parent_claim` is the original receipt's `content_hash()`. `peak_rss_bytes` is the

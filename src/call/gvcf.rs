@@ -1,6 +1,6 @@
 //! Bounded gVCF: a banded reference-block + variant stream.
 //!
-//! A sites-only VCF cannot enter cohort pipelines (GLnexus, GATK GenomicsDB) —
+//! A sites-only VCF lacks the reference confidence needed by cohort joiners —
 //! they need to tell "reference here" from "not covered here". A gVCF says both:
 //! every callable locus is either a variant record or part of a `<NON_REF>`
 //! reference block (`END=` span) banded by genotype quality.

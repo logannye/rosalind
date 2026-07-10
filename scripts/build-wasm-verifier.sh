@@ -3,7 +3,8 @@
 #
 # Requires:
 #   rustup target add wasm32-unknown-unknown
-#   cargo install wasm-pack            # (or: brew install wasm-pack)
+#   cargo install wasm-pack --version 0.14.0
+# CI sets RUSTUP_TOOLCHAIN=1.83.0 so committed output is reproducible at the MSRV.
 #
 # NOTE: RUSTFLAGS is cleared on purpose. A global `target-cpu` (e.g. the common
 # `~/.cargo/config.toml` with rustflags = ["-C","target-cpu=native"]) resolves to a

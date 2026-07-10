@@ -90,17 +90,19 @@ impl AtomicFile {
                 .open(&self.temporary)?
                 .sync_all()?;
         }
-        if !replace && destination.exists() {
-            return Err(io::Error::new(
-                io::ErrorKind::AlreadyExists,
-                format!("destination already exists: {}", destination.display()),
-            ));
+        if replace {
+            #[cfg(windows)]
+            if destination.exists() {
+                std::fs::remove_file(destination)?;
+            }
+            std::fs::rename(&self.temporary, destination)?;
+        } else {
+            // A same-filesystem hard link is an atomic create-new publication: it
+            // cannot overwrite a destination that appears between preflight and
+            // commit. Unlinking the temporary name leaves the committed inode.
+            std::fs::hard_link(&self.temporary, destination)?;
+            std::fs::remove_file(&self.temporary)?;
         }
-        #[cfg(windows)]
-        if replace && destination.exists() {
-            std::fs::remove_file(destination)?;
-        }
-        std::fs::rename(&self.temporary, destination)?;
         self.committed = true;
         Ok(destination.to_path_buf())
     }

@@ -11,7 +11,7 @@
 
 > ⚡ **Install:** `cargo install rosalind-bio` (the crate is `rosalind-bio`; the installed binary is `rosalind`) — or `curl -fsSL https://raw.githubusercontent.com/logannye/rosalind/main/install.sh | sh` for a prebuilt binary (macOS · Linux, no toolchain). Then jump to the [60-second Quickstart](#quickstart-60-seconds).
 
-Call variants across a whole genome on a laptop, in RAM you declare up front, and get results that reproduce byte-for-byte — with a receipt to prove it. Most variant callers spend memory that grows with your data, so "will this finish on my machine?" is something you find out the hard way. Rosalind inverts that: you state a budget, and it tells you *before committing a byte* whether the job fits, then honors that ceiling while it runs. It streams a coordinate-sorted BAM one read at a time, reads the reference from a compact memory-mapped index (no second copy of the genome in RAM), and keeps its working set proportional to *local read depth* rather than file size. Every run prints — and records — the memory it actually used. Where the evidence is too thin to be sure, it **abstains** instead of guessing.
+Call variants across a whole genome on a laptop, in RAM you declare up front, and get results that reproduce byte-for-byte — with a receipt to prove it. Most variant callers spend memory that grows with your data, so "will this finish on my machine?" is something you find out the hard way. Rosalind inverts that: you state a budget, and it tells you *before committing a byte* whether the job fits, then cooperatively governs the run; on Linux, `--require-os-limit` can additionally require an existing cgroup v2 ceiling. It streams a coordinate-sorted BAM one read at a time, reads the reference from a compact memory-mapped index (no second copy of the genome in RAM), and keeps its working set proportional to *local read depth* rather than file size. Every run prints — and records — the memory it actually used and the assurance actually available. Where the evidence is too thin to be sure, it **abstains** instead of guessing.
 
 The bounded engine is a substrate, not just a caller: **the receipt is the product, and variant calling is the first workload that runs on it.** It's a Rust **library and CLI** you can call directly, extend with one trait, or drive from Python — not a black-box pipeline.
 
@@ -52,7 +52,7 @@ What makes this different:
 
 - **Bounded memory, independent of BAM size.** Reads stream one record at a time; peak memory is roughly *the largest contig's reference + the local pileup working set* — not the size of your alignments. A human genome calls comfortably on a laptop.
 - **Self-contained.** The reference comes from the `.idx`; you don't need the original FASTA at call time.
-- **A contract, honored.** `rosalind plan` predicts the peak *before you commit a byte*; `--enforce` honors the budget — refusing up front (exit 3) or failing loud (exit 4) rather than silently OOM-killing you; `rosalind verify` re-checks the receipt without re-running. Without `--enforce`, the budget is record-only. The full story: [the memory contract](CONTRACT.md).
+- **A contract with explicit assurance.** `rosalind plan` predicts the peak *before you commit a byte*; `--enforce` refuses unsound plans and cooperatively detects breaches (exit 3/4), while `--require-os-limit` requires an already-active Linux cgroup ceiling. `rosalind verify` re-checks the recorded evidence without re-running. Without `--enforce`, the budget is record-only. The full story: [the memory contract](CONTRACT.md).
 - **Reproducible + auditable.** Identical inputs produce a byte-identical VCF; a BLAKE3 manifest records the index, the BAM, the output, and the memory used.
 
 **Proof — the contract on a real genome.** On the real *E. coli* K-12 MG1655 chromosome (4,641,652 bp, 30× simulated reads), a declared **256 MiB** budget *fits* — `plan` → `variants --enforce` → `verify: OK`, **realized peak 22 MiB** — while an **8 MiB** budget is *refused up front* (exit 3, no work). The contract honored both ways; this demo's claim is *memory* (the reads are simulated) — calling accuracy is measured separately ([Accuracy](#accuracy)). Full numbers + one-command reproduction (`bash scripts/flagship_ecoli_demo.sh`): [`docs/findings/2026-06-01-flagship-ecoli-contract.md`](docs/findings/2026-06-01-flagship-ecoli-contract.md).
@@ -71,6 +71,16 @@ It writes embedded FASTA/FASTQ assets to `./rosalind-demo`, then narrates index 
 align → sort → plan → enforced variants → verify → reproduce → chain. Use
 `--json` for a smoke test or `--budget-mb N` to change the default 128 MiB budget.
 The command refuses to write into a non-empty destination.
+
+Then open the complete local provenance graph without uploading anything:
+
+```sh
+rosalind studio rosalind-demo/*.manifest.json rosalind-demo/*.repro.json
+```
+
+Rosalind v0.4 never overwrites file outputs by default. Existing destinations are
+an error; use `--force` when atomic replacement is intentional. A governed breach
+is preserved as `<output>.partial`, never under the successful output name.
 
 Grab a prebuilt binary and watch the contract fire on the bundled data — no toolchain, no build:
 
@@ -189,7 +199,7 @@ rosalind reproduce --manifest sample.vcf.manifest.json --inputs ./data
 #   -> wrote reproduction certificate: sample.vcf.manifest.json.repro.json (chains to a1b2c3…)
 ```
 
-It content-locates the recorded inputs by BLAKE3 hash (paths don't matter), re-runs the exact recorded argv without a shell, and compares output bytes — exit **0 REPRODUCED / 6 DIVERGED / 7 INCONCLUSIVE** (and **5** for a tampered receipt). New receipts carry `command_argv`; historical schema-5 receipts fall back to `command`. Use `--binary PATH` to reproduce a third-party analyzer explicitly. A path recorded in an untrusted receipt is never executed. The certificate preserves both original and rerun build identities, even when the output bytes match.
+It content-locates the recorded inputs by BLAKE3 hash (paths don't matter), validates a schema-3 execution plan, re-runs the exact recorded argv without a shell, and compares output bytes — exit **0 REPRODUCED / 6 DIVERGED / 7 INCONCLUSIVE** (and **5** for a tampered receipt). Use `--dry-run --json` to inspect the validated plan without executing it. Applicable historical Rosalind schema-5 receipts remain replayable; legacy external receipts are inconclusive until upgraded. Use `--binary PATH` to reproduce a third-party analyzer explicitly. A path recorded in an untrusted receipt is never executed. The certificate preserves both original and rerun build identities, even when the output bytes match.
 
 Each run writes a **reproduction certificate** (`.repro.json`) — a content-addressed, self-hashing attestation that names the original receipt's claim hash. Independent parties who reproduce the same result mint certificates that all name the same parent — **N independent confirmations, with no server**: a reproducibility web. (Tamper-evident today; cryptographic signing is the next step.)
 
@@ -238,11 +248,11 @@ The core primitive is a streaming, CIGAR-aware pileup column stream; variant cal
 
 - **Phase A (done):** the streaming pileup engine; genotype-likelihood, abstention-aware germline SNV calling; tumor/normal somatic calling; spec-valid VCF; a BLAKE3 reproducibility receipt per run.
 - **Phase B (done):** streaming gzip/bgzf input; a multi-contig FM-index over the concatenated genome with `(contig, position)` resolution; a build-once, memory-mapped, byte-reproducible persisted index (`rosalind index`/`locate`); zero-copy reference access from the index; and **bounded whole-genome germline calling over a sorted BAM** (`rosalind variants --index`) with a realized-memory receipt.
-- **Phase C (done):** memory as a *verifiable contract* — `rosalind plan` (a checkable envelope before you commit), `--enforce` (honor-or-refuse: refuse up front / fail loud, never a silent OOM-kill), and `rosalind verify`. See [CONTRACT.md](CONTRACT.md).
+- **Phase C (done):** memory as a *verifiable contract* — `rosalind plan` (a checkable envelope before you commit), `--enforce` (cooperative refusal/breach detection), optional Linux cgroup-v2 assurance, and `rosalind verify`. See [CONTRACT.md](CONTRACT.md).
 - **Hardening & reach (done):** unbiased depth-cap downsampling (no silent variant drops) and a CI-enforced memory gate; **measured** germline detection accuracy ([Accuracy](#accuracy)); the **`rosalind features`** reproducible ML feature substrate; and a one-command adoption on-ramp — prebuilt binaries (`install.sh`, with checksum verification) plus the **Rosalind budget GitHub Action** (`action.yml`, used as `logannye/rosalind@v0.1.0`) that enforces the contract in *your* CI.
 - **Fleet scheduling (done):** [prediction → placement](#pack-a-fleet-prediction--placement) — `rosalind pack` shows a co-location of N calling jobs fits within budget before launching a byte (predicted peaks are additive and read from the index header); `plan --index --json` for a scheduler to read.
 - **ColumnKit SDK (done):** [implement one trait, inherit the contract](#columnkit-implement-one-trait-inherit-the-contract) — a source-compatible `ColumnAnalyzer`, public contract runner, scaffold generator, testkit, argv-safe external replay, and producer/analyzer identity. The shipped `features` and `analyze` commands delegate to this same runner.
-- **Bounded gVCF (done):** `variants --index --gvcf` emits a banded gVCF (every callable locus → a variant record or a `<NON_REF>` reference block with an `END=` span), so per-sample output joins into GLnexus/GATK cohort pipelines — bounded (O(1) banding state) and byte-reproducible run-to-run, a property production gVCF pipelines generally don't provide.
+- **Bounded gVCF (done, single-sample):** `variants --index --gvcf` emits a banded gVCF (every callable locus → a variant record or a `<NON_REF>` reference block with an `END=` span) with O(1) banding state and byte-reproducible output. Interoperability with a cohort joiner is not yet claimed; stronger cohort language is deferred until a pinned GLnexus or GATK integration test exists.
 - **Phase D (research):** sublinear-space index construction — the `~√t` space/time knob across the full curve — extending the contract to the index *build* step (today's build is `O(reference)`). The keystone that completes the memory contract end to end; see [`docs/OPEN_PROBLEMS.md`](docs/OPEN_PROBLEMS.md).
 - **Later:** the aligner over the persisted multi-contig index (`align --index`, whole-genome alignment); germline indels and richer read QC; deterministic multithreading; a Python/tensor binding over the pileup stream.
 

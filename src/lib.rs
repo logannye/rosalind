@@ -3,8 +3,8 @@
 //! Call variants across a whole genome on a laptop, with memory you can **predict
 //! and verify**, and results that are **byte-for-byte reproducible**. Rosalind
 //! treats memory as a *contract*: you declare a RAM budget, `rosalind plan` tells
-//! you up front whether the job fits, the run honors it (fits-or-refuses cleanly —
-//! never a silent OOM-kill), and `rosalind verify` re-checks a BLAKE3 receipt
+//! you up front whether the job fits, the runner applies cooperative or cgroup-backed
+//! assurance explicitly, and `rosalind verify` re-checks a BLAKE3 receipt
 //! proving the realized peak landed inside your budget.
 //!
 //! The kernel is a streaming, CIGAR-aware **pileup column stream** bounded by local

@@ -36,15 +36,26 @@ are part of the deterministic claim.
 
 ## Replay compatibility
 
-New receipts set `replay_schema=2` and record `command_argv` as a canonical JSON
-array encoded in a string. Tokens are never interpreted by a shell, so spaces in
-paths and option values are unambiguous. The legacy human-readable `command` remains
-present. Schema-5 receipts without `command_argv` replay through the historical
-`command` parser.
+New receipts set `replay_schema=3`, record `replay.kind=rosalind|external-analyzer`,
+and store `command_argv` as a canonical JSON array encoded in a string. Tokens are
+never interpreted by a shell, so spaces and Unicode in paths and option values are
+unambiguous. Before execution, Rosalind requires an intact claim and measurements,
+then cross-checks the subcommand, argv, parameters, input/output markers, and hashes.
+Built-in replay is allowlisted; external-analyzer replay requires schema 3 and an
+explicit `--binary PATH`. A dry run returns the validated execution plan without
+starting a child process.
+
+The legacy human-readable `command` remains present. Applicable historical Rosalind
+schema-5 recipes continue through strict legacy validation. Legacy third-party
+recipes are reported `INCONCLUSIVE` with upgrade guidance because they do not carry
+enough information for safe automatic execution.
 
 `rosalind reproduce --binary PATH` is the only way to select a third-party replay
 executable. A receipt's recorded `producer.binary` is informational and is never
-executed automatically.
+executed automatically. Replay runs in a fresh working directory with redirected
+`HOME` and `TMPDIR`, a minimal locale/timezone, and only the caller's existing
+`PATH`. This contains ordinary path side effects; trusting an explicitly selected
+binary is still required, and the working directory is not a full OS sandbox.
 
 ## Historical capabilities
 

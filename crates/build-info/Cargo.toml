@@ -11,4 +11,4 @@ keywords = ["reproducibility", "provenance", "build-info"]
 categories = ["development-tools::build-utils"]
 
 [dependencies]
-blake3 = "1.5"
+blake3 = "=1.8.2"

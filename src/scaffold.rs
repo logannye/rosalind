@@ -81,7 +81,7 @@ fn validate_name(name: &str) -> std::io::Result<()> {
     }
 }
 
-const CARGO_TEMPLATE: &str = include_str!("../assets/scaffold/Cargo.toml");
+const CARGO_TEMPLATE: &str = include_str!("../assets/scaffold/Cargo.toml.template");
 const BUILD_TEMPLATE: &str = include_str!("../assets/scaffold/build.rs");
 const MAIN_TEMPLATE: &str = include_str!("../assets/scaffold/src/main.rs");
 const TEST_TEMPLATE: &str = include_str!("../assets/scaffold/tests/contract.rs");

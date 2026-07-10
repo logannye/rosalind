@@ -11,6 +11,8 @@ on:
 
 permissions:
   contents: write # required to create/attach a GitHub Release
+  id-token: write
+  attestations: write
 
 jobs:
   build:
@@ -78,7 +80,12 @@ jobs:
           stage="dist/$name"
           mkdir -p "$stage"
           cp "target/${{ matrix.target }}/release/rosalind" "$stage/"
-          cp README.md CONTRACT.md LICENSE-APACHE LICENSE-MIT "$stage/"
+          cp README.md CONTRACT.md CHANGELOG.md LICENSE-APACHE LICENSE-MIT "$stage/"
+          mkdir -p "$stage/docs/schema"
+          cp docs/receipt-schema.md docs/receipt-trust.md docs/v0.4-migration.md "$stage/docs/"
+          cp docs/schema/receipt-v5.schema.json "$stage/docs/schema/"
+          cp docs/schema/trust-report-v2.schema.json "$stage/docs/schema/"
+          cp web/verify/schema/run-attestation-v1.schema.json "$stage/docs/schema/"
           mkdir -p "$stage/examples/data"
           cp -R examples/data/illumina_toy "$stage/examples/data/"
           tar -C dist -czf "dist/$name.tar.gz" "$name"
@@ -89,6 +96,20 @@ jobs:
             (cd dist && shasum -a 256 "$name.tar.gz" > "$name.tar.gz.sha256")
           fi
 
+      - name: Install Syft
+        uses: anchore/sbom-action/download-syft@v0
+
+      - name: Generate SPDX SBOM
+        shell: bash
+        run: |
+          name="rosalind-${{ matrix.target }}"
+          syft "dir:dist/$name" -o "spdx-json=dist/$name.spdx.json"
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/rosalind-${{ matrix.target }}.tar.gz
+
       - name: Upload workflow artifact (dry run)
         uses: actions/upload-artifact@v4
         with:
@@ -96,6 +117,7 @@ jobs:
           path: |
             dist/rosalind-${{ matrix.target }}.tar.gz
             dist/rosalind-${{ matrix.target }}.tar.gz.sha256
+            dist/rosalind-${{ matrix.target }}.spdx.json
 
       - name: Attach to the GitHub Release (tag builds only)
         if: startsWith(github.ref, 'refs/tags/v')
@@ -104,6 +126,7 @@ jobs:
           files: |
             dist/rosalind-${{ matrix.target }}.tar.gz
             dist/rosalind-${{ matrix.target }}.tar.gz.sha256
+            dist/rosalind-${{ matrix.target }}.spdx.json
           fail_on_unmatched_files: true
           body: |
             Prebuilt `rosalind` binaries — the memory contract, runnable in 60 seconds.
@@ -114,3 +137,24 @@ jobs:
 
             Each tarball bundles the binary, the `illumina_toy` contract-demo fixtures, and the
             licenses. See the README "Quickstart (60 seconds)".
+
+  publish-crates:
+    name: publish crates in dependency order
+    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-rc.')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Publish rosalind-build-info 0.1.0
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish -p rosalind-build-info --locked
+      - name: Publish rosalind-receipt 0.3.0
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish -p rosalind-receipt --locked
+      - name: Publish rosalind-bio 0.4.0
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish -p rosalind-bio --locked

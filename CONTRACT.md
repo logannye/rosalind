@@ -5,11 +5,13 @@
 Every other variant caller treats RAM as an emergent property you guess at (`-Xmx…`,
 `--target-mem` "heuristics may not work well") and then crash on. Rosalind treats it as a contract:
 
-> **Rosalind never silently OOM-kills you — it fits, or it tells you up front, and it records the
-> realized peak in a receipt you can verify.**
+> **Rosalind predicts whether a declared job fits, refuses unsound enforcement,
+> records the realized peak and assurance in a verifiable receipt, and can require
+> an existing Linux cgroup ceiling when OS-backed enforcement is mandatory.**
 
 (It does *not* claim to "never refuse": when a budget is genuinely too small the run declines cleanly
-rather than crashing. Graceful degrade-don't-die — sliding down a space/time curve to finish anyway — is
+rather than crashing. Cooperative RSS polling is not a kernel memory sandbox; use
+`--require-os-limit` for a detected cgroup-v2 ceiling. Graceful degrade-don't-die — sliding down a space/time curve to finish anyway — is
 the Phase-D research direction, not a present claim.)
 
 ## The four verbs
@@ -39,12 +41,13 @@ rosalind variants --index genome.idx --alignments sample.sorted.bam \
   --memory-budget-mb 2048 --enforce -o sample.vcf
 ```
 
-With `--enforce`:
+With `--enforce` (cooperative assurance):
 
 - **predicted peak > budget → refuse up front** (exit **3**), before doing any work, with an actionable
   message (raise the budget, lower `--max-depth`, or drop `--enforce`);
-- **realized peak > budget → fail loud** (exit **4**) *after* writing the VCF + receipt (you keep the data
-  and the proof it overran) — never a silent overrun;
+- **realized peak > budget → fail loud** (exit **4**) after flushing the governed
+  artifact to `<output>.partial` and sealing a breach receipt that names that partial
+  artifact; the successful output name is never exposed;
 - a **runtime governor** polls process RSS *during* the run and fails loud the moment the realized peak
   crosses the budget — exit **4** with the partial output + a `governor=tripped`, `contract_verdict=over`
   receipt — so a misprediction is caught mid-run instead of by a silent kernel OOM. The receipt also
@@ -57,6 +60,18 @@ the receipt. The active read set is capped at `--max-depth` (default 1000; `0` =
 **unbiased** content-hash downsampling — it bounds the working set without biasing allele balance, so a deep
 variant is *not* silently dropped. Output changes only at sites deeper than the cap, and the dropped-read
 count is surfaced (stderr + the receipt's `over_max_depth`).
+
+`--require-os-limit` (used together with `--enforce`) raises the assurance level on
+Linux: Rosalind requires the process to already be inside cgroup v2 with a finite
+`memory.max` no greater than the declared budget. It never attempts privileged
+cgroup creation. Missing, unlimited, or overly broad limits refuse before the output
+is opened and include container/systemd remediation. macOS supports observed and
+cooperative assurance; it cannot claim a Linux cgroup limit.
+
+The runner's prediction includes both the pileup/reference model and the analyzer's
+declared maximum retained memory. An unknown analyzer is valid in record-only mode,
+but cannot make an enforcement claim and is therefore refused before output under
+either enforcement mode.
 
 ### 4. Verify — `rosalind verify`
 
@@ -92,6 +107,15 @@ tamper-*evident*, not proof of authorship. See the separate
   `docs/OPEN_PROBLEMS.md`).
 - The engine is **single-threaded** — outputs are deterministic, but there is no thread-invariance claim
   yet.
+
+## Transactional output policy
+
+File-producing commands use sibling temporary files and atomic rename. The default
+is create-new: an existing destination or reserved `<output>.partial` causes exit 2
+before computation. Pass `--force` to request atomic replacement. Successful runs
+leave only the requested final artifact; input, analyzer, and ordinary I/O failures
+remove temporary files. Receipts follow the same write discipline. This
+non-overwrite default is the intentional v0.4 CLI compatibility change.
 
 ## Extend — build on the bounded substrate
 

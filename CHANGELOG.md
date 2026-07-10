@@ -4,8 +4,27 @@ All notable changes to Rosalind are recorded here. Versions follow [Semantic Ver
 
 ## [Unreleased]
 
-Release candidates must soak for one week. After the v0.3.0 RC begins, receipt-format
-or CLI changes require restarting the soak.
+### v0.4 trustworthy builder train
+
+- Sound public analyzer contracts now distinguish unknown and fixed memory models,
+  cooperative enforcement, observed-only evidence, and Linux cgroup-v2 assurance.
+- File outputs and receipts are create-new and atomic by default; `--force` requests
+  atomic replacement, while governed breaches preserve only `<output>.partial`.
+- Replay schema 3 validates explicit execution plans before running, allowlists
+  built-ins, requires `--binary` for external analyzers, isolates the working
+  directory, and exposes non-executing `--dry-run` plans.
+- One shared structured trust report powers `verify`, Receipt Studio, WASM, and
+  badges. Missing reproduction evidence is neutral; only linked certificates earn
+  `reproduced`.
+- Added `doctor`, `receipt inspect`, `receipt sanitize`, unsigned in-toto export,
+  local-only `studio`, complete demo provenance, analyzer conformance, and embedded
+  maintained scaffold templates.
+- `align` and `sort` now emit replayable schema-5 receipts with artifact roles. The
+  opt-in HG002 workflow adds checksum-pinned hap.py 0.3.15/RTG vcfeval evaluation
+  and GIAB v3.1 genome contexts without changing the caller.
+
+Release candidates must soak for one week. After the v0.4.0 RC begins, public API,
+receipt-field, or CLI changes require restarting the soak.
 
 ## [0.3.1] — 2026-07-09
 
@@ -81,7 +100,7 @@ contract** — predict it before you commit, honor it during the run, and verify
 ### The memory contract
 - `rosalind plan` — predict a job's peak memory against a declared budget *before* committing a byte.
 - `rosalind variants … --enforce` — honor the budget: refuse up front (exit 3) or fail loud (exit 4),
-  never a silent OOM-kill. Record-only without `--enforce`.
+  with an explicit cooperative verdict. Record-only without `--enforce`.
 - `rosalind verify` — re-check a run's BLAKE3 receipt without re-running.
 - The **Rosalind budget GitHub Action** (`action.yml`, used as `logannye/rosalind@v0.1.0`) — enforce the
   contract in *your* CI (fail the build on breach).

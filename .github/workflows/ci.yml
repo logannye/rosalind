@@ -28,13 +28,28 @@ jobs:
       - name: Cargo fmt
         run: cargo fmt --all -- --check
       - name: Cargo test
-        run: cargo test
+        run: cargo test --workspace
       - name: Synthetic chr20 GIAB smoke
         run: benchmarks/giab/smoke.sh
       - name: Build examples
         run: cargo build --examples
       - name: Build docs
-        run: cargo doc --no-deps
+        run: cargo doc --workspace --no-deps
+      - name: Compile receipt parser fuzz targets
+        run: cargo check --manifest-path fuzz/Cargo.toml --bins
+      - name: Package publishable crates and embedded assets
+        run: |
+          cargo package -p rosalind-build-info --allow-dirty
+          cargo package -p rosalind-receipt --allow-dirty
+          cargo package -p rosalind-bio --allow-dirty --no-verify \
+            --config 'patch.crates-io.rosalind-receipt.path="crates/receipt"' \
+            --config 'patch.crates-io.rosalind-build-info.path="crates/build-info"'
+          cargo package -p rosalind-bio --allow-dirty --list \
+            --config 'patch.crates-io.rosalind-receipt.path="crates/receipt"' \
+            --config 'patch.crates-io.rosalind-build-info.path="crates/build-info"' > package-files.txt
+          grep -q '^web/verify/pkg/rosalind_verify_bg.wasm$' package-files.txt
+          grep -q '^assets/demo/reference.fa$' package-files.txt
+          grep -q '^assets/scaffold/Cargo.toml.template$' package-files.txt
 
   python:
     runs-on: ubuntu-latest
@@ -299,3 +314,24 @@ jobs:
           python-version: '3.11'
       - name: Run the claims harness (a standing regression gate on the contract + reproducibility)
         run: bash benchmarks/run.sh
+
+  studio-assets:
+    name: Receipt Studio generated assets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.83.0
+          targets: wasm32-unknown-unknown
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack@0.14.0
+      - name: Rebuild committed client-only WASM
+        env:
+          RUSTUP_TOOLCHAIN: 1.83.0
+        run: scripts/build-wasm-verifier.sh
+      - name: Generated assets are reproducible
+        run: git diff --exit-code -- web/verify/pkg crates/receipt-wasm/Cargo.lock
+      - name: WASM unit tests
+        run: cargo test --manifest-path crates/receipt-wasm/Cargo.toml

@@ -22,3 +22,10 @@ Paths are relocatable metadata in schema 3 and newer. A path-only edit can leave
 “receipt intact” unchanged; artifact matching still requires the bytes supplied at
 verification time. Claim fields, content hashes, replay tokens, identities, and
 measurements remain protected by their appropriate hash.
+
+`verify --json` emits trust-report schema 2, published as
+[`schema/trust-report-v2.schema.json`](schema/trust-report-v2.schema.json). The
+schema-1 consumer fields (`ok`, `claim`, input/output counts, notes, and problems)
+remain at the top level with their original meanings; schema 2 adds the independent
+`trust` facets. Consumers that do not understand schema 2 may continue reading
+those stable fields and ignoring the additive object.

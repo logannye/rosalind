@@ -19,7 +19,7 @@ Rosalind has one moat, and it is not the caller, the aligner, or a new complexit
 
 You declare the RAM you have. Rosalind predicts — *before a byte of compute runs* — whether the job
 fits; honors that ceiling (refuse cleanly up front, or fail **loud** the instant a breach is detected,
-never a silent OOM-kill); produces a **byte-identical** result; and hands you a **tamper-evident,
+records the enforcement assurance and any detected breach); produces a **byte-identical** result; and hands you a **tamper-evident,
 content-addressed receipt** you can verify offline, months later, without re-running.
 
 Today that contract is true for **calling, query, and the feature stream**. The one stage where it is

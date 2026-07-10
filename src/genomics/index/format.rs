@@ -37,7 +37,7 @@ impl IndexVersion {
 pub struct IndexHeader {
     /// File magic.
     pub magic: [u8; 8],
-    /// Format version (see [`IndexVersion`]).
+    /// Encoded index-format version.
     pub version: u16,
     /// Endian marker (1 = little-endian).
     pub endian: u8,
