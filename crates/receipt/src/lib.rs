@@ -22,7 +22,7 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 mod command;
-pub use command::CommandCapture;
+pub use command::{command_template_tokens, CommandCapture, REPLAY_SCHEMA_VERSION};
 
 mod chain;
 pub use chain::{walk_chain, ChainEdge, ChainNode, ChainReport, EdgeStatus};
@@ -251,7 +251,11 @@ impl RunManifest {
             b: s.as_bytes(),
             i: 0,
         };
-        p.parse_manifest()
+        let manifest = p.parse_manifest()?;
+        if p.i != p.b.len() {
+            return Err(p.err("trailing content"));
+        }
+        Ok(manifest)
     }
 
     /// BLAKE3 hex of the **claim** canonical JSON with the self-hash excluded — the
@@ -688,6 +692,40 @@ pub struct VerifyReport {
     pub manifest: Option<RunManifest>,
 }
 
+impl VerifyReport {
+    /// Stable machine-readable summary for `rosalind verify --json` and other
+    /// clients. The full receipt remains the source of detailed claim data.
+    pub fn to_json(&self) -> String {
+        let strings = |values: &[String]| {
+            let body = values
+                .iter()
+                .map(|v| format!("\"{}\"", json_escape(v)))
+                .collect::<Vec<_>>()
+                .join(",");
+            format!("[{body}]")
+        };
+        let (claim, inputs, outputs) = self.manifest.as_ref().map_or_else(
+            || ("null".to_string(), 0, 0),
+            |m| {
+                (
+                    format!("\"{}\"", m.content_hash()),
+                    m.inputs.len(),
+                    m.outputs.len(),
+                )
+            },
+        );
+        format!(
+            "{{\"schema\":1,\"ok\":{},\"claim\":{},\"inputs\":{},\"outputs\":{},\"notes\":{},\"problems\":{}}}",
+            self.ok,
+            claim,
+            inputs,
+            outputs,
+            strings(&self.notes),
+            strings(&self.problems)
+        )
+    }
+}
+
 /// Check a receipt's internal integrity — self-hashes, cross-field consistency, optional
 /// budget + expected-code — and, when `opts.rehash_files`, re-hash recorded files. The
 /// single source of truth shared by the `verify` CLI and `reproduce` (and a future WASM
@@ -740,6 +778,54 @@ pub fn verify_receipt(text: &str, opts: &VerifyOpts) -> VerifyReport {
     let recorded_peak = parse_num("peak_rss_bytes", &mut problems);
     let recorded_ws = parse_num("max_working_set_bytes", &mut problems);
     let recorded_budget = parse_num("memory_budget_mb", &mut problems);
+
+    // Replay-recipe consistency. `command_template_tokens` prefers replay-schema-2
+    // `command_argv` and falls back to the historical display command, so verify,
+    // reproduce, diff, and chain all interpret one source of truth.
+    if manifest.params.contains_key("command_argv") || manifest.params.contains_key("command") {
+        match command_template_tokens(&manifest) {
+            Ok(tokens) => {
+                let prefix: Vec<&str> = manifest.subcommand.split_whitespace().collect();
+                if tokens
+                    .iter()
+                    .take(prefix.len())
+                    .map(String::as_str)
+                    .ne(prefix.iter().copied())
+                {
+                    problems.push(
+                        "replay recipe command prefix does not match receipt subcommand"
+                            .to_string(),
+                    );
+                }
+                let hashes = |marker: &str| {
+                    let mut values = tokens
+                        .iter()
+                        .filter_map(|token| token.strip_prefix(marker).map(ToOwned::to_owned))
+                        .collect::<Vec<_>>();
+                    values.sort();
+                    values
+                };
+                let file_hashes = |files: &[FileHash]| {
+                    let mut values = files
+                        .iter()
+                        .map(|file| file.blake3.clone())
+                        .collect::<Vec<_>>();
+                    values.sort();
+                    values
+                };
+                if hashes("@in:") != file_hashes(&manifest.inputs) {
+                    problems
+                        .push("replay recipe input hashes do not match receipt inputs".to_string());
+                }
+                if hashes("@out:") != file_hashes(&manifest.outputs) {
+                    problems.push(
+                        "replay recipe output hashes do not match receipt outputs".to_string(),
+                    );
+                }
+            }
+            Err(error) => problems.push(error),
+        }
+    }
 
     // Re-check the recorded realized peak against the budget (CLI overrides manifest).
     let budget_mb = opts.budget_mb.or(recorded_budget);
@@ -1329,6 +1415,9 @@ mod tests {
     fn parse_rejects_malformed() {
         assert!(RunManifest::from_canonical_json("not json").is_err());
         assert!(RunManifest::from_canonical_json("{\"inputs\":[}").is_err());
+        let canonical =
+            r#"{"inputs":[],"outputs":[],"params":{},"subcommand":"x","tool_version":"0.1.0"}"#;
+        assert!(RunManifest::from_canonical_json(&format!("{canonical}garbage")).is_err());
     }
 
     #[test]

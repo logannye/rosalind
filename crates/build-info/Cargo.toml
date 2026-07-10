@@ -1,0 +1,14 @@
+[package]
+name = "rosalind-build-info"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.83"
+authors = ["Logan Nye <logannye@users.noreply.github.com>"]
+description = "Build-script helper that emits reproducible Rosalind producer identity"
+repository = "https://github.com/logannye/rosalind"
+license = "MIT OR Apache-2.0"
+keywords = ["reproducibility", "provenance", "build-info"]
+categories = ["development-tools::build-utils"]
+
+[dependencies]
+blake3 = "1.5"

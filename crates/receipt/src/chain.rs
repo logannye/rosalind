@@ -6,7 +6,7 @@
 
 use std::collections::HashMap;
 
-use crate::{FileHash, RunManifest};
+use crate::{command::manifest_operands, FileHash, RunManifest};
 
 /// Input operand flags that MUST resolve to a producing node. An unresolved one is a
 /// broken chain (a missing/mismatched upstream receipt). Everything else (reads,
@@ -83,30 +83,17 @@ impl ChainReport {
     }
 }
 
-/// Recover `(flag, input_blake3)` pairs from a recorded `command` string: each
-/// `@in:<hash>` token is preceded by its operand flag.
-fn input_operands(command: &str) -> Vec<(String, String)> {
-    let toks: Vec<&str> = command.split(' ').collect();
-    let mut out = Vec::new();
-    for (i, t) in toks.iter().enumerate() {
-        if let Some(h) = t.strip_prefix("@in:") {
-            let flag = if i > 0 { toks[i - 1] } else { "?" };
-            out.push((flag.to_string(), h.to_string()));
-        }
-    }
-    out
-}
-
 /// Operands for a node: from its recorded `command` when present (carries the flags),
 /// else a flag-less fallback over `inputs[]` (every input treated as external).
 fn operands_for(m: &RunManifest) -> Vec<(String, String)> {
-    match m.params.get("command") {
-        Some(c) if !c.is_empty() => input_operands(c),
-        _ => m
-            .inputs
+    let operands = manifest_operands(m, "@in:");
+    if operands.is_empty() {
+        m.inputs
             .iter()
             .map(|f: &FileHash| ("?".to_string(), f.blake3.clone()))
-            .collect(),
+            .collect()
+    } else {
+        operands
     }
 }
 

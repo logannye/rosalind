@@ -11,6 +11,8 @@
 //! build-identity for free (via `finalize`), is signing-ready for the later Ed25519
 //! track, and is itself checkable with `rosalind verify`.
 
+use std::collections::BTreeMap;
+
 use super::{ManifestError, RunManifest};
 
 /// One output's recorded-vs-observed comparison, as carried by a certificate.
@@ -49,6 +51,34 @@ impl ReproReceipt {
         peak_rss_bytes: Option<u64>,
         declared_budget_mb: Option<u64>,
     ) -> Self {
+        Self::build_with_identities(
+            parent_claim,
+            parent_subcommand,
+            verdict,
+            chain_depth,
+            outputs,
+            peak_rss_bytes,
+            declared_budget_mb,
+            &BTreeMap::new(),
+            &BTreeMap::new(),
+        )
+    }
+
+    /// Build a certificate that explicitly carries both the original producer's
+    /// and the replayed producer's build identities. A byte match remains a
+    /// reproduction when these maps differ; the distinction stays auditable.
+    #[allow(clippy::too_many_arguments)]
+    pub fn build_with_identities(
+        parent_claim: &str,
+        parent_subcommand: &str,
+        verdict: &str,
+        chain_depth: u32,
+        outputs: &[ReproOutput],
+        peak_rss_bytes: Option<u64>,
+        declared_budget_mb: Option<u64>,
+        original_code: &BTreeMap<String, String>,
+        reproducer_code: &BTreeMap<String, String>,
+    ) -> Self {
         let mut m = RunManifest::new("reproduce");
         m.params
             .insert("parent_claim".to_string(), parent_claim.to_string());
@@ -69,6 +99,13 @@ impl ReproReceipt {
                 .insert(format!("out{i}_observed"), o.observed_blake3.clone());
             m.params
                 .insert(format!("out{i}_matched"), o.matched.to_string());
+        }
+        for (key, value) in original_code {
+            m.params.insert(format!("parent_code.{key}"), value.clone());
+        }
+        for (key, value) in reproducer_code {
+            m.params
+                .insert(format!("reproducer_code.{key}"), value.clone());
         }
         if let Some(mb) = declared_budget_mb {
             m.params
@@ -159,5 +196,26 @@ mod tests {
         let json = c.to_canonical_json().replace("REPRODUCED", "DIVERGED");
         let back = ReproReceipt::from_canonical_json(&json).unwrap();
         assert!(!back.self_hash_ok());
+    }
+
+    #[test]
+    fn certificate_keeps_both_build_identities() {
+        let original = BTreeMap::from([("code_git_sha".to_string(), "old".to_string())]);
+        let rerun = BTreeMap::from([("code_git_sha".to_string(), "new".to_string())]);
+        let cert = ReproReceipt::build_with_identities(
+            "a1b2",
+            "variants",
+            "REPRODUCED",
+            1,
+            &sample_outputs(),
+            None,
+            None,
+            &original,
+            &rerun,
+        );
+        let json = cert.to_canonical_json();
+        assert!(json.contains("parent_code.code_git_sha"));
+        assert!(json.contains("reproducer_code.code_git_sha"));
+        assert!(cert.self_hash_ok());
     }
 }

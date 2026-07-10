@@ -801,7 +801,7 @@ checksum = "7a2d987857b319362043e95f5353c0535c1f58eec5336fdfcf626430af7def58"
 
 [[package]]
 name = "rosalind-bio"
-version = "0.1.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "bitvec",
@@ -810,6 +810,7 @@ dependencies = [
  "flate2",
  "libc",
  "proptest",
+ "rosalind-build-info",
  "rosalind-receipt",
  "rust-htslib",
  "thiserror",
@@ -818,8 +819,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "rosalind-receipt"
+name = "rosalind-build-info"
 version = "0.1.0"
+dependencies = [
+ "blake3",
+]
+
+[[package]]
+name = "rosalind-receipt"
+version = "0.2.0"
 dependencies = [
  "blake3",
 ]

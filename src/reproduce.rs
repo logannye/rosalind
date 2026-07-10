@@ -118,10 +118,65 @@ pub struct ReproReport {
     pub outputs: Vec<OutputCmp>,
     /// Machine-local resource observation of the re-run.
     pub resource_here: ResourceHere,
+    /// Build identity recorded by the original receipt.
+    pub original_code: BTreeMap<String, String>,
     /// The build-identity of the binary that performed this reproduction.
     pub reproducer_code: BTreeMap<String, String>,
+    /// Executable explicitly selected for the replay (or the current executable).
+    pub execution_binary: PathBuf,
     /// True only for REPRODUCED / DIVERGED (an actual byte comparison happened).
     pub compared: bool,
+}
+
+impl ReproReport {
+    /// Stable machine-readable summary for `rosalind reproduce --json`.
+    pub fn to_json(&self) -> String {
+        let outputs = self
+            .outputs
+            .iter()
+            .map(|o| {
+                format!(
+                    "{{\"role\":\"{}\",\"recorded_blake3\":\"{}\",\"observed_blake3\":\"{}\",\"matched\":{}}}",
+                    json_escape(&o.role),
+                    json_escape(&o.recorded),
+                    json_escape(&o.observed),
+                    o.matched
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(",");
+        let encode_identity = |identity: &BTreeMap<String, String>| {
+            identity
+                .iter()
+                .map(|(key, value)| format!("\"{}\":\"{}\"", json_escape(key), json_escape(value)))
+                .collect::<Vec<_>>()
+                .join(",")
+        };
+        let number = |value: Option<u64>| {
+            value.map_or_else(|| "null".to_string(), |value| value.to_string())
+        };
+        let boolean = |value: Option<bool>| match value {
+            Some(true) => "true",
+            Some(false) => "false",
+            None => "null",
+        };
+        format!(
+            "{{\"schema\":1,\"verdict\":\"{}\",\"exit_code\":{},\"compared\":{},\"parent_claim\":\"{}\",\"parent_subcommand\":\"{}\",\"execution_binary\":\"{}\",\"code_identity_matches\":{},\"original_code\":{{{}}},\"reproducer_code\":{{{}}},\"resource_here\":{{\"peak_rss_bytes\":{},\"declared_budget_mb\":{},\"fit\":{}}},\"outputs\":[{}]}}",
+            json_escape(&self.verdict_label),
+            self.exit_code,
+            self.compared,
+            json_escape(&self.parent_claim),
+            json_escape(&self.parent_subcommand),
+            json_escape(&self.execution_binary.display().to_string()),
+            self.original_code == self.reproducer_code,
+            encode_identity(&self.original_code),
+            encode_identity(&self.reproducer_code),
+            number(self.resource_here.peak_rss_bytes),
+            number(self.resource_here.declared_budget_mb),
+            boolean(self.resource_here.fit),
+            outputs
+        )
+    }
 }
 
 /// Output types `reproduce` can byte-compare in v1. BAM/bgzf is out of scope (a C zlib
@@ -178,18 +233,26 @@ fn current_build_identity() -> BTreeMap<String, String> {
 }
 
 /// Read `peak_rss_bytes` from the receipt the re-run wrote next to `output_temp`.
-fn read_rerun_peak(output_temp: &Path) -> Option<u64> {
+fn read_rerun_manifest(output_temp: &Path) -> Option<RunManifest> {
     let mut name = output_temp.as_os_str().to_os_string();
     name.push(".manifest.json");
     let text = std::fs::read_to_string(PathBuf::from(name)).ok()?;
-    let m = RunManifest::from_canonical_json(&text).ok()?;
-    m.get_recorded("peak_rss_bytes")
-        .and_then(|v| v.parse().ok())
+    RunManifest::from_canonical_json(&text).ok()
 }
 
 /// Re-derive the result recorded in `manifest_path` from inputs content-located under
 /// `inputs_dir`, and compare byte-for-byte. See the module docs for scope.
 pub fn reproduce(manifest_path: &Path, inputs_dir: &Path) -> Result<ReproReport> {
+    reproduce_with_binary(manifest_path, inputs_dir, None)
+}
+
+/// Re-derive a result using an explicitly supplied executable. Receipt paths are
+/// never executed automatically: callers must opt in to a third-party binary.
+pub fn reproduce_with_binary(
+    manifest_path: &Path,
+    inputs_dir: &Path,
+    binary: Option<&Path>,
+) -> Result<ReproReport> {
     let text = std::fs::read_to_string(manifest_path)
         .with_context(|| format!("failed to read receipt {}", manifest_path.display()))?;
     let manifest = RunManifest::from_canonical_json(&text)
@@ -197,7 +260,13 @@ pub fn reproduce(manifest_path: &Path, inputs_dir: &Path) -> Result<ReproReport>
 
     let parent_claim = manifest.content_hash();
     let parent_subcommand = manifest.subcommand.clone();
+    let original_code = build_identity_from_manifest(&manifest);
     let reproducer_code = current_build_identity();
+    let explicit_binary = binary.is_some();
+    let execution_binary = match binary {
+        Some(path) => path.to_path_buf(),
+        None => std::env::current_exe().context("locating the rosalind binary to re-run")?,
+    };
 
     let report =
         |verdict_label: &str, exit_code: i32, lines: Vec<String>, compared: bool| ReproReport {
@@ -208,7 +277,9 @@ pub fn reproduce(manifest_path: &Path, inputs_dir: &Path) -> Result<ReproReport>
             parent_subcommand: parent_subcommand.clone(),
             outputs: Vec::new(),
             resource_here: ResourceHere::default(),
+            original_code: original_code.clone(),
             reproducer_code: reproducer_code.clone(),
+            execution_binary: execution_binary.clone(),
             compared,
         };
 
@@ -228,20 +299,17 @@ pub fn reproduce(manifest_path: &Path, inputs_dir: &Path) -> Result<ReproReport>
     }
 
     // 2. Need a recorded command (schema >= 5) to replay.
-    let command = match manifest.params.get("command") {
-        Some(c) => c.clone(),
-        None => {
-            return Ok(report(
-                "INCONCLUSIVE",
-                7,
-                vec![
-                    "  pre-schema-5 receipt: no recorded command to replay".to_string(),
-                    "  VERDICT     : INCONCLUSIVE".to_string(),
-                ],
-                false,
-            ))
-        }
-    };
+    if crate::provenance::command_template_tokens(&manifest).is_err() {
+        return Ok(report(
+            "INCONCLUSIVE",
+            7,
+            vec![
+                "  pre-schema-5 receipt: no recorded command to replay".to_string(),
+                "  VERDICT     : INCONCLUSIVE".to_string(),
+            ],
+            false,
+        ));
+    }
 
     // 3. Supported, comparable outputs (text only in v1; at least one to compare).
     if manifest.outputs.is_empty() {
@@ -292,7 +360,7 @@ pub fn reproduce(manifest_path: &Path, inputs_dir: &Path) -> Result<ReproReport>
     };
 
     // 5. Reconstruct the argv; an unlocatable input is INCONCLUSIVE (not DIVERGED).
-    let argv = match CommandCapture::argv_from_command(&command, &locate, &temp_output) {
+    let argv = match CommandCapture::argv_from_manifest(&manifest, &locate, &temp_output) {
         Ok(a) => a,
         Err(e) => {
             return Ok(report(
@@ -310,8 +378,7 @@ pub fn reproduce(manifest_path: &Path, inputs_dir: &Path) -> Result<ReproReport>
     };
 
     // 6. Re-execute the same binary.
-    let exe = std::env::current_exe().context("locating the rosalind binary to re-run")?;
-    let child = std::process::Command::new(&exe)
+    let child = std::process::Command::new(&execution_binary)
         .args(&argv)
         .output()
         .context("re-running the recorded command")?;
@@ -361,11 +428,15 @@ pub fn reproduce(manifest_path: &Path, inputs_dir: &Path) -> Result<ReproReport>
     let declared_budget_mb = manifest
         .get_recorded("memory_budget_mb")
         .and_then(|v| v.parse().ok());
-    let peak_here = manifest
+    let rerun_manifest = manifest
         .outputs
         .first()
         .and_then(|o| out_temp.get(&o.blake3))
-        .and_then(|p| read_rerun_peak(p));
+        .and_then(|p| read_rerun_manifest(p));
+    let peak_here = rerun_manifest
+        .as_ref()
+        .and_then(|m| m.get_recorded("peak_rss_bytes"))
+        .and_then(|v| v.parse().ok());
     let fit = match (peak_here, declared_budget_mb) {
         (Some(peak), Some(mb)) => Some(crate::core::MemoryBudget::from_mb(mb).admits(peak)),
         _ => None,
@@ -378,7 +449,10 @@ pub fn reproduce(manifest_path: &Path, inputs_dir: &Path) -> Result<ReproReport>
 
     // 9. Build the report.
     let recorded_sha = manifest.params.get("code_git_sha").map(String::as_str);
-    let here_sha = reproducer_code.get("code_git_sha").map(String::as_str);
+    let here_sha = rerun_manifest
+        .as_ref()
+        .and_then(|m| m.params.get("code_git_sha"))
+        .map(String::as_str);
     let code_line = match (recorded_sha, here_sha) {
         (Some(r), Some(h)) if r == h => format!("  code        : git {} — matches", short(h)),
         (Some(r), Some(h)) => format!(
@@ -433,9 +507,54 @@ pub fn reproduce(manifest_path: &Path, inputs_dir: &Path) -> Result<ReproReport>
         parent_subcommand,
         outputs: cmps,
         resource_here,
-        reproducer_code,
+        original_code,
+        reproducer_code: rerun_manifest
+            .as_ref()
+            .map(build_identity_from_manifest)
+            .unwrap_or_else(|| {
+                if explicit_binary {
+                    BTreeMap::new()
+                } else {
+                    reproducer_code
+                }
+            }),
+        execution_binary,
         compared: true,
     })
+}
+
+fn build_identity_from_manifest(manifest: &RunManifest) -> BTreeMap<String, String> {
+    [
+        "code_git_sha",
+        "code_dirty",
+        "rustc_version",
+        "target_triple",
+        "deps_lock_blake3",
+    ]
+    .into_iter()
+    .filter_map(|key| {
+        manifest
+            .params
+            .get(key)
+            .map(|value| (key.to_string(), value.clone()))
+    })
+    .collect()
+}
+
+fn json_escape(value: &str) -> String {
+    let mut out = String::new();
+    for ch in value.chars() {
+        match ch {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if (c as u32) < 0x20 => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out
 }
 
 /// First 10 hex chars of a digest for compact display.

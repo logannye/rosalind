@@ -1,6 +1,6 @@
 [package]
 name = "rosalind-bio"
-version = "0.1.0"
+version = "0.3.1"
 edition = "2021"
 rust-version = "1.83"
 authors = ["Logan Nye <logannye@users.noreply.github.com>"]
@@ -23,7 +23,7 @@ exclude = [
 ]
 
 [workspace]
-members = ["crates/receipt"]
+members = ["crates/receipt", "crates/build-info"]
 # The wasm-bindgen verifier is its own standalone crate (built via wasm-pack), kept
 # out of this workspace so the normal build/test/clippy loop is unaffected.
 exclude = ["crates/receipt-wasm"]
@@ -35,6 +35,10 @@ exclude = ["crates/receipt-wasm"]
 name = "rosalind"
 path = "src/lib.rs"
 
+[features]
+default = []
+contract-testkit = []
+
 [[bin]]
 name = "rosalind"
 path = "src/main.rs"
@@ -42,7 +46,7 @@ path = "src/main.rs"
 [dependencies]
 # Reproducibility receipt model + offline verification, factored into a leaf crate
 # with no htslib (std + blake3 only) so the verifier can compile to wasm.
-rosalind-receipt = { path = "crates/receipt", version = "0.1.0" }
+rosalind-receipt = { path = "crates/receipt", version = "0.2.0" }
 # OS bindings (read-only mmap of large reference/index files; peak-RSS readout)
 libc = "0.2"
 # Fast hashing for the reproducibility receipts
@@ -66,8 +70,7 @@ rust-htslib = { version = "0.44", default-features = false, features = ["bzip2",
 proptest = "1.4"
 
 [build-dependencies]
-# Same hash as the runtime receipt digests — for deps_lock_blake3 in build.rs.
-blake3 = "1.5"
+rosalind-build-info = { path = "crates/build-info", version = "0.1.0" }
 
 [profile.release]
 opt-level = 3

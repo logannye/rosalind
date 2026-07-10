@@ -8,7 +8,11 @@
 
 use std::path::Path;
 
-use super::{blake3_file, FileHash, RunManifest};
+use super::{blake3_file, json_escape, FileHash, RunManifest};
+
+/// Version of the replay recipe carried by new receipts. Version 2 adds a
+/// canonical JSON argv alongside the legacy, human-readable `command` string.
+pub const REPLAY_SCHEMA_VERSION: u32 = 2;
 
 /// One token of a recorded invocation.
 #[derive(Debug)]
@@ -23,7 +27,7 @@ enum Token {
 /// reconstructs an argv for re-execution.
 #[derive(Debug)]
 pub struct CommandCapture {
-    subcommand: String,
+    command_prefix: Vec<String>,
     tokens: Vec<Token>,
     inputs: Vec<FileHash>,
     outputs: Vec<FileHash>,
@@ -32,8 +36,24 @@ pub struct CommandCapture {
 impl CommandCapture {
     /// Start capturing an invocation of `subcommand` (e.g. `"variants"`).
     pub fn new(subcommand: impl Into<String>) -> Self {
+        let subcommand = subcommand.into();
         Self {
-            subcommand: subcommand.into(),
+            command_prefix: subcommand
+                .split_whitespace()
+                .map(ToOwned::to_owned)
+                .collect(),
+            tokens: Vec::new(),
+            inputs: Vec::new(),
+            outputs: Vec::new(),
+        }
+    }
+
+    /// Start capturing an invocation whose command prefix is already tokenized.
+    /// This is the preferred constructor for downstream binaries because it can
+    /// represent subcommands and fixed operands without shell parsing.
+    pub fn from_argv_prefix(prefix: impl IntoIterator<Item = impl Into<String>>) -> Self {
+        Self {
+            command_prefix: prefix.into_iter().map(Into::into).collect(),
             tokens: Vec::new(),
             inputs: Vec::new(),
             outputs: Vec::new(),
@@ -104,8 +124,8 @@ impl CommandCapture {
     /// Render the normalized, machine-independent command string. Canonical order:
     /// subcommand, then input operands (in order added), then options sorted by flag,
     /// then bare flags sorted, then output operands — so it is stable run-to-run.
-    fn render_command(&self) -> String {
-        let mut parts: Vec<String> = vec![self.subcommand.clone()];
+    fn normalized_tokens(&self) -> Vec<String> {
+        let mut parts = self.command_prefix.clone();
         for t in &self.tokens {
             if let Token::Input { flag, blake3 } = t {
                 parts.push(flag.clone());
@@ -143,7 +163,25 @@ impl CommandCapture {
                 parts.push(format!("@out:{blake3}"));
             }
         }
-        parts.join(" ")
+        parts
+    }
+
+    fn render_command(&self) -> String {
+        self.normalized_tokens().join(" ")
+    }
+
+    fn render_command_argv(&self) -> String {
+        let mut out = String::from("[");
+        for (i, token) in self.normalized_tokens().iter().enumerate() {
+            if i > 0 {
+                out.push(',');
+            }
+            out.push('"');
+            out.push_str(&json_escape(token));
+            out.push('"');
+        }
+        out.push(']');
+        out
     }
 
     /// Write the capture into a manifest's claim: the `command` recipe, the derived
@@ -153,6 +191,12 @@ impl CommandCapture {
     pub fn record_into(self, m: &mut RunManifest) {
         m.params
             .insert("command".to_string(), self.render_command());
+        m.params
+            .insert("command_argv".to_string(), self.render_command_argv());
+        m.params.insert(
+            "replay_schema".to_string(),
+            REPLAY_SCHEMA_VERSION.to_string(),
+        );
         for t in &self.tokens {
             match t {
                 Token::Opt(f, v) => {
@@ -186,21 +230,172 @@ impl CommandCapture {
         locate_input: &dyn Fn(&str) -> Option<String>,
         temp_output: &dyn Fn(&str) -> String,
     ) -> Result<Vec<String>, String> {
-        let mut argv = Vec::new();
-        for tok in command.split(' ') {
-            if let Some(h) = tok.strip_prefix("@in:") {
-                match locate_input(h) {
-                    Some(p) => argv.push(p),
-                    None => return Err(format!("input not located by content hash @in:{h}")),
+        substitute_tokens(
+            command.split(' ').map(ToOwned::to_owned),
+            locate_input,
+            temp_output,
+        )
+    }
+
+    /// Reconstruct argv from a manifest. New receipts use the canonical
+    /// `command_argv`; legacy receipts fall back to the space-split `command`.
+    pub fn argv_from_manifest(
+        manifest: &RunManifest,
+        locate_input: &dyn Fn(&str) -> Option<String>,
+        temp_output: &dyn Fn(&str) -> String,
+    ) -> Result<Vec<String>, String> {
+        let tokens = command_template_tokens(manifest)?;
+        substitute_tokens(tokens, locate_input, temp_output)
+    }
+}
+
+fn substitute_tokens(
+    tokens: impl IntoIterator<Item = String>,
+    locate_input: &dyn Fn(&str) -> Option<String>,
+    temp_output: &dyn Fn(&str) -> String,
+) -> Result<Vec<String>, String> {
+    let mut argv = Vec::new();
+    for tok in tokens {
+        if let Some(h) = tok.strip_prefix("@in:") {
+            match locate_input(h) {
+                Some(p) => argv.push(p),
+                None => return Err(format!("input not located by content hash @in:{h}")),
+            }
+        } else if let Some(h) = tok.strip_prefix("@out:") {
+            argv.push(temp_output(h));
+        } else {
+            argv.push(tok);
+        }
+    }
+    Ok(argv)
+}
+
+/// Return the normalized argv template recorded by a manifest, without
+/// substituting content-addressed operands.
+pub fn command_template_tokens(manifest: &RunManifest) -> Result<Vec<String>, String> {
+    if let Some(argv) = manifest.params.get("command_argv") {
+        return parse_json_string_array(argv)
+            .map_err(|e| format!("malformed command_argv replay recipe: {e}"));
+    }
+    manifest
+        .params
+        .get("command")
+        .map(|c| c.split(' ').map(ToOwned::to_owned).collect())
+        .ok_or_else(|| "receipt records no replayable command".to_string())
+}
+
+/// Recover `(flag, content_hash)` operands from a manifest's preferred replay
+/// recipe. Used by chain and diff so their role parsing cannot drift from replay.
+pub(crate) fn manifest_operands(manifest: &RunManifest, marker: &str) -> Vec<(String, String)> {
+    let Ok(tokens) = command_template_tokens(manifest) else {
+        return Vec::new();
+    };
+    let mut out = Vec::new();
+    for (i, token) in tokens.iter().enumerate() {
+        if let Some(hash) = token.strip_prefix(marker) {
+            let flag = tokens.get(i.saturating_sub(1)).map_or("?", String::as_str);
+            out.push((flag.to_string(), hash.to_string()));
+        }
+    }
+    out
+}
+
+fn parse_json_string_array(input: &str) -> Result<Vec<String>, String> {
+    let bytes = input.as_bytes();
+    let mut i = 0usize;
+    let skip_ws = |i: &mut usize| {
+        while *i < bytes.len() && bytes[*i].is_ascii_whitespace() {
+            *i += 1;
+        }
+    };
+    skip_ws(&mut i);
+    if bytes.get(i) != Some(&b'[') {
+        return Err("expected '['".to_string());
+    }
+    i += 1;
+    let mut values = Vec::new();
+    loop {
+        skip_ws(&mut i);
+        if bytes.get(i) == Some(&b']') {
+            i += 1;
+            break;
+        }
+        if bytes.get(i) != Some(&b'"') {
+            return Err(format!("expected string at byte {i}"));
+        }
+        i += 1;
+        let mut value = String::new();
+        let mut closed = false;
+        while i < bytes.len() {
+            let b = bytes[i];
+            i += 1;
+            match b {
+                b'"' => {
+                    closed = true;
+                    break;
                 }
-            } else if let Some(h) = tok.strip_prefix("@out:") {
-                argv.push(temp_output(h));
-            } else {
-                argv.push(tok.to_string());
+                b'\\' => {
+                    let escaped = *bytes.get(i).ok_or_else(|| "trailing escape".to_string())?;
+                    i += 1;
+                    match escaped {
+                        b'"' => value.push('"'),
+                        b'\\' => value.push('\\'),
+                        b'/' => value.push('/'),
+                        b'b' => value.push('\u{0008}'),
+                        b'f' => value.push('\u{000c}'),
+                        b'n' => value.push('\n'),
+                        b'r' => value.push('\r'),
+                        b't' => value.push('\t'),
+                        b'u' => {
+                            let hex = bytes
+                                .get(i..i + 4)
+                                .ok_or_else(|| "short unicode escape".to_string())?;
+                            let hex = std::str::from_utf8(hex)
+                                .map_err(|_| "invalid unicode escape".to_string())?;
+                            let code = u16::from_str_radix(hex, 16)
+                                .map_err(|_| "invalid unicode escape".to_string())?;
+                            let ch = char::from_u32(code as u32)
+                                .ok_or_else(|| "invalid unicode scalar".to_string())?;
+                            value.push(ch);
+                            i += 4;
+                        }
+                        _ => return Err("unsupported escape".to_string()),
+                    }
+                }
+                b if b < 0x20 => return Err("control character in string".to_string()),
+                b if b.is_ascii() => value.push(b as char),
+                _ => {
+                    let start = i - 1;
+                    let tail = std::str::from_utf8(&bytes[start..])
+                        .map_err(|_| "invalid utf-8".to_string())?;
+                    let ch = tail
+                        .chars()
+                        .next()
+                        .ok_or_else(|| "invalid utf-8".to_string())?;
+                    value.push(ch);
+                    i = start + ch.len_utf8();
+                }
             }
         }
-        Ok(argv)
+        if !closed {
+            return Err("unterminated string".to_string());
+        }
+        values.push(value);
+        skip_ws(&mut i);
+        match bytes.get(i) {
+            Some(b',') => i += 1,
+            Some(b']') => {
+                i += 1;
+                break;
+            }
+            _ => return Err(format!("expected ',' or ']' at byte {i}")),
+        }
     }
+    skip_ws(&mut i);
+    if i != bytes.len() {
+        return Err(format!("trailing content at byte {i}"));
+    }
+    Ok(values)
 }
 
 /// Mechanical `--max-depth` → `max_depth` projection (strip leading dashes,
@@ -307,5 +502,48 @@ mod tests {
             err.contains("h_idx"),
             "error names the unresolved input hash: {err}"
         );
+    }
+
+    #[test]
+    fn argv_recipe_preserves_spaces_without_shell_parsing() {
+        let mut capture = CommandCapture::from_argv_prefix(["analyze", "custom analyzer"]);
+        capture.input_hashed("--index", "/data/reference index", "h_idx");
+        capture.opt("--label", "sample with spaces");
+        capture.output_hashed("-o", "/tmp/result table", "h_out");
+        let mut manifest = RunManifest::new("analyze");
+        capture.record_into(&mut manifest);
+
+        let argv = CommandCapture::argv_from_manifest(
+            &manifest,
+            &|hash| (hash == "h_idx").then(|| "/moved/reference index".to_string()),
+            &|_| "/tmp/reproduced result".to_string(),
+        )
+        .unwrap();
+        assert_eq!(
+            argv,
+            [
+                "analyze",
+                "custom analyzer",
+                "--index",
+                "/moved/reference index",
+                "--label",
+                "sample with spaces",
+                "-o",
+                "/tmp/reproduced result",
+            ]
+        );
+    }
+
+    #[test]
+    fn malformed_argv_recipe_does_not_silently_fall_back() {
+        let mut manifest = RunManifest::new("variants");
+        manifest
+            .params
+            .insert("command".to_string(), "variants --legacy yes".to_string());
+        manifest
+            .params
+            .insert("command_argv".to_string(), "[\"unterminated]".to_string());
+        let error = command_template_tokens(&manifest).unwrap_err();
+        assert!(error.contains("unterminated string"));
     }
 }

@@ -92,7 +92,9 @@ fn build_index_and_sorted_bam(dir: &Path, fa: &Path, fq: &Path) -> (PathBuf, Pat
 
 #[test]
 fn reproduces_a_variants_index_vcf_byte_for_byte() {
-    let dir = tmpdir();
+    let root = tmpdir();
+    let dir = root.join("inputs and outputs with spaces");
+    std::fs::create_dir_all(&dir).unwrap();
     let seq = "ACGTACGTACGTACGTACGTACGTACGTACGT";
     let fa = write_fasta(&dir, "chr1", seq);
     let fq = write_fastq(&dir, seq, &[0, 0, 8], 16);
@@ -121,6 +123,9 @@ fn reproduces_a_variants_index_vcf_byte_for_byte() {
         &manifest,
         "--inputs",
         dir.to_str().unwrap(),
+        "--binary",
+        bin(),
+        "--json",
     ]);
     let stdout = String::from_utf8_lossy(&out.stdout);
     assert!(
@@ -128,7 +133,8 @@ fn reproduces_a_variants_index_vcf_byte_for_byte() {
         "reproduce should exit 0 (REPRODUCED). stdout:\n{stdout}\nstderr:\n{}",
         String::from_utf8_lossy(&out.stderr)
     );
-    assert!(stdout.contains("REPRODUCED"), "verdict line: {stdout}");
+    assert!(stdout.starts_with('{') && stdout.contains("\"verdict\":\"REPRODUCED\""));
+    assert!(stdout.contains("\"original_code\":") && stdout.contains("\"reproducer_code\":"));
 
     // A reproduction certificate is written next to the receipt, self-hashes, and
     // chains to the original by its content hash.
@@ -138,6 +144,8 @@ fn reproduces_a_variants_index_vcf_byte_for_byte() {
         .expect("certificate parses");
     assert!(cert.self_hash_ok(), "certificate self-hash must verify");
     assert_eq!(cert.verdict(), Some("REPRODUCED"));
+    assert!(cert_text.contains("parent_code.code_git_sha"));
+    assert!(cert_text.contains("reproducer_code.code_git_sha"));
     let orig = rosalind::provenance::RunManifest::from_canonical_json(
         &std::fs::read_to_string(&manifest).unwrap(),
     )
@@ -147,7 +155,7 @@ fn reproduces_a_variants_index_vcf_byte_for_byte() {
         Some(orig.content_hash().as_str()),
         "certificate chains to the original receipt's claim hash"
     );
-    std::fs::remove_dir_all(&dir).ok();
+    std::fs::remove_dir_all(&root).ok();
 }
 
 #[test]
