@@ -144,6 +144,7 @@ jobs:
             --reference examples/data/illumina_toy/reference.fa \
             --reads examples/data/illumina_toy/reads_R1.fastq \
             --format bam \
+            --force \
             --output examples/data/illumina_toy/alignments.bam
       - name: Call variants
         run: |

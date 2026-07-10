@@ -834,7 +834,7 @@ fn effective_cgroup_v2_limit_bytes() -> Option<u64> {
             .join("memory.max");
         let value = std::fs::read_to_string(path).ok()?;
         let value = value.trim();
-        return (value != "max").then(|| value.parse().ok()).flatten();
+        (value != "max").then(|| value.parse().ok()).flatten()
     }
     #[cfg(not(target_os = "linux"))]
     {
