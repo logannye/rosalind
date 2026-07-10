@@ -103,7 +103,7 @@ dependencies = [
 
 [[package]]
 name = "rosalind-receipt"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "blake3",
 ]
@@ -112,6 +112,7 @@ dependencies = [
 name = "rosalind-receipt-wasm"
 version = "0.1.0"
 dependencies = [
+ "blake3",
  "rosalind-receipt",
  "wasm-bindgen",
 ]
