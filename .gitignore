@@ -28,6 +28,7 @@ Thumbs.db
 
 # Benchmarks
 /benches/results/
+/benchmarks/giab/data/
 
 # Profiling
 *.profdata

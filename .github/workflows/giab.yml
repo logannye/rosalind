@@ -1,0 +1,43 @@
+name: GIAB v5.0q benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      update_baseline:
+        description: Intentionally update baseline (requires changelog entry)
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    - cron: '17 8 1 * *'
+
+jobs:
+  hg002-chr20:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install samtools
+        run: sudo apt-get update && sudo apt-get install -y samtools
+      - name: Restore pinned GIAB inputs
+        uses: actions/cache@v4
+        with:
+          path: benchmarks/giab/data
+          key: giab-v5.0q-grch38-chr20-${{ hashFiles('benchmarks/giab/resources.tsv') }}
+      - name: Prepare inputs
+        run: benchmarks/giab/prepare.sh
+      - name: Run benchmark
+        run: |
+          if [ "${{ inputs.update_baseline || false }}" = "true" ]; then
+            benchmarks/giab/run.sh --update-baseline
+          else
+            benchmarks/giab/run.sh
+          fi
+      - name: Upload report and receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: hg002-v5.0q-grch38-chr20
+          path: |
+            benchmarks/giab/data/results/latest.json
+            benchmarks/giab/data/results/HG002.rosalind.chr20.vcf.manifest.json

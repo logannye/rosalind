@@ -29,6 +29,8 @@ jobs:
         run: cargo fmt --all -- --check
       - name: Cargo test
         run: cargo test
+      - name: Synthetic chr20 GIAB smoke
+        run: benchmarks/giab/smoke.sh
       - name: Build examples
         run: cargo build --examples
       - name: Build docs
