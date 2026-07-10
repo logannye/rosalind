@@ -52,6 +52,23 @@ awk 'BEGIN{FS=OFS="\t"} $1=="chr20"' \
   "$downloads/HG002_GRCh38_v5.0q_smvar.benchmark.bed" \
   > "$prepared/HG002.v5.0q.chr20.bed"
 
+for name in \
+  GRCh38_AllTandemRepeatsandHomopolymers_slop5 \
+  GRCh38_lowmappabilityall \
+  GRCh38_segdups \
+  GRCh38_alldifficultregions
+do
+  gzip -dc "$downloads/$name.bed.gz" \
+    | awk 'BEGIN{FS=OFS="\t"} $1=="chr20"' \
+    | gzip -n > "$prepared/$name.chr20.bed.gz"
+done
+cat > "$prepared/stratifications.tsv" <<'EOF'
+low_complexity	/data/prepared/GRCh38_AllTandemRepeatsandHomopolymers_slop5.chr20.bed.gz
+low_mappability	/data/prepared/GRCh38_lowmappabilityall.chr20.bed.gz
+segmental_duplications	/data/prepared/GRCh38_segdups.chr20.bed.gz
+all_difficult	/data/prepared/GRCh38_alldifficultregions.chr20.bed.gz
+EOF
+
 SAMTOOLS_VERSION="$(samtools --version | head -1)" \
 DATA_ROOT="$DEST" RESOURCE_MANIFEST="$HERE/resources.tsv" python3 - <<'PY'
 import hashlib, json, os

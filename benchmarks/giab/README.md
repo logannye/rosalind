@@ -12,13 +12,23 @@ extraction with a version-neutral header, and writes a local SHA-256 data manife
 
 ```sh
 benchmarks/giab/prepare.sh
+benchmarks/giab/happy/build.sh
+# Push the image to a controlled registry, then select its generated digest:
+export GIAB_HAPPY_IMAGE='registry.example/rosalind-happy@sha256:…'
 benchmarks/giab/run.sh
 ```
 
-The report includes both all-emitted and PASS-only precision, recall, F1,
-genotype concordance and call counts, plus memory prediction/realization, the
-receipt claim, and exact replay argv. The first successful run replaces the
-explicit pending baseline. Later metric changes fail unless invoked with
+The report includes both Rosalind's internal regression evaluator and an external
+Illumina hap.py v0.3.15 evaluation using RTG vcfeval 3.12.1. Both run all-emitted
+and PASS-only calls inside the high-confidence BED; hap.py additionally reports
+SNV-specific metrics across pinned GIAB v3.1 low-complexity, low-mappability,
+segmental-duplication, and all-difficult contexts. The container runs with no
+network and must be selected by immutable digest. Source archives, RTG, and the
+linux/amd64 base image are checksum-pinned in [`happy/lock.json`](happy/lock.json).
+
+The combined report also carries genotype concordance and call counts, memory
+prediction/realization, receipt claim, tool versions, and exact argv. The first
+successful run replaces the explicit pending baseline. Later metric changes fail unless invoked with
 `--update-baseline` and accompanied by a changelog entry containing
 `GIAB baseline update`.
 

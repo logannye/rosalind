@@ -11,6 +11,7 @@ if [ "${1:-}" = "--update-baseline" ]; then UPDATE_BASELINE=true; fi
 for tool in python3; do
   command -v "$tool" >/dev/null || { echo "missing required tool: $tool" >&2; exit 2; }
 done
+case "${GIAB_HAPPY_IMAGE:-}" in *@sha256:????????????????????????????????????????????????????????????????) ;; *) echo "set GIAB_HAPPY_IMAGE to the immutable hap.py image NAME@sha256:DIGEST" >&2; exit 2 ;; esac
 test -f "$DATA/data-manifest.json" || {
   echo "prepare the opt-in data first: benchmarks/giab/prepare.sh '$DATA'" >&2
   exit 2
@@ -27,14 +28,15 @@ BED="$DATA/prepared/HG002.v5.0q.chr20.bed"
 IDX="$DATA/results/GRCh38.chr20.idx"
 CALLS="$DATA/results/HG002.rosalind.chr20.vcf"
 
-"$BIN" index --reference "$REF" --output "$IDX"
+"$BIN" index --reference "$REF" --output "$IDX" --force
 "$BIN" variants --index "$IDX" --alignments "$BAM" \
-  --memory-budget-mb "$BUDGET_MB" --enforce -o "$CALLS"
+  --memory-budget-mb "$BUDGET_MB" --enforce -o "$CALLS" --force
 "$BIN" verify --manifest "$CALLS.manifest.json" --json > "$DATA/results/verify.json"
 "$BIN" eval-germline --reference "$REF" --calls "$CALLS" --truth "$TRUTH" \
   --regions "$BED" --calls-filter all --json > "$DATA/results/metrics-all.json"
 "$BIN" eval-germline --reference "$REF" --calls "$CALLS" --truth "$TRUTH" \
   --regions "$BED" --calls-filter pass --json > "$DATA/results/metrics-pass.json"
+GIAB_HAPPY_IMAGE="$GIAB_HAPPY_IMAGE" "$HERE/happy/run.sh"
 
 DATA_ROOT="$DATA" BUDGET_MB="$BUDGET_MB" python3 - <<'PY'
 import json, os
@@ -50,6 +52,7 @@ report = {
     "region": "chr20",
     "calls_filter_all": json.loads((results / "metrics-all.json").read_text()),
     "calls_filter_pass": json.loads((results / "metrics-pass.json").read_text()),
+    "external_happy_vcfeval": json.loads((results / "happy" / "report.json").read_text()),
     "memory": {
         "budget_mb": int(os.environ["BUDGET_MB"]),
         "predicted_peak_rss_bytes": int(receipt["measurements"]["predicted_peak_rss_bytes"]),
@@ -70,7 +73,7 @@ if grep -q '"status": "not-yet-established"' "$BASELINE"; then
 elif ! python3 - "$BASELINE" "$DATA/results/latest.json" <<'PY'
 import json, sys
 a, b = (json.load(open(path)) for path in sys.argv[1:])
-keys = ("calls_filter_all", "calls_filter_pass")
+keys = ("calls_filter_all", "calls_filter_pass", "external_happy_vcfeval")
 raise SystemExit(0 if all(a[k] == b[k] for k in keys) else 1)
 PY
 then

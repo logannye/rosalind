@@ -8,6 +8,10 @@ on:
         required: false
         default: false
         type: boolean
+      happy_image:
+        description: Immutable hap.py image (NAME@sha256:DIGEST); defaults to the GIAB_HAPPY_IMAGE repository variable
+        required: false
+        type: string
   schedule:
     - cron: '17 8 1 * *'
 
@@ -15,6 +19,8 @@ jobs:
   hg002-chr20:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    env:
+      GIAB_HAPPY_IMAGE: ${{ inputs.happy_image || vars.GIAB_HAPPY_IMAGE }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -29,6 +35,10 @@ jobs:
         run: benchmarks/giab/prepare.sh
       - name: Run benchmark
         run: |
+          case "$GIAB_HAPPY_IMAGE" in
+            *@sha256:????????????????????????????????????????????????????????????????) ;;
+            *) echo "Configure repository variable GIAB_HAPPY_IMAGE or dispatch with an immutable NAME@sha256:DIGEST" >&2; exit 2 ;;
+          esac
           if [ "${{ inputs.update_baseline || false }}" = "true" ]; then
             benchmarks/giab/run.sh --update-baseline
           else
@@ -40,4 +50,5 @@ jobs:
           name: hg002-v5.0q-grch38-chr20
           path: |
             benchmarks/giab/data/results/latest.json
+            benchmarks/giab/data/results/happy/report.json
             benchmarks/giab/data/results/HG002.rosalind.chr20.vcf.manifest.json
