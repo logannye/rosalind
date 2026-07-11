@@ -4,7 +4,9 @@
 # Requires:
 #   rustup target add wasm32-unknown-unknown
 #   cargo install wasm-pack --version 0.14.0
-# CI sets RUSTUP_TOOLCHAIN=1.83.0 so committed output is reproducible at the MSRV.
+# CI sets RUSTUP_TOOLCHAIN=1.83.0. The committed bytes are canonical on the
+# Linux/amd64 release platform; other host architectures may emit valid but
+# byte-different optimized Wasm.
 #
 # NOTE: RUSTFLAGS is replaced on purpose. A global `target-cpu` (e.g. the common
 # `~/.cargo/config.toml` with rustflags = ["-C","target-cpu=native"]) resolves to a

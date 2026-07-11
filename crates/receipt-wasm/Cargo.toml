@@ -19,8 +19,7 @@ rosalind-receipt = { path = "../receipt" }
 wasm-bindgen = "0.2"
 blake3 = "=1.8.2"
 
-# wasm-opt emits architecture-dependent bytes across macOS arm64 and Linux
-# amd64. The Rust/wasm-bindgen output is deterministic without that optional
-# post-pass, which lets CI verify the committed browser bundle byte-for-byte.
+# wasm-opt adds a second architecture-dependent transformation. Keep the
+# canonical Linux/amd64 Rust/wasm-bindgen bundle directly reproducible in CI.
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = false
