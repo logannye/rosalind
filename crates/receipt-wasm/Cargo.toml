@@ -18,3 +18,8 @@ crate-type = ["cdylib", "rlib"]
 rosalind-receipt = { path = "../receipt" }
 wasm-bindgen = "0.2"
 blake3 = "=1.8.2"
+
+# wasm-opt adds a second architecture-dependent transformation. Keep the
+# canonical Linux/amd64 Rust/wasm-bindgen bundle directly reproducible in CI.
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = false

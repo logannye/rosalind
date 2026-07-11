@@ -23,7 +23,7 @@ pub enum Filter {
 }
 
 /// ACGT index (0..=3) → uppercase ASCII base. Shared by the calling functions.
-pub(crate) const ACGT: [u8; 4] = [b'A', b'C', b'G', b'T'];
+pub(crate) const ACGT: [u8; 4] = *b"ACGT";
 
 /// Tunable thresholds for germline genotyping and honest filtering.
 #[derive(Debug, Clone)]

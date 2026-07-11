@@ -144,6 +144,7 @@ jobs:
             --reference examples/data/illumina_toy/reference.fa \
             --reads examples/data/illumina_toy/reads_R1.fastq \
             --format bam \
+            --force \
             --output examples/data/illumina_toy/alignments.bam
       - name: Call variants
         run: |
@@ -323,6 +324,13 @@ jobs:
         run: scripts/build-wasm-verifier.sh
       - name: Generated assets are reproducible
         run: git diff --exit-code -- web/verify/pkg crates/receipt-wasm/Cargo.lock
+      - name: Upload generated assets on mismatch
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: receipt-studio-generated-${{ github.run_id }}
+          path: web/verify/pkg
+          if-no-files-found: error
       - name: WASM unit tests
         run: cargo test --manifest-path crates/receipt-wasm/Cargo.toml
 

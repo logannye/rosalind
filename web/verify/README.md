@@ -22,6 +22,11 @@ cargo install wasm-pack --version 0.14.0
 RUSTUP_TOOLCHAIN=1.83.0 ./scripts/build-wasm-verifier.sh
 ```
 
+The committed package is generated and checked byte-for-byte on the Linux/amd64
+release platform. Rust's optimized Wasm code generation may differ on other host
+architectures even with the same target and tool versions; local builds remain
+valid but are not the canonical release artifact.
+
 ## Run locally
 
 ES modules and the WASM fetch require HTTP rather than `file://`:

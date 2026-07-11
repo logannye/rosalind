@@ -439,7 +439,7 @@ fn estimator_upper_bounds_the_realized_working_set() {
 // contig so the reference-decode step is the RSS high-water — exactly where the
 // `Arc::from(Vec)` reallocation transient lives.
 fn pseudo_ref(n: usize) -> Vec<u8> {
-    const BASES: [u8; 4] = [b'A', b'C', b'G', b'T'];
+    const BASES: [u8; 4] = *b"ACGT";
     let mut state: u64 = 0x9E37_79B9_7F4A_7C15;
     (0..n)
         .map(|_| {

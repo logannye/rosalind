@@ -27,7 +27,7 @@ use rosalind::{
     call_germline_whole_genome, GermlineCall, GermlineParams, PileupParams, StreamingBamSource,
 };
 
-const NUCS: [u8; 4] = [b'A', b'C', b'G', b'T'];
+const NUCS: [u8; 4] = *b"ACGT";
 const N: usize = 20_000;
 const READ_LEN: usize = 100;
 
