@@ -32,7 +32,7 @@ and give builders a drop-in way to **enforce the contract in their own CI**.
   - `x86_64-unknown-linux-musl` on `ubuntu-latest` — **static** (apt `musl-tools`; `rustup target add`;
     the `-sys` crates build htslib/bzip2/lzma/zlib from bundled C, so static linking should succeed).
   - `aarch64-apple-darwin` on `macos-14` (native arm64).
-  - `x86_64-apple-darwin` on `macos-13` (native x86_64).
+  - `x86_64-apple-darwin` on `macos-15-intel` (native x86_64).
 - **Bundle** per target: the `rosalind` binary + `examples/data/illumina_toy/` (the contract-demo
   fixtures) + `README.md` + `CONTRACT.md` + `LICENSE-APACHE` + `LICENSE-MIT`, into
   `rosalind-<target>.tar.gz` (+ a `.sha256`).
