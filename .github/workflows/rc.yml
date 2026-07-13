@@ -115,7 +115,7 @@ jobs:
           cargo package -p rosalind-bio --locked \
             --config 'patch.crates-io.rosalind-receipt.path="crates/receipt"' \
             --config 'patch.crates-io.rosalind-build-info.path="crates/build-info"'
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: rc-contract
           retention-days: 30
@@ -182,7 +182,7 @@ jobs:
       - uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0
       - name: Generate SPDX SBOM
         run: syft 'dir:dist/rosalind-${{ matrix.target }}' -o 'spdx-json=dist/rosalind-${{ matrix.target }}.spdx.json'
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: rc-${{ matrix.target }}
           retention-days: 30

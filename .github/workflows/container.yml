@@ -55,7 +55,7 @@ jobs:
           lock.update(digest=os.environ["DIGEST"], release=os.environ["RELEASE"], status="published")
           open("container-lock.generated.json", "w").write(json.dumps(lock, indent=2, sort_keys=True) + "\n")
           PY
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: rosalind-container-lock
           path: container-lock.generated.json
