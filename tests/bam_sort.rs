@@ -76,6 +76,15 @@ fn deterministic_bam_sort_orders_by_tid_pos_strand_qname() {
 
     // Read sorted output and verify order.
     let mut reader = bam::Reader::from_path(&output).unwrap();
+    let header_text = String::from_utf8_lossy(reader.header().as_bytes());
+    assert!(
+        header_text
+            .lines()
+            .next()
+            .unwrap()
+            .contains("SO:coordinate"),
+        "the sorted output must declare coordinate order: {header_text}"
+    );
     let mut qnames = Vec::new();
     let mut keys = Vec::new();
     for rec in reader.records() {

@@ -113,9 +113,8 @@ jobs:
       - name: Build the rosalind binary
         run: cargo build --release --bin rosalind
       - name: Exercise the Python boundary (bit-reproducible feature substrate)
-        # Runs the documented entry point (python/rosalind.py) end-to-end: builds a
-        # toy index + BAM, extracts features twice, and proves the inputs are
-        # byte-identical with matching BLAKE3 receipts.
+        # Builds a toy reference pack + BAM, extracts native Arrow twice, and
+        # proves the streams are byte-identical with matching BLAKE3 receipts.
         run: python3 examples/reproducible_features_demo.py target/release/rosalind
 
   cli-e2e:
