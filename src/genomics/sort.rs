@@ -31,7 +31,7 @@ pub fn sort_bam_deterministic(
 
     let mut reader = bam::Reader::from_path(input)
         .with_context(|| format!("failed to open BAM {}", input.display()))?;
-    let header = bam::Header::from_template(reader.header());
+    let header = coordinate_sorted_header(reader.header())?;
 
     let temp_dir = PathBuf::from(format!("{}.sort_tmp", output.display()));
     fs::create_dir_all(&temp_dir)
@@ -69,6 +69,69 @@ pub fn sort_bam_deterministic(
     let _ = fs::remove_dir(&temp_dir);
 
     Ok(())
+}
+
+/// Preserve the input dictionary and metadata while declaring the property this
+/// function has just established. `doctor` intentionally trusts the header for
+/// its cheap preflight; callers can request a full record scan separately.
+fn coordinate_sorted_header(view: &bam::HeaderView) -> Result<bam::Header> {
+    let text = std::str::from_utf8(view.as_bytes()).context("BAM header is not UTF-8")?;
+    let lines = text
+        .lines()
+        .filter(|line| !line.is_empty())
+        .collect::<Vec<_>>();
+    let mut header = bam::Header::new();
+
+    let mut hd = bam::header::HeaderRecord::new(b"HD");
+    let mut has_version = false;
+    if let Some(line) = lines
+        .iter()
+        .find(|line| line.starts_with("@HD\t") || **line == "@HD")
+    {
+        for field in line.split('\t').skip(1) {
+            let (tag, value) = field
+                .split_once(':')
+                .ok_or_else(|| anyhow!("malformed BAM @HD field {field:?}"))?;
+            if tag == "VN" {
+                has_version = true;
+            }
+            hd.push_tag(
+                tag.as_bytes(),
+                if tag == "SO" { "coordinate" } else { value },
+            );
+        }
+    }
+    if !has_version {
+        hd.push_tag(b"VN", "1.6");
+    }
+    if !text.lines().any(|line| {
+        line.starts_with("@HD\t") && line.split('\t').any(|field| field.starts_with("SO:"))
+    }) {
+        hd.push_tag(b"SO", "coordinate");
+    }
+    header.push_record(&hd);
+
+    for line in lines.into_iter().filter(|line| !line.starts_with("@HD")) {
+        if let Some(comment) = line.strip_prefix("@CO") {
+            header.push_comment(comment.strip_prefix('\t').unwrap_or(comment).as_bytes());
+            continue;
+        }
+        let mut fields = line.split('\t');
+        let kind = fields
+            .next()
+            .and_then(|value| value.strip_prefix('@'))
+            .filter(|value| value.len() == 2)
+            .ok_or_else(|| anyhow!("malformed BAM header line {line:?}"))?;
+        let mut record = bam::header::HeaderRecord::new(kind.as_bytes());
+        for field in fields {
+            let (tag, value) = field
+                .split_once(':')
+                .ok_or_else(|| anyhow!("malformed BAM header field {field:?}"))?;
+            record.push_tag(tag.as_bytes(), value);
+        }
+        header.push_record(&record);
+    }
+    Ok(header)
 }
 
 fn spill_chunk(

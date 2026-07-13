@@ -90,7 +90,7 @@ fn doctor_proves_a_ready_fixture_and_reports_output_safety() {
     let json = String::from_utf8(output.stdout).unwrap();
     for expected in [
         "\"ok\":true",
-        "\"declared_sort_order\":\"unknown\"",
+        "\"declared_sort_order\":\"coordinate\"",
         "\"coordinate_order_proven\":true",
         "\"output_safe\":true",
         "\"budget_feasible\":true",

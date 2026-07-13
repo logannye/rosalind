@@ -54,8 +54,9 @@ for marker in (
 
 for path in sorted(WORKFLOWS.glob("*.yml")):
     text = path.read_text()
-    if "packages: write" in text and path.name != "happy-image.yml":
-        fail(f"{path}: packages:write is reserved for happy-image.yml")
+    image_publishers = {"container.yml", "happy-image.yml"}
+    if "packages: write" in text and path.name not in image_publishers:
+        fail(f"{path}: packages:write is reserved for controlled image workflows")
     if "CARGO_REGISTRY_TOKEN" in text and path.name != "release.yml":
         fail(f"{path}: crates.io token is reserved for release.yml")
     if "workflow_dispatch:" in text and any(

@@ -70,7 +70,7 @@ milestones that cannot be fabricated by implementation alone.
   verification with plan-derived scheduler memory.
 - `rosalind-build-info` and `rosalind-receipt` package and verify from their
   archives; the root mixed Python/Rust wheel builds and installs successfully.
-- actionlint 1.7.7 and shellcheck 0.10.0 pass.
+- actionlint 1.7.12 and shellcheck 0.10.0 pass.
 
 ## External blockers and evidence gates
 
