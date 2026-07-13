@@ -20,10 +20,14 @@
 use std::collections::BTreeMap;
 use std::io::{self, Write};
 
-use crate::call::features::{stream_features_whole_genome, write_feature_row, FEATURE_HEADER};
+use crate::call::features::{
+    stream_features_region, stream_features_whole_genome, write_feature_row, FEATURE_HEADER,
+};
 use crate::core::{ContigSet, CoreError, WorkingSet};
-use crate::genomics::ReferenceView;
+use crate::genomics::{ReferenceProvider, ReferenceSequence};
+use crate::io::bam::IndexedBamRegionSource;
 use crate::pileup::{PileupColumn, PileupParams, ReadSource, SkipCounts};
+use crate::selection::AnalysisSelection;
 
 /// A per-locus analyzer over the bounded pileup-column stream. Implement this and
 /// run it with [`run_bounded_whole_genome`] to inherit bounded memory,
@@ -49,6 +53,11 @@ pub trait ColumnAnalyzer {
         contig: &str,
         out: &mut dyn Write,
     ) -> io::Result<()>;
+
+    /// Flush any bounded encoder state after the final column.
+    fn finish(&mut self, _out: &mut dyn Write) -> io::Result<()> {
+        Ok(())
+    }
 }
 
 /// Drive `analyzer` over every callable column of a coordinate-sorted read stream
@@ -61,7 +70,7 @@ pub trait ColumnAnalyzer {
 pub fn run_bounded_whole_genome<S: ReadSource>(
     analyzer: &mut dyn ColumnAnalyzer,
     source: S,
-    ref_view: &ReferenceView,
+    ref_view: &dyn ReferenceSequence,
     contigs: &ContigSet,
     pileup_params: PileupParams,
     out: &mut dyn Write,
@@ -69,7 +78,7 @@ pub fn run_bounded_whole_genome<S: ReadSource>(
     if let Some(header) = analyzer.header() {
         out.write_all(header.as_bytes())?;
     }
-    stream_features_whole_genome(
+    let result = stream_features_whole_genome(
         source,
         ref_view,
         contigs,
@@ -79,7 +88,56 @@ pub fn run_bounded_whole_genome<S: ReadSource>(
                 .on_column(col, contig, &mut *out)
                 .map_err(CoreError::from)
         },
-    )
+    )?;
+    analyzer.finish(out)?;
+    Ok(result)
+}
+
+/// Drive an analyzer over one indexed interval selection. The header is written
+/// once and every interval is fetched independently through the BAM's BAI.
+pub fn run_bounded_selected_bam(
+    analyzer: &mut dyn ColumnAnalyzer,
+    bam_path: &std::path::Path,
+    reference: &dyn ReferenceProvider,
+    selection: &AnalysisSelection,
+    pileup_params: PileupParams,
+    out: &mut dyn Write,
+) -> Result<(WorkingSet, SkipCounts), CoreError> {
+    let intervals = selection.intervals().ok_or_else(|| {
+        CoreError::MalformedRecord("selected BAM driver requires interval selection".into())
+    })?;
+    if let Some(header) = analyzer.header() {
+        out.write_all(header.as_bytes())?;
+    }
+    let contigs = reference.contigs();
+    let mut max_working_set = WorkingSet { bytes: 0 };
+    let mut skips = SkipCounts::default();
+    for interval in intervals.intervals() {
+        crate::core::governor::checkpoint()?;
+        let contig = contigs.by_id(interval.contig).ok_or_else(|| {
+            CoreError::MalformedRecord(format!("unknown interval contig {}", interval.contig))
+        })?;
+        let global_start = contig.global_offset as usize + interval.start as usize;
+        let global_end = contig.global_offset as usize + interval.end as usize;
+        let sequence = reference.decode_window_arc(global_start, global_end);
+        let source = IndexedBamRegionSource::new(bam_path, contigs, *interval)?;
+        let (working_set, interval_skips) = stream_features_region(
+            source,
+            sequence,
+            interval.contig,
+            interval.start..interval.end,
+            pileup_params.clone(),
+            &mut |column| {
+                analyzer
+                    .on_column(column, &contig.name, &mut *out)
+                    .map_err(CoreError::from)
+            },
+        )?;
+        max_working_set.bytes = max_working_set.bytes.max(working_set.bytes);
+        skips.accumulate(&interval_skips);
+    }
+    analyzer.finish(out)?;
+    Ok((max_working_set, skips))
 }
 
 /// The shipped `features` egress, expressed as a [`ColumnAnalyzer`] — proof the
@@ -105,6 +163,8 @@ impl ColumnAnalyzer for FeatureAnalyzer {
     fn params(&self) -> BTreeMap<String, String> {
         let mut p = BTreeMap::new();
         p.insert("feature_rows".to_string(), self.rows.to_string());
+        p.insert("feature.schema".to_string(), "1".to_string());
+        p.insert("artifact.format".to_string(), "tsv".to_string());
         p
     }
 
@@ -132,7 +192,10 @@ impl ColumnAnalyzer for CoverageTrack {
     }
 
     fn params(&self) -> BTreeMap<String, String> {
-        BTreeMap::from([("analyzer".to_string(), "coverage".to_string())])
+        BTreeMap::from([
+            ("analyzer".to_string(), "coverage".to_string()),
+            ("artifact.format".to_string(), "coverage-tsv".to_string()),
+        ])
     }
 
     fn on_column(

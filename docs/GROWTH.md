@@ -1,6 +1,10 @@
 # Rosalind — Production & Growth Roadmap
 
-**Status:** Living growth/GTM plan — revised 2026-07-09. Companion to [`ROADMAP.md`](ROADMAP.md)
+> **Archived GTM snapshot (2026-07-09):** counts, release state, personas, and
+> priorities below are historical and must not override `ROADMAP.md` or
+> `implementation-status.md`.
+
+**Historical companion to** [`ROADMAP.md`](ROADMAP.md)
 (engineering sequence) and [`OPEN_PROBLEMS.md`](OPEN_PROBLEMS.md) (the research thesis). Where
 those order work by *capability*, this orders it by *adoption* for the post-Hacker-News moment.
 

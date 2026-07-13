@@ -35,12 +35,9 @@
 //! assert_eq!(first.depth(), 1);
 //! ```
 //!
-//! ## Research direction (Phase D)
-//!
-//! Rosalind is also a research vehicle for **space-bounded genomics** — sublinear-space
-//! index *construction* along a `~√t` space/time curve, extending the memory contract to the
-//! index build itself (today's build is `O(reference)`). That is a direction, not yet shipped;
-//! it is tracked in `docs/OPEN_PROBLEMS.md`.
+//! Search-index construction is deliberately separate from per-locus analysis.
+//! External-memory index research is conditional on user evidence; analyzers use
+//! lightweight analysis references and do not require an FM-index.
 
 #![warn(missing_docs, missing_debug_implementations)]
 #![allow(clippy::new_without_default)]
@@ -60,6 +57,8 @@ pub mod doctor;
 pub mod genomics;
 /// IO layer: spec-valid VCF writer + streaming FASTA/FASTQ/BAM readers.
 pub mod io;
+/// Receipt-driven canonical first-party shard merge.
+pub mod merge;
 /// The streaming pileup kernel: one CIGAR-aware, filtered, bounded-memory engine.
 pub mod pileup;
 /// Reproducibility receipts: canonical-JSON BLAKE3 manifests for every run.
@@ -72,6 +71,8 @@ pub mod receipt_tools;
 pub mod reproduce;
 /// Generate standalone downstream analyzer projects.
 pub mod scaffold;
+/// Canonical interval and deterministic shard selection.
+pub mod selection;
 /// Loopback-only embedded Receipt Studio server.
 pub mod studio;
 /// Helper utilities: read-only mmap + peak-RSS measurement.
@@ -83,26 +84,35 @@ pub use io::bam::StreamingBamSource;
 pub use pileup::{Obs, PileupColumn, PileupEngine, PileupParams, ReadSource, SliceSource};
 // The bounded whole-genome germline drive + calls:
 pub use call::{
-    call_germline_region_streaming, call_germline_whole_genome, GermlineCall, GermlineParams,
+    call_germline_region_streaming, call_germline_selected_bam, call_germline_whole_genome,
+    GermlineCall, GermlineParams,
 };
 // ColumnKit: implement one trait, inherit the bounded contract (SDK front door).
-pub use call::{run_bounded_whole_genome, ColumnAnalyzer, CoverageTrack, FeatureAnalyzer};
+pub use call::{
+    run_bounded_selected_bam, run_bounded_whole_genome, ColumnAnalyzer, CoverageTrack,
+    FeatureAnalyzer, FeatureArrowAnalyzer, FEATURE_ARROW_BATCH_ROWS, FEATURE_ARROW_SCHEMA_VERSION,
+};
 // The memory contract (declare → plan → honor → verify), incl. fleet packing:
 pub use call::{
     estimate_variants_working_set, first_fit_decreasing, predicted_peak_rss_bytes, PackJob,
     PackOutcome,
 };
 pub use core::{MemoryBudget, WorkingSet};
-pub use doctor::{run_doctor, DoctorReport, DoctorSpec};
+pub use doctor::{run_doctor, run_doctor_selected, DoctorReport, DoctorSpec};
+pub use merge::{merge_shards, MergeError, MergeOutcome};
 pub use receipt_tools::{export_intoto, inspect_receipt, sanitize_receipt, ReceiptInspection};
+pub use selection::{AnalysisSelection, GenomicInterval, IntervalSet, SelectionError};
 pub use studio::{serve_studio, StudioSpec};
 // Build-once → mmap index + the reproducibility receipt:
 pub use conformance::{conform_analyzer, ConformanceReport};
 pub use contract::{
-    detected_os_memory_limit_bytes, run_column_analysis, AnalyzerIdentity, AnalyzerMemoryModel,
-    ContractRunError, ContractRunOutcome, ContractRunSpec, ContractVerdict, EnforcementAssurance,
-    EnforcementMode, GovernorState, OutputPolicy, OutputTarget, ProducerIdentity, RefusalReport,
-    ReplayInvocation,
+    detected_os_memory_limit_bytes, run_column_analysis, run_column_analysis_selected,
+    AnalyzerIdentity, AnalyzerMemoryModel, ContractRunError, ContractRunOutcome, ContractRunSpec,
+    ContractVerdict, EnforcementAssurance, EnforcementMode, GovernorState, OutputPolicy,
+    OutputTarget, ProducerIdentity, RefusalReport, ReplayInvocation,
 };
-pub use genomics::{GenomeIndex, IndexReader, ReferenceView};
+pub use genomics::{
+    AnalysisReference, GenomeIndex, IndexReader, ReferencePackBuilder, ReferencePackReader,
+    ReferenceProvider, ReferenceSequence, ReferenceView,
+};
 pub use provenance::{verify_receipt, CommandCapture, RunManifest, VerifyOpts, VerifyReport};

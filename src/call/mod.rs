@@ -2,6 +2,7 @@
 //! abstention-aware variant calls. Built on `crate::core` + `crate::pileup`
 //! only; no VCF writing or CLI wiring (those are later phases).
 
+pub mod arrow;
 pub mod columnkit;
 pub mod features;
 pub mod germline;
@@ -13,12 +14,16 @@ pub mod somatic;
 pub mod types;
 pub mod whole_genome;
 
-pub use columnkit::{run_bounded_whole_genome, ColumnAnalyzer, CoverageTrack, FeatureAnalyzer};
+pub use arrow::{FeatureArrowAnalyzer, FEATURE_ARROW_BATCH_ROWS, FEATURE_ARROW_SCHEMA_VERSION};
+pub use columnkit::{
+    run_bounded_selected_bam, run_bounded_whole_genome, ColumnAnalyzer, CoverageTrack,
+    FeatureAnalyzer,
+};
 pub use features::{
     stream_features_region, stream_features_whole_genome, write_feature_header, write_feature_row,
 };
 pub use germline::{call_germline, genotype_column_gvcf, GvcfGenotype};
-pub use gvcf::{stream_gvcf_whole_genome, write_gvcf_header, GvcfBander};
+pub use gvcf::{stream_gvcf_selected_bam, stream_gvcf_whole_genome, write_gvcf_header, GvcfBander};
 pub use pack::{first_fit_decreasing, NodeAssignment, PackJob, PackOutcome};
 pub use pipeline::{
     call_germline_region, call_germline_region_streaming, call_germline_region_tracked,
@@ -27,4 +32,4 @@ pub use pipeline::{
 pub use plan::{estimate_variants_working_set, predicted_peak_rss_bytes, render_variants_plan};
 pub use somatic::call_somatic;
 pub use types::{Filter, Genotype, GermlineCall, GermlineParams, SomaticCall, SomaticParams};
-pub use whole_genome::call_germline_whole_genome;
+pub use whole_genome::{call_germline_selected_bam, call_germline_whole_genome};

@@ -6,6 +6,36 @@ on:
   pull_request:
 
 jobs:
+  macos-smoke:
+    name: macOS smoke
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: stable
+      - name: Build and exercise reference-pack CLI
+        run: |
+          cargo build --locked --bin rosalind
+          target/debug/rosalind reference build \
+            --fasta examples/data/illumina_toy/reference.fa \
+            --output "$RUNNER_TEMP/reference.rref"
+          target/debug/rosalind reference inspect \
+            --reference-pack "$RUNNER_TEMP/reference.rref" --json
+
+  advisory-audit:
+    name: Rust advisory audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: stable
+      - name: Install pinned cargo-audit
+        run: cargo install cargo-audit --version 0.22.1 --locked
+      - name: Check RustSec advisories
+        run: cargo audit
+
   rust:
     runs-on: ubuntu-latest
     steps:
@@ -78,8 +108,8 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.11'
-      - name: Install numpy
-        run: pip install numpy
+      - name: Install Python feature dependencies
+        run: pip install numpy pyarrow
       - name: Build the rosalind binary
         run: cargo build --release --bin rosalind
       - name: Exercise the Python boundary (bit-reproducible feature substrate)
@@ -238,6 +268,22 @@ jobs:
           budget-mb: 4096
           binary-path: target/release/rosalind
           output: examples/data/illumina_toy/action.vcf
+      - name: Build the preferred analysis reference for Action compatibility
+        run: |
+          target/release/rosalind reference build \
+            --fasta examples/data/illumina_toy/reference.fa \
+            --output examples/data/illumina_toy/action.rref
+      - name: Exercise reference-pack and Arrow Action inputs
+        uses: ./
+        with:
+          reference-pack: examples/data/illumina_toy/action.rref
+          alignments: examples/data/illumina_toy/sorted.bam
+          analyzer: features
+          format: arrow-ipc
+          budget-mb: 4096
+          binary-path: target/release/rosalind
+          output: examples/data/illumina_toy/action.arrow
+          artifact-name: rosalind-reference-pack-arrow
 
   msrv:
     name: MSRV (1.83)

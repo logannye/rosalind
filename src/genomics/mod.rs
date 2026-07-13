@@ -15,6 +15,7 @@ mod genome_index;
 mod index;
 mod io;
 mod rank_select;
+mod reference_pack;
 mod sampled_sa;
 mod sort;
 mod suffix_array;
@@ -40,6 +41,10 @@ pub use io::create_bam_writer;
 pub(crate) use rank_select::popcount_range;
 pub use rank_select::{
     BaseCode, RankSelectCheckpoint, RankSelectIndex, ALPHABET_SIZE, CHECKPOINT_STRIDE,
+};
+pub use reference_pack::{
+    AnalysisReference, ReferencePackBuilder, ReferencePackError, ReferencePackMetadata,
+    ReferencePackReader, ReferenceProvider, ReferenceSequence,
 };
 pub use sampled_sa::SampledSuffixArray;
 pub(crate) use sampled_sa::RANK_STRIDE;

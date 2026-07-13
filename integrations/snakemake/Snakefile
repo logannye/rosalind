@@ -1,0 +1,74 @@
+import json
+
+SAMPLES = config["samples"]
+SHARDS = range(int(config.get("shard_count", 1)))
+IMAGE = config["image"]
+BUDGET = int(config.get("budget_mb", 4096))
+
+rule all:
+    input:
+        expand("results/{sample}/merged.arrow", sample=SAMPLES),
+        expand("results/{sample}/merged.arrow.manifest.json", sample=SAMPLES),
+        expand("results/{sample}/verify.json", sample=SAMPLES)
+
+rule reference:
+    input: lambda wc: SAMPLES[wc.sample]["reference"]
+    output: "work/{sample}/reference.rref"
+    log: "logs/{sample}/reference.log"
+    container: IMAGE
+    shell: "rosalind reference build --fasta {input} --output {output} 2> {log}"
+
+rule doctor:
+    input:
+        reference="work/{sample}/reference.rref",
+        bam=lambda wc: SAMPLES[wc.sample]["bam"],
+        bai=lambda wc: SAMPLES[wc.sample]["bai"]
+    output: "work/{sample}/doctor.json"
+    log: "logs/{sample}/doctor.log"
+    container: IMAGE
+    shell: "rosalind doctor --reference-pack {input.reference} --alignments {input.bam} --json > {output} 2> {log}"
+
+rule plan:
+    input: reference="work/{sample}/reference.rref"
+    output: "work/{sample}/plan-{shard}.json"
+    log: "logs/{sample}/plan-{shard}.log"
+    params: shard_count=len(SHARDS), budget=BUDGET
+    container: IMAGE
+    shell: "rosalind plan --reference-pack {input.reference} --shard-count {params.shard_count} --shard-index {wildcards.shard} --budget-mb {params.budget} --json > {output} 2> {log}"
+
+rule shard:
+    input:
+        reference="work/{sample}/reference.rref",
+        bam=lambda wc: SAMPLES[wc.sample]["bam"],
+        bai=lambda wc: SAMPLES[wc.sample]["bai"],
+        doctor="work/{sample}/doctor.json",
+        plan="work/{sample}/plan-{shard}.json"
+    output:
+        artifact="work/{sample}/shard-{shard}.arrow",
+        receipt="work/{sample}/shard-{shard}.arrow.manifest.json"
+    log: "logs/{sample}/shard-{shard}.log"
+    resources:
+        mem_mb=lambda wildcards, input: (json.load(open(input.plan))["predicted_peak_rss_bytes"] + (1 << 20) - 1) // (1 << 20) + int(config.get("scheduler_margin_mb", 256))
+    params: shard_count=len(SHARDS), budget=BUDGET
+    container: IMAGE
+    shell: "rosalind features --reference-pack {input.reference} --alignments {input.bam} --format arrow-ipc --shard-count {params.shard_count} --shard-index {wildcards.shard} --memory-budget-mb {params.budget} --enforce --output {output.artifact} 2> {log}"
+
+rule merge:
+    input:
+        artifacts=lambda wc: expand("work/{sample}/shard-{shard}.arrow", sample=wc.sample, shard=SHARDS),
+        receipts=lambda wc: expand("work/{sample}/shard-{shard}.arrow.manifest.json", sample=wc.sample, shard=SHARDS)
+    output:
+        artifact="results/{sample}/merged.arrow",
+        receipt="results/{sample}/merged.arrow.manifest.json"
+    log: "logs/{sample}/merge.log"
+    container: IMAGE
+    run:
+        manifests = " ".join(f"--manifest {path}" for path in input.receipts)
+        shell(f"rosalind merge {manifests} --inputs work/{wildcards.sample} --output {output.artifact} 2> {log}")
+
+rule verify:
+    input: receipt="results/{sample}/merged.arrow.manifest.json"
+    output: "results/{sample}/verify.json"
+    log: "logs/{sample}/verify.log"
+    container: IMAGE
+    shell: "rosalind verify --manifest {input.receipt} --json > {output} 2> {log}"

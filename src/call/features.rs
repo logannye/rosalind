@@ -11,7 +11,7 @@ use std::sync::Arc;
 
 use crate::call::whole_genome::PerContig;
 use crate::core::{governor, AlignedRead, ContigSet, CoreError, WorkingSet};
-use crate::genomics::ReferenceView;
+use crate::genomics::ReferenceSequence;
 use crate::pileup::{PileupColumn, PileupEngine, PileupParams, ReadSource, SkipCounts};
 
 /// The tab-separated header for the per-locus feature table (written once).
@@ -37,11 +37,15 @@ pub fn write_feature_row<W: Write + ?Sized>(
     let (sum_bq, sum_mapq) = col.obs.iter().fold((0u64, 0u64), |(b, m), o| {
         (b + o.base_qual as u64, m + o.mapq as u64)
     });
-    let (mean_bq, mean_mapq) = if depth > 0 {
-        (sum_bq as f64 / depth as f64, sum_mapq as f64 / depth as f64)
-    } else {
-        (0.0, 0.0)
+    let rounded_mean = |sum: u64| {
+        if depth == 0 {
+            0.0
+        } else {
+            let scaled = (sum * 100 + depth as u64 / 2) / depth as u64;
+            scaled as f64 / 100.0
+        }
     };
+    let (mean_bq, mean_mapq) = (rounded_mean(sum_bq), rounded_mean(sum_mapq));
     writeln!(
         out,
         "{contig}\t{pos}\t{refb}\t{depth}\t{raw}\t\
@@ -100,7 +104,7 @@ pub fn stream_features_region<S: ReadSource>(
 /// guards this). Mirrors `call_germline_whole_genome`.
 pub fn stream_features_whole_genome<S: ReadSource>(
     mut source: S,
-    ref_view: &ReferenceView,
+    ref_view: &dyn ReferenceSequence,
     contigs: &ContigSet,
     pileup_params: PileupParams,
     on_row: &mut dyn FnMut(&PileupColumn, &str) -> Result<(), CoreError>,

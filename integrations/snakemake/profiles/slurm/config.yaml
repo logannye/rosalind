@@ -1,0 +1,5 @@
+executor: slurm
+jobs: 100
+latency-wait: 60
+default-resources:
+  - runtime=60

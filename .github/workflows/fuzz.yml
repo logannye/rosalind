@@ -1,0 +1,27 @@
+name: Scheduled fuzz smoke
+
+on:
+  schedule:
+    - cron: '17 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  receipt-replay-parsers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: nightly
+          components: llvm-tools-preview
+      - name: Install pinned cargo-fuzz
+        run: cargo install cargo-fuzz --version 0.12.0 --locked
+      - name: Fuzz canonical receipt parser
+        run: cargo fuzz run canonical_json -- -max_total_time=120
+      - name: Fuzz tokenized replay parser
+        run: cargo fuzz run command_argv -- -max_total_time=120
+      - name: Fuzz historical command parser
+        run: cargo fuzz run legacy_command -- -max_total_time=120

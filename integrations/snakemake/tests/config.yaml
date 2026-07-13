@@ -1,0 +1,9 @@
+image: ghcr.io/logannye/rosalind@sha256:REPLACE_WITH_LOCKED_DIGEST
+shard_count: 2
+budget_mb: 4096
+scheduler_margin_mb: 64
+samples:
+  toy:
+    reference: examples/data/illumina_toy/reference.fa
+    bam: examples/data/illumina_toy/sorted.bam
+    bai: examples/data/illumina_toy/sorted.bam.bai

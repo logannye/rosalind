@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+message: "If you use Rosalind in research, cite the software release and archive its receipt with your artifacts."
+title: "Rosalind: deterministic resource-governed per-locus genomics analyses"
+type: software
+authors:
+  - family-names: Nye
+    given-names: Logan
+repository-code: "https://github.com/logannye/rosalind"
+url: "https://github.com/logannye/rosalind"
+license: "MIT OR Apache-2.0"
+version: "0.4.0"
+keywords:
+  - genomics
+  - reproducibility
+  - resource governance
+  - bioinformatics

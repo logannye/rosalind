@@ -239,6 +239,7 @@ struct Policy {
     msrv: String,
     release_toolchain: String,
     soak_seconds: u64,
+    soak_required_from: String,
     foundation_test_baseline: u32,
     cargo_public_api_version: String,
     public_api_toolchain: String,
@@ -248,6 +249,7 @@ struct Policy {
     jsonschema_version: String,
     happy_repository: String,
     giab_required_from: String,
+    partners_required_from: String,
     required_environments: Vec<String>,
     required_secrets: Vec<String>,
     partner_personas: Vec<String>,
@@ -2056,18 +2058,27 @@ fn stable_release_plan<R: Runner>(
         report.check(&format!("crate.nonconflicting.{package}"), ok, detail);
     }
     let rc = rc_status(runner, root, policy, rc_tag);
-    let soak_ok = rc
-        .checks
-        .iter()
-        .find(|check| check.id == "soak.elapsed")
-        .is_some_and(|check| check.ok);
+    let soak_required = version_at_least(version, &policy.soak_required_from);
+    let soak_ok = !soak_required
+        || rc
+            .checks
+            .iter()
+            .find(|check| check.id == "soak.elapsed")
+            .is_some_and(|check| check.ok);
     report.check(
         "soak.elapsed",
         soak_ok,
-        rc.metadata
-            .get("soak")
-            .cloned()
-            .unwrap_or_else(|| "RC unavailable".into()),
+        if soak_required {
+            rc.metadata
+                .get("soak")
+                .cloned()
+                .unwrap_or_else(|| "RC unavailable".into())
+        } else {
+            format!(
+                "not required before {}; stabilization release",
+                policy.soak_required_from
+            )
+        },
     );
     let ci_ok = rc
         .checks
@@ -2101,6 +2112,7 @@ fn stable_release_plan<R: Runner>(
         Err(error) => report.check("contract.snapshot", false, error),
     }
     let candidate_commit = report.commit.clone();
+    let partners_required = version_at_least(version, &policy.partners_required_from);
     let partners = partner_report(
         runner,
         root,
@@ -2112,8 +2124,13 @@ fn stable_release_plan<R: Runner>(
     );
     report.check(
         "design_partners.complete",
-        partners.status == "ready",
-        if partners.status == "ready" {
+        !partners_required || partners.status == "ready",
+        if !partners_required {
+            format!(
+                "not required before {}; validation continues after stabilization",
+                policy.partners_required_from
+            )
+        } else if partners.status == "ready" {
             "three personas accepted at the frozen contract".to_string()
         } else {
             partners.blockers.join("; ")
@@ -2195,19 +2212,13 @@ fn rc_status<R: Runner>(runner: &R, root: &Path, policy: &Policy, tag: &str) -> 
             }
             let published = value.get("publishedAt").and_then(|value| value.as_str());
             let elapsed = published
-                .and_then(|value| {
-                    time::OffsetDateTime::parse(
-                        value,
-                        &time::format_description::well_known::Rfc3339,
-                    )
-                    .ok()
-                })
-                .map(|time| {
+                .and_then(parse_github_rfc3339_unix)
+                .map(|published_at| {
                     let now = SystemTime::now()
                         .duration_since(UNIX_EPOCH)
                         .unwrap_or_default()
                         .as_secs();
-                    soak_elapsed(time.unix_timestamp().max(0) as u64, now)
+                    soak_elapsed(published_at, now)
                 });
             let elapsed = elapsed.unwrap_or(0);
             report.metadata.insert(
@@ -2391,6 +2402,67 @@ fn rc_status<R: Runner>(runner: &R, root: &Path, policy: &Policy, tag: &str) -> 
 
 fn soak_elapsed(published_unix: u64, now_unix: u64) -> u64 {
     now_unix.saturating_sub(published_unix)
+}
+
+/// Parse the UTC RFC3339 shape emitted by GitHub (`publishedAt`) without pulling
+/// a date/time dependency into the MSRV-constrained maintainer binary.
+fn parse_github_rfc3339_unix(value: &str) -> Option<u64> {
+    let value = value.strip_suffix('Z')?;
+    let (date, time) = value.split_once('T')?;
+    let mut date = date.split('-').map(|field| field.parse::<i64>().ok());
+    let (year, month, day) = (date.next()??, date.next()??, date.next()??);
+    if date.next().is_some() || !(1..=12).contains(&month) {
+        return None;
+    }
+    let leap = year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
+    let month_days = [
+        31,
+        if leap { 29 } else { 28 },
+        31,
+        30,
+        31,
+        30,
+        31,
+        31,
+        30,
+        31,
+        30,
+        31,
+    ];
+    if day < 1 || day > month_days[(month - 1) as usize] {
+        return None;
+    }
+    let mut time = time.split(':');
+    let hour = time.next()?.parse::<i64>().ok()?;
+    let minute = time.next()?.parse::<i64>().ok()?;
+    let second = time.next()?.split('.').next()?.parse::<i64>().ok()?;
+    if time.next().is_some() || hour > 23 || minute > 59 || second > 59 {
+        return None;
+    }
+
+    // Howard Hinnant's civil-date transform: days relative to 1970-01-01.
+    let adjusted_year = year - i64::from(month <= 2);
+    let era = if adjusted_year >= 0 {
+        adjusted_year
+    } else {
+        adjusted_year - 399
+    } / 400;
+    let year_of_era = adjusted_year - era * 400;
+    let shifted_month = month + if month > 2 { -3 } else { 9 };
+    let day_of_year = (153 * shifted_month + 2) / 5 + day - 1;
+    let day_of_era = year_of_era * 365 + year_of_era / 4 - year_of_era / 100 + day_of_year;
+    let days = era * 146_097 + day_of_era - 719_468;
+    let seconds = days
+        .checked_mul(86_400)?
+        .checked_add(hour * 3_600 + minute * 60 + second)?;
+    u64::try_from(seconds).ok()
+}
+
+fn version_at_least(version: &str, floor: &str) -> bool {
+    semver::Version::parse(version)
+        .ok()
+        .zip(semver::Version::parse(floor).ok())
+        .is_some_and(|(version, floor)| version >= floor)
 }
 
 fn release_status<R: Runner>(
@@ -3734,6 +3806,25 @@ mod tests {
         assert_eq!(soak_elapsed(1_000, 605_800), 604_800);
         assert!(soak_elapsed(1_000, 605_799) < 604_800);
         assert!(soak_elapsed(1_000, 605_800) >= 604_800);
+    }
+
+    #[test]
+    fn github_timestamp_parser_handles_fractional_utc_and_rejects_invalid_dates() {
+        assert_eq!(parse_github_rfc3339_unix("1970-01-01T00:00:00Z"), Some(0));
+        assert_eq!(
+            parse_github_rfc3339_unix("2024-02-29T00:00:00.123Z"),
+            Some(1_709_164_800)
+        );
+        assert_eq!(parse_github_rfc3339_unix("2023-02-29T00:00:00Z"), None);
+        assert_eq!(parse_github_rfc3339_unix("2024-01-01T00:00:00+01:00"), None);
+    }
+
+    #[test]
+    fn stabilization_release_gates_begin_at_configured_version() {
+        assert!(!version_at_least("0.4.0", "0.5.0"));
+        assert!(version_at_least("0.5.0-rc.1", "0.5.0-rc.1"));
+        assert!(version_at_least("0.5.0", "0.5.0-rc.1"));
+        assert!(!version_at_least("invalid", "0.5.0"));
     }
 
     #[test]

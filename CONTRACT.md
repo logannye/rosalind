@@ -2,8 +2,9 @@
 
 **Memory is a contract, not a hope.**
 
-Every other variant caller treats RAM as an emergent property you guess at (`-Xmx…`,
-`--target-mem` "heuristics may not work well") and then crash on. Rosalind treats it as a contract:
+Schedulers can impose a ceiling, but a reusable analyzer still needs a declared
+working-set model and evidence about what happened inside that ceiling. Rosalind
+treats that relationship as a contract:
 
 > **Rosalind predicts whether a declared job fits, refuses unsound enforcement,
 > records the realized peak and assurance in a verifiable receipt, and can require
@@ -16,7 +17,9 @@ the Phase-D research direction, not a present claim.)
 
 ## The four verbs
 
-The contract applies to the bounded whole-genome paths — `rosalind variants --index` (germline calling) and `rosalind features --index` (per-locus feature egress), which share the same streaming engine and therefore the same `plan`/`--enforce`/`verify` envelope.
+The contract applies to whole-genome and selected `variants`, `features`, and
+registered `analyze` paths. Preferred `.rref` and compatible `.idx` references use
+the same `plan`/`--enforce`/`verify` envelope.
 
 ### 1. Declare
 
@@ -24,11 +27,11 @@ State the RAM you have. `--memory-budget-mb N` on `variants`, `--budget-mb N` on
 
 ### 2. Predict — `rosalind plan`
 
-Ask *before committing a byte* whether the job fits. `plan` reads only the index header (plus your
+Ask *before committing a byte* whether the job fits. `plan` reads only reference metadata (plus your
 declared depth/read-length assumptions) — it never opens the BAM:
 
 ```bash
-rosalind plan --index genome.idx --max-depth 1000 --max-read-len 250 --budget-mb 2048
+rosalind plan --reference-pack genome.rref --max-depth 1000 --max-read-len 250 --budget-mb 2048
 ```
 
 It prints a breakdown — reference decode + active set @ max-depth + engine overhead, atop a measured
@@ -37,7 +40,7 @@ process baseline — and a verdict: `[FITS]` or `[REFUSE]`.
 ### 3. Honor — `rosalind variants … --enforce`
 
 ```bash
-rosalind variants --index genome.idx --alignments sample.sorted.bam \
+rosalind variants --reference-pack genome.rref --alignments sample.sorted.bam \
   --memory-budget-mb 2048 --enforce -o sample.vcf
 ```
 
@@ -93,20 +96,20 @@ paths are intentionally portable metadata excluded from the claim hash: relocati
 claim, while `verify` still re-hashes the artifact at its recorded path. Claim or measurement edits are
 caught (exit **5**); a path-only edit is correctly reported as a non-claim change. This is
 tamper-*evident*, not proof of authorship. See the separate
-[receipt trust levels](docs/receipt-trust.md).
+[receipt trust levels](docs/receipts-and-trust.md).
 
 ## What's bounded (honest scope)
 
-- **Germline `variants --index`** and **`features --index`** are the bounded paths: peak ≈ the largest
-  contig's reference + the depth-capped active set, **independent of BAM size**. Reads stream one record at
-  a time; output rows (VCF calls or feature rows) stream straight to disk with no genome-wide buffer.
+- **Germline `variants`**, **`features`**, and registered analyzers are bounded:
+  peak ≈ the largest selected reference interval + the depth-capped active set,
+  independent of BAM size. Whole-genome execution streams the BAM; region/BED/shard
+  execution uses indexed interval fetch and decodes only the selected reference span.
 - **Somatic** (`somatic`) is **region-bounded**, not whole-genome-bounded (it collects both pileup streams
   for the region).
-- **Index *build*** (`rosalind index`) is **O(reference)** in RAM today; `plan --reference` reports an
-  advisory estimate. Sublinear-space construction is the Phase-D research direction (see
-  `docs/OPEN_PROBLEMS.md`).
-- The engine is **single-threaded** — outputs are deterministic, but there is no thread-invariance claim
-  yet.
+- **Analysis-reference build** (`reference build`) uses bounded buffering. Legacy
+  search-index build (`index`) remains O(reference) RAM and is not required by an analyzer.
+- The engine is **single-threaded**. Deterministic reference-span shards provide
+  external parallelism and canonical first-party merge.
 
 ## Transactional output policy
 
@@ -136,7 +139,8 @@ for column in PileupEngine::new(source, reference, contig, region, PileupParams:
 A complete, runnable example: [`examples/custom_pileup_analytics.rs`](examples/custom_pileup_analytics.rs)
 (`cargo run --example custom_pileup_analytics`). For a first-class SDK that inherits the bounded contract,
 implement the `ColumnAnalyzer` trait and call the public
-`rosalind::contract::run_column_analysis` runner. It owns planning, refusal, the governor, output,
+`rosalind::contract::run_column_analysis` runner, or
+`run_column_analysis_selected` for normalized intervals/shards. It owns planning, refusal, the governor, output,
 and receipt sealing without ever terminating the host process. The CLI maps typed refusal and breach
 outcomes to exits 3 and 4. Generate a complete standalone example with:
 
@@ -145,7 +149,7 @@ rosalind new analyzer my-analyzer --output ./my-analyzer
 ```
 
 The RSS governor is process-wide, so only one enforced runner may be active per process; concurrent
-attempts return a typed error. [`docs/architecture.md`](docs/architecture.md) describes the boundary.
+attempts return a typed error. [`ARCHITECTURE.md`](ARCHITECTURE.md) describes the boundary.
 
 ## Reproducibility
 

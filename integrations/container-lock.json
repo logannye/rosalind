@@ -1,0 +1,7 @@
+{
+  "platform": "linux/amd64",
+  "repository": "ghcr.io/logannye/rosalind",
+  "release": "0.6.0",
+  "digest": null,
+  "status": "pending-first-attested-publish"
+}

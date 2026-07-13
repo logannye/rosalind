@@ -1,0 +1,9 @@
+image: ghcr.io/logannye/rosalind@sha256:REPLACE_WITH_LOCKED_DIGEST
+shard_count: 4
+budget_mb: 4096
+scheduler_margin_mb: 256
+samples:
+  HG002:
+    reference: data/GRCh38.fa
+    bam: data/HG002.bam
+    bai: data/HG002.bam.bai

@@ -1,0 +1,4 @@
+executor: local
+cores: 1
+printshellcmds: true
+rerun-incomplete: true
