@@ -1,6 +1,10 @@
 # Rosalind — Open Problems & Research Thesis
 
-**Status:** Living research-direction document — 2026-05-27. Audience: builders and researchers
+> **Archived exploration (2026-05-27):** this is not the current product roadmap
+> and its field, clinical, never-refusing, and external-memory-index hypotheses are
+> not product claims. Work resumes only under the evidence gates in `ROADMAP.md`.
+
+**Historical audience:** builders and researchers
 who fork, extend, or build on Rosalind. Companion to the engineering roadmap in
 [`docs/superpowers/specs/2026-05-26-rosalind-target-architecture.md`](superpowers/specs/2026-05-26-rosalind-target-architecture.md).
 

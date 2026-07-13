@@ -1,0 +1,22 @@
+[build-system]
+requires = ["maturin==1.9.4"]
+build-backend = "maturin"
+
+[project]
+name = "rosalind-bio"
+dynamic = ["version"]
+description = "Lazy Python access to deterministic, resource-governed Rosalind analyses"
+readme = "python/README.md"
+requires-python = ">=3.9"
+license = { text = "MIT OR Apache-2.0" }
+authors = [{ name = "Logan Nye" }]
+dependencies = ["pyarrow>=15"]
+
+[project.optional-dependencies]
+numpy = ["numpy>=1.24"]
+
+[tool.maturin]
+bindings = "bin"
+python-source = "python"
+python-packages = ["rosalind"]
+strip = true

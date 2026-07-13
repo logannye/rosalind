@@ -8,8 +8,10 @@ use std::sync::Arc;
 
 use crate::call::{call_germline_region_streaming, GermlineCall, GermlineParams};
 use crate::core::{governor, AlignedRead, ContigSet, CoreError, Locus, WorkingSet};
-use crate::genomics::ReferenceView;
+use crate::genomics::{ReferenceProvider, ReferenceSequence};
+use crate::io::bam::IndexedBamRegionSource;
 use crate::pileup::{PileupParams, ReadSource, SkipCounts};
+use crate::selection::AnalysisSelection;
 
 /// Per-contig view over a shared sorted stream: yields contig `contig`'s reads,
 /// then stops at (and buffers) the first read of a later contig. Shared by the
@@ -48,7 +50,7 @@ impl<S: ReadSource> ReadSource for PerContig<'_, S> {
 /// partition relies on it.
 pub fn call_germline_whole_genome<S: ReadSource>(
     mut source: S,
-    ref_view: &ReferenceView,
+    ref_view: &dyn ReferenceSequence,
     contigs: &ContigSet,
     pileup_params: PileupParams,
     germline_params: &GermlineParams,
@@ -92,6 +94,44 @@ pub fn call_germline_whole_genome<S: ReadSource>(
     }
 
     Ok((max_ws, skips))
+}
+
+/// Call germline variants over an indexed interval or shard selection.
+pub fn call_germline_selected_bam(
+    bam_path: &std::path::Path,
+    reference: &dyn ReferenceProvider,
+    selection: &AnalysisSelection,
+    pileup_params: PileupParams,
+    germline_params: &GermlineParams,
+    on_row: &mut dyn FnMut((Locus, u8, GermlineCall)) -> Result<(), CoreError>,
+) -> Result<(WorkingSet, SkipCounts), CoreError> {
+    let intervals = selection.intervals().ok_or_else(|| {
+        CoreError::MalformedRecord("selected germline driver requires intervals".into())
+    })?;
+    let mut max_working_set = WorkingSet { bytes: 0 };
+    let mut skips = SkipCounts::default();
+    for interval in intervals.intervals() {
+        crate::core::governor::checkpoint()?;
+        let contig = reference.contigs().by_id(interval.contig).ok_or_else(|| {
+            CoreError::MalformedRecord(format!("unknown interval contig {}", interval.contig))
+        })?;
+        let start = contig.global_offset as usize + interval.start as usize;
+        let end = contig.global_offset as usize + interval.end as usize;
+        let sequence = reference.decode_window_arc(start, end);
+        let source = IndexedBamRegionSource::new(bam_path, reference.contigs(), *interval)?;
+        let (working_set, interval_skips) = call_germline_region_streaming(
+            source,
+            sequence,
+            interval.contig,
+            interval.start..interval.end,
+            pileup_params.clone(),
+            germline_params,
+            on_row,
+        )?;
+        max_working_set.bytes = max_working_set.bytes.max(working_set.bytes);
+        skips.accumulate(&interval_skips);
+    }
+    Ok((max_working_set, skips))
 }
 
 #[cfg(test)]

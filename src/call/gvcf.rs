@@ -21,8 +21,10 @@ use crate::call::germline::{genotype_column_gvcf, GvcfGenotype};
 use crate::call::types::{Filter, Genotype, GermlineCall, GermlineParams};
 use crate::call::whole_genome::PerContig;
 use crate::core::{governor, AlignedRead, ContigSet, CoreError, Locus, WorkingSet};
-use crate::genomics::ReferenceView;
+use crate::genomics::{ReferenceProvider, ReferenceSequence};
+use crate::io::bam::IndexedBamRegionSource;
 use crate::pileup::{PileupEngine, PileupParams, ReadSource, SkipCounts};
+use crate::selection::AnalysisSelection;
 
 const GVCF_FORMAT: &str = "GT:DP:GQ:MIN_DP";
 
@@ -247,7 +249,7 @@ fn stream_gvcf_region<S: ReadSource, W: Write>(
 /// banding state is O(1)). The header must already be written to `out`.
 pub fn stream_gvcf_whole_genome<S: ReadSource, W: Write>(
     mut source: S,
-    ref_view: &ReferenceView,
+    ref_view: &dyn ReferenceSequence,
     contigs: &ContigSet,
     pileup_params: PileupParams,
     germline_params: &GermlineParams,
@@ -286,4 +288,44 @@ pub fn stream_gvcf_whole_genome<S: ReadSource, W: Write>(
         skips.accumulate(&sk);
     }
     Ok((max_ws, skips))
+}
+
+/// Stream a banded gVCF over an indexed interval or shard selection.
+pub fn stream_gvcf_selected_bam<W: Write>(
+    bam_path: &std::path::Path,
+    reference: &dyn ReferenceProvider,
+    selection: &AnalysisSelection,
+    pileup_params: PileupParams,
+    germline_params: &GermlineParams,
+    out: &mut W,
+) -> Result<(WorkingSet, SkipCounts), CoreError> {
+    let intervals = selection.intervals().ok_or_else(|| {
+        CoreError::MalformedRecord("selected gVCF driver requires intervals".into())
+    })?;
+    let mut bander = GvcfBander::new(reference.contigs());
+    let mut max_working_set = WorkingSet { bytes: 0 };
+    let mut skips = SkipCounts::default();
+    for interval in intervals.intervals() {
+        governor::checkpoint()?;
+        let contig = reference.contigs().by_id(interval.contig).ok_or_else(|| {
+            CoreError::MalformedRecord(format!("unknown interval contig {}", interval.contig))
+        })?;
+        let start = contig.global_offset as usize + interval.start as usize;
+        let end = contig.global_offset as usize + interval.end as usize;
+        let sequence = reference.decode_window_arc(start, end);
+        let source = IndexedBamRegionSource::new(bam_path, reference.contigs(), *interval)?;
+        let (working_set, interval_skips) = stream_gvcf_region(
+            &mut bander,
+            source,
+            sequence,
+            interval.contig,
+            interval.start..interval.end,
+            pileup_params.clone(),
+            germline_params,
+            out,
+        )?;
+        max_working_set.bytes = max_working_set.bytes.max(working_set.bytes);
+        skips.accumulate(&interval_skips);
+    }
+    Ok((max_working_set, skips))
 }

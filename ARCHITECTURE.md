@@ -1,36 +1,57 @@
-# Rosalind Architecture
+# Rosalind architecture
 
-A map of the codebase, so you know where a change belongs. Companion to
-[`docs/ROADMAP.md`](docs/ROADMAP.md) (where we're going) and
-[`docs/OPEN_PROBLEMS.md`](docs/OPEN_PROBLEMS.md) (the research thesis).
+Rosalind separates analysis references, the bounded computation kernel, analyzer
+logic, and the execution contract. Search indexing is an adjacent workload, not a
+dependency of per-locus analysis.
 
-## The kernel
+```text
+FASTA ── reference build ──> .rref ──┐
+legacy .idx ── compatibility ────────┤
+                                     ├─> bounded pileup walk ─> ColumnAnalyzer
+coordinate-sorted BAM ───────────────┘              │
+                                                    v
+plan/refuse ── governor ── transactional output ── receipt/replay/diff
 
-Rosalind's spine is a **bounded, deterministic `PileupColumn` stream**. Variant calling, gVCF, the
-feature substrate, and any ColumnKit analyzer all consume that one stream, so they inherit the same
-memory contract and byte-reproducibility.
+BAM + BAI ── normalized region/BED or reference-span shard ──┐
+                                                              ├─> same bounded kernel
+complete shard receipts ── strict canonical merge ───────────> merged artifact + receipt
+```
 
-## Modules (`src/`)
+## Layers
 
-| Module | Responsibility |
-|---|---|
-| `core/` | Shared types: `Locus`/`ContigSet`/`AlignedRead`, the memory `budget` + `WorkingSet`, the runtime `governor`, the typed `CoreError`. |
-| `io/` | Streaming FASTA/FASTQ (gzip/bgzf auto-detect), BAM/VCF read+write (via rust-htslib), decompression. |
-| `genomics/` | The FM-index: `suffix_array` (SA-IS), `fm_index`/`fm_backing`, `rank_select`, the persisted `index/` (format, mmap `view`), `compressed_dna`, the `bwt_aligner`, deterministic `sort`, and `eval/` (truth-set comparison). |
-| `pileup/` | The streaming pileup `engine` + `column` + read `source` — the bounded kernel. |
-| `call/` | Consumers of the kernel: `germline`/`somatic`/`gvcf` calling, the `features` egress, the `columnkit` SDK, the `plan` estimator, fleet `pack`, the `pipeline`/`whole_genome` drivers. |
-| `provenance/` | The canonical-JSON, self-hashing BLAKE3 run receipt (`RunManifest`). |
-| `util/` | Process RSS (`getrusage`), mmap helpers. |
+| Layer | Code | Responsibility |
+|---|---|---|
+| Coordinates and budgets | `src/core/` | Contigs, loci, reads, memory budgets, process-wide governor, typed errors |
+| Analysis reference | `src/genomics/reference_pack.rs` | `.rref`, streaming builder, mmap reader, `ReferenceSequence` and `ReferenceProvider` |
+| Legacy search index | `src/genomics/index/` | `.idx`, FM-index lookup, compatible embedded reference provider |
+| Selection | `src/selection.rs` | Region/BED normalization and `reference-span-v1` ownership |
+| Alignment input | `src/io/bam.rs` | Sequential BAM stream or bounded indexed interval fetch |
+| Bounded kernel | `src/pileup/` | Filtered/depth-capped CIGAR-aware pileup columns |
+| Analyzer SDK | `src/call/columnkit.rs` | `ColumnAnalyzer` and maintained feature/coverage analyzers |
+| Execution contract | `src/contract.rs` | Prediction, refusal, enforcement, output lifetime, measurements, receipt sealing |
+| Canonical merge | `src/merge.rs` | Parent evidence validation and first-party TSV/Arrow/VCF/gVCF merge codecs |
+| Trust and replay | `crates/receipt/`, `src/reproduce.rs`, `src/receipt_tools.rs` | Canonical claims, verification, replay, certificates, diff and inspection |
+| CLI adapter | `src/main.rs` | User-facing argument validation and stable exit-code mapping |
 
-## Roadmap phases → code
+## Invariants
 
-- **A** (streaming pileup + calling): `pileup/`, `call/{germline,somatic,gvcf,pipeline}`.
-- **B** (genome-scale index): `genomics/{suffix_array,fm_index,index}`, `io/bam`.
-- **C** (the memory contract): `core/{budget,governor}`, `call/plan`, `provenance/`, `verify` in `main.rs`.
-- **D** (sublinear-space index *build* — research): `genomics/suffix_array` + a future external-memory constructor. See `docs/OPEN_PROBLEMS.md`.
-- **E** (reach + ML substrate): `call/{features,columnkit}`, `python/`, `genomics/eval`.
+1. An analyzer cannot require an FM-index merely to read reference bases.
+2. Reference and BAM contig dictionaries must agree before output creation.
+3. Bounded analyzers stream columns and declare any additional memory bound.
+4. Enforced refusal happens before the destination exists.
+5. Successful artifacts publish atomically; breaches never take the successful name.
+6. Identical inputs, parameters, analyzer, and Rosalind release produce identical bytes.
+7. Output-affecting choices are claim-protected; host measurements remain separate.
+8. Replay is tokenized and allowlisted. A receipt is tamper-evident, not proof of authorship.
 
-## CLI
+## Compatibility
 
-`src/main.rs` is the CLI surface (`index`, `align`, `sort`, `variants`, `somatic`, `features`, `plan`,
-`pack`, `verify`, `locate`, `eval-*`), thin over the library.
+`AnalysisReference` opens `.rref` or legacy `.idx` by magic. `ReferenceSequence`
+keeps existing borrowed `ReferenceView` callers source-compatible, while
+`ReferenceProvider` adds contig metadata and source identity for complete analysis
+artifacts. Receipt schemas 1–5 and legacy `.idx` replay remain supported.
+
+The RSS governor is process-wide; enforced runs must be serialized within a process.
+Deterministic sharding, rather than nondeterministic internal threading, is the
+parallel execution model. Indexed reads may contribute on both sides of a shard
+boundary, but each output locus is owned exactly once by its reference span.

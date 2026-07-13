@@ -14,15 +14,16 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use crate::call::{
-    estimate_variants_working_set, predicted_peak_rss_bytes, run_bounded_whole_genome,
-    ColumnAnalyzer,
+    estimate_variants_working_set, predicted_peak_rss_bytes, run_bounded_selected_bam,
+    run_bounded_whole_genome, ColumnAnalyzer,
 };
 use crate::core::governor::{GovernorError, MemoryGovernor};
 use crate::core::{CoreError, MemoryBudget, WorkingSet, PILEUP_IO_RSS_OVERHEAD};
-use crate::genomics::IndexReader;
+use crate::genomics::{AnalysisReference, ReferenceProvider};
 use crate::io::bam::StreamingBamSource;
 use crate::pileup::{PileupParams, SkipCounts};
 use crate::provenance::{CommandCapture, RunManifest, MEASUREMENT_KEYS};
+use crate::selection::AnalysisSelection;
 use crate::util::atomic::{write_atomic, AtomicFile};
 use crate::util::rss::peak_rss_bytes;
 
@@ -409,6 +410,15 @@ pub fn run_column_analysis(
     analyzer: &mut dyn ColumnAnalyzer,
     spec: ContractRunSpec,
 ) -> Result<ContractRunOutcome, ContractRunError> {
+    run_column_analysis_selected(analyzer, spec, AnalysisSelection::WholeGenome)
+}
+
+/// Execute one analyzer over a whole-genome, interval, or deterministic shard selection.
+pub fn run_column_analysis_selected(
+    analyzer: &mut dyn ColumnAnalyzer,
+    spec: ContractRunSpec,
+    selection: AnalysisSelection,
+) -> Result<ContractRunOutcome, ContractRunError> {
     validate_spec(&spec)?;
     validate_destinations(&spec)?;
 
@@ -447,21 +457,23 @@ pub fn run_column_analysis(
         EnforcementMode::RequireOsLimit => EnforcementAssurance::CgroupV2,
     };
 
-    let loaded = IndexReader::open(&spec.index).map_err(|error| {
+    let loaded = AnalysisReference::open(&spec.index).map_err(|error| {
         ContractRunError::InvalidConfiguration(format!(
-            "failed to open index {}: {error}",
-            spec.index.display()
-        ))
-    })?;
-    let ref_view = loaded.reference_view().map_err(|error| {
-        ContractRunError::InvalidConfiguration(format!(
-            "failed to read reference from index {}: {error}",
+            "failed to open analysis reference {}: {error}",
             spec.index.display()
         ))
     })?;
     let contigs = loaded.contigs();
-    let source = StreamingBamSource::new(&spec.alignments, contigs)?;
-    let largest = contigs.iter().map(|c| c.length as u64).max().unwrap_or(0);
+    if !matches!(selection, AnalysisSelection::WholeGenome) {
+        crate::io::bam::find_bai(&spec.alignments).ok_or_else(|| {
+            ContractRunError::InvalidConfiguration(format!(
+                "sparse analysis requires {}.bai or {}",
+                spec.alignments.display(),
+                spec.alignments.with_extension("bai").display()
+            ))
+        })?;
+    }
+    let largest = selection.largest_reference_span(contigs);
     let baseline = peak_rss_bytes();
     let predicted_ws = estimate_variants_working_set(largest, spec.max_depth, spec.max_read_len)
         .bytes
@@ -525,7 +537,14 @@ pub fn run_column_analysis(
     let drive_result = match &mut atomic_output {
         Some(file) => {
             let mut writer = io::BufWriter::new(file.file_mut());
-            let result = drive(analyzer, source, &ref_view, contigs, params, &mut writer);
+            let result = drive_selection(
+                analyzer,
+                &spec.alignments,
+                &loaded,
+                &selection,
+                params,
+                &mut writer,
+            );
             if result.is_ok() {
                 writer.flush()?;
             } else {
@@ -536,7 +555,14 @@ pub fn run_column_analysis(
         None => {
             let stdout = io::stdout();
             let mut writer = stdout.lock();
-            let result = drive(analyzer, source, &ref_view, contigs, params, &mut writer);
+            let result = drive_selection(
+                analyzer,
+                &spec.alignments,
+                &loaded,
+                &selection,
+                params,
+                &mut writer,
+            );
             if result.is_ok() {
                 writer.flush()?;
             } else {
@@ -610,6 +636,7 @@ pub fn run_column_analysis(
             assurance,
             os_limit_bytes,
             is_breach,
+            &selection,
         )?)
     } else {
         None
@@ -854,12 +881,38 @@ fn governor_error(error: GovernorError) -> ContractRunError {
 fn drive<S: crate::pileup::ReadSource>(
     analyzer: &mut dyn ColumnAnalyzer,
     source: S,
-    ref_view: &crate::genomics::ReferenceView,
+    ref_view: &dyn crate::genomics::ReferenceSequence,
     contigs: &crate::core::ContigSet,
     params: PileupParams,
     writer: &mut dyn Write,
 ) -> Result<(WorkingSet, SkipCounts), CoreError> {
     run_bounded_whole_genome(analyzer, source, ref_view, contigs, params, writer)
+}
+
+fn drive_selection(
+    analyzer: &mut dyn ColumnAnalyzer,
+    bam_path: &Path,
+    reference: &AnalysisReference,
+    selection: &AnalysisSelection,
+    params: PileupParams,
+    writer: &mut dyn Write,
+) -> Result<(WorkingSet, SkipCounts), CoreError> {
+    match selection {
+        AnalysisSelection::WholeGenome => {
+            let source = StreamingBamSource::new(bam_path, reference.contigs())?;
+            drive(
+                analyzer,
+                source,
+                reference,
+                reference.contigs(),
+                params,
+                writer,
+            )
+        }
+        AnalysisSelection::Intervals(_) | AnalysisSelection::Shard { .. } => {
+            run_bounded_selected_bam(analyzer, bam_path, reference, selection, params, writer)
+        }
+    }
 }
 
 fn receipt_destination(spec: &ContractRunSpec) -> Option<PathBuf> {
@@ -888,13 +941,32 @@ fn write_receipt(
     assurance: EnforcementAssurance,
     os_limit_bytes: Option<u64>,
     breached: bool,
+    selection: &AnalysisSelection,
 ) -> Result<String, ContractRunError> {
     let mut manifest = RunManifest::new(spec.invocation.argv_prefix.join(" "));
     manifest.tool_version = spec.producer.version.clone();
-    manifest.tool_version = spec.producer.version.clone();
     let mut command = CommandCapture::from_argv_prefix(spec.invocation.argv_prefix.clone());
-    command.input("--index", &spec.index)?;
+    let reference_flag = if AnalysisReference::path_is_pack(&spec.index).unwrap_or(false) {
+        "--reference-pack"
+    } else {
+        "--index"
+    };
+    command.input(reference_flag, &spec.index)?;
     command.input("--alignments", &spec.alignments)?;
+    match selection {
+        AnalysisSelection::WholeGenome => {}
+        AnalysisSelection::Intervals(intervals) => {
+            if let Some(region) = intervals.region_origin() {
+                command.opt("--region", region);
+            } else if let Some(path) = intervals.bed_origin() {
+                command.input("--regions", path)?;
+            }
+        }
+        AnalysisSelection::Shard { count, index, .. } => {
+            command.opt("--shard-count", *count);
+            command.opt("--shard-index", *index);
+        }
+    }
     command.opt("--mapq-threshold", spec.mapq_threshold);
     command.opt("--max-depth", spec.max_depth);
     command.opt("--max-read-len", spec.max_read_len);
@@ -904,6 +976,19 @@ fn write_receipt(
         "--require-os-limit",
     );
     command.flag_if(spec.output_policy == OutputPolicy::ReplaceAtomic, "--force");
+    let analyzer_params = analyzer.params();
+    if spec.invocation.argv_prefix.first().map(String::as_str) == Some("features") {
+        if let Some(format) = analyzer_params.get("artifact.format") {
+            command.opt(
+                "--format",
+                if format == "arrow-ipc" {
+                    "arrow-ipc"
+                } else {
+                    "tsv"
+                },
+            );
+        }
+    }
     if let Some(memory_mb) = spec.memory_budget_mb {
         command.opt("--memory-budget-mb", memory_mb);
     }
@@ -919,12 +1004,55 @@ fn write_receipt(
     command.record_into(&mut manifest);
     manifest.params.insert(
         "artifact.input.0.role".to_string(),
-        "reference-index".to_string(),
+        if AnalysisReference::path_is_pack(&spec.index).unwrap_or(false) {
+            "analysis-reference-pack"
+        } else {
+            "reference-index"
+        }
+        .to_string(),
     );
     manifest.params.insert(
         "artifact.input.1.role".to_string(),
         "sorted-alignments".to_string(),
     );
+    if selection
+        .intervals()
+        .and_then(|intervals| intervals.bed_origin())
+        .is_some()
+    {
+        manifest.params.insert(
+            "artifact.input.2.role".to_string(),
+            "regions-bed".to_string(),
+        );
+    }
+    manifest
+        .params
+        .insert("partition.kind".to_string(), selection.kind().to_string());
+    if let Some(intervals) = selection.intervals() {
+        manifest.params.insert(
+            "partition.interval_count".to_string(),
+            intervals.intervals().len().to_string(),
+        );
+        manifest.params.insert(
+            "partition.total_bases".to_string(),
+            intervals.total_bases().to_string(),
+        );
+        manifest
+            .params
+            .insert("partition.intervals_blake3".to_string(), intervals.blake3());
+    }
+    if let AnalysisSelection::Shard { count, index, .. } = selection {
+        manifest.params.insert(
+            "partition.algorithm".to_string(),
+            "reference-span-v1".to_string(),
+        );
+        manifest
+            .params
+            .insert("partition.shard_count".to_string(), count.to_string());
+        manifest
+            .params
+            .insert("partition.shard_index".to_string(), index.to_string());
+    }
     if !manifest.outputs.is_empty() {
         manifest.params.insert(
             "artifact.output.0.role".to_string(),
@@ -935,6 +1063,11 @@ fn write_receipt(
             }
             .to_string(),
         );
+        if let Some(format) = analyzer_params.get("artifact.format") {
+            manifest
+                .params
+                .insert("artifact.output.0.format".to_string(), format.clone());
+        }
     }
     manifest.params.insert(
         "replay.kind".to_string(),
@@ -968,7 +1101,7 @@ fn write_receipt(
         "analyzer.version".to_string(),
         spec.analyzer.version.clone(),
     );
-    for (key, value) in analyzer.params() {
+    for (key, value) in analyzer_params {
         let key = format!("{}{}", spec.analyzer.param_prefix, key);
         if MEASUREMENT_KEYS.contains(&key.as_str()) {
             return Err(ContractRunError::InvalidConfiguration(format!(

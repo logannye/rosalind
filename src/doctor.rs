@@ -4,9 +4,10 @@ use std::path::{Path, PathBuf};
 
 use crate::call::predicted_peak_rss_bytes;
 use crate::contract::detected_os_memory_limit_bytes;
-use crate::genomics::IndexReader;
-use crate::io::bam::{inspect_bam_header, StreamingBamSource};
+use crate::genomics::{AnalysisReference, ReferenceProvider};
+use crate::io::bam::{find_bai, inspect_bam_header, StreamingBamSource};
 use crate::pileup::ReadSource;
+use crate::selection::AnalysisSelection;
 use crate::util::rss::peak_rss_bytes;
 
 const DEFAULT_MAX_DEPTH: u32 = 1000;
@@ -106,6 +107,11 @@ impl DoctorReport {
 /// Inspect index/BAM compatibility, output safety, memory feasibility, and optional
 /// deep record invariants without creating outputs.
 pub fn run_doctor(spec: &DoctorSpec) -> DoctorReport {
+    run_doctor_selected(spec, &AnalysisSelection::WholeGenome)
+}
+
+/// Inspect preflight requirements for one whole-genome, interval, or shard selection.
+pub fn run_doctor_selected(spec: &DoctorSpec, selection: &AnalysisSelection) -> DoctorReport {
     let mut issues = Vec::new();
     let mut remediation = Vec::new();
     let mut report = DoctorReport {
@@ -125,21 +131,18 @@ pub fn run_doctor(spec: &DoctorSpec) -> DoctorReport {
         remediation: Vec::new(),
     };
 
-    let loaded = match IndexReader::open(&spec.index).and_then(|index| {
-        index.reference_view()?;
-        Ok(index)
-    }) {
+    let loaded = match AnalysisReference::open(&spec.index) {
         Ok(index) => {
             report.index_readable = true;
             index
         }
         Err(error) => {
             issues.push(format!(
-                "index {} is not readable: {error}",
+                "analysis reference {} is not readable: {error}",
                 spec.index.display()
             ));
             remediation.push(
-                "Rebuild the index with `rosalind index --reference REF --output INDEX`."
+                "Build an analysis reference with `rosalind reference build --fasta REF --output REF.rref`."
                     .to_string(),
             );
             report.issues = issues;
@@ -148,6 +151,16 @@ pub fn run_doctor(spec: &DoctorSpec) -> DoctorReport {
         }
     };
     let contigs = loaded.contigs();
+
+    if !matches!(selection, AnalysisSelection::WholeGenome) && find_bai(&spec.alignments).is_none()
+    {
+        issues.push(format!(
+            "sparse analysis requires a BAM index at {}.bai or {}",
+            spec.alignments.display(),
+            spec.alignments.with_extension("bai").display()
+        ));
+        remediation.push("Create a BAI with `samtools index ALIGNMENTS.bam`.".to_string());
+    }
 
     match inspect_bam_header(&spec.alignments, contigs) {
         Ok(header) => {
@@ -197,11 +210,7 @@ pub fn run_doctor(spec: &DoctorSpec) -> DoctorReport {
         }
     }
 
-    let largest = contigs
-        .iter()
-        .map(|contig| contig.length as u64)
-        .max()
-        .unwrap_or(0);
+    let largest = selection.largest_reference_span(contigs);
     let baseline = peak_rss_bytes();
     report.predicted_peak_rss_bytes =
         predicted_peak_rss_bytes(largest, DEFAULT_MAX_DEPTH, DEFAULT_MAX_READ_LEN, baseline);

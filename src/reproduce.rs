@@ -281,11 +281,17 @@ impl std::fmt::Display for ReplaySafetyError {
 
 impl std::error::Error for ReplaySafetyError {}
 
-/// Output types `reproduce` can byte-compare in v1. BAM/bgzf is out of scope (a C zlib
-/// not captured by `deps_lock_blake3`).
-fn output_is_text(path: &str) -> bool {
+/// Deterministic first-party output types `reproduce` can byte-compare. BAM/bgzf
+/// remains out of scope because its C compression implementation is not captured
+/// by `deps_lock_blake3`.
+fn output_is_byte_comparable(path: &str) -> bool {
     let p = path.to_ascii_lowercase();
-    p.ends_with(".vcf") || p.ends_with(".tsv") || p.ends_with(".txt") || p.ends_with(".gvcf")
+    p.ends_with(".vcf")
+        || p.ends_with(".tsv")
+        || p.ends_with(".txt")
+        || p.ends_with(".gvcf")
+        || p.ends_with(".arrow")
+        || p.ends_with(".rref")
 }
 
 /// Build a content-hash → path index of every file directly under `inputs_dir`.
@@ -391,7 +397,7 @@ fn build_reproduction_plan(
     if let Some(output) = manifest
         .outputs
         .iter()
-        .find(|output| !output_is_text(&output.path))
+        .find(|output| !output_is_byte_comparable(&output.path))
     {
         return Err(ReplaySafetyError::UnsafeRecipe(format!(
             "output {} is not byte-comparable",
@@ -666,6 +672,8 @@ fn built_in_prefix_allowed(prefix: &[String]) -> bool {
             prefix.get(1).map(String::as_str),
             Some("features" | "coverage")
         ))
+        || (prefix.first().map(String::as_str) == Some("reference")
+            && matches!(prefix.get(1).map(String::as_str), Some("build" | "convert")))
 }
 
 /// Re-derive the result recorded in `manifest_path` from inputs content-located under
@@ -738,7 +746,7 @@ pub fn reproduce_with_binary(
         ));
     }
 
-    // 3. Supported, comparable outputs (text only in v1; at least one to compare).
+    // 3. Supported, deterministic outputs (at least one to compare).
     if manifest.outputs.is_empty() {
         return Ok(report(
             "INCONCLUSIVE",
@@ -750,13 +758,17 @@ pub fn reproduce_with_binary(
             false,
         ));
     }
-    if let Some(o) = manifest.outputs.iter().find(|o| !output_is_text(&o.path)) {
+    if let Some(o) = manifest
+        .outputs
+        .iter()
+        .find(|o| !output_is_byte_comparable(&o.path))
+    {
         return Ok(report(
             "INCONCLUSIVE",
             7,
             vec![
                 format!(
-                    "  output {} is not byte-comparable in v1 (BAM/bgzf rests on a C zlib outside the contract)",
+                    "  output {} is not byte-comparable (BAM/bgzf rests on a C zlib outside the contract)",
                     o.path
                 ),
                 "  VERDICT     : INCONCLUSIVE".to_string(),

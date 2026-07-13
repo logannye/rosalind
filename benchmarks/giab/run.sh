@@ -31,11 +31,12 @@ REF="$DATA/prepared/GRCh38.chr20.fa"
 BAM="$DATA/prepared/HG002.chr20.bam"
 TRUTH="$DATA/prepared/HG002.v5.0q.chr20.vcf"
 BED="$DATA/prepared/HG002.v5.0q.chr20.bed"
-IDX="$DATA/results/GRCh38.chr20.idx"
+RREF="$DATA/results/GRCh38.chr20.rref"
 CALLS="$DATA/results/HG002.rosalind.chr20.vcf"
 
-"$BIN" index --reference "$REF" --output "$IDX" --force
-"$BIN" variants --index "$IDX" --alignments "$BAM" \
+"$BIN" reference build --fasta "$REF" --output "$RREF" --force
+"$BIN" verify --manifest "$RREF.manifest.json" --json > "$DATA/results/reference-verify.json"
+"$BIN" variants --reference-pack "$RREF" --alignments "$BAM" \
   --memory-budget-mb "$BUDGET_MB" --enforce -o "$CALLS" --force
 "$BIN" verify --manifest "$CALLS.manifest.json" --json > "$DATA/results/verify.json"
 "$BIN" eval-germline --reference "$REF" --calls "$CALLS" --truth "$TRUTH" \
@@ -51,6 +52,7 @@ from pathlib import Path
 root = Path(os.environ["DATA_ROOT"])
 results = root / "results"
 receipt = json.loads((results / "HG002.rosalind.chr20.vcf.manifest.json").read_text())
+reference_receipt = json.loads((results / "GRCh38.chr20.rref.manifest.json").read_text())
 report = {
     "schema": 1,
     "benchmark": "HG002 GIAB v5.0q small variants",
@@ -60,6 +62,13 @@ report = {
     "calls_filter_pass": json.loads((results / "metrics-pass.json").read_text()),
     "external_happy_vcfeval": json.loads((results / "happy" / "report.json").read_text()),
     "data_manifest": json.loads((root / "data-manifest.json").read_text()),
+    "reference_pack": {
+        "receipt_claim": reference_receipt["params"]["manifest_blake3"],
+        "content_blake3": reference_receipt["outputs"][0]["blake3"],
+        "verify": json.loads((results / "reference-verify.json").read_text()),
+        "command_argv": json.loads(reference_receipt["params"]["command_argv"]),
+        "peak_rss_bytes": int(reference_receipt["measurements"]["peak_rss_bytes"]),
+    },
     "memory": {
         "budget_mb": int(os.environ["BUDGET_MB"]),
         "predicted_peak_rss_bytes": int(receipt["measurements"]["predicted_peak_rss_bytes"]),

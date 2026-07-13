@@ -1,0 +1,80 @@
+name: Workflow integrations
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  snakemake:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned workflow tools
+        run: |
+          python -m pip install snakemake==9.8.1
+          sudo apt-get update
+          sudo apt-get install -y samtools
+      - name: Prepare indexed toy BAM and CLI
+        run: |
+          cargo build --locked --bin rosalind
+          samtools view -b -F 4 examples/data/illumina_toy/alignments.bam |
+            samtools sort -o examples/data/illumina_toy/sorted.bam
+          samtools index examples/data/illumina_toy/sorted.bam
+          echo "$PWD/target/debug" >> "$GITHUB_PATH"
+      - name: Lint, dry-run, and execute local fan-in
+        run: |
+          snakemake --lint --snakefile integrations/snakemake/Snakefile \
+            --configfile integrations/snakemake/tests/config.yaml
+          snakemake --dry-run --cores 1 --snakefile integrations/snakemake/Snakefile \
+            --configfile integrations/snakemake/tests/config.yaml
+          snakemake --cores 1 --snakefile integrations/snakemake/Snakefile \
+            --configfile integrations/snakemake/tests/config.yaml
+          test -s results/toy/merged.arrow
+          test -s results/toy/merged.arrow.manifest.json
+          test -s results/toy/verify.json
+
+  nextflow:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+      - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: nf-core/setup-nextflow@98e3b21a1c45e26529208849ec20e5cfb7086040 # v2
+        with:
+          version: '25.04.8'
+      - name: Parse and execute the local shard graph
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y samtools
+          cargo build --locked --bin rosalind
+          mkdir -p "$RUNNER_TEMP/nextflow-inputs"
+          samtools view -b -F 4 examples/data/illumina_toy/alignments.bam |
+            samtools sort -o "$RUNNER_TEMP/nextflow-inputs/sample.bam"
+          samtools index "$RUNNER_TEMP/nextflow-inputs/sample.bam"
+          target/debug/rosalind reference build \
+            --fasta examples/data/illumina_toy/reference.fa \
+            --output "$RUNNER_TEMP/nextflow-inputs/reference.rref"
+          nextflow -c integrations/nextflow/examples/local/nextflow.config \
+            config integrations/nextflow/examples/local/main.nf >/tmp/nextflow-config.txt
+          PATH="$PWD/target/debug:$PATH" nextflow run integrations/nextflow/examples/local/main.nf \
+            -work-dir "$RUNNER_TEMP/nextflow-work" \
+            -with-trace "$RUNNER_TEMP/nextflow-trace.txt" \
+            -c integrations/nextflow/examples/local/nextflow.test.config \
+            --reference "$RUNNER_TEMP/nextflow-inputs/reference.rref" \
+            --bam "$RUNNER_TEMP/nextflow-inputs/sample.bam" \
+            --bai "$RUNNER_TEMP/nextflow-inputs/sample.bam.bai" \
+            --shard_count 2 \
+            --image local/rosalind@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+          awk -F '\t' 'NR > 1 && $5 != "COMPLETED" { exit 1 } END { if (NR != 8) exit 1 }' \
+            "$RUNNER_TEMP/nextflow-trace.txt"

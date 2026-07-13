@@ -126,9 +126,13 @@ jobs:
             benchmarks/giab/data/results/credibility.md
             benchmarks/giab/data/results/metrics-all.json
             benchmarks/giab/data/results/metrics-pass.json
+            benchmarks/giab/data/results/reference-verify.json
             benchmarks/giab/data/results/happy/
+            benchmarks/giab/data/results/GRCh38.chr20.rref
+            benchmarks/giab/data/results/GRCh38.chr20.rref.manifest.json
             benchmarks/giab/data/results/HG002.rosalind.chr20.vcf
             benchmarks/giab/data/results/HG002.rosalind.chr20.vcf.manifest.json
+            benchmarks/giab/data/results/verify.json
       - name: Preserve benchmark comparison outcome
         if: always()
         run: test '${{ steps.benchmark.outputs.exit_code }}' = 0

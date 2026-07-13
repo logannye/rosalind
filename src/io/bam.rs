@@ -14,6 +14,7 @@ use rust_htslib::bam::{self, Read as BamRead};
 
 use crate::core::{AlignedRead, CigarOp, CigarOpKind, ContigSet, CoreError, Position, SamFlags};
 use crate::pileup::ReadSource;
+use crate::selection::GenomicInterval;
 
 /// Lightweight BAM-header facts used by preflight diagnostics.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -255,6 +256,100 @@ impl ReadSource for StreamingBamSource<'_> {
                          index): read at contig {} pos {} follows contig {} pos {}",
                         key.0, key.1, prev.0, prev.1
                     )));
+                }
+            }
+            self.last = Some(key);
+            return Ok(Some(read));
+        }
+    }
+}
+
+/// Locate a BAI accepted for sparse indexed analysis.
+pub fn find_bai(path: &Path) -> Option<std::path::PathBuf> {
+    let appended = std::path::PathBuf::from(format!("{}.bai", path.display()));
+    if appended.is_file() {
+        return Some(appended);
+    }
+    let replaced = path.with_extension("bai");
+    replaced.is_file().then_some(replaced)
+}
+
+/// A bounded read source for one indexed BAM interval.
+#[derive(Debug)]
+pub struct IndexedBamRegionSource<'a> {
+    reader: bam::IndexedReader,
+    header: bam::HeaderView,
+    contigs: &'a ContigSet,
+    last: Option<(u32, u32)>,
+}
+
+impl<'a> IndexedBamRegionSource<'a> {
+    /// Open a BAM through its BAI and fetch one zero-based half-open interval.
+    pub fn new(
+        path: &Path,
+        contigs: &'a ContigSet,
+        interval: GenomicInterval,
+    ) -> Result<Self, CoreError> {
+        let bai = find_bai(path).ok_or_else(|| {
+            CoreError::MalformedRecord(format!(
+                "sparse analysis requires a BAM index at {}.bai or {}",
+                path.display(),
+                path.with_extension("bai").display()
+            ))
+        })?;
+        let mut reader = bam::IndexedReader::from_path_and_index(path, &bai).map_err(|error| {
+            CoreError::MalformedRecord(format!(
+                "open indexed BAM {} with {}: {error}",
+                path.display(),
+                bai.display()
+            ))
+        })?;
+        let header = reader.header().to_owned();
+        validate_contig_lengths(&header, contigs)?;
+        let contig = contigs.by_id(interval.contig).ok_or_else(|| {
+            CoreError::MalformedRecord(format!("unknown interval contig {}", interval.contig))
+        })?;
+        reader
+            .fetch((
+                contig.name.as_bytes(),
+                interval.start as i64,
+                interval.end as i64,
+            ))
+            .map_err(|error| {
+                CoreError::MalformedRecord(format!(
+                    "fetch {}:{}-{}: {error}",
+                    contig.name, interval.start, interval.end
+                ))
+            })?;
+        Ok(Self {
+            reader,
+            header,
+            contigs,
+            last: None,
+        })
+    }
+}
+
+impl ReadSource for IndexedBamRegionSource<'_> {
+    fn next_read(&mut self) -> Result<Option<AlignedRead>, CoreError> {
+        loop {
+            let mut record = bam::Record::new();
+            match self.reader.read(&mut record) {
+                None => return Ok(None),
+                Some(Err(error)) => {
+                    return Err(CoreError::MalformedRecord(error.to_string()));
+                }
+                Some(Ok(())) => {}
+            }
+            let Some(read) = record_to_aligned_read(&record, &self.header, self.contigs)? else {
+                continue;
+            };
+            let key = (read.contig, read.pos.0);
+            if let Some(previous) = self.last {
+                if key < previous {
+                    return Err(CoreError::MalformedRecord(
+                        "indexed BAM interval is not coordinate ordered".into(),
+                    ));
                 }
             }
             self.last = Some(key);

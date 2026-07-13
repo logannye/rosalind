@@ -1,11 +1,11 @@
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
 
 use anyhow::{anyhow, bail, Context, Result};
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{Args, Parser, Subcommand, ValueEnum};
 use rosalind::core::MemoryBudget;
 use rosalind::genomics::{
     compare_callsets, create_bam_writer, read_vcf_variants, render_plan_line,
@@ -25,15 +25,54 @@ use rust_htslib::bam::{
 #[command(
     name = "rosalind",
     version,
-    about = "Deterministic low-memory genomics engine with a verifiable memory contract"
+    about = "Deterministic, resource-governed per-locus genomics analyses with portable receipts"
 )]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
 }
 
+#[derive(Args, Debug, Clone, Default)]
+struct SelectionArgs {
+    /// One samtools-style 1-based inclusive interval (`chr:start-end`).
+    #[arg(long, conflicts_with_all = ["regions", "shard_count", "shard_index"])]
+    region: Option<String>,
+    /// BED intervals (zero-based half-open); requires a BAM `.bai`.
+    #[arg(long, conflicts_with_all = ["region", "shard_count", "shard_index"])]
+    regions: Option<PathBuf>,
+    /// Total deterministic reference-span shards.
+    #[arg(long, requires = "shard_index", conflicts_with_all = ["region", "regions"])]
+    shard_count: Option<u32>,
+    /// Zero-based deterministic shard index.
+    #[arg(long, requires = "shard_count", conflicts_with_all = ["region", "regions"])]
+    shard_index: Option<u32>,
+}
+
 #[derive(Subcommand, Debug)]
 enum Commands {
+    /// Build, inspect, or convert lightweight analysis reference packs.
+    Reference {
+        #[command(subcommand)]
+        action: ReferenceAction,
+    },
+    /// Canonically merge a complete compatible first-party shard set.
+    Merge {
+        /// Shard receipt; repeat once per shard.
+        #[arg(long, required = true)]
+        manifest: Vec<PathBuf>,
+        /// Root used to content-locate relocated shard artifacts.
+        #[arg(long)]
+        inputs: Vec<PathBuf>,
+        /// Canonical merged artifact destination.
+        #[arg(short, long)]
+        output: PathBuf,
+        /// Merge receipt destination (default: `<output>.manifest.json`).
+        #[arg(long)]
+        output_manifest: Option<PathBuf>,
+        /// Atomically replace existing output and receipt.
+        #[arg(long)]
+        force: bool,
+    },
     /// Align reads against a reference genome and emit SAM records.
     Align {
         /// Reference genome in FASTA format (only the first record is used).
@@ -72,15 +111,14 @@ enum Commands {
     Variants {
         /// Persisted index (`rosalind index`); calls all contigs, reference from
         /// the index. Mutually exclusive with `--reference`.
-        #[arg(
-            long,
-            conflicts_with = "reference",
-            required_unless_present = "reference"
-        )]
+        #[arg(long, conflicts_with_all = ["reference", "reference_pack"], required_unless_present_any = ["reference", "reference_pack"])]
         index: Option<PathBuf>,
         /// Reference genome (FASTA) — single-contig path. Mutually exclusive with `--index`.
-        #[arg(long, required_unless_present = "index")]
+        #[arg(long, conflicts_with = "reference_pack", required_unless_present_any = ["index", "reference_pack"])]
         reference: Option<PathBuf>,
+        /// Lightweight analysis reference built by `rosalind reference build`.
+        #[arg(long, required_unless_present_any = ["index", "reference"])]
+        reference_pack: Option<PathBuf>,
         /// Alignments in SAM or BAM format (coordinate-sorted for `--index`).
         #[arg(long)]
         alignments: PathBuf,
@@ -101,7 +139,7 @@ enum Commands {
         #[arg(long, default_value_t = 1024, hide = true)]
         block_size: usize,
         /// Minimum quality threshold for reporting variants.
-        #[arg(long, default_value_t = 10.0)]
+        #[arg(long, default_value_t = 30.0)]
         quality_threshold: f32,
         /// Declared memory budget (MiB) for the run — records a plan/peak line.
         /// With `--enforce` it is honored (exit 3 refuse / exit 4 breach). (`--index` path.)
@@ -132,17 +170,26 @@ enum Commands {
         manifest: Option<PathBuf>,
         /// Emit a banded gVCF (every callable locus → a variant or a `<NON_REF>`
         /// reference block) instead of a sites-only VCF. Output is bounded and
-        /// byte-reproducible; cohort integration is not yet qualified. (`--index` path.)
+        /// byte-reproducible; cohort integration is not yet qualified.
         #[arg(long)]
         gvcf: bool,
+        #[command(flatten)]
+        selection: SelectionArgs,
     },
     /// Stream a bounded, deterministic per-locus FEATURE table (TSV) over a
     /// persisted index — the same memory contract as `variants`, but every
     /// callable locus is emitted as ML-ready features. Byte-identical run-to-run.
     Features {
-        /// Persisted index (`rosalind index`); features over all contigs.
-        #[arg(long)]
-        index: PathBuf,
+        /// Legacy persisted search index. Prefer `--reference-pack` for analysis.
+        #[arg(
+            long,
+            conflicts_with = "reference_pack",
+            required_unless_present = "reference_pack"
+        )]
+        index: Option<PathBuf>,
+        /// Lightweight analysis reference built by `rosalind reference build`.
+        #[arg(long, required_unless_present = "index")]
+        reference_pack: Option<PathBuf>,
         /// Coordinate-sorted alignments (BAM).
         #[arg(long)]
         alignments: PathBuf,
@@ -173,6 +220,11 @@ enum Commands {
         /// Where to write the reproducibility receipt (default: `<output>.manifest.json`).
         #[arg(long)]
         manifest: Option<PathBuf>,
+        #[command(flatten)]
+        selection: SelectionArgs,
+        /// Feature artifact encoding.
+        #[arg(long, value_enum, default_value_t = FeatureFormat::Tsv)]
+        format: FeatureFormat,
     },
     /// Run a registered per-locus analyzer over the bounded whole-genome walk, with a
     /// verifiable receipt that records the analyzer's own params (under `analyzer.`).
@@ -180,9 +232,16 @@ enum Commands {
         /// Which analyzer to run.
         #[arg(value_enum)]
         kind: AnalyzerKind,
-        /// Persisted index (`rosalind index`); analyzed over all contigs.
-        #[arg(long)]
-        index: PathBuf,
+        /// Legacy persisted search index. Prefer `--reference-pack` for analysis.
+        #[arg(
+            long,
+            conflicts_with = "reference_pack",
+            required_unless_present = "reference_pack"
+        )]
+        index: Option<PathBuf>,
+        /// Lightweight analysis reference built by `rosalind reference build`.
+        #[arg(long, required_unless_present = "index")]
+        reference_pack: Option<PathBuf>,
         /// Coordinate-sorted alignments (BAM).
         #[arg(long)]
         alignments: PathBuf,
@@ -213,6 +272,8 @@ enum Commands {
         /// Where to write the reproducibility receipt (default: `<output>.manifest.json`).
         #[arg(long)]
         manifest: Option<PathBuf>,
+        #[command(flatten)]
+        selection: SelectionArgs,
     },
     /// Deterministically coordinate-sort a BAM file using bounded memory.
     Sort {
@@ -340,9 +401,16 @@ enum Commands {
     },
     /// Preflight index/BAM compatibility, output safety, and memory feasibility.
     Doctor {
-        /// Persisted reference index.
-        #[arg(long)]
-        index: PathBuf,
+        /// Legacy persisted search index. Prefer `--reference-pack`.
+        #[arg(
+            long,
+            conflicts_with = "reference_pack",
+            required_unless_present = "reference_pack"
+        )]
+        index: Option<PathBuf>,
+        /// Lightweight analysis reference.
+        #[arg(long, required_unless_present = "index")]
+        reference_pack: Option<PathBuf>,
         /// Coordinate-sorted BAM to validate against the index.
         #[arg(long)]
         alignments: PathBuf,
@@ -358,6 +426,8 @@ enum Commands {
         /// Emit a stable machine-readable report.
         #[arg(long)]
         json: bool,
+        #[command(flatten)]
+        selection: SelectionArgs,
     },
     /// Open the embedded, loopback-only Receipt Studio with optional preloaded receipts.
     Studio {
@@ -404,16 +474,15 @@ enum Commands {
     Plan {
         /// Persisted index (`rosalind index`): predict the bounded whole-genome
         /// `variants` peak. Mutually exclusive with `--reference`.
-        #[arg(
-            long,
-            conflicts_with = "reference",
-            required_unless_present = "reference"
-        )]
+        #[arg(long, conflicts_with_all = ["reference", "reference_pack"], required_unless_present_any = ["reference", "reference_pack"])]
         index: Option<PathBuf>,
         /// Reference FASTA: predict the index BUILD peak (advisory — build is
         /// O(reference); Phase D enforces). Mutually exclusive with `--index`.
-        #[arg(long, required_unless_present = "index")]
+        #[arg(long, conflicts_with = "reference_pack", required_unless_present_any = ["index", "reference_pack"])]
         reference: Option<PathBuf>,
+        /// Analysis reference pack: predict a bounded analyzer run.
+        #[arg(long, required_unless_present_any = ["index", "reference"])]
+        reference_pack: Option<PathBuf>,
         /// Max active depth assumed for the `variants` working-set bound.
         #[arg(long, default_value_t = 1000)]
         max_depth: u32,
@@ -427,6 +496,8 @@ enum Commands {
         /// to read), instead of the human-readable table. `--index` only.
         #[arg(long)]
         json: bool,
+        #[command(flatten)]
+        selection: SelectionArgs,
     },
     /// Pack many bounded `variants` jobs onto fixed-size nodes by their PREDICTED
     /// peaks — show a co-location fits within budget before launching a byte. Each
@@ -625,6 +696,55 @@ enum AnalyzerKind {
     Coverage,
 }
 
+#[derive(Copy, Clone, Debug, ValueEnum, Eq, PartialEq)]
+enum FeatureFormat {
+    Tsv,
+    ArrowIpc,
+}
+
+#[derive(Subcommand, Debug)]
+enum ReferenceAction {
+    /// Stream a FASTA into a deterministic, mmap-friendly `.rref`.
+    Build {
+        /// Input FASTA path (plain or gzip). A path is required for the two-pass build.
+        #[arg(long)]
+        fasta: PathBuf,
+        /// Destination reference pack.
+        #[arg(short, long)]
+        output: PathBuf,
+        /// Receipt destination (default: `<output>.manifest.json`).
+        #[arg(long)]
+        manifest: Option<PathBuf>,
+        /// Atomically replace an existing destination.
+        #[arg(long)]
+        force: bool,
+    },
+    /// Validate and describe an analysis reference pack.
+    Inspect {
+        /// Reference pack to inspect.
+        #[arg(long)]
+        reference_pack: PathBuf,
+        /// Emit stable machine-readable JSON.
+        #[arg(long)]
+        json: bool,
+    },
+    /// Extract the reference section of a legacy `.idx` into `.rref`.
+    Convert {
+        /// Legacy search index.
+        #[arg(long)]
+        index: PathBuf,
+        /// Destination reference pack.
+        #[arg(short, long)]
+        output: PathBuf,
+        /// Receipt destination (default: `<output>.manifest.json`).
+        #[arg(long)]
+        manifest: Option<PathBuf>,
+        /// Atomically replace an existing destination.
+        #[arg(long)]
+        force: bool,
+    },
+}
+
 #[derive(Debug, Clone)]
 struct FastqPair {
     name: String,
@@ -661,6 +781,31 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
+        Commands::Reference { action } => run_reference(action)?,
+        Commands::Merge {
+            manifest,
+            inputs,
+            output,
+            output_manifest,
+            force,
+        } => match rosalind::merge_shards(
+            &manifest,
+            &inputs,
+            &output,
+            output_manifest.as_deref(),
+            force,
+        ) {
+            Ok(outcome) => eprintln!(
+                "merged {} shards: {}; receipt: {}",
+                outcome.shard_count,
+                outcome.output.display(),
+                outcome.manifest.display()
+            ),
+            Err(error) => {
+                eprintln!("merge: {error}");
+                std::process::exit(error.exit_code());
+            }
+        },
         Commands::Align {
             reference,
             reads,
@@ -687,6 +832,7 @@ fn main() -> Result<()> {
         Commands::Variants {
             index,
             reference,
+            reference_pack,
             alignments,
             chrom,
             region_start,
@@ -702,13 +848,14 @@ fn main() -> Result<()> {
             force,
             manifest,
             gvcf,
+            selection,
         } => {
-            if let Some(index) = index {
+            if index.is_some() || reference_pack.is_some() {
                 if chrom.is_some() || region_start != 0 {
-                    bail!("--chrom/--region-start are not valid with --index (the whole index is called)");
+                    bail!("--chrom/--region-start are not valid with --index/--reference-pack (the whole reference is called)");
                 }
                 run_variants_index(
-                    index,
+                    select_analysis_reference(index, reference_pack),
                     alignments,
                     mapq_threshold,
                     output,
@@ -721,8 +868,12 @@ fn main() -> Result<()> {
                     force,
                     manifest,
                     gvcf,
+                    selection,
                 )?
             } else {
+                if selection_requested(&selection) {
+                    bail!("--region/--regions/--shard-* require --index or --reference-pack");
+                }
                 if gvcf {
                     bail!("--gvcf requires --index (the bounded whole-genome path)");
                 }
@@ -743,6 +894,7 @@ fn main() -> Result<()> {
         }
         Commands::Features {
             index,
+            reference_pack,
             alignments,
             mapq_threshold,
             memory_budget_mb,
@@ -753,8 +905,10 @@ fn main() -> Result<()> {
             force,
             output,
             manifest,
+            selection,
+            format,
         } => run_features(
-            index,
+            select_analysis_reference(index, reference_pack),
             alignments,
             mapq_threshold,
             memory_budget_mb,
@@ -765,10 +919,13 @@ fn main() -> Result<()> {
             force,
             output,
             manifest,
+            selection,
+            format,
         )?,
         Commands::Analyze {
             kind,
             index,
+            reference_pack,
             alignments,
             mapq_threshold,
             memory_budget_mb,
@@ -779,11 +936,14 @@ fn main() -> Result<()> {
             force,
             output,
             manifest,
+            selection,
         } => {
             let label = match kind {
                 AnalyzerKind::Features => "analyze features",
                 AnalyzerKind::Coverage => "analyze coverage",
             };
+            let analysis_reference = select_analysis_reference(index, reference_pack);
+            let selection = resolve_selection(&analysis_reference, &selection)?;
             match kind {
                 AnalyzerKind::Features => {
                     let mut a = rosalind::call::FeatureAnalyzer::default();
@@ -791,7 +951,7 @@ fn main() -> Result<()> {
                         label,
                         "analyzer.",
                         &mut a,
-                        index,
+                        analysis_reference,
                         alignments,
                         mapq_threshold,
                         memory_budget_mb,
@@ -802,6 +962,7 @@ fn main() -> Result<()> {
                         force,
                         output,
                         manifest,
+                        selection,
                     )?
                 }
                 AnalyzerKind::Coverage => {
@@ -810,7 +971,7 @@ fn main() -> Result<()> {
                         label,
                         "analyzer.",
                         &mut a,
-                        index,
+                        analysis_reference,
                         alignments,
                         mapq_threshold,
                         memory_budget_mb,
@@ -821,6 +982,7 @@ fn main() -> Result<()> {
                         force,
                         output,
                         manifest,
+                        selection,
                     )?
                 }
             }
@@ -884,12 +1046,22 @@ fn main() -> Result<()> {
         } => run_demo(output_dir, budget_mb, json)?,
         Commands::Doctor {
             index,
+            reference_pack,
             alignments,
             output,
             budget_mb,
             deep,
             json,
-        } => run_doctor_command(index, alignments, output, budget_mb, deep, json)?,
+            selection,
+        } => run_doctor_command(
+            select_analysis_reference(index, reference_pack),
+            alignments,
+            output,
+            budget_mb,
+            deep,
+            json,
+            selection,
+        )?,
         Commands::Studio {
             receipts,
             no_open,
@@ -927,11 +1099,21 @@ fn main() -> Result<()> {
         Commands::Plan {
             index,
             reference,
+            reference_pack,
             max_depth,
             max_read_len,
             budget_mb,
             json,
-        } => run_plan(index, reference, max_depth, max_read_len, budget_mb, json)?,
+            selection,
+        } => run_plan(
+            index.or(reference_pack),
+            reference,
+            max_depth,
+            max_read_len,
+            budget_mb,
+            json,
+            selection,
+        )?,
         Commands::Pack {
             jobs,
             node_mb,
@@ -967,6 +1149,146 @@ fn main() -> Result<()> {
         } => run_badge(manifest, repro, output, force)?,
     }
 
+    Ok(())
+}
+
+fn run_reference(action: ReferenceAction) -> Result<()> {
+    use rosalind::genomics::{ReferencePackBuilder, ReferencePackReader, ReferenceProvider};
+
+    let render_hash =
+        |hash: &[u8; 32]| -> String { hash.iter().map(|byte| format!("{byte:02x}")).collect() };
+    match action {
+        ReferenceAction::Build {
+            fasta,
+            output,
+            manifest,
+            force,
+        } => {
+            use rosalind::provenance::CommandCapture;
+            use rosalind::util::atomic::write_atomic;
+
+            let receipt_path = manifest.unwrap_or_else(|| sidecar_path(&output, ".manifest.json"));
+            require_safe_cli_destination(&receipt_path, force, "reference-pack receipt");
+            let metadata = ReferencePackBuilder::build(&fasta, &output, force)
+                .with_context(|| format!("failed to build {}", output.display()))?;
+            let mut receipt = new_run_manifest("reference build");
+            let mut command = CommandCapture::from_argv_prefix(["reference", "build"]);
+            command.input("--fasta", &fasta)?;
+            command.flag_if(force, "--force");
+            command.output("--output", &output)?;
+            command.record_into(&mut receipt);
+            receipt
+                .params
+                .insert("artifact.input.0.role".into(), "reference-fasta".into());
+            receipt.params.insert(
+                "artifact.output.0.role".into(),
+                "analysis-reference-pack".into(),
+            );
+            receipt
+                .params
+                .insert("artifact.output.0.format".into(), "rref-v1".into());
+            receipt.params.insert(
+                "reference.source_blake3".into(),
+                render_hash(&metadata.source_reference_blake3),
+            );
+            receipt.params.insert(
+                "reference.total_bases".into(),
+                metadata.total_bases.to_string(),
+            );
+            receipt.record_measurement("peak_rss_bytes", peak_rss_bytes().to_string());
+            receipt.finalize();
+            write_atomic(&receipt_path, receipt.to_canonical_json().as_bytes(), force)?;
+            println!(
+                "built {}: {} contigs, {} bases, source {}",
+                output.display(),
+                metadata.contig_count,
+                metadata.total_bases,
+                render_hash(&metadata.source_reference_blake3)
+            );
+        }
+        ReferenceAction::Inspect {
+            reference_pack,
+            json,
+        } => {
+            let reader = ReferencePackReader::open(&reference_pack)
+                .with_context(|| format!("failed to inspect {}", reference_pack.display()))?;
+            let metadata = reader.metadata();
+            if json {
+                println!(
+                    "{{\"path\":\"{}\",\"format\":\"rref\",\"format_version\":{},\"contig_count\":{},\"total_bases\":{},\"source_reference_blake3\":\"{}\",\"content_blake3\":\"{}\"}}",
+                    reference_pack.display(),
+                    metadata.format_version,
+                    metadata.contig_count,
+                    metadata.total_bases,
+                    render_hash(&metadata.source_reference_blake3),
+                    render_hash(&metadata.content_blake3)
+                );
+            } else {
+                println!("reference pack: {}", reference_pack.display());
+                println!("  format version : {}", metadata.format_version);
+                println!(
+                    "  contigs / bases: {} / {}",
+                    metadata.contig_count, metadata.total_bases
+                );
+                println!(
+                    "  source BLAKE3  : {}",
+                    render_hash(&metadata.source_reference_blake3)
+                );
+                for contig in reader.contigs().iter() {
+                    println!("  {}\t{}", contig.name, contig.length);
+                }
+            }
+        }
+        ReferenceAction::Convert {
+            index,
+            output,
+            manifest,
+            force,
+        } => {
+            use rosalind::provenance::CommandCapture;
+            use rosalind::util::atomic::write_atomic;
+
+            let receipt_path = manifest.unwrap_or_else(|| sidecar_path(&output, ".manifest.json"));
+            require_safe_cli_destination(&receipt_path, force, "reference-pack receipt");
+            let metadata = ReferencePackBuilder::convert(&index, &output, force)
+                .with_context(|| format!("failed to convert {}", index.display()))?;
+            let mut receipt = new_run_manifest("reference convert");
+            let mut command = CommandCapture::from_argv_prefix(["reference", "convert"]);
+            command.input("--index", &index)?;
+            command.flag_if(force, "--force");
+            command.output("--output", &output)?;
+            command.record_into(&mut receipt);
+            receipt.params.insert(
+                "artifact.input.0.role".into(),
+                "legacy-reference-index".into(),
+            );
+            receipt.params.insert(
+                "artifact.output.0.role".into(),
+                "analysis-reference-pack".into(),
+            );
+            receipt
+                .params
+                .insert("artifact.output.0.format".into(), "rref-v1".into());
+            receipt.params.insert(
+                "reference.source_blake3".into(),
+                render_hash(&metadata.source_reference_blake3),
+            );
+            receipt.params.insert(
+                "reference.total_bases".into(),
+                metadata.total_bases.to_string(),
+            );
+            receipt.record_measurement("peak_rss_bytes", peak_rss_bytes().to_string());
+            receipt.finalize();
+            write_atomic(&receipt_path, receipt.to_canonical_json().as_bytes(), force)?;
+            println!(
+                "converted {} to {}: {} contigs, {} bases",
+                index.display(),
+                output.display(),
+                metadata.contig_count,
+                metadata.total_bases
+            );
+        }
+    }
     Ok(())
 }
 
@@ -1011,14 +1333,19 @@ fn run_doctor_command(
     budget_mb: Option<u64>,
     deep: bool,
     json: bool,
+    selection_args: SelectionArgs,
 ) -> Result<()> {
-    let report = rosalind::run_doctor(&rosalind::DoctorSpec {
-        index,
-        alignments,
-        output,
-        budget_mb,
-        deep,
-    });
+    let selection = resolve_selection(&index, &selection_args)?;
+    let report = rosalind::doctor::run_doctor_selected(
+        &rosalind::DoctorSpec {
+            index,
+            alignments,
+            output,
+            budget_mb,
+            deep,
+        },
+        &selection,
+    );
     if json {
         println!("{}", report.to_json());
     } else {
@@ -1550,19 +1877,17 @@ fn run_plan(
     max_read_len: u32,
     budget_mb: Option<u64>,
     json: bool,
+    selection_args: SelectionArgs,
 ) -> Result<()> {
     use rosalind::call::plan::{predicted_peak_rss_bytes, render_variants_plan};
-    use rosalind::genomics::IndexReader;
+    use rosalind::genomics::{AnalysisReference, ReferenceProvider};
 
     if let Some(index_path) = index {
-        let loaded = IndexReader::open(&index_path)
-            .with_context(|| format!("failed to open index {}", index_path.display()))?;
-        let largest = loaded
-            .contigs()
-            .iter()
-            .map(|c| c.length as u64)
-            .max()
-            .unwrap_or(0);
+        let loaded = AnalysisReference::open(&index_path).with_context(|| {
+            format!("failed to open analysis reference {}", index_path.display())
+        })?;
+        let selection = selection_from_provider(&loaded, &selection_args)?;
+        let largest = selection.largest_reference_span(loaded.contigs());
         // Measure the process baseline now (binary + libs + index mmap header);
         // the per-contig reference decode + active set are modeled on top.
         let baseline = peak_rss_bytes();
@@ -1602,6 +1927,9 @@ fn run_plan(
             );
         }
     } else {
+        if selection_requested(&selection_args) {
+            bail!("analysis selection flags require --index or --reference-pack");
+        }
         let reference = reference.expect("clap guarantees one of --index/--reference");
         let fasta_reader = open_input(&reference)
             .with_context(|| format!("failed to open reference {}", reference.display()))?;
@@ -2981,7 +3309,7 @@ fn run_bounded_analysis(
     subcommand: &str,
     param_prefix: &str,
     analyzer: &mut dyn rosalind::call::ColumnAnalyzer,
-    index_path: PathBuf,
+    analysis_reference: PathBuf,
     alignments_path: PathBuf,
     mapq_threshold: u8,
     memory_budget_mb: Option<u64>,
@@ -2992,6 +3320,7 @@ fn run_bounded_analysis(
     force: bool,
     output: Option<PathBuf>,
     manifest_out: Option<PathBuf>,
+    selection: rosalind::AnalysisSelection,
 ) -> Result<()> {
     use rosalind::contract::{
         AnalyzerIdentity, AnalyzerMemoryModel, ContractRunError, ContractRunSpec, ContractVerdict,
@@ -3014,7 +3343,7 @@ fn run_bounded_analysis(
             max_additional_bytes: 0,
         },
         invocation: ReplayInvocation::new(subcommand.split_whitespace()),
-        index: index_path,
+        index: analysis_reference,
         alignments: alignments_path,
         output: output_target,
         output_policy: if force {
@@ -3058,7 +3387,7 @@ fn run_bounded_analysis(
         }
     };
 
-    match rosalind::contract::run_column_analysis(analyzer, spec) {
+    match rosalind::contract::run_column_analysis_selected(analyzer, spec, selection) {
         Ok(outcome) => {
             render_outcome(&outcome);
             if enforce && outcome.verdict == ContractVerdict::Within {
@@ -3117,7 +3446,7 @@ fn run_bounded_analysis(
 /// the receipt stays byte-identical.
 #[allow(clippy::too_many_arguments)]
 fn run_features(
-    index_path: PathBuf,
+    analysis_reference: PathBuf,
     alignments_path: PathBuf,
     mapq_threshold: u8,
     memory_budget_mb: Option<u64>,
@@ -3128,29 +3457,131 @@ fn run_features(
     force: bool,
     output: Option<PathBuf>,
     manifest_out: Option<PathBuf>,
+    selection_args: SelectionArgs,
+    format: FeatureFormat,
 ) -> Result<()> {
-    let mut analyzer = rosalind::call::FeatureAnalyzer::default();
-    run_bounded_analysis(
-        "features",
-        "",
-        &mut analyzer,
-        index_path,
-        alignments_path,
-        mapq_threshold,
-        memory_budget_mb,
-        max_depth,
-        max_read_len,
-        enforce,
-        require_os_limit,
-        force,
-        output,
-        manifest_out,
-    )
+    let selection = resolve_selection(&analysis_reference, &selection_args)?;
+    match format {
+        FeatureFormat::Tsv => {
+            let mut analyzer = rosalind::call::FeatureAnalyzer::default();
+            run_bounded_analysis(
+                "features",
+                "",
+                &mut analyzer,
+                analysis_reference,
+                alignments_path,
+                mapq_threshold,
+                memory_budget_mb,
+                max_depth,
+                max_read_len,
+                enforce,
+                require_os_limit,
+                force,
+                output,
+                manifest_out,
+                selection,
+            )
+        }
+        FeatureFormat::ArrowIpc => {
+            let mut analyzer = rosalind::call::FeatureArrowAnalyzer::new()?;
+            run_bounded_analysis(
+                "features",
+                "",
+                &mut analyzer,
+                analysis_reference,
+                alignments_path,
+                mapq_threshold,
+                memory_budget_mb,
+                max_depth,
+                max_read_len,
+                enforce,
+                require_os_limit,
+                force,
+                output,
+                manifest_out,
+                selection,
+            )
+        }
+    }
+}
+
+fn select_analysis_reference(index: Option<PathBuf>, reference_pack: Option<PathBuf>) -> PathBuf {
+    if let Some(reference_pack) = reference_pack {
+        reference_pack
+    } else {
+        let index = index.expect("clap requires --index or --reference-pack");
+        eprintln!(
+            "migration: --index remains supported; build a smaller analysis reference with `rosalind reference convert --index {} --output reference.rref`",
+            index.display()
+        );
+        index
+    }
+}
+
+fn selection_requested(args: &SelectionArgs) -> bool {
+    args.region.is_some()
+        || args.regions.is_some()
+        || args.shard_count.is_some()
+        || args.shard_index.is_some()
+}
+
+fn resolve_selection(path: &Path, args: &SelectionArgs) -> Result<rosalind::AnalysisSelection> {
+    use rosalind::genomics::AnalysisReference;
+    let reference = AnalysisReference::open(path)
+        .with_context(|| format!("failed to open analysis reference {}", path.display()))?;
+    selection_from_provider(&reference, args)
+}
+
+fn selection_from_provider(
+    reference: &dyn rosalind::ReferenceProvider,
+    args: &SelectionArgs,
+) -> Result<rosalind::AnalysisSelection> {
+    if let Some(region) = &args.region {
+        return Ok(rosalind::AnalysisSelection::Intervals(
+            rosalind::IntervalSet::parse_region(region, reference.contigs())?,
+        ));
+    }
+    if let Some(path) = &args.regions {
+        return Ok(rosalind::AnalysisSelection::Intervals(
+            rosalind::IntervalSet::from_bed(path, reference.contigs())?,
+        ));
+    }
+    if let (Some(count), Some(index)) = (args.shard_count, args.shard_index) {
+        return Ok(rosalind::AnalysisSelection::shard(
+            count,
+            index,
+            reference.contigs(),
+        )?);
+    }
+    Ok(rosalind::AnalysisSelection::WholeGenome)
+}
+
+fn record_selection_claims(
+    params: &mut std::collections::BTreeMap<String, String>,
+    selection: &rosalind::AnalysisSelection,
+) {
+    params.insert("partition.kind".into(), selection.kind().into());
+    if let Some(intervals) = selection.intervals() {
+        params.insert(
+            "partition.interval_count".into(),
+            intervals.intervals().len().to_string(),
+        );
+        params.insert(
+            "partition.total_bases".into(),
+            intervals.total_bases().to_string(),
+        );
+        params.insert("partition.intervals_blake3".into(), intervals.blake3());
+    }
+    if let rosalind::AnalysisSelection::Shard { count, index, .. } = selection {
+        params.insert("partition.algorithm".into(), "reference-span-v1".into());
+        params.insert("partition.shard_count".into(), count.to_string());
+        params.insert("partition.shard_index".into(), index.to_string());
+    }
 }
 
 #[allow(clippy::too_many_arguments)] // a CLI entry point: each flag is a parameter
 fn run_variants_index(
-    index_path: PathBuf,
+    analysis_reference: PathBuf,
     alignments_path: PathBuf,
     mapq_threshold: u8,
     output: Option<PathBuf>,
@@ -3163,6 +3594,7 @@ fn run_variants_index(
     force: bool,
     manifest_out: Option<PathBuf>,
     gvcf: bool,
+    selection_args: SelectionArgs,
 ) -> Result<()> {
     use rosalind::util::atomic::{write_atomic, AtomicFile};
 
@@ -3207,25 +3639,25 @@ fn run_variants_index(
         None
     };
     use rosalind::call::{
-        call_germline_whole_genome, stream_gvcf_whole_genome, write_gvcf_header, GermlineParams,
+        call_germline_selected_bam, call_germline_whole_genome, stream_gvcf_selected_bam,
+        stream_gvcf_whole_genome, write_gvcf_header, GermlineParams,
     };
     use rosalind::core::governor::MemoryGovernor;
     use rosalind::core::PILEUP_IO_RSS_OVERHEAD;
-    use rosalind::genomics::IndexReader;
-    use rosalind::io::bam::StreamingBamSource;
+    use rosalind::genomics::{AnalysisReference, ReferenceProvider};
+    use rosalind::io::bam::{find_bai, StreamingBamSource};
     use rosalind::io::vcf::{write_germline_header, write_germline_row, GermlineRow};
     use rosalind::pileup::PileupParams;
     use rosalind::provenance::CommandCapture;
 
-    let loaded = IndexReader::open(&index_path)
-        .with_context(|| format!("failed to open index {}", index_path.display()))?;
-    let ref_view = loaded.reference_view().with_context(|| {
+    let loaded = AnalysisReference::open(&analysis_reference).with_context(|| {
         format!(
-            "failed to read reference from index {}",
-            index_path.display()
+            "failed to open analysis reference {}",
+            analysis_reference.display()
         )
     })?;
     let contigs = loaded.contigs();
+    let selection = selection_from_provider(&loaded, &selection_args)?;
 
     let pileup_params = PileupParams {
         min_mapq: mapq_threshold,
@@ -3257,12 +3689,19 @@ fn run_variants_index(
         .unwrap_or(false);
     if !is_bam {
         bail!(
-            "--index requires a coordinate-sorted BAM (use `rosalind sort`); \
+            "--index/--reference-pack requires a coordinate-sorted BAM (use `rosalind sort`); \
              for single-contig SAM use --reference"
         );
     }
-    let source = StreamingBamSource::new(&alignments_path, contigs)
-        .map_err(|e| anyhow!("failed to open BAM {}: {e}", alignments_path.display()))?;
+    if !matches!(selection, rosalind::AnalysisSelection::WholeGenome) {
+        find_bai(&alignments_path).ok_or_else(|| {
+            anyhow!(
+                "sparse analysis requires {}.bai or {}",
+                alignments_path.display(),
+                alignments_path.with_extension("bai").display()
+            )
+        })?;
+    }
 
     // Predict the peak RSS up front: a measured baseline (binary + libs + index/
     // BAM open) plus the depth-capped working set plus an RSS margin. Computed
@@ -3270,7 +3709,7 @@ fn run_variants_index(
     // claim, which the post-run check and `verify` assert the realized peak honors.
     // Under `--enforce` it also gates the run: refuse cleanly before any work,
     // with the cooperative assurance recorded in the receipt.
-    let largest = contigs.iter().map(|c| c.length as u64).max().unwrap_or(0);
+    let largest = selection.largest_reference_span(contigs);
     let baseline = peak_rss_bytes();
     let predicted_peak =
         rosalind::call::plan::predicted_peak_rss_bytes(largest, max_depth, max_read_len, baseline);
@@ -3342,35 +3781,62 @@ fn run_variants_index(
             let w = $writer;
             let r = if gvcf {
                 write_gvcf_header(&mut *w, contigs, "SAMPLE")?;
-                stream_gvcf_whole_genome(
-                    source,
-                    &ref_view,
-                    contigs,
-                    pileup_params,
-                    &germline_params,
-                    &mut *w,
-                )
+                match &selection {
+                    rosalind::AnalysisSelection::WholeGenome => {
+                        let source = StreamingBamSource::new(&alignments_path, contigs)?;
+                        stream_gvcf_whole_genome(
+                            source,
+                            &loaded,
+                            contigs,
+                            pileup_params,
+                            &germline_params,
+                            &mut *w,
+                        )
+                    }
+                    _ => stream_gvcf_selected_bam(
+                        &alignments_path,
+                        &loaded,
+                        &selection,
+                        pileup_params,
+                        &germline_params,
+                        &mut *w,
+                    ),
+                }
             } else {
                 write_germline_header(&mut *w, contigs, "SAMPLE")?;
-                call_germline_whole_genome(
-                    source,
-                    &ref_view,
-                    contigs,
-                    pileup_params,
-                    &germline_params,
-                    &mut |(locus, ref_base, call)| {
-                        write_germline_row(
-                            &mut *w,
+                let mut emit = |(locus, ref_base, call)| {
+                    write_germline_row(
+                        &mut *w,
+                        contigs,
+                        &GermlineRow {
+                            locus,
+                            ref_base,
+                            call,
+                        },
+                    )
+                    .map_err(rosalind::core::CoreError::from)
+                };
+                match &selection {
+                    rosalind::AnalysisSelection::WholeGenome => {
+                        let source = StreamingBamSource::new(&alignments_path, contigs)?;
+                        call_germline_whole_genome(
+                            source,
+                            &loaded,
                             contigs,
-                            &GermlineRow {
-                                locus,
-                                ref_base,
-                                call,
-                            },
+                            pileup_params,
+                            &germline_params,
+                            &mut emit,
                         )
-                        .map_err(rosalind::core::CoreError::from)
-                    },
-                )
+                    }
+                    _ => call_germline_selected_bam(
+                        &alignments_path,
+                        &loaded,
+                        &selection,
+                        pileup_params,
+                        &germline_params,
+                        &mut emit,
+                    ),
+                }
             };
             // Flush even on a governed abort so partial output survives; surface a
             // genuine flush failure only when the calling pass itself succeeded.
@@ -3468,8 +3934,27 @@ fn run_variants_index(
     if let Some(dest) = receipt_dest {
         let mut manifest = new_run_manifest("variants");
         let mut cmd = CommandCapture::new("variants");
-        cmd.input("--index", &index_path)?;
+        let reference_flag = if loaded.is_legacy_index() {
+            "--index"
+        } else {
+            "--reference-pack"
+        };
+        cmd.input(reference_flag, &analysis_reference)?;
         cmd.input("--alignments", &alignments_path)?;
+        match &selection {
+            rosalind::AnalysisSelection::WholeGenome => {}
+            rosalind::AnalysisSelection::Intervals(intervals) => {
+                if let Some(region) = intervals.region_origin() {
+                    cmd.opt("--region", region);
+                } else if let Some(path) = intervals.bed_origin() {
+                    cmd.input("--regions", path)?;
+                }
+            }
+            rosalind::AnalysisSelection::Shard { count, index, .. } => {
+                cmd.opt("--shard-count", *count);
+                cmd.opt("--shard-index", *index);
+            }
+        }
         cmd.opt("--mapq-threshold", mapq_threshold);
         cmd.opt("--quality-threshold", quality_threshold as f64);
         cmd.opt("--max-depth", max_depth);
@@ -3487,12 +3972,32 @@ fn run_variants_index(
         cmd.record_into(&mut manifest);
         manifest.params.insert(
             "artifact.input.0.role".to_string(),
-            "reference-index".to_string(),
+            if loaded.is_legacy_index() {
+                "reference-index"
+            } else {
+                "analysis-reference-pack"
+            }
+            .to_string(),
         );
         manifest.params.insert(
             "artifact.input.1.role".to_string(),
             "sorted-alignments".to_string(),
         );
+        manifest.params.insert(
+            "artifact.output.0.format".to_string(),
+            if gvcf { "gvcf" } else { "vcf-sites" }.to_string(),
+        );
+        if selection
+            .intervals()
+            .and_then(|intervals| intervals.bed_origin())
+            .is_some()
+        {
+            manifest.params.insert(
+                "artifact.input.2.role".to_string(),
+                "regions-bed".to_string(),
+            );
+        }
+        record_selection_claims(&mut manifest.params, &selection);
         if !manifest.outputs.is_empty() {
             manifest.params.insert(
                 "artifact.output.0.role".to_string(),

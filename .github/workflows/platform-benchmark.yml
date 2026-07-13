@@ -1,0 +1,65 @@
+name: Platform benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      dataset:
+        description: toy or hg002-chr20
+        required: true
+        default: toy
+        type: choice
+        options: [toy, hg002-chr20]
+  schedule:
+    - cron: '43 9 15 * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: platform-benchmark-${{ inputs.dataset || 'toy' }}
+  cancel-in-progress: false
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Select and prepare data
+        id: data
+        env:
+          DATASET: ${{ inputs.dataset || 'toy' }}
+        run: |
+          if [ "$DATASET" = hg002-chr20 ]; then
+            available_kb=$(df -Pk . | awk 'NR==2 {print $4}')
+            test "$available_kb" -ge 12582912
+            sudo apt-get update
+            sudo apt-get install -y samtools
+            benchmarks/giab/prepare.sh
+            {
+              echo "reference=$PWD/benchmarks/giab/data/prepared/GRCh38.chr20.fa"
+              echo "bam=$PWD/benchmarks/giab/data/prepared/HG002.chr20.bam"
+              echo "results=$PWD/benchmarks/platform/results-hg002"
+            } >> "$GITHUB_OUTPUT"
+          else
+            {
+              echo "reference=$PWD/examples/data/illumina_toy/reference.fa"
+              echo "bam=$PWD/examples/data/illumina_toy/alignments.bam"
+              echo "results=$PWD/benchmarks/platform/results-toy"
+            } >> "$GITHUB_OUTPUT"
+          fi
+      - name: Run the digest-pinned comparison and memory probes
+        env:
+          REFERENCE: ${{ steps.data.outputs.reference }}
+          BAM: ${{ steps.data.outputs.bam }}
+          RESULTS: ${{ steps.data.outputs.results }}
+        run: benchmarks/platform/run.sh "$REFERENCE" "$BAM" "$RESULTS"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: platform-${{ inputs.dataset || 'toy' }}-${{ github.sha }}
+          retention-days: 90
+          if-no-files-found: error
+          path: |
+            benchmarks/platform/results-toy/
+            benchmarks/platform/results-hg002/

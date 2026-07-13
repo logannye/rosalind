@@ -1,5 +1,5 @@
-name: 'Rosalind memory budget'
-description: 'Honor a declared memory budget for whole-genome germline calling — fail CI on a breach (exit 3 refuse / exit 4 over).'
+name: 'Rosalind deterministic analysis contract'
+description: 'Plan, govern, verify, and retain a deterministic per-locus genomics artifact.'
 author: 'logannye'
 branding:
   icon: 'shield'
@@ -7,8 +7,13 @@ branding:
 
 inputs:
   index:
-    description: 'Path to the rosalind index (.idx) built by `rosalind index`.'
-    required: true
+    description: 'Legacy .idx reference. Exactly one of index/reference-pack is required.'
+    required: false
+    default: ''
+  reference-pack:
+    description: 'Preferred .rref analysis reference. Exactly one of reference-pack/index is required.'
+    required: false
+    default: ''
   alignments:
     description: 'Path to a coordinate-sorted BAM.'
     required: true
@@ -24,9 +29,45 @@ inputs:
     required: false
     default: '250'
   output:
-    description: 'Output VCF path.'
+    description: 'Primary artifact path.'
     required: false
     default: 'calls.vcf'
+  analyzer:
+    description: 'variants, features, or coverage.'
+    required: false
+    default: 'variants'
+  format:
+    description: 'Feature output format: tsv or arrow-ipc.'
+    required: false
+    default: 'tsv'
+  region:
+    description: 'Optional samtools-style region.'
+    required: false
+    default: ''
+  regions:
+    description: 'Optional BED path.'
+    required: false
+    default: ''
+  shard-count:
+    description: 'Optional deterministic shard count.'
+    required: false
+    default: ''
+  shard-index:
+    description: 'Optional zero-based deterministic shard index.'
+    required: false
+    default: ''
+  require-os-limit:
+    description: 'Require an existing cgroup-v2 limit at or below the budget.'
+    required: false
+    default: 'false'
+  reproduce:
+    description: 'Rerun and emit a reproduction certificate (doubles analysis work).'
+    required: false
+    default: 'false'
+  artifact-name:
+    description: 'Uploaded evidence bundle name.'
+    required: false
+    default: 'rosalind-receipt'
   version:
     description: 'Rosalind release to download (e.g. v0.1.0), or "latest". Ignored if binary-path is set.'
     required: false
@@ -63,37 +104,118 @@ runs:
         tar -xzf "$tarball"
         echo "bin=$PWD/rosalind-x86_64-unknown-linux-musl/rosalind" >> "$GITHUB_OUTPUT"
 
-    - name: Predict the peak (plan)
+    - name: Preflight and predict the peak
       shell: bash
       env:
         BIN: ${{ steps.bin.outputs.bin }}
         IDX: ${{ inputs.index }}
+        RREF: ${{ inputs.reference-pack }}
+        BAM: ${{ inputs.alignments }}
         BUDGET: ${{ inputs.budget-mb }}
+        REGION: ${{ inputs.region }}
+        REGIONS: ${{ inputs.regions }}
+        SHARD_COUNT: ${{ inputs.shard-count }}
+        SHARD_INDEX: ${{ inputs.shard-index }}
+        OUT: ${{ inputs.output }}
       run: |
         set -euo pipefail
-        "$BIN" plan --index "$IDX" --budget-mb "$BUDGET"
+        if [ -n "$RREF" ] && [ -z "$IDX" ]; then ref=(--reference-pack "$RREF");
+        elif [ -n "$IDX" ] && [ -z "$RREF" ]; then ref=(--index "$IDX");
+        else echo 'exactly one of reference-pack or index is required' >&2; exit 2; fi
+        select=()
+        modes=0
+        if [ -n "$REGION" ]; then select=(--region "$REGION"); modes=$((modes + 1)); fi
+        if [ -n "$REGIONS" ]; then select=(--regions "$REGIONS"); modes=$((modes + 1)); fi
+        if [ -n "$SHARD_COUNT" ] || [ -n "$SHARD_INDEX" ]; then
+          if [ -z "$SHARD_COUNT" ] || [ -z "$SHARD_INDEX" ]; then
+            echo 'shard-count and shard-index must be supplied together' >&2; exit 2
+          fi
+          select=(--shard-count "$SHARD_COUNT" --shard-index "$SHARD_INDEX")
+          modes=$((modes + 1))
+        fi
+        if [ "$modes" -gt 1 ]; then echo 'region, regions, and shard mode are mutually exclusive' >&2; exit 2; fi
+        "$BIN" doctor "${ref[@]}" --alignments "$BAM" "${select[@]}" --budget-mb "$BUDGET" --output "$OUT" --json > rosalind-doctor.json
+        "$BIN" plan "${ref[@]}" "${select[@]}" --budget-mb "$BUDGET" --json > rosalind-plan.json
 
     - name: Honor the memory contract (fails CI on breach)
       shell: bash
       env:
         BIN: ${{ steps.bin.outputs.bin }}
         IDX: ${{ inputs.index }}
+        RREF: ${{ inputs.reference-pack }}
         BAM: ${{ inputs.alignments }}
         BUDGET: ${{ inputs.budget-mb }}
         MAXDEPTH: ${{ inputs.max-depth }}
         MAXREADLEN: ${{ inputs.max-read-len }}
         OUT: ${{ inputs.output }}
+        ANALYZER: ${{ inputs.analyzer }}
+        FORMAT: ${{ inputs.format }}
+        REGION: ${{ inputs.region }}
+        REGIONS: ${{ inputs.regions }}
+        SHARD_COUNT: ${{ inputs.shard-count }}
+        SHARD_INDEX: ${{ inputs.shard-index }}
+        REQUIRE_OS: ${{ inputs.require-os-limit }}
       run: |
         set -euo pipefail
-        "$BIN" variants --index "$IDX" --alignments "$BAM" \
+        if [ -n "$RREF" ]; then ref=(--reference-pack "$RREF"); else ref=(--index "$IDX"); fi
+        select=()
+        if [ -n "$REGION" ]; then select=(--region "$REGION"); fi
+        if [ -n "$REGIONS" ]; then select=(--regions "$REGIONS"); fi
+        if [ -n "$SHARD_COUNT" ]; then select=(--shard-count "$SHARD_COUNT" --shard-index "$SHARD_INDEX"); fi
+        case "$ANALYZER" in
+          variants) command=(variants) ;;
+          features) command=(features --format "$FORMAT") ;;
+          coverage) command=(analyze coverage) ;;
+          *) echo "unsupported analyzer: $ANALYZER" >&2; exit 2 ;;
+        esac
+        os_limit=(); if [ "$REQUIRE_OS" = true ]; then os_limit=(--require-os-limit); fi
+        "$BIN" "${command[@]}" "${ref[@]}" --alignments "$BAM" "${select[@]}" \
           --memory-budget-mb "$BUDGET" \
           --max-depth "$MAXDEPTH" --max-read-len "$MAXREADLEN" \
-          --enforce -o "$OUT"
+          --enforce "${os_limit[@]}" -o "$OUT"
+
+    - name: Verify the receipt
+      shell: bash
+      env:
+        BIN: ${{ steps.bin.outputs.bin }}
+        OUT: ${{ inputs.output }}
+      run: '"$BIN" verify --manifest "$OUT.manifest.json" --json > rosalind-verify.json'
+
+    - name: Optional byte reproduction
+      if: inputs.reproduce == 'true'
+      shell: bash
+      env:
+        BIN: ${{ steps.bin.outputs.bin }}
+        OUT: ${{ inputs.output }}
+        IDX: ${{ inputs.index }}
+        RREF: ${{ inputs.reference-pack }}
+        BAM: ${{ inputs.alignments }}
+        REGIONS: ${{ inputs.regions }}
+      run: |
+        set -euo pipefail
+        input_dir="$RUNNER_TEMP/rosalind-reproduction-inputs"
+        rm -rf "$input_dir"
+        mkdir -p "$input_dir"
+        ordinal=0
+        for source in "$IDX" "$RREF" "$BAM" "$REGIONS"; do
+          if [ -n "$source" ]; then
+            ln -s "$(realpath "$source")" "$input_dir/input-$ordinal"
+            ordinal=$((ordinal + 1))
+          fi
+        done
+        "$BIN" reproduce --manifest "$OUT.manifest.json" --inputs "$input_dir" --json > rosalind-reproduce.json
 
     - name: Upload the memory receipt
       if: always()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       with:
-        name: rosalind-receipt
-        path: ${{ inputs.output }}.manifest.json
+        name: ${{ inputs.artifact-name }}
+        path: |
+          ${{ inputs.output }}
+          rosalind-doctor.json
+          rosalind-plan.json
+          rosalind-verify.json
+          rosalind-reproduce.json
+          ${{ inputs.output }}.manifest.json
+          ${{ inputs.output }}.manifest.json.repro.json
         if-no-files-found: ignore
