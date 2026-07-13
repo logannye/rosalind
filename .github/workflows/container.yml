@@ -39,7 +39,7 @@ jobs:
           docker pull "$image"
           test "$(docker run --rm --network none --entrypoint id "$image" -u)" = 10001
           docker run --rm --network none "$image" --version
-      - uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
+      - uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
         with:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.build.outputs.digest }}
