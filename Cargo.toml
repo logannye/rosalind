@@ -70,7 +70,7 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 # CLI
 clap = { version = "4.5", features = ["derive"] }
 # BAM/VCF output
-rust-htslib = { version = "0.44", default-features = false, features = ["bzip2", "lzma"] }
+rust-htslib = { version = "1.0", default-features = false, features = ["bzip2", "lzma"] }
 # Canonical uncompressed Arrow IPC feature streams (pinned for byte stability).
 arrow-array = "=55.2.0"
 arrow-schema = "=55.2.0"
