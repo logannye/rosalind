@@ -210,6 +210,52 @@ fn annotation_updates_copy_and_preserves_original_header_record_and_allele_order
 }
 
 #[test]
+fn repeated_info_strings_have_exact_boundaries_and_empty_updates_remove_tags() {
+    let f = Fixture::new();
+    let input = source(&f);
+    let mut reader = VariantReader::open(input, VariantLimits::default()).unwrap();
+    let mut output_header = bcf::Header::from_template(reader.header());
+    output_header
+        .push_record(b"##INFO=<ID=SUM,Number=R,Type=String,Description=\"Exact integer sums\">");
+    let record = reader.read().unwrap().unwrap();
+    let values = |index: usize| -> [&[u8]; 3] {
+        if index % 2 == 0 {
+            [b"30", b"40", b"25"]
+        } else {
+            [b"18446744073709551615", b"0", b"999999999999999999"]
+        }
+    };
+    for (name, format) in [
+        ("strings.vcf", VariantFormat::Vcf),
+        ("strings.vcf.gz", VariantFormat::VcfGz),
+        ("strings.bcf", VariantFormat::Bcf),
+    ] {
+        let output = f.0.join(name);
+        let mut writer =
+            CheckedVariantWriter::create(&output, &output_header, format, VariantLimits::default())
+                .unwrap();
+        for index in 0..64 {
+            writer
+                .write_with_info(record, &[], &[(b"SUM", &values(index)), (b"OLD", &[])])
+                .unwrap();
+        }
+        writer.finish().unwrap();
+        assert_eq!(record.info(b"OLD").string().unwrap().unwrap()[0], b"keep");
+        let mut reread = VariantReader::open(output, VariantLimits::default()).unwrap();
+        for index in 0..64 {
+            let actual = reread.read().unwrap().unwrap();
+            assert_eq!(
+                &*actual.info(b"SUM").string().unwrap().unwrap(),
+                &values(index),
+                "{name}, record {index}"
+            );
+            assert!(actual.info(b"OLD").string().unwrap().is_none());
+        }
+        assert!(reread.read().unwrap().is_none());
+    }
+}
+
+#[test]
 fn parser_warning_recovery_is_rejected_and_cannot_be_resumed() {
     let f = Fixture::new();
     for (name, row) in [
