@@ -10,9 +10,13 @@ worker counts**. Insufficient resources cause refusal or failure, never hidden
 downsampling. Speed, measured memory, biological accuracy, and adoption require
 different evidence and are reported separately.
 
-These are staged release targets. The development package remains **0.4.0** until
-a release is authorized and published. See [implementation status](implementation-status.md)
-for implemented, verified, released, and adopted states.
+These milestones describe the foundation now implemented in source. The first
+feature-bearing candidate is being prepared on the **0.5.0** track; 0.4.0 was not
+published. Implemented panel/cache interfaces are preview capabilities whose
+external validation and stabilization retain the 0.6/0.7 milestones. See
+[implementation status](implementation-status.md) for implemented, verified,
+released, and adopted states, and the ordered [adoption follow-up](ADOPTION_ROADMAP.md)
+for the current work. No candidate is public until its publication is recorded.
 
 ## M0 — 0.4.0 stabilization
 

@@ -125,7 +125,8 @@ def _command(
     max_read_len: int = 250, tile_bases: int = 16384, workers: int = 1,
     cache_dir: Optional[PathLike] = None, resume: bool = False,
     cram_reference: Optional[PathLike] = None, panel: bool = False,
-    min_callable_depth: int = 10,
+    min_callable_depth: Optional[int] = None,
+    sample: Optional[str] = None, pool_samples: bool = False,
 ) -> list[str]:
     if (sites is None) == (regions is None):
         raise ValueError("supply exactly one of sites (VCF) or regions (BED)")
@@ -133,6 +134,12 @@ def _command(
         raise ValueError("panel QC requires BED regions")
     if not panel and reference is None:
         raise ValueError("SNV evidence requires an explicit reference")
+    if sample is not None and pool_samples:
+        raise ValueError("sample and pool_samples are mutually exclusive")
+    if sample is not None and not sample:
+        raise ValueError("sample must be a nonempty declared sample name")
+    if not panel and min_callable_depth is not None:
+        raise ValueError("min_callable_depth is a panel QC option")
     executable = _resolve_binary(binary, allow_version_mismatch)
     command = [str(executable), "analyze", "panel-qc" if panel else "evidence",
                "--alignments", str(alignments), "--mapq-threshold", str(mapq),
@@ -150,7 +157,12 @@ def _command(
         command += ["--cache-dir", str(cache_dir)]
     if resume:
         command.append("--resume")
-    if panel:
+    if sample is not None:
+        command += ["--sample", sample]
+    if pool_samples:
+        command.append("--pool-samples")
+    # The native executable owns the shared default; Python only passes overrides.
+    if panel and min_callable_depth is not None:
         command += ["--min-callable-depth", str(min_callable_depth)]
     return command
 
@@ -164,6 +176,8 @@ def iter_evidence(
     Histograms, counts and sums use the versioned shortread-dna-readcount-v1
     profile. Default MAPQ and base quality thresholds are both 20. Overlapping
     mates count as separate reads. A supplied budget governs the native process.
+    Use ``sample="name"`` for a declared SM sample or ``pool_samples=True`` for
+    deliberate pooling. Ambiguous sample scope is refused by default.
     """
     command = _command(reference, alignments, **options)
     directory = Path(workdir) if workdir else Path(tempfile.mkdtemp(prefix="rosalind-evidence-"))
@@ -186,7 +200,11 @@ def panel_qc(
     alignments: PathLike, regions: PathLike, output: PathLike, *,
     reference: Optional[PathLike] = None, force: bool = False, **options: object,
 ) -> EvidenceResult:
-    """Persist per-target TSV summaries with explicit coverage denominators."""
+    """Persist per-target TSV summaries with explicit coverage denominators.
+
+    The matching native executable supplies the shared 10x callability default;
+    pass ``min_callable_depth`` to override it explicitly.
+    """
     command = _command(reference, alignments, regions=regions, panel=True, **options)
     return _materialize(command, output, "tsv", force)
 

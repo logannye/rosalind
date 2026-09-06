@@ -2592,9 +2592,13 @@ fn source_lock_hash(root: &Path) -> Result<String, String> {
         fs::read(root.join("benchmarks/giab/happy/Dockerfile"))
             .map_err(|error| error.to_string())?,
     );
-    if let Ok(requirements) = fs::read(root.join("benchmarks/giab/happy/requirements-py27.txt")) {
-        bytes.extend(b"\0requirements-py27.txt\0");
-        bytes.extend(requirements);
+    for name in ["requirements-py27.txt", "pin-version.py"] {
+        if let Ok(content) = fs::read(root.join("benchmarks/giab/happy").join(name)) {
+            bytes.push(0);
+            bytes.extend(name.as_bytes());
+            bytes.push(0);
+            bytes.extend(content);
+        }
     }
     Ok(hash_bytes(&bytes))
 }
@@ -2641,17 +2645,21 @@ fn source_lock_hash_at_ref<R: Runner>(
     }
     let mut bytes = serde_json::to_vec(&lock).map_err(|error| error.to_string())?;
     bytes.extend(dockerfile.stdout);
-    if let Ok(requirements) = runner.run(
-        root,
-        "git",
-        &[
-            "show".into(),
-            format!("{commit}:benchmarks/giab/happy/requirements-py27.txt").into(),
-        ],
-    ) {
-        if requirements.status.success() {
-            bytes.extend(b"\0requirements-py27.txt\0");
-            bytes.extend(requirements.stdout);
+    for name in ["requirements-py27.txt", "pin-version.py"] {
+        if let Ok(content) = runner.run(
+            root,
+            "git",
+            &[
+                "show".into(),
+                format!("{commit}:benchmarks/giab/happy/{name}").into(),
+            ],
+        ) {
+            if content.status.success() {
+                bytes.push(0);
+                bytes.extend(name.as_bytes());
+                bytes.push(0);
+                bytes.extend(content.stdout);
+            }
         }
     }
     Ok(hash_bytes(&bytes))
@@ -3962,6 +3970,61 @@ mod tests {
         let second = source_lock_hash(directory.path()).unwrap();
         assert_ne!(before, first);
         assert_ne!(first, second);
+    }
+
+    #[test]
+    fn evaluator_source_identity_includes_version_patch() {
+        let directory = tempdir().unwrap();
+        let happy = directory.path().join("benchmarks/giab/happy");
+        fs::create_dir_all(&happy).unwrap();
+        fs::write(happy.join("Dockerfile"), "FROM scratch\n").unwrap();
+        fs::write(happy.join("lock.json"), "{\"schema\":1}").unwrap();
+        let without_patch = source_lock_hash(directory.path()).unwrap();
+        fs::write(happy.join("pin-version.py"), "version = '0.3.15'\n").unwrap();
+        let pinned = source_lock_hash(directory.path()).unwrap();
+        fs::write(happy.join("pin-version.py"), "version = '0.3.16'\n").unwrap();
+        let changed = source_lock_hash(directory.path()).unwrap();
+        assert_ne!(without_patch, pinned);
+        assert_ne!(pinned, changed);
+    }
+
+    #[test]
+    fn evaluator_source_identity_at_ref_uses_the_same_version_patch_inputs() {
+        struct RefRunner;
+        impl Runner for RefRunner {
+            fn run(&self, cwd: &Path, program: &str, arguments: &[OsString]) -> io::Result<Output> {
+                assert_eq!(program, "git");
+                let mut output = Command::new("true").output()?;
+                if arguments[0] == "rev-parse" {
+                    let head = arguments.last().unwrap() == "HEAD^{commit}";
+                    output.stdout = if head { "a" } else { "b" }.repeat(40).into_bytes();
+                } else {
+                    assert_eq!(arguments[0], "show");
+                    let requested = arguments[1].to_str().unwrap();
+                    let (_, path) = requested.split_once(':').unwrap();
+                    match fs::read(cwd.join(path)) {
+                        Ok(bytes) => output.stdout = bytes,
+                        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+                            return Command::new("false").output();
+                        }
+                        Err(error) => return Err(error),
+                    }
+                }
+                Ok(output)
+            }
+        }
+        let directory = tempdir().unwrap();
+        let happy = directory.path().join("benchmarks/giab/happy");
+        fs::create_dir_all(&happy).unwrap();
+        fs::write(happy.join("Dockerfile"), "FROM scratch\n").unwrap();
+        fs::write(happy.join("lock.json"), "{\"schema\":1}").unwrap();
+        fs::write(happy.join("requirements-py27.txt"), "locked wheels\n").unwrap();
+        let before = source_lock_hash_at_ref(&RefRunner, directory.path(), "candidate").unwrap();
+        fs::write(happy.join("pin-version.py"), "version = '0.3.15'\n").unwrap();
+        let with_patch =
+            source_lock_hash_at_ref(&RefRunner, directory.path(), "candidate").unwrap();
+        assert_ne!(before, with_patch);
+        assert_eq!(with_patch, source_lock_hash(directory.path()).unwrap());
     }
 
     #[test]

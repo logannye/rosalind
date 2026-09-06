@@ -1,7 +1,14 @@
 # Evidence engine implementation status
 
-Updated 2026-09-05 for `codex/evidence-engine-roadmap`. The tracked package remains
-**0.4.0**. M1–M3 version numbers are targets, not available releases.
+Updated 2026-09-06. The evidence-engine foundation was merged in PR #97. The current
+development package is **0.5.0**, preparing the first feature-bearing RC; no 0.4
+release was published. M1–M3 releases and independent adoption remain separate
+from implementation. Current follow-up work is recorded in
+[ADOPTION_ROADMAP.md](ADOPTION_ROADMAP.md).
+
+Sample-scope and panel-default corrections now pass focused Rust, CLI, Python,
+cache/replay, and existing engine conformance checks. No new candidate has been
+published by this follow-up work.
 
 | Phase | Code state | Verification state | Released | External adoption |
 |---|---|---|---|---|

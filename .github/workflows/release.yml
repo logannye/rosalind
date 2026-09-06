@@ -90,7 +90,9 @@ jobs:
           ref: ${{ needs.authorize.outputs.commit }}
       - name: Install native build dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y musl-tools cmake
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends musl-tools build-essential clang cmake pkg-config libbz2-dev liblzma-dev zlib1g-dev
       - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
           toolchain: 1.95.0
@@ -112,9 +114,8 @@ jobs:
       - name: Install-smoke staged bundle
         shell: bash
         run: |
-          install_root=$(mktemp -d)
-          tar -xzf "dist/rosalind-${{ matrix.target }}.tar.gz" -C "$install_root"
-          "$install_root/rosalind-${{ matrix.target }}/rosalind" --version
+          scripts/smoke-release.sh "dist/rosalind-${{ matrix.target }}.tar.gz" \
+            --candidate-source "$GITHUB_WORKSPACE"
       - uses: anchore/sbom-action/download-syft@e22c389904149dbc22b58101806040fa8d37a610 # v0
       - name: Generate SPDX SBOM
         run: syft 'dir:dist/rosalind-${{ matrix.target }}' -o 'spdx-json=dist/rosalind-${{ matrix.target }}.spdx.json'
@@ -177,16 +178,44 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: scripts/post-publish-smoke.sh "$VERSION"
 
-  publish-wheels:
+  build-wheels:
     needs: [authorize, build-assets, publish-crates, published-install-smoke]
     permissions:
       contents: read
-      id-token: write
     uses: ./.github/workflows/wheels.yml
     with:
       candidate_sha: ${{ needs.authorize.outputs.commit }}
       package_version: ${{ inputs.version }}
-      destination: pypi
+
+  publish-wheels:
+    needs: [authorize, build-wheels]
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ needs.authorize.outputs.commit }}
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: wheel-*
+          path: artifacts
+          merge-multiple: true
+      - name: Verify candidate, target, version, and exact wheel bytes
+        env:
+          CANDIDATE_SHA: ${{ needs.authorize.outputs.commit }}
+          PACKAGE_VERSION: ${{ inputs.version }}
+        run: |
+          python3 scripts/wheel-artifacts.py stage --artifacts artifacts --output dist \
+            --candidate-sha "$CANDIDATE_SHA" --version "$PACKAGE_VERSION" --index pypi
+          python3 scripts/verify-wheel-upload.py --index pypi
+      - uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1
+        with:
+          repository-url: https://upload.pypi.org/legacy/
+          packages-dir: dist
+          skip-existing: true
 
   publish-container:
     needs: [authorize, build-assets, publish-crates, published-install-smoke]

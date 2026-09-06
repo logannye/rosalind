@@ -24,7 +24,10 @@ fn generated_analyzer_passes_the_embedded_conformance_harness() {
     let workspace = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let local = manifest
         .replace(
-            "rosalind-bio = { version = \"=0.4.0\", features = [\"contract-testkit\"] }",
+            &format!(
+                "rosalind-bio = {{ version = \"={}\", features = [\"contract-testkit\"] }}",
+                env!("CARGO_PKG_VERSION")
+            ),
             &format!(
                 "rosalind-bio = {{ path = {:?}, features = [\"contract-testkit\"] }}",
                 workspace

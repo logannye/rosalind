@@ -4,6 +4,21 @@ All notable changes to Rosalind are recorded here. Versions follow Semantic Vers
 
 ## [Unreleased]
 
+### Evidence-engine candidate track (0.5.0)
+
+The feature-bearing evidence engine is being prepared as `0.5.0-rc.1`. No 0.4
+release was published. The existing seven-day RC soak, independent-user gates,
+protected publication review, and change-based caller evidence requirements apply.
+
+- Indexed exact SNV evidence and panel QC, bounded Rust/Python batches, verified
+  partition cache/resume, canonical workers, and dataset comparison are implemented.
+- Panel callability now defaults to 10x consistently through Rust, CLI, and Python.
+- Named, unknown, and explicitly pooled sample scope is recorded in evidence
+  receipts and cache identities. Ambiguous sample headers require explicit intent;
+  named runs refuse reads that cannot be assigned to a declared sample.
+- Development status and the ordered next implementation sequence are tracked in
+  `docs/ADOPTION_ROADMAP.md`; implementation does not imply publication or adoption.
+
 ### Analyzer-platform foundation
 
 - Repositioned Rosalind around deterministic per-locus analysis contracts; the
@@ -24,11 +39,12 @@ All notable changes to Rosalind are recorded here. Versions follow Semantic Vers
 - Changed the CLI variant quality threshold default to 30; the historical
   permissive behavior remains available with `--quality-threshold 10`.
 - Version-gated the design-partner and seven-day RC soak requirements from 0.5.0;
-  0.4.0 remains a stabilization release with internal release gates.
+  the subsequent feature-bearing candidate retains those gates.
 
-## [0.4.0] — pending publication
+## [0.4.0] — unpublished development checkpoint
 
-This is the first consolidated stable release after `0.1.0`. The repository's
+This was the planned consolidated stabilization checkpoint after `0.1.0`, now
+included in the feature-bearing 0.5 candidate track. The repository's
 former `0.1.1`–`0.3.1` labels were internal development checkpoints, not public
 GitHub or crates.io releases; their changes are consolidated here.
 

@@ -25,6 +25,12 @@ pub(crate) struct EvidenceOptions {
     /// Supplied plain-text SNV VCF; mutually exclusive with BED selection.
     #[arg(long, conflicts_with_all = ["regions", "region", "shard_count", "shard_index"])]
     sites: Option<PathBuf>,
+    /// Select one declared @RG SM sample; unassignable reads fail the run.
+    #[arg(long, conflicts_with = "pool_samples")]
+    sample: Option<String>,
+    /// Explicitly pool all samples and unassigned reads in the alignment file.
+    #[arg(long, conflicts_with = "sample")]
+    pool_samples: bool,
     /// Base quality threshold for exact evidence (unavailable qualities excluded).
     #[arg(long, default_value_t = 20)]
     base_quality_threshold: u8,
@@ -59,7 +65,7 @@ pub(crate) struct EvidenceOptions {
     #[arg(long)]
     cram_reference_fai: Option<PathBuf>,
     /// Minimum callable A/C/G/T read depth for a callable panel position.
-    #[arg(long, default_value_t = 10)]
+    #[arg(long, default_value_t = DEFAULT_MIN_CALLABLE_DEPTH)]
     min_callable_depth: u64,
     /// Optional exact per-position evidence from the same panel traversal.
     #[arg(long)]
@@ -72,6 +78,8 @@ pub(crate) struct EvidenceOptions {
 impl EvidenceOptions {
     pub(crate) fn reject_legacy_options(&self) -> Result<()> {
         if self.sites.is_some()
+            || self.sample.is_some()
+            || self.pool_samples
             || self.cram_reference.is_some()
             || self.alignment_index.is_some()
             || self.reference_fai.is_some()
@@ -85,7 +93,7 @@ impl EvidenceOptions {
             || self.base_quality_threshold != 20
             || self.tile_bases != 16_384
             || self.max_record_bytes != 1_048_576
-            || self.min_callable_depth != 10
+            || self.min_callable_depth != DEFAULT_MIN_CALLABLE_DEPTH
         {
             bail!("evidence-specific options require analyze evidence or analyze panel-qc");
         }
@@ -323,7 +331,7 @@ fn run_inner(mut command: EvidenceCommand) -> Result<()> {
             .as_ref()
             .map(|p| PathBuf::from(format!("{}.manifest.json", p.display())))
     });
-    if !command.panel && command.options.min_callable_depth != 10 {
+    if !command.panel && command.options.min_callable_depth != DEFAULT_MIN_CALLABLE_DEPTH {
         bail!("--min-callable-depth is a panel-qc option");
     }
     let cram = is_cram(&command.alignments)?;
@@ -420,6 +428,11 @@ fn run_inner(mut command: EvidenceCommand) -> Result<()> {
     request.alignment_index = command.options.alignment_index.clone();
     request.reference_fai = command.options.reference_fai.clone();
     request.cram_reference_fai = command.options.cram_reference_fai.clone();
+    request.sample_selection = match &command.options.sample {
+        Some(sample) => EvidenceSampleSelection::Named(sample.clone()),
+        None if command.options.pool_samples => EvidenceSampleSelection::Pool,
+        None => EvidenceSampleSelection::Auto,
+    };
     request.profile.min_mapq = command.mapq_threshold.unwrap_or(20);
     request.profile.min_base_quality = command.options.base_quality_threshold;
     request.execution.memory_budget_bytes = budget;
@@ -460,6 +473,10 @@ fn run_inner(mut command: EvidenceCommand) -> Result<()> {
         ),
         ("profile".to_string(), EvidenceProfile::ID.to_string()),
         ("counting_unit".to_string(), "read".to_string()),
+        (
+            "sample_scope".to_string(),
+            engine.sample_scope().canonical_json(),
+        ),
         ("selection".to_string(), selection_digest),
         ("mapq".to_string(), profile.min_mapq.to_string()),
         (

@@ -26,6 +26,21 @@ valid empty artifact. Selection is scientific; execution tiles are not selection
 
 ## Observation and filtering rules
 
+Sample scope is resolved before locus filtering. By default, one unambiguous
+`@RG SM` sample is selected automatically; a header without sample names has
+explicitly unknown sample identity. Multiple declared samples, or a mixture of
+named and unnamed read groups, require `--sample NAME` or `--pool-samples`.
+Named selection counts only the selected sample's read groups and refuses reads
+whose group is missing, undeclared, or has no sample assignment. Multiple read
+groups for the same sample are combined. Explicit pooling includes all records,
+including unassigned records, and is recorded as pooled rather than named.
+
+Receipts record the resolved scope as versioned `evidence.sample_scope` JSON;
+scientific and cache identities include it. `--sample NAME` and automatic
+selection of the same named sample have the same scientific scope. Reads from
+other named samples contribute no locus counters. Skipped indexed record visits
+are execution diagnostics, not unique biological read counts.
+
 The unit is **one aligned read base**, not a fragment or UMI consensus. Overlapping
 mates count separately, and orphaned/improper pairs are not automatically removed.
 Only CIGAR M, =, and X contribute matched observations. D and N consume reference
@@ -84,6 +99,8 @@ remain in the denominator and minimum depth. Breadth counts positions reaching
 callable-position threshold. Without a reference, BAM dictionary coordinates are
 used and reference bases are N; no reference-dependent statistic is inferred.
 `--position-output` writes Arrow evidence from the same pass as the target summary.
+The Rust, CLI, and Python panel interfaces share the 10x default; Python delegates
+the default to its matching native executable and passes only explicit overrides.
 
 ## Execution and memory
 

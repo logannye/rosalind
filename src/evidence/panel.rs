@@ -4,6 +4,9 @@ use crate::selection::GenomicInterval;
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 
+/// Default minimum callable read depth shared by panel QC interfaces.
+pub const DEFAULT_MIN_CALLABLE_DEPTH: u64 = 10;
+
 /// One original panel target; overlap with other targets is preserved.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PanelTarget {
@@ -154,7 +157,7 @@ impl PanelQcAnalyzer {
                 })
                 .collect(),
             last_locus: None,
-            min_callable_depth: 20,
+            min_callable_depth: DEFAULT_MIN_CALLABLE_DEPTH,
             sorted_targets,
             next_target: 0,
             active_targets: Vec::new(),

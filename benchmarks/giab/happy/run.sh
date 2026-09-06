@@ -8,12 +8,14 @@ if [[ ! "$IMAGE" =~ ^[^[:space:]@]+@sha256:[0-9a-f]{64}$ ]]; then
   exit 2
 fi
 command -v docker >/dev/null || { echo "docker is required" >&2; exit 2; }
+python3 "$HERE/../preflight.py" "$DATA"
+DATA="$(cd "$DATA" && pwd)"
 
 prepared="$DATA/prepared"
 results="$DATA/results/happy"
 rm -rf "$results"
 mkdir -p "$results"
-for file in GRCh38.chr20.fa HG002.v5.0q.chr20.vcf HG002.v5.0q.chr20.bed stratifications.tsv; do
+for file in GRCh38.chr20.fa GRCh38.chr20.fa.fai HG002.v5.0q.chr20.vcf HG002.v5.0q.chr20.bed stratifications.tsv; do
   test -f "$prepared/$file" || { echo "missing prepared input: $prepared/$file" >&2; exit 2; }
 done
 test -f "$DATA/results/HG002.rosalind.chr20.vcf" || { echo "run the Rosalind GIAB workflow first" >&2; exit 2; }
