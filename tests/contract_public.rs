@@ -151,6 +151,28 @@ fn direct_runner_completes_and_seals_external_identity() {
 
 #[test]
 fn direct_runner_refuses_before_primary_output_creation() {
+    // Refusal starts the process-global governor before reference validation.
+    // Its deliberately tiny budget must not trip concurrent record-only runs
+    // in this test binary. Keep the real public API call in a child process.
+    const ISOLATED: &str = "ROSALIND_TEST_CONTRACT_REFUSAL_ISOLATED";
+    if std::env::var_os(ISOLATED).is_none() {
+        let output = Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "direct_runner_refuses_before_primary_output_creation",
+                "--nocapture",
+            ])
+            .env(ISOLATED, "1")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "isolated contract refusal failed:\n{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return;
+    }
     let dir = unique_dir();
     let (index, bam) = fixture(&dir);
     let output = dir.join("must-not-exist.tsv");
