@@ -26,10 +26,15 @@ RUN curl --fail --location --retry 3 "$HAPPY_URL" -o happy.tar.gz && \
     echo "$RTG_SHA256  rtg.zip" | sha256sum --check --strict && \
     unzip -q rtg.zip -d /opt && \
     mv /opt/rtg-tools-3.12.1 /opt/rtg-tools && \
+    printf '%s\n' 'RTG_MEM=2G' 'RTG_JAVA_OPTS="-XX:-UseContainerSupport"' \
+      'RTG_TALKBACK=false' 'RTG_USAGE=false' > /opt/rtg-tools/rtg.cfg && \
     /opt/hap.py/bin/hap.py --version && \
     /opt/hap.py/bin/test_haplotypes && \
     /opt/rtg-tools/rtg version && \
     rm -rf /build
 
+# Ubuntu 18.04's Java 8 cgroup-v2 detection fails on current runners. RTG uses
+# an explicit 2 GiB Java heap (overridable with RTG_MEM) rather than host-RAM
+# percentage discovery; the heap setting is not a whole-process memory cap.
 WORKDIR /data
 ENTRYPOINT ["/opt/hap.py/bin/hap.py"]

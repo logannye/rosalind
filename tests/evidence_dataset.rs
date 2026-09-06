@@ -259,6 +259,28 @@ fn snv_site_annotations_survive_partition_cache_and_execution_changes() {
 
 #[test]
 fn worker_admission_counts_single_baseline_and_refuses_before_cache_creation() {
+    // The admission model deliberately includes process RSS. Isolate this
+    // fixed-budget case from concurrent tests' Arrow buffers and allocator
+    // high-water marks, just as a real CLI invocation has its own process.
+    const ISOLATED: &str = "ROSALIND_TEST_WORKER_ADMISSION_ISOLATED";
+    if std::env::var_os(ISOLATED).is_none() {
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "worker_admission_counts_single_baseline_and_refuses_before_cache_creation",
+                "--nocapture",
+            ])
+            .env(ISOLATED, "1")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "isolated admission regression failed:\n{}\n{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return;
+    }
     let fixture = Fixture::new();
     let mut request = fixture.request(16384);
     request.execution.memory_budget_bytes = Some(100 << 20);

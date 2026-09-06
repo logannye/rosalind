@@ -11,11 +11,12 @@ IMAGE="${ROSALIND_PLATFORM_IMAGE:-rosalind-platform:local}"
 if [ -e "$RESULTS" ]; then echo "results already exist: $RESULTS" >&2; exit 2; fi
 mkdir -p "$RESULTS"
 RESULTS="$(cd "$RESULTS" && pwd)"
-docker build --platform linux/amd64 -f "$HERE/Dockerfile" -t "$IMAGE" "$ROOT"
+docker build --platform linux/amd64 --progress plain -f "$HERE/Dockerfile" -t "$IMAGE" "$ROOT" \
+  2>&1 | tee "$RESULTS/build.log"
 docker image inspect "$IMAGE" > "$RESULTS/image.json"
 docker run --rm --network none --platform linux/amd64 \
   -v "$REFERENCE:/data/reference.fa:ro" -v "$BAM:/data/input.bam:ro" -v "$RESULTS:/results" \
-  "$IMAGE"
+  "$IMAGE" 2>&1 | tee "$RESULTS/benchmark.log"
 
 # Every implementation receives identical prepared inputs and actual cgroup
 # memory/swap limits. The 1 MiB declaration-refusal check is recorded separately.
