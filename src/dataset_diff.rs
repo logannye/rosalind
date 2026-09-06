@@ -122,7 +122,8 @@ fn verified_dataset(receipt_path: &Path) -> Result<VerifiedDataset, DatasetDiffE
         .get("evidence.fields_version")
         .map(String::as_str);
     if schema != Some(fields.schema_version().to_string().as_str())
-        || !matches!((schema, field_version), (Some("1"), None) | (_, Some("1")))
+        || !(field_version == Some(fields.mask_version().to_string().as_str())
+            || (schema == Some("1") && field_version.is_none()))
     {
         return Err(DatasetDiffError::Incompatible(
             "unsupported evidence schema/field mask version".into(),
@@ -507,7 +508,7 @@ impl<'a> Rows<'a> {
             .iter()
             .zip(&self.columns)
             .skip(4)
-            .filter(|(_, name)| !name.ends_with("_histogram"))
+            .filter(|(_, name)| !name.ends_with("_histogram") && !name.starts_with("allele_"))
             .any(|(value, _)| {
                 value
                     .parse::<u64>()
@@ -517,6 +518,25 @@ impl<'a> Rows<'a> {
             return Err(DatasetDiffError::Integrity(
                 "invalid evidence scalar counter".into(),
             ));
+        }
+        for (index, name) in self
+            .columns
+            .iter()
+            .enumerate()
+            .filter(|(_, name)| name.starts_with("allele_"))
+        {
+            let values: Vec<_> = fields[index].split(',').collect();
+            if values.len() != 4
+                || values.iter().any(|value| {
+                    value
+                        .parse::<u64>()
+                        .map_or(true, |number| number.to_string() != *value)
+                })
+            {
+                return Err(DatasetDiffError::Integrity(format!(
+                    "invalid per-allele counter array {name}"
+                )));
+            }
         }
         for (name, bins) in [
             ("base_quality_histogram", 94usize),

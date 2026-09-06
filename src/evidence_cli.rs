@@ -22,9 +22,18 @@ use output::execute_outputs;
 
 #[derive(Args, Debug, Clone)]
 pub(crate) struct EvidenceOptions {
-    /// Supplied plain-text SNV VCF; mutually exclusive with BED selection.
+    /// Supplied SNV VCF, VCF.gz, or BCF; mutually exclusive with BED selection.
     #[arg(long, conflicts_with_all = ["regions", "region", "shard_count", "shard_index"])]
     sites: Option<PathBuf>,
+    /// Annotate original variant records with exact read evidence (.vcf/.vcf.gz/.bcf).
+    #[arg(long, requires = "sites")]
+    annotated_variants: Option<PathBuf>,
+    /// Cooperative maximum decoded variant record/formatting envelope.
+    #[arg(long, default_value_t = 1_048_576)]
+    max_variant_record_bytes: usize,
+    /// Cooperative maximum variant header/formatting envelope.
+    #[arg(long, default_value_t = 8_388_608)]
+    max_variant_header_bytes: usize,
     /// Select one declared @RG SM sample; unassignable reads fail the run.
     #[arg(long, conflicts_with = "pool_samples")]
     sample: Option<String>,
@@ -38,7 +47,7 @@ pub(crate) struct EvidenceOptions {
     #[arg(long, value_enum, default_value_t = FeatureFormat::Tsv)]
     format: FeatureFormat,
     /// Physical evidence groups, comma separated: all, none, depths, alleles, strands,
-    /// quality-sums, quality-histograms, read-position. Panel defaults to depths,quality-sums.
+    /// quality-sums, quality-histograms, read-position, allele-quality. Panel defaults to depths,quality-sums.
     #[arg(long, value_delimiter = ',')]
     fields: Option<Vec<String>>,
     /// Maximum execution microtile width; does not change scientific results.
@@ -80,8 +89,17 @@ pub(crate) struct EvidenceOptions {
 }
 
 impl EvidenceOptions {
+    fn variant_limits(&self) -> rosalind::variant_io::VariantLimits {
+        rosalind::variant_io::VariantLimits {
+            max_header_bytes: self.max_variant_header_bytes,
+            max_record_bytes: self.max_variant_record_bytes,
+        }
+    }
     pub(crate) fn reject_legacy_options(&self) -> Result<()> {
         if self.sites.is_some()
+            || self.annotated_variants.is_some()
+            || self.max_variant_record_bytes != 1_048_576
+            || self.max_variant_header_bytes != 8_388_608
             || self.fields.is_some()
             || self.sample.is_some()
             || self.pool_samples
@@ -121,6 +139,7 @@ fn requested_fields(command: &EvidenceCommand) -> Result<EvidenceFields> {
     for name in names {
         let group = match name.as_str() {
             "all" if names.len() == 1 => EvidenceFields::ALL,
+            "all-supported" if names.len() == 1 => EvidenceFields::ALL_SUPPORTED,
             "none" if names.len() == 1 => EvidenceFields::from_bits(0)?,
             "depths" => EvidenceFields::DEPTHS,
             "alleles" => EvidenceFields::ALLELES,
@@ -128,6 +147,7 @@ fn requested_fields(command: &EvidenceCommand) -> Result<EvidenceFields> {
             "quality-sums" => EvidenceFields::QUALITY_SUMS,
             "quality-histograms" => EvidenceFields::QUALITY_HISTOGRAMS,
             "read-position" => EvidenceFields::READ_POSITION,
+            "allele-quality" => EvidenceFields::ALLELE_QUALITY,
             _ => bail!("invalid evidence field group {name:?}; use comma-separated groups or all/none alone"),
         };
         fields = fields.union(group);
@@ -269,6 +289,7 @@ fn validate_destinations(command: &EvidenceCommand, receipt: Option<&Path>) -> R
         .output
         .iter()
         .chain(command.options.position_output.iter())
+        .chain(command.options.annotated_variants.iter())
         .collect();
     let partials: Vec<_> = artifacts
         .iter()
@@ -363,6 +384,17 @@ fn run_inner(mut command: EvidenceCommand) -> Result<()> {
         bail!("--workers must be positive");
     }
     let fields = requested_fields(&command)?;
+    if let Some(output) = &command.options.annotated_variants {
+        if command.panel || command.options.sites.is_none() || command.output.is_none() {
+            bail!("--annotated-variants requires analyze evidence --sites and a persisted -o evidence artifact");
+        }
+        rosalind::variant_annotation::annotation_format(output)?;
+        rosalind::variant_annotation::preflight_annotation(
+            command.options.sites.as_ref().unwrap(),
+            fields,
+            command.options.variant_limits(),
+        )?;
+    }
     let receipt_path = command.manifest.clone().or_else(|| {
         command
             .output
@@ -480,7 +512,7 @@ fn run_inner(mut command: EvidenceCommand) -> Result<()> {
     request.execution.max_record_bytes = command.options.max_record_bytes;
     let mut engine = EvidenceEngine::open(request)?;
     let selection = if let Some(sites) = &command.options.sites {
-        EvidenceSelection::from_vcf(sites, engine.contigs())?
+        EvidenceSelection::from_variants(sites, engine.contigs(), command.options.variant_limits())?
     } else {
         EvidenceSelection::from_bed(
             command.selection.regions.as_ref().unwrap(),
@@ -507,7 +539,7 @@ fn run_inner(mut command: EvidenceCommand) -> Result<()> {
         ),
         (
             "fields_version".to_string(),
-            EvidenceFields::VERSION.to_string(),
+            engine.request().fields.mask_version().to_string(),
         ),
         (
             "fields".to_string(),

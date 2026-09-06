@@ -787,14 +787,26 @@ fn accumulate_record(
                         checked_add(&mut sums.base_quality_sum, quality as u64)?;
                         checked_add(&mut sums.mapping_quality_sum, record.mapq() as u64)?;
                     }
+                    let cycle = if record.is_reverse() {
+                        record.seq_len() - 1 - offset
+                    } else {
+                        offset
+                    };
                     if let Some(position) = row.read_position {
-                        let cycle = if record.is_reverse() {
-                            record.seq_len() - 1 - offset
-                        } else {
-                            offset
-                        };
                         checked_add(&mut position.read_position_sum, cycle as u64)?;
                         checked_add(&mut position.read_length_sum, record.seq_len() as u64)?;
+                    }
+                    if let Some(quality_sums) = row.allele_quality {
+                        checked_add(&mut quality_sums.base_quality_sum[allele], quality as u64)?;
+                        checked_add(
+                            &mut quality_sums.mapping_quality_sum[allele],
+                            record.mapq() as u64,
+                        )?;
+                        checked_add(&mut quality_sums.read_position_sum[allele], cycle as u64)?;
+                        checked_add(
+                            &mut quality_sums.read_length_sum[allele],
+                            record.seq_len() as u64,
+                        )?;
                     }
                     if let Some(histograms) = row.quality_histograms {
                         checked_add(&mut histograms.base_quality_histogram[quality as usize], 1)?;
@@ -1003,7 +1015,7 @@ mod projection_tests {
             }
             batch
         };
-        let full = extract(EvidenceFields::ALL);
+        let full = extract(EvidenceFields::ALL_SUPPORTED);
         assert_eq!(full.row(0).unwrap().depths.unwrap().prefilter_depth, 4);
         assert_eq!(full.row(0).unwrap().depths.unwrap().callable_depth, 2);
         assert_eq!(
@@ -1029,7 +1041,7 @@ mod projection_tests {
             2
         );
         assert_eq!(full.row(6).unwrap().depths.unwrap().prefilter_depth, 0);
-        for bits in 0..=EvidenceFields::ALL.bits() {
+        for bits in 0..=EvidenceFields::ALL_SUPPORTED.bits() {
             let fields = EvidenceFields::from_bits(bits).unwrap();
             let projected = extract(fields);
             assert_eq!(projected.len(), selected_loci().len());
@@ -1067,6 +1079,12 @@ mod projection_tests {
                     expected
                         .quality_histograms
                         .filter(|_| fields.contains(EvidenceFields::QUALITY_HISTOGRAMS))
+                );
+                assert_eq!(
+                    row.allele_quality,
+                    expected
+                        .allele_quality
+                        .filter(|_| fields.contains(EvidenceFields::ALLELE_QUALITY))
                 );
                 assert_eq!(
                     row.read_position,

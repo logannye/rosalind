@@ -42,21 +42,38 @@ pub(super) fn execute_outputs(
     let tsv_memory = EvidenceTsvWriter::with_fields(io::sink(), fields)
         .additional_memory_bytes()
         .unwrap();
-    let consumer_bytes = panel
-        .as_ref()
-        .and_then(EvidenceAnalyzer::additional_memory_bytes)
-        .unwrap_or(0)
-        + if command.options.position_output.is_some()
-            || (!command.panel && command.options.format == FeatureFormat::ArrowIpc)
-        {
-            arrow_memory
-        } else {
-            tsv_memory
-        };
+    let annotation_bytes = if command.options.annotated_variants.is_some() {
+        rosalind::variant_annotation::annotation_memory_bytes(
+            engine,
+            command.options.variant_limits(),
+        )
+    } else {
+        0
+    };
+    let encoder_bytes = if command.options.position_output.is_some()
+        || (!command.panel && command.options.format == FeatureFormat::ArrowIpc)
+    {
+        arrow_memory
+    } else {
+        tsv_memory
+    };
+    let consumer_bytes = annotation_bytes
+        .checked_add(
+            panel
+                .as_ref()
+                .and_then(EvidenceAnalyzer::additional_memory_bytes)
+                .unwrap_or(0),
+        )
+        .and_then(|bytes| bytes.checked_add(encoder_bytes))
+        .ok_or_else(|| {
+            EvidenceError::InvalidRequest("annotation/consumer memory envelope is too large".into())
+        })?;
     let planner = EvidenceCallback::with_fields(|_: &EvidenceBatch| Ok(()), consumer_bytes, fields);
     let plan = engine.plan_for_analyzer(&planner)?.clone();
     let temporary_cache = TemporaryCache(
-        if command.options.cache_dir.is_none() && command.options.workers > 1 {
+        if command.options.cache_dir.is_none()
+            && (command.options.workers > 1 || command.options.annotated_variants.is_some())
+        {
             Some(std::env::temp_dir().join(format!(
                     "rosalind-workers-{}-{}",
                     std::process::id(),
@@ -116,6 +133,12 @@ pub(super) fn execute_outputs(
         .as_ref()
         .map(|path| AtomicFile::create(path))
         .transpose()?;
+    let mut annotated = command
+        .options
+        .annotated_variants
+        .as_ref()
+        .map(|path| AtomicFile::create(path))
+        .transpose()?;
     let setup_ms = started.elapsed().as_millis();
     let mut dataset_outcome = None;
     let mut drive = |engine: &mut EvidenceEngine,
@@ -140,7 +163,7 @@ pub(super) fn execute_outputs(
             Ok(engine.run(analyzer)?)
         }
     };
-    let result = {
+    let mut result = {
         let stdout = io::stdout();
         let mut output: Box<dyn Write + '_> = match &mut primary {
             Some(file) => Box::new(io::BufWriter::new(file.file_mut())),
@@ -182,6 +205,33 @@ pub(super) fn execute_outputs(
         output.flush()?;
         result
     };
+    let mut annotated_records = None;
+    if result.is_ok() {
+        if let (Some(file), Some(requested)) = (&mut annotated, &command.options.annotated_variants)
+        {
+            file.close_for_path_writer();
+            let annotation_result = rosalind::variant_annotation::annotate_variants(
+                command.options.sites.as_ref().unwrap(),
+                file.temporary_path(),
+                rosalind::variant_annotation::annotation_format(requested)?,
+                command.options.variant_limits(),
+                engine,
+                dataset_outcome.as_ref().unwrap(),
+                &science_digest,
+            )
+            .map_err(|error| match error {
+                DatasetError::Evidence(error) => anyhow::Error::from(error),
+                other => anyhow::Error::from(other),
+            });
+            match annotation_result {
+                Ok(count) => annotated_records = Some(count),
+                Err(error) => result = Err(error),
+            }
+        }
+    } else {
+        // No annotation bytes exist if extraction failed. Drop its staging file.
+        annotated = None;
+    }
     input_snapshot.verify()?;
     let analysis_ms = started.elapsed().as_millis().saturating_sub(setup_ms);
     let (stats, mut failure) = match result {
@@ -205,6 +255,11 @@ pub(super) fn execute_outputs(
             "--position-output",
             positional.as_ref(),
             command.options.position_output.as_ref(),
+        ),
+        (
+            "--annotated-variants",
+            annotated.as_ref(),
+            command.options.annotated_variants.as_ref(),
         ),
     ] {
         if let (Some(file), Some(path)) = (pending, requested) {
@@ -258,6 +313,16 @@ pub(super) fn execute_outputs(
     );
     capture.opt("--max-read-len", command.max_read_len);
     capture.opt("--max-record-bytes", command.options.max_record_bytes);
+    if command.options.sites.is_some() {
+        capture.opt(
+            "--max-variant-record-bytes",
+            command.options.max_variant_record_bytes,
+        );
+        capture.opt(
+            "--max-variant-header-bytes",
+            command.options.max_variant_header_bytes,
+        );
+    }
     capture.opt("--tile-bases", command.options.tile_bases);
     capture.opt("--workers", command.options.workers);
     let field_names = fields.names().join(",");
@@ -296,7 +361,7 @@ pub(super) fn execute_outputs(
     });
     manifest.tool_version = env!("CARGO_PKG_VERSION").to_string();
     capture.record_into(&mut manifest);
-    let analysis_identity = format!(
+    let mut analysis_identity = format!(
         "evidence={science_digest};analyzer={};schema=1;callable_depth={};panel_selection={}",
         if command.panel {
             "panel-qc"
@@ -322,6 +387,35 @@ pub(super) fn execute_outputs(
             ""
         }
     );
+    if command.options.annotated_variants.is_some() {
+        let sites_path = std::fs::canonicalize(command.options.sites.as_ref().unwrap())?;
+        let sites_hash = &manifest
+            .inputs
+            .iter()
+            .find(|input| Path::new(&input.path) == sites_path)
+            .ok_or_else(|| anyhow::anyhow!("annotation input identity missing"))?
+            .blake3;
+        analysis_identity.push_str(&format!(
+            ";annotation={};variant_bytes={sites_hash}",
+            rosalind::variant_annotation::ANNOTATION_SEMANTICS
+        ));
+        manifest.params.insert(
+            "annotation.semantics".into(),
+            rosalind::variant_annotation::ANNOTATION_SEMANTICS.into(),
+        );
+        manifest
+            .params
+            .insert("annotation.variant_blake3".into(), sites_hash.clone());
+        manifest.measurements.insert(
+            "execution.annotation_bytes".into(),
+            annotation_bytes.to_string(),
+        );
+        if let Some(count) = annotated_records {
+            manifest
+                .measurements
+                .insert("execution.annotated_records".into(), count.to_string());
+        }
+    }
     manifest.params.insert(
         "science.blake3".into(),
         blake3::hash(analysis_identity.as_bytes())
@@ -345,10 +439,7 @@ pub(super) fn execute_outputs(
         ("producer.binary", "rosalind".to_string()),
         ("replay.kind", "rosalind".to_string()),
         ("evidence.schema", fields.schema_version().to_string()),
-        (
-            "evidence.fields_version",
-            EvidenceFields::VERSION.to_string(),
-        ),
+        ("evidence.fields_version", fields.mask_version().to_string()),
         ("evidence.profile", EvidenceProfile::ID.to_string()),
         ("evidence.counting_unit", "read".to_string()),
         (
@@ -577,6 +668,10 @@ pub(super) fn execute_outputs(
     for (file, requested) in [
         (primary.take(), command.output.as_ref()),
         (positional.take(), command.options.position_output.as_ref()),
+        (
+            annotated.take(),
+            command.options.annotated_variants.as_ref(),
+        ),
     ] {
         if let (Some(file), Some(path)) = (file, requested) {
             group.push((
@@ -644,17 +739,29 @@ fn assign_artifact_roles(
     for (index, (_, flag)) in ordered.iter().enumerate() {
         let role = if failed {
             "partial-evidence"
+        } else if *flag == "--annotated-variants" {
+            "annotated-variants"
         } else if command.panel && *flag == "-o" {
             "panel-summary"
         } else {
             "exact-evidence"
         };
-        let format =
-            if *flag == "--position-output" || command.options.format == FeatureFormat::ArrowIpc {
-                "arrow-ipc"
-            } else {
-                "tsv"
-            };
+        let format = if *flag == "--annotated-variants" {
+            match rosalind::variant_annotation::annotation_format(
+                command.options.annotated_variants.as_ref().unwrap(),
+            )
+            .expect("validated annotation format")
+            {
+                rosalind::variant_io::VariantFormat::Vcf => "vcf",
+                rosalind::variant_io::VariantFormat::VcfGz => "vcf.gz",
+                rosalind::variant_io::VariantFormat::Bcf => "bcf",
+            }
+        } else if *flag == "--position-output" || command.options.format == FeatureFormat::ArrowIpc
+        {
+            "arrow-ipc"
+        } else {
+            "tsv"
+        };
         manifest
             .params
             .insert(format!("artifact.output.{index}.role"), role.into());

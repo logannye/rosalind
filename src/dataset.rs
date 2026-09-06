@@ -4,6 +4,9 @@
 //! ownership, never on worker count or execution microtiles. Workers only produce
 //! first-party Arrow evidence; the caller's analyzer consumes it serially.
 
+mod lookup;
+pub use lookup::VerifiedEvidenceLookup;
+
 use std::collections::BTreeMap;
 use std::fs::{self, File};
 use std::io::{BufReader, BufWriter, Write};
@@ -153,7 +156,7 @@ fn request_digest(engine: &EvidenceEngine) -> String {
     field(EVIDENCE_SEMANTICS_VERSION.as_bytes());
     field(env!("CARGO_PKG_VERSION").as_bytes());
     field(&request.fields.schema_version().to_le_bytes());
-    field(&crate::evidence::EvidenceFields::VERSION.to_le_bytes());
+    field(&request.fields.mask_version().to_le_bytes());
     field(&request.fields.bits().to_le_bytes());
     field(crate::evidence::EvidenceProfile::ID.as_bytes());
     field(engine.sample_scope().canonical_json().as_bytes());
@@ -655,7 +658,7 @@ pub fn run_dataset_with_snapshot(
         ),
         (
             "evidence.fields_version".into(),
-            EvidenceFields::VERSION.to_string(),
+            engine.request().fields.mask_version().to_string(),
         ),
         ("pileup.semantics".into(), "exact-or-fail-v1".into()),
         ("dataset.partition_count".into(), parts.len().to_string()),
@@ -843,7 +846,7 @@ fn write_partition(
         ),
         (
             "evidence.fields_version".into(),
-            EvidenceFields::VERSION.to_string(),
+            engine.request().fields.mask_version().to_string(),
         ),
         ("pileup.semantics".into(), "exact-or-fail-v1".into()),
         ("dataset.contig".into(), part.contig.to_string()),
@@ -905,7 +908,7 @@ fn receipt_fields(receipt: &RunManifest) -> Result<EvidenceFields, DatasetError>
     };
     match receipt.params.get("evidence.fields_version") {
         None if schema == Some("1") => (),
-        Some(version) if version == &EvidenceFields::VERSION.to_string() => (),
+        Some(version) if version == &fields.mask_version().to_string() => (),
         _ => {
             return Err(DatasetError::Corrupt(
                 "unsupported evidence field mask version".into(),

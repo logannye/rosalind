@@ -207,7 +207,7 @@ fn snv_sites_validate_reference_and_merge_duplicate_alternates() {
     let f = Fixture::new(20);
     f.write(vec![matched("r", 0, 10, 60, 0)], bam::index::Type::Bai);
     let vcf = f.root.join("sites.vcf");
-    std::fs::write(&vcf,"##fileformat=VCFv4.2\n#CHROM\tPOS\tID\tREF\tALT\nchr1\t2\t.\tA\tT,C\nchr1\t2\t.\tA\tG\nchr1\t18\t.\tA\tC\n").unwrap();
+    std::fs::write(&vcf,"##fileformat=VCFv4.2\n##contig=<ID=chr1,length=20>\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\nchr1\t2\t.\tA\tT,C\t.\tPASS\t.\nchr1\t2\t.\tA\tG\t.\tPASS\t.\nchr1\t18\t.\tA\tC\t.\tPASS\t.\n").unwrap();
     let mut engine = EvidenceEngine::open(f.request(3)).unwrap();
     let selection = EvidenceSelection::from_vcf(&vcf, engine.contigs()).unwrap();
     engine.set_selection(selection).unwrap();
@@ -723,6 +723,38 @@ fn full_evidence_egress_matches_frozen_schema_one_bytes() {
             "TSV width={width}"
         );
     }
+    // Captured before the additive allele-quality field was introduced.
+    for (bits, arrow_hash, tsv_hash) in [
+        (
+            3,
+            "4700bed38ea7efc36d8884e62d5a63f8f306a265c63536480c29bee1ed878435",
+            "5d2d16594c44d0a17f18bffa11d282627c0c0227233c84ace660eaf949574aef",
+        ),
+        (
+            9,
+            "4abba987ac34dad83522be504ecf700116f476cc4270b4cedd8fa590dc5f605d",
+            "ea2b969bbd054df91dedfe025bc6a4c418ab3b32774a87ca0fcc7e5e90d2436d",
+        ),
+    ] {
+        let fields = EvidenceFields::from_bits(bits).unwrap();
+        let mut request = f.request(16384);
+        request.fields = fields;
+        let mut arrow = EvidenceArrowWriter::with_fields(Vec::new(), fields);
+        EvidenceEngine::open(request.clone())
+            .unwrap()
+            .run(&mut arrow)
+            .unwrap();
+        assert_eq!(
+            blake3::hash(&arrow.into_inner().unwrap()).to_hex().as_str(),
+            arrow_hash
+        );
+        let mut tsv = EvidenceTsvWriter::with_fields(Vec::new(), fields);
+        EvidenceEngine::open(request)
+            .unwrap()
+            .run(&mut tsv)
+            .unwrap();
+        assert_eq!(blake3::hash(&tsv.into_inner()).to_hex().as_str(), tsv_hash);
+    }
     {
         let mut arrow = EvidenceArrowWriter::new(Vec::new());
         arrow.finish().unwrap();
@@ -769,8 +801,10 @@ fn every_projection_preserves_present_values_and_roundtrips_empty_metadata() {
         bam::index::Type::Bai,
     );
     let full = collect(f.request(20));
-    let mut full_tsv = EvidenceTsvWriter::new(Vec::new());
-    EvidenceEngine::open(f.request(20))
+    let mut full_tsv = EvidenceTsvWriter::with_fields(Vec::new(), EvidenceFields::ALL_SUPPORTED);
+    let mut all_request = f.request(20);
+    all_request.fields = EvidenceFields::ALL_SUPPORTED;
+    EvidenceEngine::open(all_request)
         .unwrap()
         .run(&mut full_tsv)
         .unwrap();
@@ -779,7 +813,7 @@ fn every_projection_preserves_present_values_and_roundtrips_empty_metadata() {
         .lines()
         .map(|line| line.split('\t').collect())
         .collect();
-    for bits in 0..64 {
+    for bits in 0..128 {
         let fields = EvidenceFields::from_bits(bits).unwrap();
         let mut previous = None;
         for width in [1, 20] {
@@ -844,6 +878,28 @@ fn every_projection_preserves_present_values_and_roundtrips_empty_metadata() {
                                 (expected.read_position_sum, expected.read_length_sum)
                             );
                         }
+                        assert_eq!(
+                            row.allele_quality.is_some(),
+                            fields.contains(EvidenceFields::ALLELE_QUALITY)
+                        );
+                        if let Some(aq) = row.allele_quality {
+                            // Independent A/C/G/T oracle, including orientation-aware cycles.
+                            let mut oracle = EvidenceAlleleQuality::default();
+                            let p = row.position as usize;
+                            if p < 4 {
+                                let forward = p;
+                                let reverse = 3 - p;
+                                oracle.base_quality_sum[forward] = [30, 25, 40, 20][p];
+                                oracle.mapping_quality_sum[forward] = 60;
+                                oracle.read_position_sum[forward] = p as u64;
+                                oracle.read_length_sum[forward] = 5;
+                                oracle.base_quality_sum[reverse] = [45, 35, 20, 30][p];
+                                oracle.mapping_quality_sum[reverse] = 30;
+                                oracle.read_position_sum[reverse] = (4 - p) as u64;
+                                oracle.read_length_sum[reverse] = 5;
+                            }
+                            assert_eq!(aq, &oracle, "position={p}, bits={bits}");
+                        }
                         assert_eq!(row.try_to_full_row().is_ok(), fields == EvidenceFields::ALL);
                         count += 1;
                     }
@@ -884,4 +940,37 @@ fn every_projection_preserves_present_values_and_roundtrips_empty_metadata() {
             .unwrap();
         assert_eq!(metadata.fields, fields);
     }
+}
+
+#[test]
+fn per_allele_quality_distinguishes_equal_pooled_quality_distributions() {
+    let first = Fixture::new(2);
+    let second = Fixture::new(2);
+    for (fixture, qualities) in [(&first, [30, 40]), (&second, [40, 30])] {
+        fixture.write(
+            vec![
+                record("a", 0, b"A", &[qualities[0]], 60, 0, vec![Cigar::Match(1)]),
+                record("c", 0, b"C", &[qualities[1]], 60, 0, vec![Cigar::Match(1)]),
+            ],
+            bam::index::Type::Bai,
+        );
+    }
+    let encode = |fixture: &Fixture, fields: EvidenceFields| {
+        let mut request = fixture.request(2);
+        request.fields = fields;
+        let mut writer = EvidenceArrowWriter::with_fields(Vec::new(), fields);
+        EvidenceEngine::open(request)
+            .unwrap()
+            .run(&mut writer)
+            .unwrap();
+        writer.into_inner().unwrap()
+    };
+    assert_eq!(
+        encode(&first, EvidenceFields::ALL),
+        encode(&second, EvidenceFields::ALL)
+    );
+    assert_ne!(
+        encode(&first, EvidenceFields::ALL_SUPPORTED),
+        encode(&second, EvidenceFields::ALL_SUPPORTED)
+    );
 }

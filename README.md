@@ -86,6 +86,22 @@ supplied with `--cram-reference` when the analysis reference is omitted.
 Callability thresholds are configurable technical screens and have no intrinsic
 clinical interpretation.
 
+## Annotate candidate variants
+
+Site selection accepts VCF, VCF.gz, and BCF. Preserve original variant records,
+allele order and genotypes while adding exact read evidence:
+
+```sh
+rosalind analyze evidence --reference genome.fa --alignments sample.sorted.bam \
+  --sites candidates.vcf.gz --fields depths,alleles,strands,allele-quality \
+  --format arrow-ipc --output evidence.arrow \
+  --annotated-variants candidates.evidence.vcf.gz
+```
+
+Optional allele quality and read-position sums help distinguish evidence behind
+REF and ALT reads. The [annotation guide](docs/variant-annotation.md) defines each
+INFO field, sample scope, memory planning and atomic verification/replay behavior.
+
 ## Build on the evidence
 
 The Rust `EvidenceRequest`/`EvidenceEngine`/`EvidenceAnalyzer` API accepts explicit
@@ -161,7 +177,7 @@ at their original capabilities. See [receipts and trust](docs/receipts-and-trust
 | Evidence schema | Read-based exact SNV counts, allele strands, quality sums/histograms, stored-SEQ offset sums, filter counts |
 | Legacy analyzers | `features`, `analyze coverage`, `ColumnAnalyzer`, and scaffold remain; separate filter defaults |
 | Legacy capacity | New runs use `pileup.semantics=exact-or-fail-v1`; old semantic replay needs its producer |
-| Outputs | TSV, canonical Arrow; legacy first-party shard merge remains supported |
+| Outputs | TSV, canonical Arrow; optional record-preserving SNV annotation in VCF/VCF.gz/BCF |
 | Platforms | Linux x86_64 and macOS arm64/x86_64 package workflows; publication/CI gates still apply |
 | Deferred | Indels, UMI/fragment consensus, methylation, long reads, production calling, Linux ARM wheels |
 

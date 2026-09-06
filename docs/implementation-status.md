@@ -33,6 +33,17 @@ and quality sums. Sparse selection shares bounded fetch windows without emitting
 gap loci. The public preview batch API now exposes borrowed optional groups through
 `rows()`; owned full-row materialization is an explicit fallible adapter.
 
+VCF/VCF.gz/BCF selection and optional record-preserving annotation are implemented.
+Annotation adds evidence INFO fields in original allele order, keeps genotypes and
+existing fields, and shares atomic publication and byte replay with its evidence
+artifact. Opt-in per-allele quality/position sums use field-mask version 2; existing
+full and projected goldens remain unchanged. All 128 field masks and independent
+allele oracles pass locally, as do annotation format/budget/worker and replay tests.
+The workspace suite passed 514 tests before the final focused validation hardening;
+those additional encoder checks and the 18-test Python 3.11 suite pass. Python 3.9
+also passes the existing suite and all five annotation tests. Clippy, Rust 1.83,
+and offline documentation-link checks pass. Platform CI remains pending.
+
 ## Validation results
 
 These checks apply to the locally edited tree, not a published candidate.

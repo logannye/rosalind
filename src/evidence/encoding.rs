@@ -43,6 +43,22 @@ const SCALAR_NAMES: [&str; 28] = [
     "filtered_low_base_quality",
     "filtered_ambiguous_base",
 ];
+const ALLELE_SUM_NAMES: [&str; 4] = [
+    "allele_base_quality_sum",
+    "allele_mapping_quality_sum",
+    "allele_read_position_sum",
+    "allele_read_length_sum",
+];
+fn allele_sum<'a>(row: EvidenceRowRef<'a>, index: usize) -> &'a [u64; 4] {
+    let values = row.allele_quality.expect("field capability checked");
+    match index {
+        0 => &values.base_quality_sum,
+        1 => &values.mapping_quality_sum,
+        2 => &values.read_position_sum,
+        3 => &values.read_length_sum,
+        _ => unreachable!("known allele summary"),
+    }
+}
 fn scalar_group(index: usize) -> EvidenceFields {
     match index {
         0..=2 | 19..=27 => EvidenceFields::DEPTHS,
@@ -151,6 +167,11 @@ impl<W: Write> EvidenceTsvWriter<W> {
                     "\tbase_quality_histogram\tmapping_quality_histogram"
                 )?;
             }
+            if self.fields.contains(EvidenceFields::ALLELE_QUALITY) {
+                for name in ALLELE_SUM_NAMES {
+                    write!(self.out, "\t{name}")?;
+                }
+            }
             writeln!(self.out)?;
             self.started = true;
         }
@@ -192,6 +213,16 @@ impl<W: Write> EvidenceAnalyzer for EvidenceTsvWriter<W> {
                 write_histogram(&mut self.out, &histograms.base_quality_histogram)?;
                 write!(self.out, "\t")?;
                 write_histogram(&mut self.out, &histograms.mapping_quality_histogram)?;
+            }
+            if self.fields.contains(EvidenceFields::ALLELE_QUALITY) {
+                for index in 0..4 {
+                    let values = allele_sum(row, index);
+                    write!(
+                        self.out,
+                        "\t{},{},{},{}",
+                        values[0], values[1], values[2], values[3]
+                    )?;
+                }
             }
             writeln!(self.out)?;
         }
@@ -239,12 +270,21 @@ fn schema(selected: EvidenceFields) -> Schema {
             false,
         ));
     }
+    if selected.contains(EvidenceFields::ALLELE_QUALITY) {
+        for name in ALLELE_SUM_NAMES {
+            fields.push(Field::new(
+                name,
+                DataType::FixedSizeList(Arc::new(Field::new("item", DataType::UInt64, false)), 4),
+                false,
+            ));
+        }
+    }
     Schema::new(fields).with_metadata(std::collections::HashMap::from([(
         "rosalind.evidence.schema".into(),
         if selected == EvidenceFields::ALL {
             "1".into()
         } else {
-            format!("2;fields-v{}={}", EvidenceFields::VERSION, selected.bits())
+            format!("2;fields-v{}={}", selected.mask_version(), selected.bits())
         },
     )]))
 }
@@ -354,6 +394,24 @@ impl<W: Write> EvidenceArrowWriter<W> {
                 ));
             }
         }
+        if self.fields.contains(EvidenceFields::ALLELE_QUALITY) {
+            for index in 0..4 {
+                let values: ArrayRef = Arc::new(UInt64Array::from_iter_values(
+                    self.rows
+                        .rows()
+                        .flat_map(|row| allele_sum(row, index).iter().copied()),
+                ));
+                arrays.push(Arc::new(
+                    FixedSizeListArray::try_new(
+                        Arc::new(Field::new("item", DataType::UInt64, false)),
+                        4,
+                        values,
+                        None,
+                    )
+                    .map_err(arrow_error)?,
+                ));
+            }
+        }
         let batch =
             RecordBatch::try_new(Arc::new(schema(self.fields)), arrays).map_err(arrow_error)?;
         self.writer
@@ -456,7 +514,7 @@ fn body_envelope(fields: EvidenceFields) -> u64 {
 }
 /// Conservative retained IPC buffers, decoded arrays, projected callback storage,
 /// and metadata. Does not include memory retained by the downstream analyzer.
-/// Use ALL when the input field set is unknown, or enforce the expected set with
+/// Use ALL_SUPPORTED when the input field set is unknown, or enforce the expected set with
 /// `read_evidence_batches_expected_fields` before admitting a smaller reservation.
 pub fn evidence_reader_memory_bytes(fields: EvidenceFields) -> u64 {
     2 * body_envelope(fields)
@@ -515,8 +573,9 @@ fn read_evidence_batches_impl<R: std::io::Read>(
         EvidenceFields::ALL
     } else {
         let bits = metadata
-            .strip_prefix("2;fields-v1=")
-            .and_then(|value| value.parse::<u32>().ok())
+            .strip_prefix("2;fields-v")
+            .and_then(|value| value.split_once('='))
+            .and_then(|(_, bits)| bits.parse::<u32>().ok())
             .ok_or_else(|| invalid("unsupported evidence schema or field mask version"))?;
         EvidenceFields::from_bits(bits)?
     };
@@ -593,6 +652,27 @@ fn read_evidence_batches_impl<R: std::io::Read>(
         };
         let bq = histogram(0)?;
         let mq = histogram(1)?;
+        let mut allele_arrays = Vec::new();
+        if fields.contains(EvidenceFields::ALLELE_QUALITY) {
+            let start = 4
+                + scalar_indices.len()
+                + if fields.contains(EvidenceFields::QUALITY_HISTOGRAMS) {
+                    2
+                } else {
+                    0
+                };
+            for column in start..start + 4 {
+                let array = encoded
+                    .column(column)
+                    .as_any()
+                    .downcast_ref::<FixedSizeListArray>()
+                    .ok_or_else(|| invalid("invalid per-allele summary array"))?;
+                if array.values().null_count() != 0 {
+                    return Err(invalid("per-allele summaries cannot contain nulls"));
+                }
+                allele_arrays.push(array);
+            }
+        }
         let mut index = 0;
         while index < encoded.num_rows() {
             let start = index;
@@ -710,6 +790,24 @@ fn read_evidence_batches_impl<R: std::io::Read>(
                         destination.copy_from_slice(values.values());
                     }
                 }
+                if let Some(sums) = row.allele_quality {
+                    for (column, target) in [
+                        &mut sums.base_quality_sum,
+                        &mut sums.mapping_quality_sum,
+                        &mut sums.read_position_sum,
+                        &mut sums.read_length_sum,
+                    ]
+                    .into_iter()
+                    .enumerate()
+                    {
+                        let array = allele_arrays[column].value(source);
+                        let values = array
+                            .as_any()
+                            .downcast_ref::<UInt64Array>()
+                            .ok_or_else(|| invalid("invalid per-allele summary values"))?;
+                        target.copy_from_slice(values.values());
+                    }
+                }
                 validate_row(batch.row(offset).unwrap())?;
             }
             on_batch(&batch)?;
@@ -803,6 +901,68 @@ fn validate_row(row: EvidenceRowRef<'_>) -> Result<(), EvidenceError> {
             u128::from(q.base_quality_sum) > d * 93 || u128::from(q.mapping_quality_sum) > d * 254
         }) {
             return Err(invalid());
+        }
+    }
+    if let Some(a) = row.allele_quality {
+        let total_bq = sum(&a.base_quality_sum);
+        let total_mq = sum(&a.mapping_quality_sum);
+        let total_position = sum(&a.read_position_sum);
+        let total_length = sum(&a.read_length_sum);
+        if depth.is_some_and(|count| {
+            total_bq > count * 93
+                || total_mq > count * 254
+                || total_position + count > total_length
+                || (count == 0 && total_length != 0)
+        }) {
+            return Err(invalid());
+        }
+        if let Some(h) = row.quality_histograms {
+            if total_bq != weighted(&h.base_quality_histogram)
+                || total_mq != weighted(&h.mapping_quality_histogram)
+            {
+                return Err(invalid());
+            }
+        }
+        if let Some(q) = row.quality_sums {
+            if sum(&a.base_quality_sum) != u128::from(q.base_quality_sum)
+                || sum(&a.mapping_quality_sum) != u128::from(q.mapping_quality_sum)
+            {
+                return Err(invalid());
+            }
+        }
+        if let Some(p) = row.read_position {
+            if sum(&a.read_position_sum) != u128::from(p.read_position_sum)
+                || sum(&a.read_length_sum) != u128::from(p.read_length_sum)
+            {
+                return Err(invalid());
+            }
+        }
+        for allele in 0..4 {
+            let count = row
+                .alleles
+                .map(|counts| u128::from(counts.allele_counts[allele]))
+                .or_else(|| {
+                    row.strands
+                        .map(|strands| sum(&strands.strand_counts[allele]))
+                });
+            let length = u128::from(a.read_length_sum[allele]);
+            // Even without counts, each contributing read has positive length
+            // and its zero-based position is strictly less than that length.
+            if u128::from(a.base_quality_sum[allele]) > length * 93
+                || u128::from(a.mapping_quality_sum[allele]) > length * 254
+                || (length > 0 && u128::from(a.read_position_sum[allele]) >= length)
+            {
+                return Err(invalid());
+            }
+            if count.is_some_and(|count| {
+                u128::from(a.base_quality_sum[allele]) > count * 93
+                    || u128::from(a.mapping_quality_sum[allele]) > count * 254
+                    || (count == 0 && a.read_length_sum[allele] != 0)
+            }) || u128::from(a.read_position_sum[allele]) + count.unwrap_or(0)
+                > u128::from(a.read_length_sum[allele])
+            {
+                return Err(invalid());
+            }
         }
     }
     if let Some(p) = row.read_position {
@@ -918,8 +1078,14 @@ impl<R: std::io::Read> BoundedIpcReader<R> {
                 let buffers = batch
                     .buffers()
                     .ok_or_else(|| invalid("evidence IPC buffers missing"))?;
-                let expected_nodes = 4 + scalar_count + if histograms { 4 } else { 0 };
-                let expected_buffers = 11 + scalar_count * 2 + if histograms { 6 } else { 0 };
+                let allele_sums = fields.contains(EvidenceFields::ALLELE_QUALITY);
+                let histogram_nodes = if histograms { 4 } else { 0 };
+                let expected_nodes =
+                    4 + scalar_count + histogram_nodes + if allele_sums { 8 } else { 0 };
+                let expected_buffers = 11
+                    + scalar_count * 2
+                    + if histograms { 6 } else { 0 }
+                    + if allele_sums { 12 } else { 0 };
                 if nodes.len() != expected_nodes || buffers.len() != expected_buffers {
                     return Err(invalid(
                         "evidence IPC node/buffer count differs from projected schema",
@@ -934,8 +1100,15 @@ impl<R: std::io::Read> BoundedIpcReader<R> {
                 let rows = batch.length();
                 for (index, node) in nodes.iter().enumerate() {
                     let expected_length = match index.checked_sub(4 + scalar_count) {
-                        Some(1) => rows * BASE_QUALITY_BINS as i64,
-                        Some(3) => rows * MAPPING_QUALITY_BINS as i64,
+                        Some(1) if histograms => rows * BASE_QUALITY_BINS as i64,
+                        Some(3) if histograms => rows * MAPPING_QUALITY_BINS as i64,
+                        Some(index)
+                            if allele_sums
+                                && index >= histogram_nodes
+                                && (index - histogram_nodes) % 2 == 1 =>
+                        {
+                            rows * 4
+                        }
                         _ => rows,
                     };
                     if node.length() != expected_length || node.null_count() != 0 {
@@ -1133,7 +1306,7 @@ mod tests {
             error.to_string().contains("differs from expected fields"),
             "{error}"
         );
-        for bits in 0..=EvidenceFields::ALL.bits() {
+        for bits in 0..=EvidenceFields::ALL_SUPPORTED.bits() {
             let fields = EvidenceFields::from_bits(bits).unwrap();
             for rows in [0, 2] {
                 let (bytes, contigs) = fixture(fields, rows);
@@ -1167,6 +1340,64 @@ mod tests {
             |_| Ok(())
         )
         .is_err());
+    }
+
+    #[test]
+    fn allele_sums_validate_against_each_independently_available_count_source() {
+        for (bits, case) in [(64, 0), (64, 1), (65, 0), (66, 0), (68, 0), (80, 0)] {
+            let fields = EvidenceFields::from_bits(bits).unwrap();
+            let mut batch = EvidenceBatch::new(
+                0,
+                "chr1",
+                0,
+                fields,
+                vec![EvidenceLocus {
+                    position: 0,
+                    reference: b'A',
+                    requested_alts: vec![b'C'],
+                }],
+            );
+            let row = batch.row_mut(0).unwrap();
+            let sums = row.allele_quality.unwrap();
+            match bits {
+                64 if case == 0 => sums.base_quality_sum[0] = 1,
+                64 => {
+                    sums.read_position_sum[0] = 1;
+                    sums.read_length_sum[0] = 1;
+                }
+                // No callable observations can contribute quality or length.
+                65 => sums.base_quality_sum[0] = 1,
+                66 => sums.read_length_sum[0] = 1,
+                // A strand count independently proves no C observations exist.
+                68 => {
+                    row.strands.unwrap().strand_counts[0][0] = 1;
+                    sums.read_length_sum[0] = 1;
+                    sums.base_quality_sum[1] = 1;
+                }
+                // Pooled histograms constrain sums even without QUALITY_SUMS.
+                80 => {
+                    let hist = row.quality_histograms.unwrap();
+                    hist.base_quality_histogram[30] = 1;
+                    hist.mapping_quality_histogram[60] = 1;
+                    sums.base_quality_sum[0] = 31;
+                    sums.mapping_quality_sum[0] = 60;
+                    sums.read_length_sum[0] = 1;
+                }
+                _ => unreachable!(),
+            }
+            let mut writer = EvidenceArrowWriter::with_fields(Vec::new(), fields);
+            writer.on_batch(&batch).unwrap();
+            let bytes = writer.into_inner().unwrap();
+            let mut contigs = crate::core::ContigSet::new();
+            contigs.push("chr1", 1);
+            assert!(
+                read_evidence_batches_expected_fields(bytes.as_slice(), &contigs, fields, |_| {
+                    panic!("invalid values must fail before consumer access")
+                })
+                .is_err(),
+                "mask={bits}"
+            );
+        }
     }
 
     #[test]

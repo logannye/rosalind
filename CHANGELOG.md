@@ -32,6 +32,18 @@ protected publication review, and change-based caller evidence requirements appl
   canonical frame offsets, sizes, alignment, and counts before decoder access.
   Dataset comparison supports matching projections and refuses absent-as-zero comparisons.
 
+### Variant evidence interoperability
+
+- Sequential VCF/VCF.gz/BCF selections retain exact normalized SNV evidence;
+  malformed, truncated, unsupported and undeclared records fail explicitly.
+- `--annotated-variants` and Python materialization preserve variant record/allele
+  order, existing annotations and genotypes while adding exact read evidence.
+  Verified bounded partition lookup inherits atomic output, receipts and replay.
+- Opt-in `allele-quality` adds exact per-allele quality/position sums with field-mask
+  version 2. Historical full and projected output bytes remain unchanged.
+- Checked native writers propagate header, record and final flush failures;
+  compressed annotation replay preserves its format and compares physical bytes.
+
 ### Analyzer-platform foundation
 
 - Repositioned Rosalind around deterministic per-locus analysis contracts; the

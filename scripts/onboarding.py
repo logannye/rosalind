@@ -291,12 +291,14 @@ pysam.faidx("genome.fa")
 pysam.index("sample.bam")
 with pysam.FastaFile("genome.fa") as reference:
     contig = reference.references[0]
-    length = min(100, reference.lengths[0])
+    contig_length = reference.lengths[0]
+    length = min(100, contig_length)
     base = reference.fetch(contig, 0, 1).upper()
 alternate = next(nucleotide for nucleotide in "ACGT" if nucleotide != base)
 pathlib.Path("targets.bed").write_text(f"{contig}\t0\t{length}\tfirst\n")
 pathlib.Path("candidates.vcf").write_text(
-    "##fileformat=VCFv4.2\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
+    f"##fileformat=VCFv4.2\n##contig=<ID={contig},length={contig_length}>\n"
+    "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
     f"{contig}\t1\t.\t{base}\t{alternate}\t.\tPASS\t.\n")
 readme = importlib.metadata.metadata("rosalind-bio").get_payload()
 blocks = re.findall(r"<!-- smoke:python-evidence -->\s*```python\n(.*?)\n```", readme, re.S)

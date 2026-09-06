@@ -13,8 +13,9 @@ mod sample;
 mod selection;
 
 pub use batch::{
-    EvidenceAlleles, EvidenceBatch, EvidenceDepths, EvidenceLocus, EvidenceQualityHistograms,
-    EvidenceQualitySums, EvidenceReadPosition, EvidenceRowRef, EvidenceStrands,
+    EvidenceAlleleQuality, EvidenceAlleles, EvidenceBatch, EvidenceDepths, EvidenceLocus,
+    EvidenceQualityHistograms, EvidenceQualitySums, EvidenceReadPosition, EvidenceRowRef,
+    EvidenceStrands,
 };
 pub use encoding::{
     evidence_reader_memory_bytes, read_evidence_batches, read_evidence_batches_expected_fields,
@@ -158,13 +159,19 @@ impl EvidenceFields {
     pub const QUALITY_HISTOGRAMS: Self = Self(16);
     /// Sequencing-cycle and read-length sums.
     pub const READ_POSITION: Self = Self(32);
-    /// Complete evidence schema version1.
-    pub const ALL: Self = Self(63);
-    /// Stable field-mask version for receipts and cache keys.
+    /// Historical complete evidence schema version 1.
+    pub const FULL_V1: Self = Self(63);
+    /// Historical full field set; retained for source and artifact compatibility.
+    pub const ALL: Self = Self::FULL_V1;
+    /// Per-allele quality and stored-read-position sufficient statistics.
+    pub const ALLELE_QUALITY: Self = Self(64);
+    /// Every currently supported group, including explicit extended metrics.
+    pub const ALL_SUPPORTED: Self = Self(127);
+    /// Historical mask version; use `mask_version()` for a specific field set.
     pub const VERSION: u32 = 1;
     /// Construct a validated field set from its portable bit representation.
     pub fn from_bits(bits: u32) -> Result<Self, EvidenceError> {
-        if bits & !Self::ALL.0 != 0 {
+        if bits & !Self::ALL_SUPPORTED.0 != 0 {
             Err(EvidenceError::InvalidRequest(
                 "unknown evidence field bits".into(),
             ))
@@ -192,6 +199,14 @@ impl EvidenceFields {
             2
         }
     }
+    /// Field-mask definition version. Legacy masks preserve their original bytes.
+    pub fn mask_version(self) -> u32 {
+        if self.contains(Self::ALLELE_QUALITY) {
+            2
+        } else {
+            1
+        }
+    }
     /// Exact retained locus and requested summary bytes, excluding vector
     /// headers, ALT payloads, reference windows, and allocator overhead.
     pub fn storage_bytes_per_locus(self) -> u64 {
@@ -212,6 +227,10 @@ impl EvidenceFields {
                 Self::READ_POSITION,
                 std::mem::size_of::<EvidenceReadPosition>(),
             ),
+            (
+                Self::ALLELE_QUALITY,
+                std::mem::size_of::<EvidenceAlleleQuality>(),
+            ),
         ] {
             if self.contains(group) {
                 bytes += size;
@@ -228,6 +247,7 @@ impl EvidenceFields {
             (Self::QUALITY_SUMS, "quality-sums"),
             (Self::QUALITY_HISTOGRAMS, "quality-histograms"),
             (Self::READ_POSITION, "read-position"),
+            (Self::ALLELE_QUALITY, "allele-quality"),
         ]
         .into_iter()
         .filter_map(|(field, name)| self.contains(field).then_some(name))

@@ -294,6 +294,35 @@ fn output_is_byte_comparable(path: &str) -> bool {
         || p.ends_with(".rref")
 }
 
+// Additive annotation support does not broaden historical BAM/BGZF replay.
+// Comparison remains physical: a different native codec can produce DIVERGED;
+// no semantic comparison is substituted for compressed artifact bytes.
+fn artifact_is_byte_comparable(manifest: &RunManifest, index: usize) -> bool {
+    let path = &manifest.outputs[index].path;
+    if output_is_byte_comparable(path) {
+        return true;
+    }
+    manifest
+        .params
+        .get("annotation.semantics")
+        .map(String::as_str)
+        == Some(crate::variant_annotation::ANNOTATION_SEMANTICS)
+        && manifest
+            .params
+            .get(&format!("artifact.output.{index}.role"))
+            .map(String::as_str)
+            == Some("annotated-variants")
+        && match manifest
+            .params
+            .get(&format!("artifact.output.{index}.format"))
+            .map(String::as_str)
+        {
+            Some("vcf.gz") => path.ends_with(".vcf.gz"),
+            Some("bcf") => path.ends_with(".bcf"),
+            _ => false,
+        }
+}
+
 /// Build a content-hash → path index of every file directly under `inputs_dir`.
 fn index_inputs(inputs_dir: &Path) -> Result<BTreeMap<String, PathBuf>> {
     let mut idx = BTreeMap::new();
@@ -401,7 +430,9 @@ fn build_reproduction_plan(
     if let Some(output) = manifest
         .outputs
         .iter()
-        .find(|output| !output_is_byte_comparable(&output.path))
+        .enumerate()
+        .find(|(index, _)| !artifact_is_byte_comparable(&manifest, *index))
+        .map(|(_, output)| output)
     {
         return Err(ReplaySafetyError::UnsafeRecipe(format!(
             "output {} is not byte-comparable",
@@ -465,10 +496,15 @@ fn build_reproduction_plan(
     let mut output_by_hash = BTreeMap::new();
     let mut outputs = Vec::with_capacity(manifest.outputs.len());
     for (position, output) in manifest.outputs.iter().enumerate() {
-        let extension = Path::new(&output.path)
-            .extension()
-            .and_then(|extension| extension.to_str())
-            .unwrap_or("out");
+        // The compound suffix selects the compressed VCF writer on replay.
+        let extension = if output.path.ends_with(".vcf.gz") {
+            "vcf.gz"
+        } else {
+            Path::new(&output.path)
+                .extension()
+                .and_then(|extension| extension.to_str())
+                .unwrap_or("out")
+        };
         let path = work_dir.join(format!("out_{position}.{extension}"));
         output_by_hash.insert(output.blake3.clone(), path.clone());
         outputs.push(PlannedOutput {
@@ -781,7 +817,9 @@ pub fn reproduce_with_binary(
     if let Some(o) = manifest
         .outputs
         .iter()
-        .find(|o| !output_is_byte_comparable(&o.path))
+        .enumerate()
+        .find(|(index, _)| !artifact_is_byte_comparable(&manifest, *index))
+        .map(|(_, output)| output)
     {
         return Ok(report(
             "INCONCLUSIVE",

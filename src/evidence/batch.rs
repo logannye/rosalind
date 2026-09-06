@@ -73,6 +73,19 @@ pub struct EvidenceReadPosition {
     pub read_length_sum: u64,
 }
 
+/// Exact sufficient statistics separated by callable A/C/G/T observations.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct EvidenceAlleleQuality {
+    /// Base-quality sums in A/C/G/T order.
+    pub base_quality_sum: [u64; 4],
+    /// Mapping-quality sums in A/C/G/T order.
+    pub mapping_quality_sum: [u64; 4],
+    /// Sequencing-cycle sums in A/C/G/T order, with reverse reads restored.
+    pub read_position_sum: [u64; 4],
+    /// Full stored-read-length sums in A/C/G/T order.
+    pub read_length_sum: [u64; 4],
+}
+
 /// Selected loci with physically present, contiguous summary groups. An absent
 /// group has no allocation and does not imply zero measurements. Group lengths
 /// and availability are maintained by the batch constructors and append methods.
@@ -92,6 +105,7 @@ pub struct EvidenceBatch {
     quality_sums: Option<Vec<EvidenceQualitySums>>,
     quality_histograms: Option<Vec<EvidenceQualityHistograms>>,
     read_position: Option<Vec<EvidenceReadPosition>>,
+    allele_quality: Option<Vec<EvidenceAlleleQuality>>,
 }
 
 /// A borrowed locus. Check a group's availability before reading its metrics.
@@ -116,6 +130,8 @@ pub struct EvidenceRowRef<'a> {
     pub quality_histograms: Option<&'a EvidenceQualityHistograms>,
     /// Present only when READ_POSITION was requested.
     pub read_position: Option<&'a EvidenceReadPosition>,
+    /// Present only when ALLELE_QUALITY was explicitly requested.
+    pub allele_quality: Option<&'a EvidenceAlleleQuality>,
 }
 impl EvidenceRowRef<'_> {
     /// Physical groups available on this row.
@@ -131,6 +147,10 @@ impl EvidenceRowRef<'_> {
                 EvidenceFields::QUALITY_HISTOGRAMS,
             ),
             (self.read_position.is_some(), EvidenceFields::READ_POSITION),
+            (
+                self.allele_quality.is_some(),
+                EvidenceFields::ALLELE_QUALITY,
+            ),
         ] {
             if present {
                 fields = fields.union(group);
@@ -180,6 +200,7 @@ pub(crate) struct EvidenceRowMut<'a> {
     pub quality_sums: Option<&'a mut EvidenceQualitySums>,
     pub quality_histograms: Option<&'a mut EvidenceQualityHistograms>,
     pub read_position: Option<&'a mut EvidenceReadPosition>,
+    pub allele_quality: Option<&'a mut EvidenceAlleleQuality>,
 }
 
 impl EvidenceBatch {
@@ -217,6 +238,9 @@ impl EvidenceBatch {
             read_position: fields
                 .contains(EvidenceFields::READ_POSITION)
                 .then(|| vec![EvidenceReadPosition::default(); len]),
+            allele_quality: fields
+                .contains(EvidenceFields::ALLELE_QUALITY)
+                .then(|| vec![EvidenceAlleleQuality::default(); len]),
         }
     }
 
@@ -314,6 +338,7 @@ impl EvidenceBatch {
                 .as_ref()
                 .map(|values| &values[index]),
             read_position: self.read_position.as_ref().map(|values| &values[index]),
+            allele_quality: self.allele_quality.as_ref().map(|values| &values[index]),
         })
     }
     /// Iterate borrowed rows in their existing coordinate order.
@@ -334,6 +359,10 @@ impl EvidenceBatch {
                 .as_mut()
                 .map(|values| &mut values[index]),
             read_position: self.read_position.as_mut().map(|values| &mut values[index]),
+            allele_quality: self
+                .allele_quality
+                .as_mut()
+                .map(|values| &mut values[index]),
         })
     }
     pub(crate) fn reserve_exact(&mut self, additional: usize) {
@@ -354,6 +383,9 @@ impl EvidenceBatch {
             values.reserve_exact(additional);
         }
         if let Some(values) = &mut self.read_position {
+            values.reserve_exact(additional);
+        }
+        if let Some(values) = &mut self.allele_quality {
             values.reserve_exact(additional);
         }
     }
@@ -377,6 +409,9 @@ impl EvidenceBatch {
         if let Some(values) = &mut self.read_position {
             values.clear();
         }
+        if let Some(values) = &mut self.allele_quality {
+            values.clear();
+        }
     }
     /// Replace locus identities while retaining each summary allocation. The
     /// caller reuses the returned identity vector as its next-window scratch.
@@ -396,6 +431,7 @@ impl EvidenceBatch {
         reset!(&mut self.quality_sums, EvidenceQualitySums);
         reset!(&mut self.quality_histograms, EvidenceQualityHistograms);
         reset!(&mut self.read_position, EvidenceReadPosition);
+        reset!(&mut self.allele_quality, EvidenceAlleleQuality);
         std::mem::replace(&mut self.loci, loci)
     }
     pub(crate) fn push_row(&mut self, row: EvidenceRowRef<'_>) -> Result<(), EvidenceError> {
@@ -427,6 +463,9 @@ impl EvidenceBatch {
         if let Some(values) = &mut self.read_position {
             values.push(*row.read_position.expect("source field invariant"));
         }
+        if let Some(values) = &mut self.allele_quality {
+            values.push(*row.allele_quality.expect("source field invariant"));
+        }
         Ok(())
     }
 }
@@ -447,7 +486,7 @@ mod tests {
 
     #[test]
     fn every_mask_allocates_exactly_its_requested_groups() {
-        for bits in 0..=EvidenceFields::ALL.bits() {
+        for bits in 0..=EvidenceFields::ALL_SUPPORTED.bits() {
             let fields = EvidenceFields::from_bits(bits).unwrap();
             let batch = EvidenceBatch::new(0, "chr1", 0, fields, loci(3));
             assert_eq!(batch.len(), 3);
@@ -476,6 +515,7 @@ mod tests {
                 EvidenceQualityHistograms
             );
             check!(read_position, READ_POSITION, EvidenceReadPosition);
+            check!(allele_quality, ALLELE_QUALITY, EvidenceAlleleQuality);
             assert_eq!(bytes as u64, fields.storage_bytes_per_locus() * 3);
             for row in batch.rows() {
                 assert_eq!(row.fields(), fields);
