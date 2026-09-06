@@ -2,7 +2,6 @@ use super::EvidenceError;
 use crate::core::ContigSet;
 use crate::selection::{GenomicInterval, IntervalSet};
 use std::collections::{BTreeMap, BTreeSet};
-use std::io::{BufRead, BufReader};
 use std::path::Path;
 
 type ResolvedSelection = (Vec<GenomicInterval>, BTreeMap<(u32, u32), SnvSite>);
@@ -37,57 +36,33 @@ impl EvidenceSelection {
             .map_err(|error| EvidenceError::InvalidRequest(error.to_string()))?;
         Ok(Self::Intervals(set.intervals().to_vec()))
     }
-    /// Parse plain-text VCF, accepting only one-base REF and one-base ALT alleles.
-    /// Duplicate loci union ALT alleles and must agree on REF.
+    /// Parse VCF, compressed VCF, or BCF using the default record envelopes.
+    /// Duplicate loci union ALT alleles and must agree on REF. No index is needed.
     pub fn from_vcf(path: impl AsRef<Path>, contigs: &ContigSet) -> Result<Self, EvidenceError> {
+        Self::from_variants(path, contigs, crate::variant_io::VariantLimits::default())
+    }
+
+    /// Parse typed SNV records with explicit cooperative header/record envelopes.
+    /// The normalized selection is independent of record order and compression;
+    /// use [`crate::variant_io::VariantReader`] when original records are needed.
+    pub fn from_variants(
+        path: impl AsRef<Path>,
+        contigs: &ContigSet,
+        limits: crate::variant_io::VariantLimits,
+    ) -> Result<Self, EvidenceError> {
+        let mut reader = crate::variant_io::VariantReader::open(path, limits)?;
         let mut sites: BTreeMap<(u32, u32), (u8, BTreeSet<u8>)> = BTreeMap::new();
-        for (line_number, line) in BufReader::new(std::fs::File::open(path)?)
-            .lines()
-            .enumerate()
-        {
-            let line = line?;
-            if line.starts_with('#') || line.trim().is_empty() {
-                continue;
+        while let Some(record) = reader.read()? {
+            let site = crate::variant_io::parse_snv_record(record, contigs)?;
+            let entry = sites
+                .entry((site.contig, site.position))
+                .or_insert((site.reference, BTreeSet::new()));
+            if entry.0 != site.reference {
+                return Err(EvidenceError::InvalidInput(
+                    "duplicate variant locus has conflicting REF".into(),
+                ));
             }
-            let fields: Vec<_> = line.split('\t').collect();
-            let invalid = |message: &str| {
-                EvidenceError::InvalidRequest(format!("VCF line {}: {message}", line_number + 1))
-            };
-            if fields.len() < 5 {
-                return Err(invalid("requires at least five columns"));
-            }
-            let contig = contigs
-                .by_name(fields[0])
-                .ok_or_else(|| invalid("unknown contig"))?;
-            let one_based = fields[1]
-                .parse::<u32>()
-                .map_err(|_| invalid("invalid POS"))?;
-            if one_based == 0 || one_based > contig.length {
-                return Err(invalid("POS outside reference"));
-            }
-            let parse_base = |text: &str| -> Result<u8, EvidenceError> {
-                if text.len() != 1 {
-                    return Err(invalid("only SNVs are supported"));
-                }
-                let base = text.as_bytes()[0].to_ascii_uppercase();
-                if !b"ACGT".contains(&base) {
-                    return Err(invalid("REF and ALT must be A/C/G/T"));
-                }
-                Ok(base)
-            };
-            let reference = parse_base(fields[3])?;
-            let key = (contig.id, one_based - 1);
-            let entry = sites.entry(key).or_insert((reference, BTreeSet::new()));
-            if entry.0 != reference {
-                return Err(invalid("duplicate locus has conflicting REF"));
-            }
-            for alternate in fields[4].split(',') {
-                let alternate = parse_base(alternate)?;
-                if alternate == reference {
-                    return Err(invalid("ALT equals REF"));
-                }
-                entry.1.insert(alternate);
-            }
+            entry.1.extend(site.alternates);
         }
         Ok(Self::Sites(
             sites

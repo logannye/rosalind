@@ -13,8 +13,10 @@ requires an explicit local FASTA and adjacent FAI; no network reference lookup i
 needed. Analysis references may be uncompressed FASTA plus FAI, `.rref`, or
 compatible `.idx`. Contig names and lengths must match the alignment dictionary.
 
-Supply exactly one plain-text SNV VCF (`--sites`) or BED (`--regions`). VCF REF
-and each ALT must be a single A/C/G/T base. REF is checked against the reference;
+Supply exactly one SNV VCF/VCF.gz/BCF (`--sites`) or BED (`--regions`). Variant
+selection is sequential and needs no variant index. A valid declared header is
+required; truncated compressed input and undeclared fields fail. VCF REF
+and each distinct ALT must be a single A/C/G/T base. REF is checked against the reference;
 conflicting duplicates, indels, symbolic alleles, unknown contigs, and invalid
 coordinates fail. Duplicate loci combine ALT alleles and emit one row. VCF
 genotypes, FILTER labels, and INFO annotations do not change read filtering.
@@ -24,6 +26,12 @@ loci, including uncovered positions. Overlap does not duplicate evidence rows.
 Output `pos` is one-based; Rust `EvidenceRow.position` is zero-based. Order follows
 the reference dictionary and then numerical position. Empty selections produce a
 valid empty artifact. Selection is scientific; execution tiles are not selection.
+
+Optional `--annotated-variants` restores original variant records and allele order
+using verified evidence partitions. It requires persisted evidence and the depths
+and alleles groups. Its INFO annotations never replace genotypes or existing
+fields. Original variant bytes participate in annotation identity separately from
+normalized selection. See [variant-annotation.md](variant-annotation.md).
 
 ## Observation and filtering rules
 
@@ -117,7 +125,9 @@ legacy feature encoder's 65,536-row batches. Full evidence retains schema-1 byte
 Physical projections use schema 2 and a versioned field mask, stored in one
 canonical Arrow metadata value. Groups are `depths` (including exclusive filter
 counts), `alleles`, `strands`, `quality-sums`, `quality-histograms`, and
-`read-position`. Identity columns are always present; `--fields none` emits only
+`read-position`, plus opt-in `allele-quality`. The latter stores four A/C/G/T
+quality/position sum vectors and uses field-mask version 2. Historical `all` stays
+at mask 63; `all-supported` selects all seven groups (127). Identity columns are always present; `--fields none` emits only
 those columns. Omitted groups allocate no corresponding summary or encoder vectors
 and never appear as zero-valued output columns. Group selection does not change
 filtering, reference/CIGAR validation, or the values of retained metrics.

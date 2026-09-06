@@ -82,6 +82,10 @@ pub mod selection;
 pub mod studio;
 /// Helper utilities: read-only mmap + peak-RSS measurement.
 pub mod util;
+/// Record-preserving annotation from verified SNV evidence.
+pub mod variant_annotation;
+/// Checked VCF/BCF input and output.
+pub mod variant_io;
 
 // ── Genomics product surface — what builders compose on ───────────────────────
 // The bounded streaming substrate:

@@ -25,6 +25,7 @@ class EvidenceResult:
     manifest_path: Path
     artifact_path: Optional[Path]
     returncode: int = 0
+    annotated_variants_path: Optional[Path] = None
 
 
 class EvidenceProcessError(RuntimeError):
@@ -144,12 +145,12 @@ def _command(
     field_names = None
     if fields is not None:
         field_names = fields.split(",") if isinstance(fields, str) else list(fields)
-        groups = {"depths", "alleles", "strands", "quality-sums", "quality-histograms", "read-position"}
+        groups = {"depths", "alleles", "strands", "quality-sums", "quality-histograms", "read-position", "allele-quality"}
         if not field_names:
             field_names = ["none"]
-        if field_names not in (["all"], ["none"]) and any(name not in groups for name in field_names):
+        if field_names not in (["all"], ["all-supported"], ["none"]) and any(name not in groups for name in field_names):
             raise ValueError("fields must contain known evidence groups, or all/none alone")
-        if panel and field_names != ["all"] and not {"depths", "quality-sums"}.issubset(field_names):
+        if panel and field_names not in (["all"], ["all-supported"]) and not {"depths", "quality-sums"}.issubset(field_names):
             raise ValueError("panel QC fields must include depths and quality-sums")
     executable = _resolve_binary(binary, allow_version_mismatch)
     command = [str(executable), "analyze", "panel-qc" if panel else "evidence",
@@ -203,12 +204,26 @@ def iter_evidence(
 
 def materialize_evidence(
     reference: PathLike, alignments: PathLike, output: PathLike, *,
-    format: str = "arrow-ipc", force: bool = False, **options: object,
+    format: str = "arrow-ipc", force: bool = False,
+    annotated_variants: Optional[PathLike] = None, **options: object,
 ) -> EvidenceResult:
-    """Persist complete evidence and its receipt for verification and replay."""
+    """Persist evidence and its receipt; optionally annotate original SNV records.
+
+    ``annotated_variants`` requires ``sites`` (VCF, VCF.gz, or BCF) and a
+    .vcf/.vcf.gz/.bcf destination. Existing annotations, allele/record order and
+    genotypes are preserved. INFO fields describe the chosen alignment sample
+    scope. Request ``allele-quality`` for exact per-allele quality/position sums.
+    """
     if format not in ("arrow-ipc", "tsv"):
         raise ValueError("format must be arrow-ipc or tsv")
-    return _materialize(_command(reference, alignments, **options), output, format, force)
+    command = _command(reference, alignments, **options)
+    if annotated_variants is not None:
+        if options.get("sites") is None:
+            raise ValueError("annotated_variants requires sites (VCF, VCF.gz, or BCF)")
+        command += ["--annotated-variants", str(annotated_variants)]
+    result = _materialize(command, output, format, force)
+    return EvidenceResult(result.manifest_path, result.artifact_path, result.returncode,
+                          Path(annotated_variants) if annotated_variants is not None else None)
 
 
 def panel_qc(

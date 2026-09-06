@@ -8,9 +8,9 @@ artifact verification remain requirements throughout.
 | Order | Delivery | Status |
 |---|---|---|
 | 1 | Shared panel defaults and explicit named/unknown/pooled sample scope | Implemented; 11 sample tests, Rust/CLI threshold parity, Python/native parity, cache/replay and existing evidence regressions pass |
-| 2 | Installable evidence-engine RC, executable onboarding, candidate publication gates | Implemented for 0.5.0-rc.1; native bundle and fresh wheel onboarding pass locally; all 16 PR checks pass and PR #98 merged; immutable RC build and protected publication pending |
+| 2 | Installable evidence-engine RC, executable onboarding, candidate publication gates | Implemented for 0.5.0-rc.1; native bundle and fresh wheel onboarding pass locally; all 16 PR checks pass and PR #98 merged; immutable RC build dispatched at ce6c489; protected publication pending |
 | 3 | Physical field projection and bounded coalesced sparse fetches | Implemented; all 64 masks, frozen full-output hashes, cache/replay/workers, and corrected 18-run pressure matrix verified locally; CI pending |
-| 4 | VCF.gz/BCF selection, record-preserving annotation, optional per-allele quality/position sums | Pending |
+| 4 | VCF.gz/BCF selection, record-preserving annotation, optional per-allele quality/position sums | Implemented; all 128 masks, legacy byte goldens, independent allele sums, record/genotype preservation and three-budget/worker replay pass locally; 514-test workspace suite plus focused follow-up checks and Python 3.9/3.11 pass locally; platform CI pending |
 | 5 | Verified subset/superset dataset reuse, persisted analysis, bounded Parquet and Python/R/SQL adapters | Pending |
 | 6 | Evidence-native artifact runner, scaffold, and conformance | Pending |
 | 7 | Representative BAM/CRAM resource measurements and independent user validation | Pending; external users have not been recruited |
