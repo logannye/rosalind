@@ -67,3 +67,16 @@ The frozen Linux validation archive is
 `ad5b01229f4b383b8efabf4cc9d304965ec5b3961e7e00cfcf8131deb3b017b3`.
 It includes the corrected production runner; it precedes only the additional
 allocation-preservation unit test and final documentation updates.
+
+## Corrected fresh wheel
+
+`wheel.log` and `wheel-validation.json` record a fresh Python3.11 installation,
+matching CLI0.5.0, evidence/panel/dataset/replay/Parquet and README examples, both
+actual CLI-generated external crates, legacy conformance12/12, evidence
+conformance19/19, and all four packaged standalone analyzer tests. Cargo resolution
+started with an empty cache and explicit candidate source patches; this is not a
+registry-only SDK installation. `wheel-conformance.json` retains the corrected
+all-19 result.
+
+Wheel SHA256: `eb7ede881ff5a9e517d6b19cd8473cbeb049b1ef20f7431a39b31f7f96a8568c`.
+Bundled native SHA256: `a284df54a5d5da4f0053b4520d5402f7005c34b40df3e347ee8d73d91271baba`.
