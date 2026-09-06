@@ -53,13 +53,28 @@ Full results and retained raw logs are in the
 Historical July checks tested the preceding overhaul. They are not fresh evidence
 for the new semantics, encoders, or scheduling changes.
 
+### Subsequent GitHub validation (2026-09-06)
+
+- [Candidate wheel CI](https://github.com/logannye/rosalind/actions/runs/34009965756)
+  passed on Linux x86_64, macOS arm64, and macOS x86_64, including fresh Python
+  3.9/3.11 installations, native/Python version agreement, analysis, verification,
+  offline replay, and scaffold/conformance. These are retained CI artifacts;
+  they have not been published to a package registry.
+- [Application CI](https://github.com/logannye/rosalind/actions/runs/34010203922)
+  passed the full Linux Rust suite, independent analyzer, package verification,
+  Python/CLI workflows, advisory audit, Clippy, MSRV, contract harness, release
+  automation checks, and regenerated browser verifier check.
+- [Workflow integration CI](https://github.com/logannye/rosalind/actions/runs/34010203990)
+  passed Nextflow and Snakemake execution on Linux. These checks are performed by
+  repository automation, not independent external users.
+
 ## External prerequisites and unmeasured claims
 
 No registry publication, tag, container push, or GitHub release was performed by
 this work. Release tooling checks registry/trusted-publisher configuration and
-protected environment approval before publication. Cross-platform wheels/native
-assets still require candidate CI; a local macOS test cannot establish Linux or
-Intel results.
+protected environment approval before publication. Wheel CI results above
+establish candidate installation on the three supported platforms. Standalone
+native release assets and registry installations retain their publication gates.
 
 The local Docker daemon is unavailable. Container builds, cgroup probes, and the
 pinned platform benchmark have not run here. Static harness validation is not a

@@ -20,6 +20,15 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def tool_version(label: str, argv: list[str]) -> str:
+    # Some packaged tools include arbitrary compiler/build bytes after their
+    # version header. Retain them exactly; only the header is UTF-8 text.
+    output = subprocess.check_output(argv)
+    (ROOT / "raw" / f"version-{label}.stdout").write_bytes(output)
+    (ROOT / "raw" / f"version-{label}.argv.json").write_text(json.dumps(argv) + "\n")
+    return output.splitlines()[0].decode("utf-8").strip()
+
+
 def measurement(label: str) -> dict:
     text = (ROOT / "raw" / f"{label}.time.txt").read_text()
     def value(pattern: str):
@@ -87,12 +96,12 @@ def main() -> None:
     labels = [f"{implementation}-{run}" for implementation in ("rosalind", "pysam", "bcftools") for run in range(1, 4)]
     measurements = {label: measurement(label) for label in labels}
     environment = {
-        "rosalind": subprocess.check_output(["rosalind", "--version"], text=True).strip(),
-        "python": subprocess.check_output(["python3", "--version"], text=True).strip(),
-        "pyarrow": subprocess.check_output(["python3", "-c", "import pyarrow; print(pyarrow.__version__)"], text=True).strip(),
-        "pysam": subprocess.check_output(["python3", "-c", "import pysam; print(pysam.__version__)"], text=True).strip(),
-        "bcftools": subprocess.check_output(["bcftools", "--version"], text=True).splitlines()[0],
-        "samtools": subprocess.check_output(["samtools", "--version"], text=True).splitlines()[0],
+        "rosalind": tool_version("rosalind", ["rosalind", "--version"]),
+        "python": tool_version("python", ["python3", "--version"]),
+        "pyarrow": tool_version("pyarrow", ["python3", "-c", "import pyarrow; print(pyarrow.__version__)"]),
+        "pysam": tool_version("pysam", ["python3", "-c", "import pysam; print(pysam.__version__)"]),
+        "bcftools": tool_version("bcftools", ["bcftools", "--version"]),
+        "samtools": tool_version("samtools", ["samtools", "--version"]),
     }
     report = {
         "schema": 1,

@@ -19,11 +19,13 @@ integer summaries, canonical Arrow batches, and verified cache partitions make
 the same evidence reusable across consumers.
 
 **Development status:** exact evidence, panel QC, verified cache/resume, and dataset
-comparison are implemented and locally verified. The source package still has
+comparison are implemented, with local and CI validation. The source package still has
 version 0.4.0; this development work is unpublished, with staged 0.5/0.6/0.7
 releases planned. The [retained validation report](docs/findings/evidence-engine-2026-09-05/README.md)
 records 467 passing Rust tests, eight Python tests on both Python 3.9 and 3.11,
-and fresh macOS arm64 wheel installs. See [implementation status](docs/implementation-status.md)
+and fresh macOS arm64 wheel installs. Subsequent [wheel CI](https://github.com/logannye/rosalind/actions/runs/34009965756)
+also passed fresh Python 3.9/3.11 installations on Linux x86_64 and both macOS
+architectures. See [implementation status](docs/implementation-status.md)
 for platform limits and [release gates](docs/ROADMAP.md) for publication and
 independent adoption requirements.
 

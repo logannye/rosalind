@@ -1,13 +1,26 @@
 import io
+import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from bcftools_features import write_rows
-from report import compare
+from report import compare, tool_version
 
 
 class PlatformEvidenceTests(unittest.TestCase):
+    def test_version_header_keeps_non_utf8_build_metadata_as_raw_bytes(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / 'raw').mkdir()
+            argv = [sys.executable, '-c', r'import sys; sys.stdout.buffer.write(b"samtools 1.16.1\nbuild: \xab\n")']
+            with patch('report.ROOT', root):
+                self.assertEqual(tool_version('samtools', argv), 'samtools 1.16.1')
+            self.assertEqual((root / 'raw/version-samtools.stdout').read_bytes(), b'samtools 1.16.1\nbuild: \xab\n')
+            self.assertEqual(json.loads((root / 'raw/version-samtools.argv.json').read_text()), argv)
+
     def fixture(self, left, right):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)

@@ -19,10 +19,25 @@ for name in ("truth.vcf", "query.vcf"):
 PY
 docker run --rm --network none --platform linux/amd64 "$IMAGE" --version > "$RESULTS/happy-version.txt"
 docker run --rm --network none --platform linux/amd64 --entrypoint /opt/rtg-tools/rtg "$IMAGE" version > "$RESULTS/rtg-version.txt"
-docker run --rm --network none --platform linux/amd64 -v "$RESULTS:/data" "$IMAGE" \
+# hap.py preprocessing requires an existing FAI. Build it with the evaluator's
+# installed pysam, keeping both fixture preparation and evaluation offline.
+docker run --rm --network none --platform linux/amd64 -v "$RESULTS:/data" \
+  --entrypoint python "$IMAGE" -c "import pysam; pysam.faidx('/data/reference.fa')"
+python3 - "$RESULTS/reference.fa.fai" <<'PY_INDEX'
+from pathlib import Path
+import sys
+assert Path(sys.argv[1]).read_text().splitlines() == ["chr20\t1000\t7\t1000\t1001"]
+PY_INDEX
+if docker run --rm --network none --platform linux/amd64 -v "$RESULTS:/data" "$IMAGE" \
   /data/truth.vcf /data/query.vcf -r /data/reference.fa -f /data/confident.bed \
   --engine=vcfeval --engine-vcfeval-path=/opt/rtg-tools/rtg --threads 1 -o /data/evaluation \
-  > "$RESULTS/evaluator.stdout.txt" 2> "$RESULTS/evaluator.stderr.txt"
+  > "$RESULTS/evaluator.stdout.txt" 2> "$RESULTS/evaluator.stderr.txt"; then
+  :
+else
+  status=$?
+  cat "$RESULTS/evaluator.stderr.txt" >&2
+  exit "$status"
+fi
 python3 - "$RESULTS" <<'PY'
 import csv, json, sys
 from pathlib import Path

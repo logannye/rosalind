@@ -98,7 +98,8 @@ rosalind features --reference-pack "$RESULTS/inputs/reference.rref" --alignments
   > "$RESULTS/raw/refusal.stdout" 2> "$RESULTS/raw/refusal.stderr"
 refusal_code=$?
 set -e
-test "$refusal_code" -eq 3 && test ! -e "$RESULTS/outputs/refused.tsv"
+test "$refusal_code" -eq 3
+test ! -e "$RESULTS/outputs/refused.tsv"
 printf '{"declared_mb":1,"exit_code":%s,"output_created":false}\n' "$refusal_code" > "$RESULTS/raw/refusal.json"
 
 dpkg-query -W -f='${Package}\t${Version}\n' | sort > "$RESULTS/environment-packages.tsv"
