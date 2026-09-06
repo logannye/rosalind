@@ -973,9 +973,69 @@ fn canonical_cli_shape(help: &str) -> String {
             _ => {}
         }
     }
+    for (entry, values) in cli_possible_values(help) {
+        shape.push(format!("values:{entry}={}", values.join(",")));
+    }
     shape.sort();
     shape.dedup();
     shape.join("\n") + "\n"
+}
+
+// Clap renders ValueEnum choices on an argument/option's description line,
+// which can wrap independently of its syntax. Bind those choices to the most
+// recent entry so contract fingerprints detect enum drift without freezing copy.
+fn cli_possible_values(help: &str) -> BTreeMap<String, Vec<String>> {
+    let mut result = BTreeMap::new();
+    let mut section = "";
+    let mut entry = None;
+    let mut values = None::<String>;
+    for line in help.lines() {
+        let trimmed = line.trim();
+        if matches!(trimmed, "Commands:" | "Arguments:" | "Options:") {
+            section = trimmed.trim_end_matches(':');
+            entry = None;
+            values = None;
+            continue;
+        }
+        let prefix = match section {
+            "Arguments"
+                if line.starts_with("  ")
+                    && !line.starts_with("   ")
+                    && trimmed.starts_with(['<', '[']) =>
+            {
+                Some("argument")
+            }
+            "Options" if trimmed.starts_with('-') => Some("option"),
+            _ => None,
+        };
+        if let Some(prefix) = prefix {
+            let syntax = trimmed.split("  ").next().unwrap_or(trimmed).trim();
+            entry = Some(format!("{prefix}:{syntax}"));
+            values = None;
+        }
+        if entry.is_none() {
+            continue;
+        }
+        if let Some((_, tail)) = trimmed.split_once("[possible values:") {
+            values = Some(tail.to_string());
+        } else if let Some(values) = &mut values {
+            values.push(' ');
+            values.push_str(trimmed);
+        }
+        if let Some((list, _)) = values.as_deref().and_then(|text| text.split_once(']')) {
+            let mut choices = list
+                .split(',')
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(str::to_string)
+                .collect::<Vec<_>>();
+            choices.sort();
+            choices.dedup();
+            result.insert(entry.clone().unwrap(), choices);
+            values = None;
+        }
+    }
+    result
 }
 
 fn cli_subcommands(help: &str) -> Vec<String> {
@@ -1029,6 +1089,26 @@ fn discover_cli_contract<R: Runner>(
             } else {
                 format!("{command_path} {child}")
             });
+        }
+        // Analyze dispatches through a positional ValueEnum rather than Clap
+        // subcommands. Its leaf help repeats <KIND>, so expand only this parent.
+        if command_path == "analyze" {
+            let values = cli_possible_values(&help);
+            let kinds = values
+                .get("argument:<KIND>")
+                .filter(|kinds| !kinds.is_empty())
+                .ok_or_else(|| {
+                    "analyze help does not declare <KIND> possible values".to_string()
+                })?;
+            for kind in kinds {
+                if !kind
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+                {
+                    return Err(format!("unsupported analyzer kind in CLI help: {kind}"));
+                }
+                pending.push(format!("analyze {kind}"));
+            }
         }
         contracts.insert(command_path, canonical_cli_shape(&help));
     }
@@ -4208,6 +4288,98 @@ mod tests {
         assert_ne!(
             canonical_cli_shape(&first),
             canonical_cli_shape(flag_change)
+        );
+    }
+
+    #[test]
+    fn cli_shape_fingerprints_argument_and_option_value_enums() {
+        let inline = "Usage: rosalind analyze [OPTIONS] <KIND>\n\nArguments:\n  <KIND>  Which analyzer [possible values: features, coverage, evidence, panel-qc]\n\nOptions:\n      --format <FORMAT>  Output [possible values: tsv, arrow-ipc]\n";
+        let wrapped = "Different wording\nUsage: rosalind analyze [OPTIONS] <KIND>\n\nArguments:\n  <KIND>\n          Another description [possible values: panel-qc, evidence,\n          coverage, features]\n\nOptions:\n      --format <FORMAT>\n          Different output description\n          [possible values: arrow-ipc, tsv]\n";
+        assert_eq!(canonical_cli_shape(inline), canonical_cli_shape(wrapped));
+        let changed_kind = inline.replace(
+            "features, coverage, evidence, panel-qc",
+            "features, coverage, evidence",
+        );
+        let changed_format = inline.replace("tsv, arrow-ipc", "tsv, arrow-ipc, parquet");
+        assert_ne!(
+            canonical_cli_shape(inline),
+            canonical_cli_shape(&changed_kind)
+        );
+        assert_ne!(
+            canonical_cli_shape(inline),
+            canonical_cli_shape(&changed_format)
+        );
+        assert_eq!(
+            cli_possible_values(inline)["argument:<KIND>"],
+            ["coverage", "evidence", "features", "panel-qc"]
+        );
+        assert_eq!(
+            cli_possible_values(inline)["option:--format <FORMAT>"],
+            ["arrow-ipc", "tsv"]
+        );
+    }
+
+    #[test]
+    fn cli_inventory_expands_analyzer_kinds_exactly_once_from_actual_help() {
+        struct HelpRunner {
+            calls: Mutex<Vec<String>>,
+            analyzer_help: String,
+        }
+        impl Runner for HelpRunner {
+            fn run(
+                &self,
+                _cwd: &Path,
+                _program: &str,
+                arguments: &[OsString],
+            ) -> io::Result<Output> {
+                assert_eq!(arguments.last(), Some(&OsString::from("--help")));
+                let path = arguments[..arguments.len() - 1]
+                    .iter()
+                    .map(|value| value.to_string_lossy())
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                self.calls.lock().unwrap().push(path.clone());
+                let help = match path.as_str() {
+                    "" => "Usage: rosalind <COMMAND>\n\nCommands:\n  analyze  Run an analyzer\n  version  Show version\n  help     Print help\n",
+                    "version" => "Usage: rosalind version\n\nOptions:\n  -h, --help  Print help\n",
+                    "analyze" | "analyze coverage" | "analyze evidence" | "analyze features" | "analyze panel-qc" => &self.analyzer_help,
+                    _ => return Err(io::Error::other(format!("unexpected recursive CLI probe: {path}"))),
+                };
+                Command::new("printf").arg("%s").arg(help).output()
+            }
+        }
+        let runner = HelpRunner {
+            calls: Mutex::new(Vec::new()),
+            analyzer_help: "Usage: rosalind analyze [OPTIONS] <KIND>\n\nArguments:\n  <KIND>  Analyzer [possible values: features, coverage, evidence, panel-qc]\n\nOptions:\n      --format <FORMAT>  Output [possible values: tsv, arrow-ipc]\n".into(),
+        };
+        let contract =
+            discover_cli_contract(&runner, Path::new("."), Path::new("rosalind")).unwrap();
+        assert_eq!(
+            contract.keys().map(String::as_str).collect::<Vec<_>>(),
+            [
+                "",
+                "analyze",
+                "analyze coverage",
+                "analyze evidence",
+                "analyze features",
+                "analyze panel-qc",
+                "version"
+            ]
+        );
+        assert_eq!(runner.calls.lock().unwrap().len(), contract.len());
+        assert!(contract["analyze"]
+            .contains("values:argument:<KIND>=coverage,evidence,features,panel-qc"));
+        let unknown = HelpRunner {
+            calls: Mutex::new(Vec::new()),
+            analyzer_help: runner.analyzer_help.replace(
+                "[possible values: features, coverage, evidence, panel-qc]",
+                "",
+            ),
+        };
+        assert!(
+            discover_cli_contract(&unknown, Path::new("."), Path::new("rosalind"))
+                .unwrap_err()
+                .contains("does not declare <KIND>")
         );
     }
 
