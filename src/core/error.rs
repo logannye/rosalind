@@ -7,6 +7,9 @@ use thiserror::Error;
 /// Errors produced by the Rosalind core/library layer.
 #[derive(Debug, Error)]
 pub enum CoreError {
+    /// The active native analysis was cooperatively cancelled.
+    #[error("analysis cancelled")]
+    Cancelled,
     /// A streaming stage's working set would exceed the declared budget.
     #[error("memory budget exceeded: working set {needed} bytes > budget {budget} bytes")]
     BudgetExceeded {

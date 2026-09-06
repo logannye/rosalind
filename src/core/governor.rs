@@ -39,7 +39,7 @@ pub fn checkpoint() -> Result<(), CoreError> {
             budget: BUDGET.load(Ordering::Acquire),
         })
     } else {
-        Ok(())
+        super::cancellation::checkpoint()
     }
 }
 

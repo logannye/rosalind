@@ -1,0 +1,22 @@
+{
+  "source_archive": "/tmp/rosalind-priority6-wasm-source.tar.gz",
+  "source_sha256": "8adae31f3db08e880cdbcb18da579bb65be5191af90c6ba3c1a9e51066a9ebe8",
+  "platform": "Linux/amd64",
+  "rust": "1.83.0",
+  "wasm_pack": "0.14.0",
+  "native_receipt_tests_passed": 73,
+  "native_receipt_wasm_tests_passed": 4,
+  "wasm_runtime_smoke_cases": 4,
+  "clean_repeat_equal": true,
+  "output_sha256": {
+    "rosalind_verify.d.ts": "e2647c1ca2b72382e57e98bfa95582bdc668cf5263f63e241bfbfc86b30a738f",
+    "rosalind_verify_bg.wasm.d.ts": "f64e7b45072135e9668857b0c3deeb86f1d232498000cec8b7721fbd9fea50e6",
+    ".gitignore": "684888c0ebb17f374298b65ee2807526c066094c701bcc7ebbe1c1095f494fc1",
+    "package.json": "a0ce117fca450b6f96e17910f6b767199860581dbb601a493c74994063b0b01a",
+    "rosalind_verify.js": "e4b9be6d188954847e0de4d7e732458a1645ff92fabc0d8ead6f8071006f6682",
+    "rosalind_verify_bg.wasm": "beb699f879f36f1fbc46893e9b41bd1b5d9163b22ae2e7ee3c08098dfd192de1"
+  },
+  "changed_root_files": [
+    "rosalind_verify_bg.wasm"
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "validation": "edited candidate source, not registry-only publication",
+  "source_commit": "3dfe6dffe4a032b9d165d686946b9c8f5a8d96df",
+  "wheel": "/tmp/rosalind-evidence-sdk-wheels-verified/rosalind_bio-0.5.0-py3-none-macosx_11_0_arm64.whl",
+  "wheel_sha256": "eb7ede881ff5a9e517d6b19cd8473cbeb049b1ef20f7431a39b31f7f96a8568c",
+  "native_sha256": "a284df54a5d5da4f0053b4520d5402f7005c34b40df3e347ee8d73d91271baba",
+  "native_version": "0.5.0",
+  "python_version": "Python 3.11.15",
+  "conformance_checks": {
+    "legacy": 12,
+    "evidence": 19
+  },
+  "installed_readme": "passed",
+  "package_sdk_snippets": "passed outside checkout with fresh Cargo home",
+  "log": "/tmp/rosalind-evidence-sdk-wheel-smoke-verified.log"
+}

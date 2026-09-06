@@ -376,6 +376,16 @@ jobs:
         run: scripts/build-wasm-verifier.sh
       - name: Generated assets are reproducible
         run: git diff --exit-code -- web/verify/pkg crates/receipt-wasm/Cargo.lock
+      - name: Generated assets do not depend on the checkout path
+        env:
+          RUSTUP_TOOLCHAIN: 1.83.0
+        run: |
+          verifier_checkout="$(mktemp -d)"
+          trap 'rm -rf "$verifier_checkout"' EXIT
+          git archive HEAD crates/receipt crates/receipt-wasm scripts/build-wasm-verifier.sh scripts/wasm-rustc-wrapper.sh \
+            | tar -x -C "$verifier_checkout"
+          (cd "$verifier_checkout" && scripts/build-wasm-verifier.sh)
+          diff -r web/verify/pkg "$verifier_checkout/web/verify/pkg"
       - name: Upload generated assets on mismatch
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

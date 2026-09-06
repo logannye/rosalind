@@ -1,0 +1,8 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.10s
+   Doc-tests rosalind
+
+running 1 test
+test src/core/cancellation.rs - core::cancellation::SignalCancellationGuard<'scope>::install (line 153) - compile fail ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.52s
+

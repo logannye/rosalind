@@ -1,0 +1,30 @@
+   Compiling rosalind-receipt v0.3.0 (/Users/logannye/rosalind/crates/receipt)
+   Compiling rosalind-bio v0.5.0 (/Users/logannye/rosalind)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.36s
+     Running tests/cancellation.rs (target/debug/deps/cancellation-9c3269dc7779d329)
+
+running 3 tests
+
+running 1 test
+test token_scope_cancels_workers_and_old_tokens_cannot_cancel_a_new_job ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+
+running 1 test
+test pre_cancelled_tokens_are_observed_before_any_work_and_drop_disarms ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+test token_scope_cancels_workers_and_old_tokens_cannot_cancel_a_new_job ... ok
+
+running 1 test
+test opt_in_signals_cancel_the_active_scope_and_restore_existing_handlers ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+test pre_cancelled_tokens_are_observed_before_any_work_and_drop_disarms ... ok
+test opt_in_signals_cancel_the_active_scope_and_restore_existing_handlers ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

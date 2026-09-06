@@ -4,10 +4,10 @@
 
 An installed native binary or wheel needs no Rust compiler. Building Rosalind or
 an analyzer needs Rust/Cargo, a C and C++ compiler, CMake, and pkg-config; htslib's
-compression dependencies also need development headers. Use a current stable
-Rust toolchain for a newly resolved analyzer dependency graph. The source checkout
-declares its minimum supported Rust version in `Cargo.toml` and tests it with the
-repository lockfile.
+compression dependencies also need development headers. Use Rust 1.83 or newer.
+The supported dependency constraints are tested with both the repository lockfile
+and a newly resolved generated analyzer on Rust 1.83. Retain the generated lockfile
+to keep subsequent builds reproducible.
 
 On Debian/Ubuntu, install the native prerequisites before running Cargo:
 
@@ -22,26 +22,50 @@ need Python 3.9+ and Maturin; see [Python installation](../python/README.md).
 
 ## Exact evidence consumers
 
-Use `rosalind::evidence` for new exact short-read evidence consumers. Open an
-`EvidenceRequest`, resolve its VCF/BED selection against the engine's contigs, and
-pass an `EvidenceAnalyzer` to `run`. The independent
-[example crate](../examples/evidence-analyzer/) demonstrates the full public path.
-The source checkout uses a local Cargo dependency. Native bundles include its
-manifest, lockfile, and Rust source, with the manifest rendered to the bundle's
-exact registry SDK version; `ONBOARDING-BUNDLE.json` records that transformation.
-An unpublished candidate still needs the explicit source patches described below.
+Use `rosalind::evidence::run_evidence_artifact` for new standalone exact short-read
+analyzers. Implement `EvidenceArtifactFactory` to declare requirements and scientific
+parameters before allocation; its `create` method returns an `EvidenceAnalyzer`
+borrowing the runner-owned output sink. The runner validates the created analyzer's
+requirements, admits the complete working set, checks cancellation and immutable
+inputs, finalizes the analyzer, and publishes the output and receipt together.
+
+`EvidenceArtifactSource::Native` reads indexed BAM/CRAM plus a local reference.
+`EvidenceArtifactSource::Dataset` reads a verified portable dataset without reopening
+its original BAM/reference. Both feed canonical batches to the same analyzer. Dataset
+queries require complete locus coverage and available fields; stored profile/sample
+identity cannot be changed. Selection files are hashed and guarded before parsing.
+The independent [example crate](../examples/evidence-analyzer/) exercises this public
+artifact path with a small checked candidate-summary reducer.
+
+<!-- smoke:evidence-scaffold -->
+```sh
+rosalind new analyzer candidate-qc --api evidence --output ./candidate-qc
+cd candidate-qc
+cargo test
+cargo build --release --locked --offline
+rosalind conformance analyzer --api evidence --binary ./target/release/candidate-qc --json > conformance.json
+```
+
+The source example uses local Cargo dependencies. Native bundles include its
+manifest, lockfile, build script, and Rust source, with dependencies rendered to the
+bundle's exact registry SDK versions. `ONBOARDING-BUNDLE.json` records those changes.
+An unpublished candidate needs the explicit source patches described below.
 
 An analyzer declares `EvidenceRequirements`: field capabilities, whether real
 reference bases are required, flanking context, and a conservative peak retained
-byte bound. Call `plan_for_analyzer` before exposing the final plan or creating an
-output. Unknown memory is allowed without a declared budget and rejected for
-budgeted runs. Flanking context remains zero. Set `request.fields` explicitly to
+byte bound covering `create`, `on_batch`, `finish`, and encoder flush transients.
+The artifact runner plans before creating the analyzer or output. Unknown memory
+is refused under enforcement. `RecordOnly` can record a budget with an unknown
+bound, but does not enforce that budget. Flanking context remains zero.
+Set `request.fields` explicitly to
 match the desired groups: omitted groups have no accumulator or encoder buffer.
 The engine validates that the request contains every analyzer requirement; it does
 not silently expand scientific metrics. Full output retains schema 1; physical
 projections use schema 2 with a versioned field mask.
 
 `on_batch` borrows ordered exact rows through `batch.rows()` and `batch.row(index)`.
+Managed runs emit canonical batches of at most 1,024 rows, with boundaries that
+do not depend on execution microtile width or persisted partition layout.
 Groups such as `row.depths` and `row.alleles` are optional borrowed values. Check
 capabilities before reading metrics; absence never means zero. Copies retained
 after a callback belong to
@@ -65,10 +89,31 @@ budgeted persisted consumption. The metadata-returning reader reports fields eve
 for an empty stream. Custom consumers without a known input mask should reserve
 the full reader bound.
 
-The engine supplies exact indexed extraction and resource planning. It does not
-automatically supply every standalone binary with transactional files, receipts,
-or OS enforcement. The CLI and Python `materialize_evidence` provide the first-party
-artifact lifecycle. Custom binaries must explicitly add the lifecycle they claim.
+Set `EvidenceArtifactSpec::handle_signals = true` for executable entry points;
+SIGINT/SIGTERM then requests cooperative cancellation through the shared scope.
+Library hosts may supply a cancellation token. The runner governs callbacks and
+finalization, but a callback must return or check cancellation to cooperate promptly.
+An arbitrary native allocation can exceed an envelope before a cooperative check;
+`RequireOsLimit` additionally verifies an existing Linux cgroup-v2 limit.
+The managed resource/cancellation scope is process-wide: only one managed runner
+may be active per process. Serialize independent runs or use separate processes.
+
+Factories record analyzer parameters through `params()` and a tokenized
+`ReplayInvocation`. Every parameter changing bytes or scientific interpretation
+must be represented in both. External receipts never choose an executable implicitly:
+
+```sh
+rosalind reproduce --manifest summary.tsv.manifest.json --inputs input-directory \
+  --binary /absolute/path/to/candidate-qc --dry-run
+```
+
+`EvidenceArtifactError::exit_code()` distinguishes invalid input/output (2), refusal
+(3), resource breach (4), integrity failure (5), and cancellation (130). Failed runs
+publish no successful artifact/receipt pair. Use `OutputPolicy::ReplaceAtomic` only
+when the user has selected replacement (`--force` in the scaffold).
+
+`EvidenceEngine` remains a lower-level extraction/planning API for hosts that own
+their own lifecycle. It does not itself publish an atomic receipted artifact.
 See [SEMANTICS.md](SEMANTICS.md) for depth/filter/coordinate rules.
 
 ## Legacy ColumnAnalyzer compatibility
@@ -93,7 +138,7 @@ generating executable. It resolves from crates.io only after that exact version
 is published.
 
 For an unpublished checkout or candidate, add explicit local patches to the
-generated `locus-qc/Cargo.toml` before running Cargo. Replace the example paths
+generated analyzer `Cargo.toml` before running Cargo. Replace the example paths
 with absolute paths to that same candidate checkout:
 
 ```toml
@@ -122,6 +167,5 @@ The adapter exposes base/quality/strand/read-position observations; it does not
 provide UMI groups, modification tags, methylation calls, phased haplotypes, or
 other unsupported biological capabilities.
 
-The scaffold includes repeat bytes, receipt integrity, relocated inputs, refusal,
-and explicit external replay tests. It remains a compatibility option while the
-new evidence API and its release/adoption gates mature.
+The legacy scaffold preserves its existing API and conformance suite. New batch
+consumers should choose `--api evidence` for the exact artifact runner.

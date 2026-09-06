@@ -121,14 +121,15 @@ else:
 import os
 import pathlib
 import sys
-assert pathlib.Path.cwd().name == "locus-qc"
+project = pathlib.Path.cwd().name
+assert project in ("locus-qc", "candidate-qc")
 assert pathlib.Path(os.environ["CARGO_HOME"]).name == "cargo-home"
 assert "CARGO_TARGET_DIR" not in os.environ
 assert not (pathlib.Path.cwd().parent / ".cargo/config.toml").exists()
 pathlib.Path("Cargo.lock").write_text("lockfile")
 if sys.argv[1] == "build":
     assert "--release" in sys.argv and "--locked" in sys.argv and "--offline" in sys.argv
-    path = pathlib.Path("target/release/locus-qc")
+    path = pathlib.Path("target/release") / project
     path.parent.mkdir(parents=True)
     path.write_text("built binary")
 ''')
@@ -173,6 +174,8 @@ if sys.argv[1] == "build":
             manifest = (bundle / metadata["rendered_manifest"]).read_text()
             self.assertIn(f'version = "={metadata["sdk_registry_version"]}"', manifest)
             self.assertNotIn('path = "../.."', manifest)
+            self.assertNotIn('path = "../../crates/build-info"', manifest)
+            self.assertIn('rosalind-build-info = "=0.1.0"', manifest)
             self.assertEqual((bundle / "examples/evidence-analyzer/src/main.rs").read_bytes(),
                              (REPOSITORY / "examples/evidence-analyzer/src/main.rs").read_bytes())
             tutorial = (bundle / "examples/research-filter/README.md").read_text()

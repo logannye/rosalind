@@ -1,0 +1,12 @@
+   Compiling rosalind-example-evidence-analyzer v0.1.0 (/work/examples/evidence-analyzer)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.16s
+     Running unittests src/main.rs (target/debug/deps/rosalind_example_evidence_analyzer-8e47c9f8f9abf6ef)
+
+running 4 tests
+test tests::omitted_fields_are_not_zero_and_overflow_is_an_error ... ok
+test tests::checked_reducer_includes_zero_loci_and_multiple_requested_alts ... ok
+test tests::dataset_cannot_silently_change_stored_filters ... ok
+test tests::replay_preserves_exact_byte_budget_and_rejects_mismatched_fields ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+

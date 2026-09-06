@@ -2,6 +2,7 @@
 """Stage/check offline guide links and execute maintained onboarding snippets."""
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -22,6 +23,7 @@ CODE_FILES = (
     "examples/research-filter/prepare.py", "examples/research-filter/join.py",
     "examples/research-filter/sources.json", "examples/evidence-analyzer/Cargo.toml",
     "examples/evidence-analyzer/Cargo.lock", "examples/evidence-analyzer/src/main.rs",
+    "examples/evidence-analyzer/build.rs",
     "examples/persisted-evidence/query.py", "examples/persisted-evidence/query.R",
     "examples/persisted-evidence/query.sql",
 )
@@ -142,7 +144,11 @@ def stage_guides(source, destination):
         manifest = example_manifest.read_text()
         if manifest.count(old) != 1:
             raise ValueError("standalone example path dependency changed; review bundle rendering")
-        example_manifest.write_text(manifest.replace(old, new))
+        build_old = 'rosalind-build-info = { path = "../../crates/build-info", version = "=0.1.0" }'
+        build_new = 'rosalind-build-info = "=0.1.0"'
+        if manifest.count(build_old) != 1:
+            raise ValueError("standalone example build identity dependency changed; review bundle rendering")
+        example_manifest.write_text(manifest.replace(old, new).replace(build_old, build_new))
         metadata = {
             "source_commit": subprocess.check_output(
                 ["git", "-C", str(source), "rev-parse", "HEAD"], text=True
@@ -154,6 +160,8 @@ def stage_guides(source, destination):
             "rendered_manifest": "examples/evidence-analyzer/Cargo.toml",
             "original_dependency": old,
             "bundled_dependency": new,
+            "original_build_dependency": build_old,
+            "bundled_build_dependency": build_new,
             "note": "Source Cargo.lock is retained; the first registry resolution may update it. Candidate SDK validation requires explicit source patches.",
         }
         (destination / "ONBOARDING-BUNDLE.json").write_text(json.dumps(metadata, indent=2) + "\n")
@@ -222,6 +230,11 @@ def smoke(args):
     documents, _ = guide_closure(bundle)
     print(f"offline onboarding links: {len(documents)} reachable guides", flush=True)
     native_version = subprocess.check_output([str(binary), "--version"], text=True).strip().split()[-1]
+    digest = hashlib.sha256()
+    with binary.open("rb") as executable:
+        for block in iter(lambda: executable.read(65536), b""):
+            digest.update(block)
+    print(f"onboarding executable: {binary}; version={native_version}; sha256={digest.hexdigest()}", flush=True)
     source = args.candidate_source.resolve(strict=True) if args.candidate_source else None
     with tempfile.TemporaryDirectory(prefix="rosalind-onboarding-") as temporary:
         work = Path(temporary).resolve()
@@ -239,19 +252,30 @@ def smoke(args):
             print(f"SDK origin: explicit candidate source {source}; not registry validation", flush=True)
         else:
             print(f"SDK origin: registry-only exact version {native_version}", flush=True)
-        sdk = snippet((bundle / "docs/analyzer-sdk.md").read_text(), "legacy-scaffold", "sh")
-        command(["bash", "-euo", "pipefail", "-c", sdk], cwd=work, env=environment)
-        report = json.loads((work / "locus-qc/conformance.json").read_text())
-        if report.get("passed") is not True:
-            raise ValueError(f"packaged scaffold conformance failed: {report}")
-        generated = (work / "locus-qc/Cargo.toml").read_text()
-        if f'version = "={native_version}"' not in generated:
-            raise ValueError("scaffold SDK version differs from packaged executable")
-        if not (work / "locus-qc/Cargo.lock").is_file():
-            raise ValueError("documented analyzer build did not retain a lockfile")
+        for marker, project in (("legacy-scaffold", "locus-qc"),
+                                ("evidence-scaffold", "candidate-qc")):
+            sdk = snippet((bundle / "docs/analyzer-sdk.md").read_text(), marker, "sh")
+            try:
+                command(["bash", "-euo", "pipefail", "-c", sdk], cwd=work, env=environment)
+            except subprocess.CalledProcessError:
+                # Preserve the conformance diagnosis before TemporaryDirectory
+                # removes the generated project after an unsuccessful command.
+                report_path = work / project / "conformance.json"
+                if report_path.is_file():
+                    print(f"{marker} conformance report: {report_path.read_text()}", flush=True)
+                raise
+            report = json.loads((work / project / "conformance.json").read_text())
+            if report.get("passed") is not True:
+                raise ValueError(f"packaged {marker} conformance failed: {report}")
+            print(f"{marker} conformance: {json.dumps(report, sort_keys=True)}", flush=True)
+            generated = (work / project / "Cargo.toml").read_text()
+            if f'version = "={native_version}"' not in generated:
+                raise ValueError("scaffold SDK version differs from packaged executable")
+            if not (work / project / "Cargo.lock").is_file():
+                raise ValueError("documented analyzer build did not retain a lockfile")
         example = bundle / "examples/evidence-analyzer"
         if example.is_dir():
-            for name in ("Cargo.toml", "Cargo.lock", "src/main.rs"):
+            for name in ("Cargo.toml", "Cargo.lock", "build.rs", "src/main.rs"):
                 if not (example / name).is_file():
                     raise ValueError(f"bundled standalone analyzer is missing {name}")
             standalone = work / "evidence-analyzer"

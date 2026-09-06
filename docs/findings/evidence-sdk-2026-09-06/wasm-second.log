@@ -1,0 +1,28 @@
+[INFO]: Checking for the Wasm target...
+[INFO]: Compiling to Wasm...
+   Compiling wasm-bindgen-shared v0.2.123
+   Compiling unicode-ident v1.0.24
+   Compiling proc-macro2 v1.0.106
+   Compiling quote v1.0.45
+   Compiling find-msvc-tools v0.1.9
+   Compiling shlex v2.0.1
+   Compiling rustversion v1.0.22
+   Compiling cc v1.2.63
+   Compiling bumpalo v3.20.3
+   Compiling wasm-bindgen v0.2.123
+   Compiling blake3 v1.8.2
+   Compiling syn v2.0.117
+   Compiling rosalind-receipt v0.3.0 (/work/crates/receipt)
+   Compiling wasm-bindgen-macro-support v0.2.123
+   Compiling wasm-bindgen-macro v0.2.123
+   Compiling rosalind-receipt-wasm v0.1.0 (/work/crates/receipt-wasm)
+    Finished `release` profile [optimized] target(s) in 13.86s
+[INFO]: Installing wasm-bindgen...
+[INFO]: Optional field missing from Cargo.toml: 'repository'. This is not necessary, but recommended
+[INFO]: License key is set in Cargo.toml but no LICENSE file(s) were found; Please add the LICENSE file(s) to your project directory
+[INFO]: :-) Done in 14.36s
+[INFO]: :-) Your wasm pkg is ready to publish at web/verify/pkg.
+[WARN]: :-) There's a newer version of wasm-pack available, the new version is: 0.15.0, you are using: 0.14.0. To update, navigate to: https://drager.github.io/wasm-pack/installer/
+
+Built -> web/verify/pkg/. Serve it (ES modules need http, not file://):
+  (cd web/verify && python3 -m http.server 8000)   # then open http://localhost:8000/

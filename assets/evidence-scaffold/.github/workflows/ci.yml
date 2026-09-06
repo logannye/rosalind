@@ -1,0 +1,25 @@
+name: CI
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  contract:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      CARGO_HOME: ${{ runner.temp }}/cargo-home
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: 1.83.0
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y build-essential clang cmake pkg-config libbz2-dev liblzma-dev zlib1g-dev
+      - if: runner.os == 'macOS'
+        run: brew install cmake pkg-config xz
+      - run: cargo install rosalind-bio --version '=__ROSALIND_VERSION__' --locked
+      - run: cargo generate-lockfile
+      - run: cargo test --locked
+      - run: bash scripts/contract-check.sh

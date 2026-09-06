@@ -1,0 +1,13 @@
+[package]
+name = "__PACKAGE_NAME__"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.83"
+build = "build.rs"
+
+[dependencies]
+clap = { version = "=4.5.51", features = ["derive"] }
+rosalind-bio = { version = "=__ROSALIND_VERSION__" }
+
+[build-dependencies]
+rosalind-build-info = "=0.1.0"

@@ -1,0 +1,16 @@
+   Compiling rosalind-bio v0.5.0 (/Users/logannye/rosalind)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.26s
+     Running tests/evidence_artifact.rs (target/debug/deps/evidence_artifact-13fa1359a41dca8c)
+
+running 8 tests
+test canonical_batches_and_science_are_identical_across_three_budgets_and_tiles ... ok
+test factory_batch_finish_and_flush_failures_preserve_existing_artifact_and_receipt ... ok
+test inline_queries_are_bounded_and_typed ... ok
+test cancellation_and_source_mutation_never_publish ... ok
+test large_file_selection_is_admitted_before_factory_construction ... ok
+test resource_breach_publishes_only_identified_partials ... ok
+test native_and_projected_persisted_source_outputs_and_science_match_after_relocation ... ok
+test tiny_budget_unknown_bound_invalid_claims_and_input_aliases_refuse_without_outputs ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.89s
+

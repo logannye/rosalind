@@ -109,9 +109,23 @@ field, reference, context, and memory requirements. Requested field groups contr
 actual accumulator and output allocation. Panel summaries default to depths and
 quality sums; `analyze evidence --fields depths,alleles` omits unused histograms.
 Nearby sparse loci share bounded indexed fetches while retaining exact selection. The
-[standalone consumer crate](examples/evidence-analyzer/) demonstrates a bounded
-integer reducer outside the workspace. The [SDK guide](docs/analyzer-sdk.md)
-distinguishes extraction from the artifact/receipt lifecycle.
+[standalone analyzer crate](examples/evidence-analyzer/) implements a bounded
+integer reducer over alignments or verified saved evidence. The managed artifact
+runner supplies admission, cancellation, atomic output/receipt publication, and
+explicit-binary replay. Generate and check the same interface:
+
+```sh
+rosalind new analyzer my-evidence-analyzer --api evidence --output ./my-evidence-analyzer
+cd my-evidence-analyzer
+cargo build --release
+rosalind conformance analyzer --api evidence --binary target/release/my-evidence-analyzer
+```
+
+The [SDK guide](docs/analyzer-sdk.md) explains the factory's memory declaration,
+canonical batches, source options, and reducer-specific scientific tests. Generated
+projects use the candidate package version; until those crates are published,
+follow the guide's explicit local-source setup. The legacy column scaffold remains
+the default when `--api evidence` is omitted.
 
 Python's mixed package is distribution `rosalind-bio`, import `rosalind`. A wheel
 bundles its matching CLI. Until published, build a local wheel as described in

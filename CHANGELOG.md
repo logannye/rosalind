@@ -57,6 +57,22 @@ protected publication review, and change-based caller evidence requirements appl
 - Materialized Arrow/TSV queries retain byte replay, including relocated partition
   directories. Parquet directory replay remains explicitly unsupported.
 
+### Managed evidence analyzers
+
+- `EvidenceArtifactFactory` and `run_evidence_artifact` give downstream encoders
+  bounded canonical batches from indexed alignments or verified saved datasets.
+  The runner handles admission, cancellation, atomic outputs, identified resource
+  partials, source verification, additive receipts and explicit-binary byte replay.
+- `new analyzer --api evidence` creates a standalone project; matching conformance
+  checks budgets/tiles, failure cleanup, scientific identity, dataset projection
+  and relocation. The default legacy column scaffold remains available.
+- Cancellation tokens and opt-in scoped SIGINT/SIGTERM handlers cover native work
+  and finalization; a token or delayed signal from an old job cannot cancel a new job.
+- Receipt verification, trust inspection and replay support exact byte budgets
+  alongside historical MiB claims, rejecting contradictory or malformed limits.
+- Fresh downstream dependency resolution preserves Rust 1.83 compatibility;
+  generated CI follows the actual candidate version.
+
 ### Analyzer-platform foundation
 
 - Repositioned Rosalind around deterministic per-locus analysis contracts; the

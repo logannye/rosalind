@@ -2,6 +2,8 @@
 name = "rosalind-example-evidence-analyzer"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.83"
+build = "build.rs"
 publish = false
 
 # An independent consumer crate, not a member of Rosalind's workspace. After a
@@ -9,4 +11,8 @@ publish = false
 [workspace]
 
 [dependencies]
+clap = { version = "=4.5.51", features = ["derive"] }
 rosalind-bio = { path = "../.." }
+
+[build-dependencies]
+rosalind-build-info = { path = "../../crates/build-info", version = "=0.1.0" }

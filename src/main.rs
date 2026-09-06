@@ -677,19 +677,31 @@ enum ConformanceAction {
         /// Emit a stable badge-ready result.
         #[arg(long)]
         json: bool,
+        /// Analyzer API to exercise; column preserves legacy conformance.
+        #[arg(long, value_enum, default_value_t = AnalyzerApi::Column)]
+        api: AnalyzerApi,
     },
 }
 
 #[derive(Subcommand, Debug)]
 enum NewAction {
-    /// Create a standalone Rust `ColumnAnalyzer` binary and contract tests.
+    /// Create a standalone Rust analyzer binary and contract tests.
     Analyzer {
         /// Lowercase kebab-case package and analyzer name.
         name: String,
         /// Destination directory (must be absent or empty).
         #[arg(short, long)]
         output: PathBuf,
+        /// Analyzer API; evidence uses the managed exact batch artifact runner.
+        #[arg(long, value_enum, default_value_t = AnalyzerApi::Column)]
+        api: AnalyzerApi,
     },
+}
+
+#[derive(Copy, Clone, Debug, ValueEnum, Eq, PartialEq)]
+enum AnalyzerApi {
+    Column,
+    Evidence,
 }
 
 #[derive(Copy, Clone, Debug, ValueEnum, Eq, PartialEq)]
@@ -1136,7 +1148,7 @@ fn main() -> Result<()> {
             force,
         } => run_index(reference, output, memory_budget_mb, force)?,
         Commands::New { action } => match action {
-            NewAction::Analyzer { name, output } => run_new_analyzer(&name, &output)?,
+            NewAction::Analyzer { name, output, api } => run_new_analyzer(&name, &output, api)?,
         },
         Commands::Demo {
             output_dir,
@@ -1188,7 +1200,9 @@ fn main() -> Result<()> {
             }
         },
         Commands::Conformance { action } => match action {
-            ConformanceAction::Analyzer { binary, json } => run_conformance_analyzer(binary, json)?,
+            ConformanceAction::Analyzer { binary, json, api } => {
+                run_conformance_analyzer(binary, json, api)?
+            }
         },
         Commands::Locate {
             index,
@@ -1398,9 +1412,14 @@ fn run_reference(action: ReferenceAction) -> Result<()> {
     Ok(())
 }
 
-fn run_new_analyzer(name: &str, output: &std::path::Path) -> Result<()> {
-    let report = rosalind::scaffold::create_analyzer_project(name, output)
-        .with_context(|| format!("failed to scaffold analyzer {name:?}"))?;
+fn run_new_analyzer(name: &str, output: &std::path::Path, api: AnalyzerApi) -> Result<()> {
+    let report = match api {
+        AnalyzerApi::Column => rosalind::scaffold::create_analyzer_project(name, output),
+        AnalyzerApi::Evidence => {
+            rosalind::evidence_scaffold::create_evidence_analyzer_project(name, output)
+        }
+    }
+    .with_context(|| format!("failed to scaffold analyzer {name:?}"))?;
     println!("created analyzer project: {}", report.root.display());
     for path in report.files {
         println!("  {}", path.display());
@@ -1409,8 +1428,13 @@ fn run_new_analyzer(name: &str, output: &std::path::Path) -> Result<()> {
     Ok(())
 }
 
-fn run_conformance_analyzer(binary: PathBuf, json: bool) -> Result<()> {
-    let report = rosalind::conform_analyzer(&binary)?;
+fn run_conformance_analyzer(binary: PathBuf, json: bool, api: AnalyzerApi) -> Result<()> {
+    let report = match api {
+        AnalyzerApi::Column => rosalind::conform_analyzer(&binary)?,
+        AnalyzerApi::Evidence => {
+            rosalind::evidence_conformance::conform_evidence_analyzer(&binary)?
+        }
+    };
     if json {
         println!("{}", report.to_json());
     } else {
@@ -2622,6 +2646,9 @@ fn run_reproduce(
             &report.original_code,
             &report.reproducer_code,
         );
+        if let Some(bytes) = report.resource_here.declared_budget_bytes {
+            cert.set_declared_budget_bytes(bytes);
+        }
         cert.set_tool_version(env!("CARGO_PKG_VERSION"));
         let dest = match &output {
             Some(p) => p.clone(),

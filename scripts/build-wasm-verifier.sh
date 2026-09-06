@@ -25,6 +25,9 @@ for registry_source in "$cargo_home"/registry/src/*; do
   [ -d "$registry_source" ] || continue
   encoded_flags="${encoded_flags}${separator}--remap-path-prefix=$registry_source=/cargo/registry/src/index"
 done
+# Path remapping does not change Cargo's path-derived crate symbol salts. The
+# wrapper replaces those salts for wasm units with a package/version namespace.
+RUSTC_WRAPPER="$repo_root/scripts/wasm-rustc-wrapper.sh" \
 RUSTFLAGS="" CARGO_ENCODED_RUSTFLAGS="$encoded_flags" \
   wasm-pack build crates/receipt-wasm \
   --target web \
