@@ -106,6 +106,9 @@ jobs:
           python3 -m unittest discover -s benchmarks/giab -p 'test_*.py'
           python3 -m unittest discover -s scripts -p 'test_*.py'
           python3 -m unittest discover -s benchmarks/platform -p 'test_*.py'
+          python3 -m pip install 'pysam==0.23.3'
+          cargo build --locked --bin rosalind
+          ROSALIND_BENCH_BINARY=target/debug/rosalind python3 -m unittest discover -s benchmarks/evidence -p 'test_*.py'
           scripts/verify-release-automation.py
           actionlint
           shellcheck scripts/release-publish.sh scripts/post-publish-smoke.sh \

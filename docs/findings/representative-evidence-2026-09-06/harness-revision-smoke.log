@@ -1,0 +1,179 @@
+[1/4] bam-panel-oracle-r1
+[2/4] cram-panel-oracle-r1
+[3/4] cram-panel-base-r1
+[4/4] bam-panel-base-r1
+{
+  "status": "smoke-passed",
+  "measurements": 4,
+  "final_identity_checks": [
+    {
+      "path": "/private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-harness-revision-yauf5_eq/reads.bam",
+      "expected_sha256": "4ac7bf6a085a732ddc78ff12ea74559f2b3b45e4d6e1d43e66a273deb811fba2",
+      "valid": true,
+      "sha256": "4ac7bf6a085a732ddc78ff12ea74559f2b3b45e4d6e1d43e66a273deb811fba2",
+      "bytes": 359,
+      "snapshot": [
+        16777230,
+        242103237,
+        359,
+        1788719252902241887,
+        1788719252902241887
+      ]
+    },
+    {
+      "path": "/private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-harness-revision-yauf5_eq/reads.bam.bai",
+      "expected_sha256": "817e65669ea1521fc2ca902f367f568120d68ad466c6718d8a7beab43cb0de0f",
+      "valid": true,
+      "sha256": "817e65669ea1521fc2ca902f367f568120d68ad466c6718d8a7beab43cb0de0f",
+      "bytes": 112,
+      "snapshot": [
+        16777230,
+        242103240,
+        112,
+        1788719252902488846,
+        1788719252902488846
+      ]
+    },
+    {
+      "path": "/private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-harness-revision-yauf5_eq/ref.fa",
+      "expected_sha256": "65d9580027bad3e8fff3c7e9ed931dcf3f0ac7ad1023849e44acf1b11844b089",
+      "valid": true,
+      "sha256": "65d9580027bad3e8fff3c7e9ed931dcf3f0ac7ad1023849e44acf1b11844b089",
+      "bytes": 40007,
+      "snapshot": [
+        16777230,
+        242103233,
+        40007,
+        1788719252901596552,
+        1788719252901596552
+      ]
+    },
+    {
+      "path": "/private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-harness-revision-yauf5_eq/ref.fa.fai",
+      "expected_sha256": "541f671fb4a90b2e491ec2e2ccff362ad0c9ab9bf40d30d25066619a482b1d97",
+      "valid": true,
+      "sha256": "541f671fb4a90b2e491ec2e2ccff362ad0c9ab9bf40d30d25066619a482b1d97",
+      "bytes": 25,
+      "snapshot": [
+        16777230,
+        242103236,
+        25,
+        1788719252901886302,
+        1788719252901886302
+      ]
+    },
+    {
+      "path": "/private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-harness-revision-yauf5_eq/panel.bed",
+      "expected_sha256": "33c9c53d8ea8865a7f544270594c1112f269e410b4adc81dfbde2323b497949b",
+      "valid": true,
+      "sha256": "33c9c53d8ea8865a7f544270594c1112f269e410b4adc81dfbde2323b497949b",
+      "bytes": 69,
+      "snapshot": [
+        16777230,
+        242103245,
+        69,
+        1788719252903708433,
+        1788719252903708433
+      ]
+    },
+    {
+      "path": "/private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-harness-revision-yauf5_eq/reads.cram",
+      "expected_sha256": "6fb0831dcf17f5cb749f125665be88abb3d3750c5d974fad4c7dd389a19f2b07",
+      "valid": true,
+      "sha256": "6fb0831dcf17f5cb749f125665be88abb3d3750c5d974fad4c7dd389a19f2b07",
+      "bytes": 1016,
+      "snapshot": [
+        16777230,
+        242103241,
+        1016,
+        1788719252903302849,
+        1788719252903302849
+      ]
+    },
+    {
+      "path": "/private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-harness-revision-yauf5_eq/reads.cram.crai",
+      "expected_sha256": "d9cb0b12af97f5441595ae5043e345511cdc9988e9ef3d5cc6b471aa3ac66742",
+      "valid": true,
+      "sha256": "d9cb0b12af97f5441595ae5043e345511cdc9988e9ef3d5cc6b471aa3ac66742",
+      "bytes": 43,
+      "snapshot": [
+        16777230,
+        242103244,
+        43,
+        1788719252903542474,
+        1788719252903542474
+      ]
+    },
+    {
+      "path": "/private/tmp/rosalind-adoption-py311/bin/rosalind",
+      "expected_sha256": "a284df54a5d5da4f0053b4520d5402f7005c34b40df3e347ee8d73d91271baba",
+      "valid": true,
+      "sha256": "a284df54a5d5da4f0053b4520d5402f7005c34b40df3e347ee8d73d91271baba",
+      "bytes": 8255200,
+      "snapshot": [
+        16777230,
+        242085409,
+        8255200,
+        1788718391102044988,
+        1788718391104344078
+      ]
+    },
+    {
+      "path": "/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-harness-revision-yauf5_eq/workloads.json",
+      "expected_sha256": "5eaf2951e751a6dde39d04ae25783f985eea05e6df720f32c383915c5198c244",
+      "valid": true,
+      "sha256": "5eaf2951e751a6dde39d04ae25783f985eea05e6df720f32c383915c5198c244",
+      "bytes": 2572,
+      "snapshot": [
+        16777230,
+        242103247,
+        2572,
+        1788719252904088517,
+        1788719252904088517
+      ]
+    },
+    {
+      "path": "/Users/logannye/rosalind/benchmarks/evidence/representative.py",
+      "expected_sha256": "b910d3aa6d1c3e612a837f22c2badfdce0cd582bb948304000f9383dae575d57",
+      "valid": true,
+      "sha256": "b910d3aa6d1c3e612a837f22c2badfdce0cd582bb948304000f9383dae575d57",
+      "bytes": 30990,
+      "snapshot": [
+        16777230,
+        242082613,
+        30990,
+        1788719164647013112,
+        1788719164647013112
+      ]
+    },
+    {
+      "path": "/Users/logannye/rosalind/benchmarks/evidence/streaming_pysam.py",
+      "expected_sha256": "62d1ba4c46d419e39d6f97b5f5d431d26dfee867b7d8a798346147cd45c5bda3",
+      "valid": true,
+      "sha256": "62d1ba4c46d419e39d6f97b5f5d431d26dfee867b7d8a798346147cd45c5bda3",
+      "bytes": 13307,
+      "snapshot": [
+        16777230,
+        242082437,
+        13307,
+        1788718566629637022,
+        1788718566629637022
+      ]
+    },
+    {
+      "path": "/Users/logannye/rosalind/benchmarks/evidence/run.py",
+      "expected_sha256": "c7a95d8901e127e1b23e11c6b1d7d09d67286f0af9f5c3058c8db9ef65016a37",
+      "valid": true,
+      "sha256": "c7a95d8901e127e1b23e11c6b1d7d09d67286f0af9f5c3058c8db9ef65016a37",
+      "bytes": 8284,
+      "snapshot": [
+        16777230,
+        241121654,
+        8284,
+        1788668350788800266,
+        1788668350788800266
+      ]
+    }
+  ],
+  "path": "/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-harness-revision-yauf5_eq/run/report.json"
+}

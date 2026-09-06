@@ -16,6 +16,9 @@ from urllib.parse import unquote, urlsplit
 GUIDES = ("README.md", "CONTRACT.md", "docs/analyzer-sdk.md", "python/README.md")
 EXCLUDED_PARTS = {".git", "target", "dist", "release", "private", "secrets", ".env",
                   "__pycache__", ".venv", "venv", "node_modules"}
+# Public contract linked by the adoption guide; other release material, including
+# participant records, must never become part of an onboarding bundle.
+PUBLIC_SCHEMA_FILES = {"release/schemas/design-partner-v1.schema.json"}
 MAX_GUIDE_BYTES = 8 << 20
 # Files used by maintained code blocks rather than Markdown hyperlinks. These
 # narrow reviewed paths are not permission to copy arbitrary example data.
@@ -81,7 +84,8 @@ def stage_guides(source, destination):
 
     def validate(asset):
         relative = asset.resolve().relative_to(source)
-        if not relative.parts or any(part in EXCLUDED_PARTS for part in relative.parts):
+        public_schema = relative.as_posix() in PUBLIC_SCHEMA_FILES and asset.is_file()
+        if not relative.parts or (not public_schema and any(part in EXCLUDED_PARTS for part in relative.parts)):
             raise ValueError(f"onboarding link cannot package source/private/build directory: {asset}")
         if asset.is_dir() and destination.is_relative_to(asset.resolve()):
             raise ValueError(f"onboarding directory contains staging destination: {asset}")

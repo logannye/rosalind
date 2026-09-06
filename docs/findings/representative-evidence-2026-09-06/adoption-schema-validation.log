@@ -1,0 +1,3 @@
+PASS Draft2020-12 schema and blank template
+PASS synthetic-validator rejection cases: template participant/consent, unobserved completion, unreachable=>false, early follow-up
+PASS valid synthetic-validator thirty-day shape (not stored as a participant result)

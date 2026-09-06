@@ -85,6 +85,26 @@ class OnboardingTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "contains staging destination"):
                 ONBOARDING.stage_guides(source, source / "example/stage")
 
+    def test_adoption_public_schema_exception_does_not_include_partner_records(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            source = Path(temporary) / "source"
+            source.mkdir()
+            self.fixture(source)
+            public = source / "release/schemas/design-partner-v1.schema.json"
+            public.parent.mkdir(parents=True)
+            public.write_text('{}')
+            private = source / "release/private-design-partners/session.json"
+            private.parent.mkdir()
+            private.write_text('not for distribution')
+            (source / "README.md").write_text(f"[Schema]({public.relative_to(source)})\n")
+            bundle = Path(temporary) / "bundle"
+            ONBOARDING.stage_guides(source, bundle)
+            self.assertEqual((bundle / public.relative_to(source)).read_text(), '{}')
+            self.assertFalse((bundle / private.relative_to(source)).exists())
+            (source / "README.md").write_text(f"[Session]({private.relative_to(source)})\n")
+            with self.assertRaisesRegex(ValueError, "source/private/build directory"):
+                ONBOARDING.stage_guides(source, bundle)
+
     def test_documented_sdk_commands_create_the_binary_consumed_by_conformance(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

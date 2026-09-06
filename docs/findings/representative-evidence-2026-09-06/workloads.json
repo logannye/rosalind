@@ -1,0 +1,332 @@
+{
+  "schema": 1,
+  "label": "hg002-chr20-v1",
+  "provenance": {
+    "source_lock_sha256": "409aa2d18e98b8c5405c1c35e4f46b7871607b27b20585093e81fe443a4c91a6",
+    "sources": [
+      {
+        "id": "reference",
+        "path": "/private/tmp/rosalind-hg002-resource-inputs/GCA_000001405.15_GRCh38_no_alt_analysis_set.fasta.gz",
+        "url": "https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/references/GRCh38/GCA_000001405.15_GRCh38_no_alt_analysis_set.fasta.gz",
+        "sha256": "3c8def6d325c5d1e934b2dd530c4d1709f027677a15859467071fddf3fff2026",
+        "bytes": 886344618,
+        "verification_download_seconds": 0.3062874162569642
+      },
+      {
+        "id": "reads_bam",
+        "path": "/private/tmp/rosalind-hg002-resource-inputs/HG002.novaseq.pcr-free.35x.dedup.grch38_no_alt.chr20.bam",
+        "url": "https://storage.googleapis.com/deepvariant/case-study-testdata/HG002.novaseq.pcr-free.35x.dedup.grch38_no_alt.chr20.bam",
+        "sha256": "34ac157739e1feeb590f6eb7e11046ccc2aa3277fd55a3ce0942e774d931ed81",
+        "bytes": 1093938924,
+        "verification_download_seconds": 0.37383733317255974
+      },
+      {
+        "id": "reads_bai",
+        "path": "/private/tmp/rosalind-hg002-resource-inputs/HG002.novaseq.pcr-free.35x.dedup.grch38_no_alt.chr20.bam.bai",
+        "url": "https://storage.googleapis.com/deepvariant/case-study-testdata/HG002.novaseq.pcr-free.35x.dedup.grch38_no_alt.chr20.bam.bai",
+        "sha256": "245dcdcc474b1971eeb36fc9a8af37b76ac8b4c7ce06a7bdee64e0c42bd93f34",
+        "bytes": 196136,
+        "verification_download_seconds": 0.00022070948034524918
+      }
+    ],
+    "preparation_script_sha256": "d7984824dbd7c44b246f7c843fcf55c1cde31cf73199daa857842251597e5f96",
+    "argv": [
+      "benchmarks/evidence/prepare_representative.py",
+      "--download-cache",
+      "/tmp/rosalind-hg002-resource-inputs",
+      "--output",
+      "/tmp/rosalind-hg002-prepared"
+    ],
+    "pysam": "0.23.3",
+    "samtools": "1.21",
+    "window": {
+      "contig": "chr20",
+      "start": 10000000,
+      "end": 11000000
+    },
+    "dictionary_contigs": 195,
+    "samples": [
+      "HG002"
+    ],
+    "window_records": 261761,
+    "window_query_bases": 39485841,
+    "window_max_read_length": 151,
+    "preparation_seconds": 15.768511665984988,
+    "limits": [
+      "Public HG002 short-read data; no reads replicated or simulated.",
+      "Panel selection models an analysis request, not a target-enrichment assay.",
+      "VCF ALT bases are deterministic evidence probes, not validated variants.",
+      "Full source dictionary and all overlapping window reads are retained.",
+      "CRAM3.0 is locally encoded from the same unfiltered source records.",
+      "Three serial budgets and extra parallel/cache cases are not a full Cartesian matrix."
+    ],
+    "benchmark_package": {
+      "wheel_sha256": "eb7ede881ff5a9e517d6b19cd8473cbeb049b1ef20f7431a39b31f7f96a8568c",
+      "native_sha256": "a284df54a5d5da4f0053b4520d5402f7005c34b40df3e347ee8d73d91271baba",
+      "version": "0.5.0",
+      "origin": "locally built candidate wheel; previously installed smoke passed"
+    },
+    "configuration_notes": [
+      "Chromosome isolated-site workload requires one effective tile width because each canonical partition contains one requested locus. Window workloads require at least two widths.",
+      "Small-tile case uses128bases so500base targets exercise actual subdivisions; this changes execution only.",
+      "Cold/resume repetitions include a separate serial persisted dataset query; original inputs are not reopened by that query.",
+      "Data preparation script bytes are retained as preparation-script.py; subsequent harness case/gate adjustments do not alter prepared scientific inputs."
+    ]
+  },
+  "repeats": 3,
+  "seed": 17,
+  "oracle": {
+    "tile_bases": 1024,
+    "max_record_bytes": 1048576
+  },
+  "cases": [
+    {
+      "id": "m96-t128",
+      "budget_mib": 96,
+      "tile_bases": 128,
+      "workers": 1,
+      "cache": "none"
+    },
+    {
+      "id": "m128-t4096",
+      "budget_mib": 128,
+      "tile_bases": 4096,
+      "workers": 1,
+      "cache": "none"
+    },
+    {
+      "id": "m256-t16384",
+      "budget_mib": 256,
+      "tile_bases": 16384,
+      "workers": 1,
+      "cache": "none"
+    },
+    {
+      "id": "workers2",
+      "budget_mib": 512,
+      "tile_bases": 4096,
+      "workers": 2,
+      "cache": "none"
+    },
+    {
+      "id": "workers8-cache",
+      "budget_mib": 1024,
+      "tile_bases": 16384,
+      "workers": 8,
+      "cache": "cold-resume-dataset"
+    }
+  ],
+  "workloads": [
+    {
+      "id": "chromosome-bam-sparse",
+      "equivalence_group": "chromosome-sparse",
+      "alignments": {
+        "path": "../rosalind-hg002-resource-inputs/HG002.novaseq.pcr-free.35x.dedup.grch38_no_alt.chr20.bam",
+        "sha256": "34ac157739e1feeb590f6eb7e11046ccc2aa3277fd55a3ce0942e774d931ed81"
+      },
+      "alignment_index": {
+        "path": "../rosalind-hg002-resource-inputs/HG002.novaseq.pcr-free.35x.dedup.grch38_no_alt.chr20.bam.bai",
+        "sha256": "245dcdcc474b1971eeb36fc9a8af37b76ac8b4c7ce06a7bdee64e0c42bd93f34"
+      },
+      "reference": {
+        "path": "reference.fa",
+        "sha256": "9cce8b926416dd96b152deea85188495b75f7ac8d634cc723a017067be8702b7"
+      },
+      "reference_fai": {
+        "path": "reference.fa.fai",
+        "sha256": "502a1b8fb73ccd53285c28a0f12df90c818b4fe3de1e862ef47c593ef1a0a4b4"
+      },
+      "selection": {
+        "kind": "sites",
+        "path": "chromosome-sparse.vcf",
+        "sha256": "9384e021f40b47482cc95b462f9d345d1dc7feaa10051ff479806d035956a982"
+      },
+      "sample": "HG002",
+      "expected_rows": 999,
+      "cases": [
+        "m96-t128",
+        "m128-t4096",
+        "m256-t16384"
+      ],
+      "gates": {
+        "min_admitted_budgets": 3,
+        "min_effective_tiles": 1,
+        "workers": [
+          1
+        ]
+      }
+    },
+    {
+      "id": "window-bam-sites",
+      "equivalence_group": "window-sites",
+      "alignments": {
+        "path": "window.bam",
+        "sha256": "ad296f4b51b7139ffe9997b223480da2aad0fe06aef6ed8837dc012a9d297df3"
+      },
+      "alignment_index": {
+        "path": "window.bam.bai",
+        "sha256": "4d3e4fbb4af01fd6186e9d83725602df5224d4e191dfd6c4dde103c7bd500f18"
+      },
+      "reference": {
+        "path": "reference.fa",
+        "sha256": "9cce8b926416dd96b152deea85188495b75f7ac8d634cc723a017067be8702b7"
+      },
+      "reference_fai": {
+        "path": "reference.fa.fai",
+        "sha256": "502a1b8fb73ccd53285c28a0f12df90c818b4fe3de1e862ef47c593ef1a0a4b4"
+      },
+      "selection": {
+        "kind": "sites",
+        "path": "window-sparse.vcf",
+        "sha256": "7adb16613eadd5e1f645dc1316a19030fb9ea22f950ef064dcfa847ec973df68"
+      },
+      "sample": "HG002",
+      "expected_rows": 1000,
+      "cases": [
+        "m96-t128",
+        "m128-t4096",
+        "m256-t16384",
+        "workers2",
+        "workers8-cache"
+      ],
+      "gates": {
+        "min_admitted_budgets": 3,
+        "min_effective_tiles": 2,
+        "workers": [
+          1,
+          2,
+          8
+        ]
+      }
+    },
+    {
+      "id": "window-cram-sites",
+      "equivalence_group": "window-sites",
+      "alignments": {
+        "path": "window.cram",
+        "sha256": "2377a60c14eb064ffbc5d0f97e6264015fd131464fdd95fc5f494d12fa8d726f"
+      },
+      "alignment_index": {
+        "path": "window.cram.crai",
+        "sha256": "b77439008efacf22a531c0c088faf65deaf0c1099eab0fc0fb07e3ed58ea3c0d"
+      },
+      "reference": {
+        "path": "reference.fa",
+        "sha256": "9cce8b926416dd96b152deea85188495b75f7ac8d634cc723a017067be8702b7"
+      },
+      "reference_fai": {
+        "path": "reference.fa.fai",
+        "sha256": "502a1b8fb73ccd53285c28a0f12df90c818b4fe3de1e862ef47c593ef1a0a4b4"
+      },
+      "selection": {
+        "kind": "sites",
+        "path": "window-sparse.vcf",
+        "sha256": "7adb16613eadd5e1f645dc1316a19030fb9ea22f950ef064dcfa847ec973df68"
+      },
+      "sample": "HG002",
+      "expected_rows": 1000,
+      "cases": [
+        "m96-t128",
+        "m128-t4096",
+        "m256-t16384",
+        "workers2",
+        "workers8-cache"
+      ],
+      "gates": {
+        "min_admitted_budgets": 3,
+        "min_effective_tiles": 2,
+        "workers": [
+          1,
+          2,
+          8
+        ]
+      }
+    },
+    {
+      "id": "window-bam-regions",
+      "equivalence_group": "window-regions",
+      "alignments": {
+        "path": "window.bam",
+        "sha256": "ad296f4b51b7139ffe9997b223480da2aad0fe06aef6ed8837dc012a9d297df3"
+      },
+      "alignment_index": {
+        "path": "window.bam.bai",
+        "sha256": "4d3e4fbb4af01fd6186e9d83725602df5224d4e191dfd6c4dde103c7bd500f18"
+      },
+      "reference": {
+        "path": "reference.fa",
+        "sha256": "9cce8b926416dd96b152deea85188495b75f7ac8d634cc723a017067be8702b7"
+      },
+      "reference_fai": {
+        "path": "reference.fa.fai",
+        "sha256": "502a1b8fb73ccd53285c28a0f12df90c818b4fe3de1e862ef47c593ef1a0a4b4"
+      },
+      "selection": {
+        "kind": "regions",
+        "path": "panel.bed",
+        "sha256": "eefeb0bef289c6508ca554afd3c9cd573eb83f681a9228eac9dd0860cd73d389"
+      },
+      "sample": "HG002",
+      "expected_rows": 10000,
+      "cases": [
+        "m96-t128",
+        "m128-t4096",
+        "m256-t16384",
+        "workers2",
+        "workers8-cache"
+      ],
+      "gates": {
+        "min_admitted_budgets": 3,
+        "min_effective_tiles": 2,
+        "workers": [
+          1,
+          2,
+          8
+        ]
+      }
+    },
+    {
+      "id": "window-cram-regions",
+      "equivalence_group": "window-regions",
+      "alignments": {
+        "path": "window.cram",
+        "sha256": "2377a60c14eb064ffbc5d0f97e6264015fd131464fdd95fc5f494d12fa8d726f"
+      },
+      "alignment_index": {
+        "path": "window.cram.crai",
+        "sha256": "b77439008efacf22a531c0c088faf65deaf0c1099eab0fc0fb07e3ed58ea3c0d"
+      },
+      "reference": {
+        "path": "reference.fa",
+        "sha256": "9cce8b926416dd96b152deea85188495b75f7ac8d634cc723a017067be8702b7"
+      },
+      "reference_fai": {
+        "path": "reference.fa.fai",
+        "sha256": "502a1b8fb73ccd53285c28a0f12df90c818b4fe3de1e862ef47c593ef1a0a4b4"
+      },
+      "selection": {
+        "kind": "regions",
+        "path": "panel.bed",
+        "sha256": "eefeb0bef289c6508ca554afd3c9cd573eb83f681a9228eac9dd0860cd73d389"
+      },
+      "sample": "HG002",
+      "expected_rows": 10000,
+      "cases": [
+        "m96-t128",
+        "m128-t4096",
+        "m256-t16384",
+        "workers2",
+        "workers8-cache"
+      ],
+      "gates": {
+        "min_admitted_budgets": 3,
+        "min_effective_tiles": 2,
+        "workers": [
+          1,
+          2,
+          8
+        ]
+      }
+    }
+  ]
+}
