@@ -370,8 +370,8 @@ fn enforce_aborts_on_a_read_longer_than_declared_max_read_len() {
 
 #[test]
 fn receipt_records_skip_counts() {
-    // The standard fixture (5 reads, well below the default max-depth 1000) drops
-    // nothing → over_max_depth 0. A tight --max-depth 1 forces drops → > 0.
+    // The exact path retains every eligible read. The historical sampled-read
+    // field stays present for receipt compatibility and must be zero.
     let (dir, idx, bam) = build_sorted_bam_fixture();
     let manifest = dir.join("run.manifest.json");
     let out = Command::new(bin())
@@ -379,7 +379,7 @@ fn receipt_records_skip_counts() {
         .arg(&idx)
         .arg("--alignments")
         .arg(&bam)
-        .args(["--max-depth", "1", "--manifest"])
+        .args(["--max-depth", "1000", "--manifest"])
         .arg(&manifest)
         .output()
         .unwrap();
@@ -389,10 +389,10 @@ fn receipt_records_skip_counts() {
         json.contains("\"over_max_depth\":") && json.contains("\"reads_skipped_total\":"),
         "manifest missing skip fields: {json}"
     );
-    // At pos 0 the fixture stacks >1 read; --max-depth 1 must drop at least one.
+    // A successful exact run never drops reads to satisfy capacity.
     let m = rosalind::provenance::RunManifest::from_canonical_json(&json).unwrap();
     let over: u64 = m.params.get("over_max_depth").unwrap().parse().unwrap();
-    assert!(over > 0, "tight cap should drop reads, got {over}");
+    assert_eq!(over, 0, "successful exact execution cannot sample reads");
     std::fs::remove_dir_all(&dir).ok();
 }
 

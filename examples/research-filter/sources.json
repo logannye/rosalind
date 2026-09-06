@@ -1,0 +1,12 @@
+{
+  "schema": 1,
+  "source_repository": "https://github.com/samtools/samtools",
+  "source_commit": "da72567097265a61650a081c9f68d4a9f45bd105",
+  "source_release": "1.22",
+  "description": "SAMtools ex1: real NA18507 MAQ alignments, extracted and fixmate-adjusted by upstream; renamed build36 chr2 and chr20 reference slices. Not a truth set.",
+  "files": [
+    {"name": "ex1.fa", "sha256": "b9969f5de2e8a630134fa8af6b6a9f69f540f48de9b15eaba80b6711d21b15c7"},
+    {"name": "ex1.sam.gz", "sha256": "dc89fe1d2277324ff0de90bce457cf1579ec078a25944c8400b8a0576712993a"},
+    {"name": "00README.txt", "sha256": "6034a3ac1aaeef603fedb5a24439ac1d28327e272b38eb560dbafd9500dead65"}
+  ]
+}

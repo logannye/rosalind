@@ -16,6 +16,30 @@ pub const FEATURE_ARROW_SCHEMA_VERSION: u32 = 1;
 /// Canonical record-batch row count.
 pub const FEATURE_ARROW_BATCH_ROWS: usize = 65_536;
 
+/// Additional live bytes used by the canonical feature encoder. Includes two
+/// row-vector allocations at flush, individually allocated strings (rounded to
+/// 16-byte allocator bins), Arrow values/offsets and builder growth, IPC staging,
+/// and the growing serialized output vector. The 1 MiB fixed allowance covers
+/// schema metadata, per-array allocation headers and alignment padding.
+///
+/// This is an encoder bound, not a whole-process RSS bound; the process baseline
+/// and alignment/reference working set must also be included in admission.
+pub fn feature_arrow_memory_bytes(max_contig_name_bytes: usize) -> u64 {
+    let n = FEATURE_ARROW_BATCH_ROWS as u64;
+    let name = max_contig_name_bytes as u64;
+    let allocated_name = name.saturating_add(15) / 16 * 16;
+    let rows =
+        n.saturating_mul(2 * std::mem::size_of::<FeatureRow>() as u64 + allocated_name + 16 + 32);
+    // 15 u32 columns, two f64 columns, two UTF8 offset arrays, and values.
+    let array_values = n
+        .saturating_mul(15 * 4 + 2 * 8 + 2 * 4 + name + 1)
+        .saturating_add(2 * 4);
+    // A factor of two for Arrow builder growth; one IPC staging copy and a
+    // factor of two for ChunkWriter's geometric capacity growth.
+    rows.saturating_add(array_values.saturating_mul(5))
+        .saturating_add(1 << 20)
+}
+
 fn schema() -> Schema {
     let mut fields = vec![
         Field::new("contig", DataType::Utf8, false),
@@ -157,6 +181,10 @@ impl Default for FeatureArrowAnalyzer {
 }
 
 impl ColumnAnalyzer for FeatureArrowAnalyzer {
+    fn encoder_memory_bound(&self, max_contig_name_bytes: usize) -> Option<u64> {
+        Some(feature_arrow_memory_bytes(max_contig_name_bytes))
+    }
+
     fn params(&self) -> std::collections::BTreeMap<String, String> {
         std::collections::BTreeMap::from([
             ("feature_rows".into(), self.rows().to_string()),

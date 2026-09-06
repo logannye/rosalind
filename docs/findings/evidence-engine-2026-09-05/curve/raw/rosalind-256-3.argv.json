@@ -1,0 +1,17 @@
+[
+  "/Users/logannye/rosalind/target/release/rosalind",
+  "analyze",
+  "evidence",
+  "--reference",
+  "/private/tmp/rosalind-research-filter/ex1.fa",
+  "--alignments",
+  "/private/tmp/rosalind-research-filter/sample.bam",
+  "--sites",
+  "/private/tmp/rosalind-research-filter/candidates.vcf",
+  "--memory-budget-mb",
+  "256",
+  "--output",
+  "/private/tmp/rosalind-roadmap-validation/curve-final/rosalind-256-3.tsv",
+  "--manifest",
+  "/private/tmp/rosalind-roadmap-validation/curve-final/rosalind-256-3.manifest.json"
+]

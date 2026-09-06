@@ -1,0 +1,4 @@
+# Exact CPython2.7 UCS4 Linux x86_64 wheel, matching the pinned Ubuntu evaluator.
+# NumPy comes from the Ubuntu package; --no-deps prevents modern resolver drift.
+https://files.pythonhosted.org/packages/a3/88/d11133763e2ad06bcf89d78c80bda0fc65eee4e8e1fa15bd31db2c0affa2/bx_python-0.8.9-cp27-cp27mu-manylinux1_x86_64.whl --hash=sha256:52a45c4cbbc0c798a08762d0a8778bf68f694cc5fe9a10a517f92ce3ef142800
+https://files.pythonhosted.org/packages/d9/5a/e7c31adbe875f2abbb91bd84cf2dc52d792b5a01506781dbcf25c91daf11/six-1.16.0-py2.py3-none-any.whl --hash=sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254

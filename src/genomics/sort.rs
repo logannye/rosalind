@@ -193,7 +193,7 @@ fn next_record(reader: &mut bam::Reader) -> Result<Option<Record>> {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 struct SortKey {
-    tid: i32,
+    tid: u32,
     pos: i64,
     is_reverse: bool,
     qname: Vec<u8>,
@@ -227,7 +227,7 @@ struct HeapItem {
 impl HeapItem {
     fn new(source_idx: usize, record: Record) -> Self {
         let key = SortKey {
-            tid: record.tid(),
+            tid: coordinate_tid(&record),
             pos: record.pos(),
             is_reverse: record.is_reverse(),
             qname: record.qname().to_vec(),
@@ -270,11 +270,17 @@ impl PartialOrd for HeapItem {
 }
 
 fn sort_key_cmp(a: &Record, b: &Record) -> Ordering {
-    a.tid()
-        .cmp(&b.tid())
+    coordinate_tid(a)
+        .cmp(&coordinate_tid(b))
         .then_with(|| a.pos().cmp(&b.pos()))
         .then_with(|| a.is_reverse().cmp(&b.is_reverse()))
         .then_with(|| a.qname().cmp(b.qname()))
+}
+
+// SAM coordinate order places records without a reference (tid=-1) after
+// every reference-assigned record, including unmapped reads with mate coordinates.
+fn coordinate_tid(record: &Record) -> u32 {
+    record.tid() as u32
 }
 
 #[cfg(test)]
@@ -300,12 +306,14 @@ mod tests {
         let a = HeapItem::new(0, rec(b"dup", 0, 100));
         let b = HeapItem::new(3, rec(b"dup", 0, 100)); // equal key, higher source_idx
         let early = HeapItem::new(2, rec(b"dup", 0, 50)); // smaller pos -> pops first
+        let unplaced = HeapItem::new(1, rec(b"unplaced", -1, -1));
 
         let mut heap: BinaryHeap<HeapItem> = BinaryHeap::new();
         // Push in an order that does NOT match the desired pop order.
         heap.push(b);
         heap.push(early);
         heap.push(a);
+        heap.push(unplaced);
 
         let p1 = heap.pop().unwrap();
         let p2 = heap.pop().unwrap();
@@ -316,5 +324,6 @@ mod tests {
             "equal-key tie: lower source_idx pops first"
         );
         assert_eq!(p3.source_idx, 3, "then the higher source_idx");
+        assert_eq!(heap.pop().unwrap().record.tid(), -1);
     }
 }

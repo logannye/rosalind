@@ -23,7 +23,48 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  evaluator-readiness:
+    runs-on: ubuntu-latest
+    outputs:
+      ready: ${{ steps.readiness.outputs.ready }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - name: Report missing evaluator as an external prerequisite
+        id: readiness
+        env:
+          REQUESTED_IMAGE: ${{ inputs.image }}
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          status=$(python3 scripts/giab-readiness.py --image "$REQUESTED_IMAGE")
+          if [ "$status" = ready ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::GIAB blocked: publish and review the immutable evaluator image; no evaluation ran."
+            echo 'GIAB is **blocked** on the evaluator image. No scientific evaluation was performed.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: giab-readiness
+          path: giab-readiness.json
+      - name: Refuse a manual run without an evaluator
+        if: github.event_name == 'workflow_dispatch' && steps.readiness.outputs.ready != 'true'
+        run: exit 3
+
+  build-missing-evaluator-candidate:
+    needs: evaluator-readiness
+    if: github.event_name == 'schedule' && needs.evaluator-readiness.outputs.ready != 'true'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/happy-candidate.yml
+    with:
+      candidate_sha: ${{ github.sha }}
+
   hg002-chr20:
+    needs: evaluator-readiness
+    if: needs.evaluator-readiness.outputs.ready == 'true'
+    env:
+      GH_TOKEN: ${{ github.token }}
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
@@ -61,10 +102,10 @@ jobs:
           echo "image=$image" >> "$GITHUB_OUTPUT"
           echo "source_digest=$source_digest" >> "$GITHUB_OUTPUT"
           if [ "$EVENT_NAME" = workflow_dispatch ]; then
-            cargo xtask giab benchmark plan --image "$image" --output benchmark-plan.json --json
-            test "$(python3 -c 'import json; print(json.load(open("benchmark-plan.json"))["plan_id"])')" = "$PLAN_ID"
+            cargo xtask giab benchmark plan --image "$image" --output "$RUNNER_TEMP/benchmark-plan.json" --json
+            test "$(python3 -c 'import json,os; print(json.load(open(os.environ["RUNNER_TEMP"] + "/benchmark-plan.json"))["plan_id"])')" = "$PLAN_ID"
           else
-            cargo xtask giab benchmark plan --image "$image" --output benchmark-plan.json --json
+            cargo xtask giab benchmark plan --image "$image" --output "$RUNNER_TEMP/benchmark-plan.json" --json
           fi
       - name: Disk-space preflight
         run: |
@@ -77,8 +118,8 @@ jobs:
           IMAGE: ${{ steps.plan.outputs.image }}
           SOURCE_DIGEST: ${{ steps.plan.outputs.source_digest }}
         run: |
-          docker buildx imagetools inspect "$IMAGE" | tee evaluator-manifest.txt
-          grep -Fi 'linux/amd64' evaluator-manifest.txt
+          docker buildx imagetools inspect "$IMAGE" | tee "$RUNNER_TEMP/evaluator-manifest.txt"
+          grep -Fi 'linux/amd64' "$RUNNER_TEMP/evaluator-manifest.txt"
           verify=(gh attestation verify "oci://$IMAGE" --repo '${{ github.repository }}' \
             --signer-workflow '${{ github.repository }}/.github/workflows/happy-image.yml')
           if [ -n "$SOURCE_DIGEST" ]; then verify+=(--source-digest "$SOURCE_DIGEST"); fi
@@ -117,8 +158,8 @@ jobs:
           retention-days: 90
           if-no-files-found: error
           path: |
-            benchmark-plan.json
-            evaluator-manifest.txt
+            ${{ runner.temp }}/benchmark-plan.json
+            ${{ runner.temp }}/evaluator-manifest.txt
             benchmarks/giab/data/data-manifest.json
             benchmarks/giab/data/results/latest.json
             benchmarks/giab/data/results/comparison.json
@@ -134,5 +175,5 @@ jobs:
             benchmarks/giab/data/results/HG002.rosalind.chr20.vcf.manifest.json
             benchmarks/giab/data/results/verify.json
       - name: Preserve benchmark comparison outcome
-        if: always()
+        if: always() && steps.benchmark.outputs.exit_code != ''
         run: test '${{ steps.benchmark.outputs.exit_code }}' = 0

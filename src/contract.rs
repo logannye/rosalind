@@ -22,9 +22,9 @@ use crate::core::{CoreError, MemoryBudget, WorkingSet, PILEUP_IO_RSS_OVERHEAD};
 use crate::genomics::{AnalysisReference, ReferenceProvider};
 use crate::io::bam::StreamingBamSource;
 use crate::pileup::{PileupParams, SkipCounts};
-use crate::provenance::{CommandCapture, RunManifest, MEASUREMENT_KEYS};
+use crate::provenance::{blake3_file, CommandCapture, RunManifest, MEASUREMENT_KEYS};
 use crate::selection::AnalysisSelection;
-use crate::util::atomic::{write_atomic, AtomicFile};
+use crate::util::atomic::AtomicFile;
 use crate::util::rss::peak_rss_bytes;
 
 /// Identity of the binary that owns a contract run.
@@ -306,6 +306,19 @@ pub struct RefusalReport {
     pub max_read_len: u32,
 }
 
+/// Exact analysis stopped before retaining an overflowing eligible read.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CapacityFailure {
+    /// Contig identifier of the first overflowing locus.
+    pub contig: u32,
+    /// Zero-based position of the first overflowing locus.
+    pub position: u32,
+    /// Maximum active reads permitted.
+    pub capacity: u32,
+    /// Active reads required for exact evidence retention.
+    pub required: u64,
+}
+
 /// Successful or breached run telemetry. A breached outcome still names the
 /// partial output and sealed receipt when they were written.
 #[derive(Debug, Clone)]
@@ -334,6 +347,8 @@ pub struct ContractRunOutcome {
     pub governor: GovernorState,
     /// Strength of the evidence behind the resource-contract result.
     pub assurance: EnforcementAssurance,
+    /// Exact pileup capacity failure, independent of the RSS verdict.
+    pub capacity_exceeded: Option<CapacityFailure>,
 }
 
 /// Typed failure modes for library callers. The CLI alone maps refusal/breach
@@ -350,7 +365,7 @@ pub enum ContractRunError {
     OsEnforcementUnavailable(String),
     /// Up-front prediction exceeded the enforced budget; no primary output exists.
     Refused(RefusalReport),
-    /// Live RSS crossed the enforced budget after output creation.
+    /// Exact read capacity or enforced RSS was exceeded; partial evidence is sealed.
     Breached(ContractRunOutcome),
     /// Index, alignment, or analyzer-stream failure.
     Input(CoreError),
@@ -380,11 +395,17 @@ impl std::fmt::Display for ContractRunError {
                 report.predicted_peak_rss_bytes / (1 << 20),
                 report.budget_mb
             ),
-            Self::Breached(outcome) => write!(
-                f,
-                "contract breached: realized peak {} MiB",
-                outcome.peak_rss_bytes / (1 << 20)
-            ),
+            Self::Breached(outcome) => {
+                if let Some(capacity) = &outcome.capacity_exceeded {
+                    write!(f, "pileup capacity exceeded at contig {}, zero-based position {}: {} active reads exceed --max-depth {}", capacity.contig, capacity.position, capacity.required, capacity.capacity)
+                } else {
+                    write!(
+                        f,
+                        "contract breached: realized peak {} MiB",
+                        outcome.peak_rss_bytes / (1 << 20)
+                    )
+                }
+            }
             Self::Input(error) => write!(f, "analysis input failed: {error}"),
             Self::Io(error) => write!(f, "analysis I/O failed: {error}"),
         }
@@ -419,10 +440,24 @@ pub fn run_column_analysis_selected(
     spec: ContractRunSpec,
     selection: AnalysisSelection,
 ) -> Result<ContractRunOutcome, ContractRunError> {
+    run_column_analysis_resolving(analyzer, spec, |_| Ok(selection))
+}
+
+/// Resolve selection against the validated reference inside the governed run.
+/// This avoids opening and checksumming the reference before resource observation
+/// begins. The resolver must only derive a bounded interval selection.
+pub fn run_column_analysis_resolving<F>(
+    analyzer: &mut dyn ColumnAnalyzer,
+    spec: ContractRunSpec,
+    resolve: F,
+) -> Result<ContractRunOutcome, ContractRunError>
+where
+    F: FnOnce(&dyn ReferenceProvider) -> Result<AnalysisSelection, CoreError>,
+{
     validate_spec(&spec)?;
     validate_destinations(&spec)?;
 
-    let analyzer_predicted_bytes = spec.analyzer_memory.additional_bytes();
+    let mut analyzer_predicted_bytes = spec.analyzer_memory.additional_bytes();
     if spec.enforcement.is_enforced() && analyzer_predicted_bytes.is_none() {
         return Err(ContractRunError::UnknownAnalyzerBound);
     }
@@ -457,47 +492,7 @@ pub fn run_column_analysis_selected(
         EnforcementMode::RequireOsLimit => EnforcementAssurance::CgroupV2,
     };
 
-    let loaded = AnalysisReference::open(&spec.index).map_err(|error| {
-        ContractRunError::InvalidConfiguration(format!(
-            "failed to open analysis reference {}: {error}",
-            spec.index.display()
-        ))
-    })?;
-    let contigs = loaded.contigs();
-    if !matches!(selection, AnalysisSelection::WholeGenome) {
-        crate::io::bam::find_bai(&spec.alignments).ok_or_else(|| {
-            ContractRunError::InvalidConfiguration(format!(
-                "sparse analysis requires {}.bai or {}",
-                spec.alignments.display(),
-                spec.alignments.with_extension("bai").display()
-            ))
-        })?;
-    }
-    let largest = selection.largest_reference_span(contigs);
-    let baseline = peak_rss_bytes();
-    let predicted_ws = estimate_variants_working_set(largest, spec.max_depth, spec.max_read_len)
-        .bytes
-        .saturating_add(analyzer_predicted_bytes.unwrap_or(0));
-    let predicted_peak =
-        predicted_peak_rss_bytes(largest, spec.max_depth, spec.max_read_len, baseline)
-            .saturating_add(analyzer_predicted_bytes.unwrap_or(0));
-
-    if let Some(budget_mb) = spec
-        .memory_budget_mb
-        .filter(|_| spec.enforcement.is_enforced())
-    {
-        if !MemoryBudget::from_mb(budget_mb).admits(predicted_peak) {
-            return Err(ContractRunError::Refused(RefusalReport {
-                budget_mb,
-                predicted_peak_rss_bytes: predicted_peak,
-                largest_contig_bytes: largest,
-                baseline_rss_bytes: baseline,
-                max_depth: spec.max_depth,
-                max_read_len: spec.max_read_len,
-            }));
-        }
-    }
-
+    let startup_baseline = peak_rss_bytes();
     let live_rss = || {
         std::env::var("ROSALIND_FORCE_LIVE_RSS_BYTES")
             .ok()
@@ -523,6 +518,56 @@ pub fn run_column_analysis_selected(
     } else {
         None
     };
+
+    let loaded = AnalysisReference::open(&spec.index).map_err(|error| {
+        ContractRunError::InvalidConfiguration(format!(
+            "failed to open analysis reference {}: {error}",
+            spec.index.display()
+        ))
+    })?;
+    let selection = resolve(&loaded)?;
+    let baseline = peak_rss_bytes().max(startup_baseline);
+    let contigs = loaded.contigs();
+    let max_name_bytes = contigs
+        .iter()
+        .map(|contig| contig.name.len())
+        .max()
+        .unwrap_or(0);
+    if let Some(encoder_bytes) = analyzer.encoder_memory_bound(max_name_bytes) {
+        analyzer_predicted_bytes = Some(analyzer_predicted_bytes.unwrap_or(0).max(encoder_bytes));
+    }
+    if !matches!(selection, AnalysisSelection::WholeGenome) {
+        crate::io::bam::find_bai(&spec.alignments).ok_or_else(|| {
+            ContractRunError::InvalidConfiguration(format!(
+                "sparse analysis requires {}.bai or {}",
+                spec.alignments.display(),
+                spec.alignments.with_extension("bai").display()
+            ))
+        })?;
+    }
+    let largest = selection.largest_reference_span(contigs);
+    let predicted_ws = estimate_variants_working_set(largest, spec.max_depth, spec.max_read_len)
+        .bytes
+        .saturating_add(analyzer_predicted_bytes.unwrap_or(0));
+    let predicted_peak =
+        predicted_peak_rss_bytes(largest, spec.max_depth, spec.max_read_len, baseline)
+            .saturating_add(analyzer_predicted_bytes.unwrap_or(0));
+
+    if let Some(budget_mb) = spec
+        .memory_budget_mb
+        .filter(|_| spec.enforcement.is_enforced())
+    {
+        if !MemoryBudget::from_mb(budget_mb).admits(predicted_peak) {
+            return Err(ContractRunError::Refused(RefusalReport {
+                budget_mb,
+                predicted_peak_rss_bytes: predicted_peak,
+                largest_contig_bytes: largest,
+                baseline_rss_bytes: baseline,
+                max_depth: spec.max_depth,
+                max_read_len: spec.max_read_len,
+            }));
+        }
+    }
 
     let params = PileupParams {
         min_mapq: spec.mapq_threshold,
@@ -571,78 +616,142 @@ pub fn run_column_analysis_selected(
             result
         }
     };
-    let (max_ws, skips, breached, breach_peak) = match drive_result {
-        Ok((working_set, skips)) => (working_set, skips, false, 0),
-        Err(CoreError::BudgetExceeded { needed, .. }) => {
-            (WorkingSet { bytes: 0 }, SkipCounts::default(), true, needed)
-        }
+    let (max_ws, skips, mut rss_breach, breach_peak, capacity_exceeded) = match drive_result {
+        Ok((working_set, skips)) => (working_set, skips, false, 0, None),
+        Err(CoreError::BudgetExceeded { needed, .. }) => (
+            WorkingSet { bytes: 0 },
+            SkipCounts::default(),
+            true,
+            needed,
+            None,
+        ),
+        Err(CoreError::CapacityExceeded {
+            contig,
+            position,
+            capacity,
+            required,
+        }) => (
+            WorkingSet { bytes: 0 },
+            SkipCounts::default(),
+            false,
+            0,
+            Some(CapacityFailure {
+                contig,
+                position,
+                capacity,
+                required,
+            }),
+        ),
         Err(error) => return Err(ContractRunError::Input(error)),
     };
-    let peak = if breached {
-        breach_peak
+    // Hash the temporary artifact and all recorded inputs while the governor is
+    // still active. Invalid analyzer claims must fail before artifact publication.
+    let output_hash = atomic_output
+        .as_ref()
+        .map(|file| blake3_file(file.temporary_path()))
+        .transpose()?;
+    let manifest_path = receipt_destination(&spec);
+    let initial_peak = measured_peak().max(breach_peak);
+    let mut manifest = if manifest_path.is_some() {
+        Some(build_receipt(
+            analyzer,
+            &spec,
+            predicted_ws,
+            predicted_peak,
+            baseline,
+            initial_peak,
+            max_ws,
+            skips,
+            ContractVerdict::Unset,
+            GovernorState::RecordOnly,
+            assurance,
+            os_limit_bytes,
+            false,
+            &selection,
+            output_hash.as_deref(),
+            analyzer_predicted_bytes,
+        )?)
     } else {
-        std::env::var("ROSALIND_FORCE_PEAK_RSS_BYTES")
-            .ok()
-            .and_then(|v| v.parse::<u64>().ok())
-            .unwrap_or_else(peak_rss_bytes)
+        None
     };
-    let verdict = match spec
-        .memory_budget_mb
-        .map(|mb| MemoryBudget::from_mb(mb).admits(peak))
-    {
-        None => ContractVerdict::Unset,
-        Some(true) => ContractVerdict::Within,
-        Some(false) => ContractVerdict::Over,
-    };
-    let governor = if breached {
+    let mut peak = measured_peak().max(initial_peak);
+    if let Err(CoreError::BudgetExceeded { needed, .. }) = crate::core::governor::checkpoint() {
+        rss_breach = true;
+        peak = peak.max(needed);
+    }
+    let mut verdict = resource_verdict(&spec, peak);
+    let mut is_breach = capacity_exceeded.is_some()
+        || rss_breach
+        || (spec.enforcement.is_enforced() && verdict == ContractVerdict::Over);
+    let mut governor = if rss_breach {
         GovernorState::Tripped
     } else if spec.enforcement.is_enforced() {
         GovernorState::Enforced
     } else {
         GovernorState::RecordOnly
     };
-    let is_breach =
-        breached || (spec.enforcement.is_enforced() && verdict == ContractVerdict::Over);
-    let (output_path, partial_output_path) = match (atomic_output, spec.output.path()) {
-        (Some(file), Some(requested)) if is_breach => {
-            let partial = partial_path(requested);
-            let written = file.commit_as(&partial, spec.output_policy.replace())?;
-            (None, Some(written))
-        }
-        (Some(file), Some(_)) => {
-            let written = file.commit(spec.output_policy.replace())?;
-            (Some(written), None)
-        }
-        _ => (None, None),
-    };
-    let manifest_path = receipt_destination(&spec);
-    let mut receipt_spec = spec.clone();
-    if let Some(path) = output_path.as_ref().or(partial_output_path.as_ref()) {
-        receipt_spec.output = OutputTarget::File(path.clone());
-    }
-    let claim_hash = if let Some(path) = &manifest_path {
-        Some(write_receipt(
-            analyzer,
-            &receipt_spec,
-            path,
-            predicted_ws,
-            predicted_peak,
-            baseline,
+    let mut staged_receipt = manifest_path
+        .as_ref()
+        .map(|path| AtomicFile::create(path))
+        .transpose()?;
+    if let (Some(receipt), Some(staged)) = (&mut manifest, &mut staged_receipt) {
+        update_final_receipt(
+            receipt,
+            &spec,
             peak,
-            max_ws,
-            skips,
             verdict,
             governor,
-            assurance,
-            os_limit_bytes,
             is_breach,
-            &selection,
-        )?)
-    } else {
-        None
+            capacity_exceeded.as_ref(),
+        );
+        staged
+            .file_mut()
+            .write_all(receipt.to_canonical_json().as_bytes())?;
+        staged.file_mut().flush()?;
+        // Receipt construction/serialization is part of the measured operation.
+        peak = measured_peak().max(peak);
+        if let Err(CoreError::BudgetExceeded { needed, .. }) = crate::core::governor::checkpoint() {
+            rss_breach = true;
+            peak = peak.max(needed);
+        }
+        verdict = resource_verdict(&spec, peak);
+        is_breach = capacity_exceeded.is_some()
+            || rss_breach
+            || (spec.enforcement.is_enforced() && verdict == ContractVerdict::Over);
+        if rss_breach {
+            governor = GovernorState::Tripped;
+        }
+        update_final_receipt(
+            receipt,
+            &spec,
+            peak,
+            verdict,
+            governor,
+            is_breach,
+            capacity_exceeded.as_ref(),
+        );
+        use std::io::{Seek, SeekFrom};
+        staged.file_mut().set_len(0)?;
+        staged.file_mut().seek(SeekFrom::Start(0))?;
+        staged
+            .file_mut()
+            .write_all(receipt.to_canonical_json().as_bytes())?;
+    }
+    // Publish the already-sealed receipt before exposing the successful artifact
+    // name. A failed receipt construction/commit leaves the old output untouched.
+    if let Some(receipt) = staged_receipt {
+        receipt.commit(spec.output_policy.replace())?;
+    }
+    let (output_path, partial_output_path) = match (atomic_output, spec.output.path()) {
+        (Some(file), Some(requested)) if is_breach => (
+            None,
+            Some(file.commit_as(&partial_path(requested), spec.output_policy.replace())?),
+        ),
+        (Some(file), Some(_)) => (Some(file.commit(spec.output_policy.replace())?), None),
+        _ => (None, None),
     };
     let outcome = ContractRunOutcome {
-        claim_hash,
+        claim_hash: manifest.as_ref().map(RunManifest::content_hash),
         manifest_path,
         output_path,
         partial_output_path,
@@ -654,12 +763,116 @@ pub fn run_column_analysis_selected(
         verdict,
         governor,
         assurance,
+        capacity_exceeded,
     };
     if is_breach {
         Err(ContractRunError::Breached(outcome))
     } else {
         Ok(outcome)
     }
+}
+
+fn measured_peak() -> u64 {
+    std::env::var("ROSALIND_FORCE_PEAK_RSS_BYTES")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or_else(peak_rss_bytes)
+}
+
+fn resource_verdict(spec: &ContractRunSpec, peak: u64) -> ContractVerdict {
+    match spec
+        .memory_budget_mb
+        .map(|mb| MemoryBudget::from_mb(mb).admits(peak))
+    {
+        None => ContractVerdict::Unset,
+        Some(true) => ContractVerdict::Within,
+        Some(false) => ContractVerdict::Over,
+    }
+}
+
+fn update_final_receipt(
+    receipt: &mut RunManifest,
+    spec: &ContractRunSpec,
+    peak: u64,
+    verdict: ContractVerdict,
+    governor: GovernorState,
+    breached: bool,
+    capacity: Option<&CapacityFailure>,
+) {
+    receipt
+        .params
+        .insert("peak_rss_bytes".into(), peak.to_string());
+    receipt
+        .params
+        .insert("contract_verdict".into(), verdict.as_str().into());
+    receipt
+        .params
+        .insert("governor".into(), governor.as_str().into());
+    let baseline = receipt
+        .measurements
+        .get("baseline_rss_bytes")
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(0);
+    let working_set = receipt
+        .measurements
+        .get("max_working_set_bytes")
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(0);
+    receipt.params.insert(
+        "rss_residual_bytes".into(),
+        peak.saturating_sub(baseline)
+            .saturating_sub(working_set)
+            .to_string(),
+    );
+    receipt.params.insert(
+        "run_status".into(),
+        if capacity.is_some() {
+            "capacity-exceeded"
+        } else if breached {
+            "breached"
+        } else {
+            "completed"
+        }
+        .into(),
+    );
+    if let Some(failure) = capacity {
+        receipt
+            .params
+            .insert("failure.kind".into(), "capacity-exceeded".into());
+        receipt
+            .params
+            .insert("failure.contig".into(), failure.contig.to_string());
+        receipt
+            .params
+            .insert("failure.position0".into(), failure.position.to_string());
+        receipt.params.insert(
+            "failure.capacity_reads".into(),
+            failure.capacity.to_string(),
+        );
+        receipt.params.insert(
+            "failure.required_reads".into(),
+            failure.required.to_string(),
+        );
+    }
+    if let (Some(entry), Some(path)) = (receipt.outputs.first_mut(), spec.output.path()) {
+        entry.path = if breached {
+            partial_path(path)
+        } else {
+            path.to_path_buf()
+        }
+        .display()
+        .to_string();
+        receipt.params.insert(
+            "artifact.output.0.role".into(),
+            if breached {
+                "partial-analyzer-output"
+            } else {
+                "analyzer-output"
+            }
+            .into(),
+        );
+    }
+    receipt.finalize();
 }
 
 /// Assertions intended for downstream analyzer integration tests.
@@ -818,6 +1031,13 @@ fn validate_spec(spec: &ContractRunSpec) -> Result<(), ContractRunError> {
 }
 
 fn validate_destinations(spec: &ContractRunSpec) -> Result<(), ContractRunError> {
+    if let (Some(output), Some(receipt)) = (spec.output.path(), receipt_destination(spec)) {
+        if output == receipt || partial_path(output) == receipt {
+            return Err(ContractRunError::InvalidConfiguration(
+                "artifact, partial artifact, and receipt destinations must differ".into(),
+            ));
+        }
+    }
     if spec.output_policy == OutputPolicy::ReplaceAtomic {
         return Ok(());
     }
@@ -926,10 +1146,9 @@ fn receipt_destination(spec: &ContractRunSpec) -> Option<PathBuf> {
 }
 
 #[allow(clippy::too_many_arguments)]
-fn write_receipt(
+fn build_receipt(
     analyzer: &dyn ColumnAnalyzer,
     spec: &ContractRunSpec,
-    destination: &Path,
     predicted_ws: u64,
     predicted_peak: u64,
     baseline: u64,
@@ -942,7 +1161,9 @@ fn write_receipt(
     os_limit_bytes: Option<u64>,
     breached: bool,
     selection: &AnalysisSelection,
-) -> Result<String, ContractRunError> {
+    output_hash: Option<&str>,
+    analyzer_predicted_bytes: Option<u64>,
+) -> Result<RunManifest, ContractRunError> {
     let mut manifest = RunManifest::new(spec.invocation.argv_prefix.join(" "));
     manifest.tool_version = spec.producer.version.clone();
     let mut command = CommandCapture::from_argv_prefix(spec.invocation.argv_prefix.clone());
@@ -998,10 +1219,13 @@ fn write_receipt(
     for flag in &spec.invocation.flags {
         command.flag(flag);
     }
-    if let Some(output) = spec.output.path() {
-        command.output("-o", output)?;
+    if let (Some(output), Some(hash)) = (spec.output.path(), output_hash) {
+        command.output_hashed("-o", &output.display().to_string(), hash);
     }
     command.record_into(&mut manifest);
+    manifest
+        .params
+        .insert("pileup.semantics".into(), "exact-or-fail-v1".into());
     manifest.params.insert(
         "artifact.input.0.role".to_string(),
         if AnalysisReference::path_is_pack(&spec.index).unwrap_or(false) {
@@ -1134,7 +1358,9 @@ fn write_receipt(
                 .insert("analyzer.memory_model".to_string(), model_id.clone());
             manifest.params.insert(
                 "analyzer.max_additional_bytes".to_string(),
-                max_additional_bytes.to_string(),
+                analyzer_predicted_bytes
+                    .unwrap_or(*max_additional_bytes)
+                    .to_string(),
             );
         }
     }
@@ -1189,10 +1415,5 @@ fn write_receipt(
         .params
         .insert("contract_verdict".to_string(), verdict.as_str().to_string());
     manifest.finalize();
-    write_atomic(
-        destination,
-        manifest.to_canonical_json().as_bytes(),
-        spec.output_policy.replace(),
-    )?;
-    Ok(manifest.content_hash())
+    Ok(manifest)
 }

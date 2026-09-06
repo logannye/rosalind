@@ -1,0 +1,1 @@
+evidence: 4 loci; peak RSS 8 MiB; 0 record visits; receipt /private/tmp/rosalind-roadmap-validation/curve-final/rosalind-cache-resumed.manifest.json

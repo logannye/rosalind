@@ -74,6 +74,35 @@ impl ReferenceIndex {
         ))
     }
 
+    /// Validated on-disk offsets for a bounded pread reference consumer.
+    pub(crate) fn reference_file_offsets(&self) -> Result<(u64, u64), IndexIoError> {
+        let view = self.reference_view()?;
+        if view.len() as u64 != self.contigs.total_length() {
+            return Err(IndexIoError::Invalid(
+                "reference section length differs from contig dictionary".into(),
+            ));
+        }
+        let section = self
+            .sections
+            .iter()
+            .find(|section| section.kind == SectionKind::Reference2bit)
+            .ok_or_else(|| IndexIoError::Invalid("missing Reference2bit section".into()))?;
+        let offset = section.offset as usize;
+        let words = u64::from_le_bytes(self.bytes()[offset + 8..offset + 16].try_into().unwrap());
+        let data_offset = section
+            .offset
+            .checked_add(24)
+            .ok_or_else(|| IndexIoError::Invalid("reference offset overflow".into()))?;
+        let ambiguity_offset = data_offset
+            .checked_add(
+                words
+                    .checked_mul(8)
+                    .ok_or_else(|| IndexIoError::Invalid("reference offset overflow".into()))?,
+            )
+            .ok_or_else(|| IndexIoError::Invalid("reference offset overflow".into()))?;
+        Ok((data_offset, ambiguity_offset))
+    }
+
     /// Borrow a zero-copy view over the persisted 2-bit reference (`Reference2bit`).
     pub fn reference_view(
         &self,

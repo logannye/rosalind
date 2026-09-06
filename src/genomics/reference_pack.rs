@@ -187,6 +187,19 @@ impl AnalysisReference {
         }
     }
 
+    /// Validated layout for the evidence pread provider. A None second offset
+    /// identifies interleaved 24-byte/64-base rref blocks; Some identifies the
+    /// separate 2-bit data and ambiguity arrays in a legacy index.
+    pub(crate) fn file_window_layout(&self) -> Result<(u64, Option<u64>), ReferencePackError> {
+        match self {
+            Self::Pack(reference) => Ok((reference.blocks_offset as u64, None)),
+            Self::LegacyIndex(reference) => {
+                let (data, ambiguity) = reference.reference_file_offsets()?;
+                Ok((data, Some(ambiguity)))
+            }
+        }
+    }
+
     /// Whether compatibility mode is serving a legacy search index.
     pub fn is_legacy_index(&self) -> bool {
         matches!(self, Self::LegacyIndex(_))
@@ -313,7 +326,21 @@ impl ReferencePackReader {
             ));
         }
         let content_start = contigs_offset;
-        let actual_content = blake3::hash(&bytes[content_start..]);
+        // Hash through bounded file I/O rather than touching every mmap page.
+        // Sparse evidence queries should not make the complete reference resident
+        // merely to validate it before their first planned reference window.
+        let mut content_file = file.try_clone()?;
+        content_file.seek(SeekFrom::Start(content_start as u64))?;
+        let mut content_hasher = Hasher::new();
+        let mut content_buffer = [0u8; 64 * 1024];
+        loop {
+            let count = std::io::Read::read(&mut content_file, &mut content_buffer)?;
+            if count == 0 {
+                break;
+            }
+            content_hasher.update(&content_buffer[..count]);
+        }
+        let actual_content = content_hasher.finalize();
         if actual_content.as_bytes() != &content_blake3 {
             return Err(ReferencePackError::Invalid(
                 "content checksum mismatch".into(),

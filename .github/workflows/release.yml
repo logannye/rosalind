@@ -61,13 +61,13 @@ jobs:
             --version "$VERSION" \
             --rc-tag "$RC_TAG" \
             --ref "$CANDIDATE_REF" \
-            --output recomputed-plan.json --json > recomputed-plan-report.json
-          actual=$(python3 -c 'import json; print(json.load(open("recomputed-plan.json"))["plan_id"])')
+            --output "$RUNNER_TEMP/recomputed-plan.json" --json > "$RUNNER_TEMP/recomputed-plan-report.json"
+          actual=$(python3 -c 'import json,os; print(json.load(open(os.environ["RUNNER_TEMP"] + "/recomputed-plan.json"))["plan_id"])')
           test "$actual" = "$PLAN_ID"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: stable-plan
-          path: recomputed-plan.json
+          path: ${{ runner.temp }}/recomputed-plan.json
 
   build-assets:
     needs: authorize
@@ -83,7 +83,7 @@ jobs:
           - target: aarch64-apple-darwin
             os: macos-14
           - target: x86_64-apple-darwin
-            os: macos-14
+            os: macos-15-intel
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -110,7 +110,6 @@ jobs:
       - name: Stage bundle
         run: scripts/stage-release.sh '${{ matrix.target }}'
       - name: Install-smoke staged bundle
-        if: matrix.target != 'x86_64-apple-darwin'
         shell: bash
         run: |
           install_root=$(mktemp -d)
@@ -178,8 +177,31 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: scripts/post-publish-smoke.sh "$VERSION"
 
-  publish-release:
+  publish-wheels:
     needs: [authorize, build-assets, publish-crates, published-install-smoke]
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/wheels.yml
+    with:
+      candidate_sha: ${{ needs.authorize.outputs.commit }}
+      package_version: ${{ inputs.version }}
+      destination: pypi
+
+  publish-container:
+    needs: [authorize, build-assets, publish-crates, published-install-smoke]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/container.yml
+    with:
+      candidate_sha: ${{ needs.authorize.outputs.commit }}
+      release_tag: v${{ inputs.version }}
+
+  publish-release:
+    needs: [authorize, build-assets, publish-crates, published-install-smoke, publish-wheels, publish-container]
     runs-on: ubuntu-latest
     environment: release
     permissions:
@@ -195,6 +217,15 @@ jobs:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: stable-*
+          path: release-assets
+          merge-multiple: true
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: rosalind-container-lock
+          path: release-assets
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: wheel-*
           path: release-assets
           merge-multiple: true
       - uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2

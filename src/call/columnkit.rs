@@ -1,21 +1,12 @@
-//! ColumnKit: implement one trait, inherit the bounded memory contract.
+//! Legacy per-column analyzer adapter over the bounded pileup stream.
 //!
-//! A builder who wants their OWN per-locus metric — methylation, a coverage/QC
-//! track, custom ML features, a star-allele genotyper — would otherwise fork into
-//! the raw pileup engine and re-implement, by hand, every surface that makes
-//! Rosalind worth choosing: the whole-genome contig walk, the working-set bound
-//! that `plan`/`--enforce` admit, and the canonical-JSON + BLAKE3 receipt.
-//!
-//! [`ColumnAnalyzer`] + [`run_bounded_whole_genome`] turn "extend the substrate"
-//! into a first-class SDK: implement one trait, run it through the driver, and
-//! inherit the SAME bounded per-contig stream, the SAME working-set bound, and
-//! the SAME verifiable receipt the shipped `variants`/`features` subcommands
-//! enjoy — for free. The trait is *welded* to the bounded kernel: the driver runs
-//! the exact same column stream as `stream_features_whole_genome`, so the
-//! estimator that admits a run upper-bounds the realized working set of
-//! the builder's analyzer too. It is the contract made composable, not a feature
-//! bolted beside it. (`FeatureAnalyzer` is the first impl — proof the trait
-//! carries the real shipped analyzer, not a toy.)
+//! `ColumnAnalyzer` receives base/quality/strand/read-position observations; it
+//! does not supply modification tags, UMI groups, or haplotype inference. The
+//! low-level driver writes to a caller-owned sink. Use `run_column_analysis` for
+//! transactional output, receipt, and governance orchestration, with a declared
+//! bound for additional analyzer/encoder state. Unknown custom state cannot
+//! inherit the kernel's memory bound. New exact aggregate consumers can use the
+//! `crate::evidence` API without retaining depth-proportional observations.
 
 use std::collections::BTreeMap;
 use std::io::{self, Write};
@@ -30,9 +21,16 @@ use crate::pileup::{PileupColumn, PileupParams, ReadSource, SkipCounts};
 use crate::selection::AnalysisSelection;
 
 /// A per-locus analyzer over the bounded pileup-column stream. Implement this and
-/// run it with [`run_bounded_whole_genome`] to inherit bounded memory,
-/// byte-identical determinism, and a verifiable receipt.
+/// run it with [`run_bounded_whole_genome`] to consume ordered columns. Use the
+/// public contract runner for receipts and total-process resource orchestration.
 pub trait ColumnAnalyzer {
+    /// Optional additional-memory bound for this encoder, including flush
+    /// transients. The contract runner combines it with the caller's declared
+    /// analyzer bound. `None` makes no claim about downstream retained state.
+    fn encoder_memory_bound(&self, _max_contig_name_bytes: usize) -> Option<u64> {
+        None
+    }
+
     /// Optional header written once, before any column (e.g. a TSV header line,
     /// including its trailing newline). Default: none.
     fn header(&self) -> Option<String> {
@@ -349,10 +347,14 @@ mod tests {
         };
 
         let run = |n: usize| -> u64 {
-            let reads: Vec<_> = (0..n).map(|_| read_at(0, 0, &[b'C'; 50])).collect();
+            // Eight overlapping reads per nonoverlapping 50-base block: total
+            // stream volume grows while exact local pressure stays at eight.
+            let reads: Vec<_> = (0..n)
+                .map(|read| read_at(0, ((read / 8) * 50) as u32, &[b'C'; 50]))
+                .collect();
             let mut a = DepthTrack { max_depth_seen: 0 };
             let mut sink = io::sink();
-            run_bounded_whole_genome(
+            let working_set = run_bounded_whole_genome(
                 &mut a,
                 SliceSource::new(reads),
                 &rv,
@@ -362,12 +364,14 @@ mod tests {
             )
             .unwrap()
             .0
-            .bytes
+            .bytes;
+            assert_eq!(a.max_depth_seen, 8);
+            working_set
         };
-        // Bounded: 100× more reads at one locus (capped at depth 8) → same WS.
+        // Ten times more input at the same exact active-set pressure.
         assert_eq!(
-            run(20),
-            run(2000),
+            run(8),
+            run(80),
             "analyzer working set must not grow with reads"
         );
 

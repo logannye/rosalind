@@ -15,13 +15,36 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
-          toolchain: nightly
+          toolchain: nightly-2026-04-15
           components: llvm-tools-preview
       - name: Install pinned cargo-fuzz
-        run: cargo install cargo-fuzz --version 0.12.0 --locked
+        run: |
+          rustup toolchain install 1.95.0 --profile minimal
+          cargo +1.95.0 install cargo-fuzz --version '=0.13.2' --locked
       - name: Fuzz canonical receipt parser
-        run: cargo fuzz run canonical_json -- -max_total_time=120
+        run: |
+          set -o pipefail
+          mkdir -p fuzz/logs
+          cargo fuzz run canonical_json -- -max_total_time=120 2>&1 | tee fuzz/logs/canonical_json.log
       - name: Fuzz tokenized replay parser
-        run: cargo fuzz run command_argv -- -max_total_time=120
+        if: always()
+        run: |
+          set -o pipefail
+          mkdir -p fuzz/logs
+          cargo fuzz run command_argv -- -max_total_time=120 2>&1 | tee fuzz/logs/command_argv.log
       - name: Fuzz historical command parser
-        run: cargo fuzz run legacy_command -- -max_total_time=120
+        if: always()
+        run: |
+          set -o pipefail
+          mkdir -p fuzz/logs
+          cargo fuzz run legacy_command -- -max_total_time=120 2>&1 | tee fuzz/logs/legacy_command.log
+      - name: Retain parser workload evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: fuzz-evidence-${{ github.sha }}
+          path: |
+            fuzz/logs/
+            fuzz/corpus/
+            fuzz/artifacts/
+          if-no-files-found: warn

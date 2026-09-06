@@ -1,0 +1,6 @@
+   Packaging rosalind-build-info v0.1.0 (/Users/logannye/rosalind/crates/build-info)
+    Updating crates.io index
+    Packaged 5 files, 6.1KiB (2.5KiB compressed)
+   Verifying rosalind-build-info v0.1.0 (/Users/logannye/rosalind/crates/build-info)
+   Compiling rosalind-build-info v0.1.0 (/Users/logannye/rosalind/target/package/rosalind-build-info-0.1.0)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.28s

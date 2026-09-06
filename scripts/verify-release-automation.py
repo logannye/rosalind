@@ -34,7 +34,7 @@ for marker in (
     "environment: release",
     "release-publish.sh",
     "cancel-in-progress: false",
-    "needs: [authorize, build-assets, publish-crates, published-install-smoke]",
+    "needs: [authorize, build-assets, publish-crates, published-install-smoke, publish-wheels, publish-container]",
     "Create stable tag and GitHub Release last",
 ):
     if marker not in release:
@@ -47,14 +47,14 @@ for marker in (
     "environment: rc",
     "contract-snapshot.json",
     "cancel-in-progress: false",
-    "needs: [gates, build]",
+    "needs: [gates, build, publish-wheels, publish-container]",
 ):
     if marker not in rc:
         fail(f"RC workflow lacks {marker}")
 
 for path in sorted(WORKFLOWS.glob("*.yml")):
     text = path.read_text()
-    image_publishers = {"container.yml", "happy-image.yml"}
+    image_publishers = {"container.yml", "happy-image.yml", "rc.yml", "release.yml"}
     if "packages: write" in text and path.name not in image_publishers:
         fail(f"{path}: packages:write is reserved for controlled image workflows")
     if "CARGO_REGISTRY_TOKEN" in text and path.name != "release.yml":
@@ -66,10 +66,30 @@ for path in sorted(WORKFLOWS.glob("*.yml")):
         if "plan_id:" not in text:
             fail(f"{path}: mutating manual workflow lacks authenticated plan_id")
 
+for parent in (release, rc):
+    for child in ("wheels.yml", "container.yml"):
+        if f"uses: ./.github/workflows/{child}" not in parent:
+            fail(f"release parent must explicitly invoke {child}")
+for name in ("wheels.yml", "container.yml"):
+    text = (WORKFLOWS / name).read_text()
+    if "workflow_call:" not in text or "candidate_sha:" not in text:
+        fail(f"{name}: reusable publication must bind an exact candidate")
+    if re.search(r"^  release:", text, re.MULTILINE):
+        fail(f"{name}: cannot rely on a GITHUB_TOKEN-created release event")
+    if "ref: ${{ inputs.candidate_sha" not in text:
+        fail(f"{name}: candidate must control checkout")
+
 image = (WORKFLOWS / "happy-image.yml").read_text()
-for marker in ("platforms: linux/amd64", "push: true", "environment: release", "create-pull-request"):
+for marker in ("platforms: linux/amd64", "push: true", "environment: release", "create-pull-request", "uses: ./.github/workflows/happy-candidate.yml", "needs: [resolve, candidate]"):
     if marker not in image:
         fail(f"hap.py image workflow lacks {marker}")
+
+candidate = (WORKFLOWS / "happy-candidate.yml").read_text()
+for marker in ("workflow_call:", "candidate_sha:", "--platform linux/amd64", "happy/smoke.sh", "if: always()"):
+    if marker not in candidate:
+        fail(f"evaluator candidate validation lacks {marker}")
+if "packages: write" in candidate or "push: true" in candidate or "environment: release" in candidate:
+    fail("evaluator candidate builds must run without publication permissions")
 
 giab = (WORKFLOWS / "giab.yml").read_text()
 if "baseline.json" in giab:

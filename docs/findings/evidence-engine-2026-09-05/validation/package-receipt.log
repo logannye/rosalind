@@ -1,0 +1,7 @@
+   Packaging rosalind-receipt v0.3.0 (/Users/logannye/rosalind/crates/receipt)
+    Blocking waiting for file lock on package cache
+    Updating crates.io index
+    Packaged 19 files, 165.8KiB (39.1KiB compressed)
+   Verifying rosalind-receipt v0.3.0 (/Users/logannye/rosalind/crates/receipt)
+   Compiling rosalind-receipt v0.3.0 (/Users/logannye/rosalind/target/package/rosalind-receipt-0.3.0)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.57s

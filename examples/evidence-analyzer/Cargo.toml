@@ -1,0 +1,12 @@
+[package]
+name = "rosalind-example-evidence-analyzer"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# An independent consumer crate, not a member of Rosalind's workspace. After a
+# matching release, replace the development path with its registry version.
+[workspace]
+
+[dependencies]
+rosalind-bio = { path = "../.." }

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shutil
+import re
 import subprocess
 import sysconfig
 import tempfile
@@ -36,6 +37,11 @@ def _package_version() -> str:
     return __version__
 
 
+def _normalized_version(version: str) -> str:
+    """Map Cargo's numbered RC spelling to the corresponding wheel version."""
+    return re.sub(r"^(\d+\.\d+\.\d+)-rc\.(\d+)$", r"\1rc\2", version)
+
+
 def _resolve_binary(binary: Optional[Union[str, Path]], allow_version_mismatch: bool) -> Path:
     if binary is None:
         candidate = Path(sysconfig.get_path("scripts")) / "rosalind"
@@ -54,7 +60,7 @@ def _resolve_binary(binary: Optional[Union[str, Path]], allow_version_mismatch: 
     version = subprocess.run(
         [str(candidate), "--version"], capture_output=True, text=True, check=True
     ).stdout.strip().split()[-1]
-    if not allow_version_mismatch and version != _package_version():
+    if not allow_version_mismatch and _normalized_version(version) != _normalized_version(_package_version()):
         raise RuntimeError(
             f"Python package {_package_version()} does not match Rosalind binary {version}"
         )
@@ -74,21 +80,19 @@ class FeatureRun:
     def batches(self) -> Iterator[pa.RecordBatch]:
         """Yield native fixed-size record batches without collecting the stream."""
         arrow = _require_pyarrow()
-        if self._reader is not None:
+        if self._reader is not None or self._closed:
             raise RuntimeError("FeatureRun batches can only be consumed once")
         assert self._process.stdout is not None
-        self._reader = arrow.ipc.open_stream(self._process.stdout)
         try:
+            self._reader = arrow.ipc.open_stream(self._process.stdout)
             for batch in self._reader:
                 yield batch
             returncode = self._process.wait()
             self.result = RunResult(self.manifest_path, returncode)
-            self._closed = True
             if returncode:
                 raise subprocess.CalledProcessError(returncode, self._process.args)
         finally:
-            if not self._closed and self._process.poll() is None:
-                self.close()
+            self.close()
 
     def __iter__(self) -> Iterator[pa.RecordBatch]:
         return self.batches()
@@ -97,6 +101,8 @@ class FeatureRun:
         """Terminate an incompletely consumed feature process."""
         if self._closed:
             return
+        if self._reader is not None:
+            self._reader.close()
         if self._process.stdout is not None:
             self._process.stdout.close()
         if self._process.poll() is None:

@@ -58,6 +58,13 @@ fn deterministic_bam_sort_orders_by_tid_pos_strand_qname() {
         r2.set_mapq(60);
         writer.write(&r2).unwrap();
 
+        let mut unplaced = Record::new();
+        unplaced.set(b"unplaced", None, b"ACGT", &[30; 4]);
+        unplaced.set_tid(-1);
+        unplaced.set_pos(-1);
+        unplaced.set_flags(4);
+        writer.write(&unplaced).unwrap();
+
         let mut r3 = Record::new();
         r3.set(
             b"readC",
@@ -94,13 +101,18 @@ fn deterministic_bam_sort_orders_by_tid_pos_strand_qname() {
     }
 
     // Expected: pos=5 readA first, then pos=10 forward readB, then pos=10 reverse readC.
-    assert_eq!(qnames, vec!["readA", "readB", "readC"]);
+    assert_eq!(qnames, vec!["readA", "readB", "readC", "unplaced"]);
     assert_eq!(keys[0].1, 5);
     assert_eq!(keys[1].1, 10);
     assert!(!keys[1].2);
     assert_eq!(keys[2].1, 10);
     assert!(keys[2].2);
+    assert_eq!(keys[3].0, -1);
+    // An incorrect unmapped-first order declares SO:coordinate but cannot be
+    // indexed, breaking the packaged indexed-evidence quickstart.
+    bam::index::build(&output, None, bam::index::Type::Bai, 1).unwrap();
 
     let _ = std::fs::remove_file(input);
+    let _ = std::fs::remove_file(format!("{}.bai", output.display()));
     let _ = std::fs::remove_file(output);
 }

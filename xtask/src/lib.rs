@@ -1,5 +1,7 @@
 //! Maintainer-only release, benchmark, and design-partner control plane.
 
+mod caller_evidence;
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::ffi::OsString;
 use std::fs;
@@ -248,7 +250,8 @@ struct Policy {
     shellcheck_version: String,
     jsonschema_version: String,
     happy_repository: String,
-    giab_required_from: String,
+    caller_source_base: String,
+    caller_source_paths: Vec<String>,
     partners_required_from: String,
     required_environments: Vec<String>,
     required_secrets: Vec<String>,
@@ -794,7 +797,21 @@ fn doctor<R: Runner>(runner: &R, root: &Path, policy: &Policy) -> MaintainerRepo
         "gh",
         &args(&["secret", "list", "--repo", &policy.repository]),
     );
-    let secret_names = secrets.unwrap_or_default();
+    let environment_secrets = command_text(
+        runner,
+        root,
+        "gh",
+        &args(&[
+            "secret",
+            "list",
+            "--repo",
+            &policy.repository,
+            "--env",
+            "release",
+        ]),
+    )
+    .unwrap_or_default();
+    let secret_names = format!("{}\n{environment_secrets}", secrets.unwrap_or_default());
     for secret in &policy.required_secrets {
         report.check(
             &format!("github.secret.{secret}"),
@@ -825,17 +842,15 @@ fn doctor<R: Runner>(runner: &R, root: &Path, policy: &Policy) -> MaintainerRepo
     .unwrap_or_default()
     .into_iter()
     .filter_map(|entry| {
-        entry
-            .get("name")
-            .and_then(|value| value.as_str())
-            .map(str::to_owned)
+        let name = entry.get("name")?.as_str()?.to_owned();
+        Some((name, entry))
     })
-    .collect::<BTreeSet<_>>();
+    .collect::<BTreeMap<_, _>>();
     for environment in &policy.required_environments {
         report.check(
             &format!("github.environment.{environment}"),
-            environments.contains(environment),
-            if environments.contains(environment) {
+            environments.contains_key(environment),
+            if environments.contains_key(environment) {
                 "configured".to_string()
             } else {
                 format!(
@@ -844,6 +859,50 @@ fn doctor<R: Runner>(runner: &R, root: &Path, policy: &Policy) -> MaintainerRepo
                 )
             },
         );
+        if let Some(entry) = environments.get(environment) {
+            let reviewers = entry["protection_rules"].as_array().is_some_and(|rules| {
+                rules.iter().any(|rule| {
+                    rule["type"] == "required_reviewers"
+                        && rule["reviewers"]
+                            .as_array()
+                            .is_some_and(|people| !people.is_empty())
+                })
+            });
+            report.check(
+                &format!("github.environment.{environment}.reviewers"),
+                reviewers,
+                if reviewers {
+                    "required reviewer configured"
+                } else {
+                    "add at least one required reviewer"
+                },
+            );
+            if entry["deployment_branch_policy"]["custom_branch_policies"] == true {
+                let policies = command_text(
+                    runner,
+                    root,
+                    "gh",
+                    &args(&[
+                        "api",
+                        &format!(
+                            "repos/{}/environments/{environment}/deployment-branch-policies",
+                            policy.repository
+                        ),
+                    ]),
+                )
+                .ok()
+                .and_then(|value| serde_json::from_str::<serde_json::Value>(&value).ok());
+                let count = policies
+                    .as_ref()
+                    .and_then(|value| value["branch_policies"].as_array())
+                    .map_or(0, Vec::len);
+                report.check(
+                    &format!("github.environment.{environment}.deployment_refs"),
+                    count > 0,
+                    if count > 0 { format!("{count} allowed ref policies; the dispatch ref must match") } else { "custom deployment policy has no allowed branch/tag refs; configure the intended workflow dispatch ref".into() },
+                );
+            }
+        }
     }
     report.actions = vec![
         "install missing pinned maintainer tools".into(),
@@ -1647,9 +1706,8 @@ fn release_preflight<R: Runner>(
     let changelog = fs::read_to_string(root.join("CHANGELOG.md")).unwrap_or_default();
     report.check(
         "changelog.unreleased",
-        changelog.contains("## [Unreleased]")
-            && changelog.contains("v0.4 trustworthy builder train"),
-        "CHANGELOG must describe the v0.4 train under [Unreleased]",
+        changelog.contains("## [Unreleased]") || changelog.contains(&format!("## [{version}]")),
+        "CHANGELOG must contain an Unreleased or candidate-version section",
     );
     report
 }
@@ -2136,26 +2194,10 @@ fn stable_release_plan<R: Runner>(
             partners.blockers.join("; ")
         },
     );
-    let parsed = semver::Version::parse(version);
-    let giab_floor = semver::Version::parse(&policy.giab_required_from);
-    let giab_required = parsed
-        .ok()
-        .zip(giab_floor.ok())
-        .is_some_and(|(version, floor)| version >= floor);
-    let baseline =
-        fs::read_to_string(root.join("benchmarks/giab/baseline.json")).unwrap_or_default();
-    let baseline_established = !baseline.contains("not-yet-established");
-    report.check(
-        "giab.baseline",
-        !giab_required || baseline_established,
-        if baseline_established {
-            "accepted baseline present"
-        } else if giab_required {
-            "required for this version"
-        } else {
-            "advisory for v0.4.0"
-        },
-    );
+    match caller_evidence::gate(runner, root, policy, &report.commit) {
+        Ok(detail) => report.check("giab.caller_source", true, detail),
+        Err(detail) => report.check("giab.caller_source", false, detail),
+    }
     report.actions = vec![
         format!("dispatch protected stable release for v{version}"),
         "publish crates idempotently in dependency order".into(),
@@ -2550,6 +2592,10 @@ fn source_lock_hash(root: &Path) -> Result<String, String> {
         fs::read(root.join("benchmarks/giab/happy/Dockerfile"))
             .map_err(|error| error.to_string())?,
     );
+    if let Ok(requirements) = fs::read(root.join("benchmarks/giab/happy/requirements-py27.txt")) {
+        bytes.extend(b"\0requirements-py27.txt\0");
+        bytes.extend(requirements);
+    }
     Ok(hash_bytes(&bytes))
 }
 
@@ -2595,6 +2641,19 @@ fn source_lock_hash_at_ref<R: Runner>(
     }
     let mut bytes = serde_json::to_vec(&lock).map_err(|error| error.to_string())?;
     bytes.extend(dockerfile.stdout);
+    if let Ok(requirements) = runner.run(
+        root,
+        "git",
+        &[
+            "show".into(),
+            format!("{commit}:benchmarks/giab/happy/requirements-py27.txt").into(),
+        ],
+    ) {
+        if requirements.status.success() {
+            bytes.extend(b"\0requirements-py27.txt\0");
+            bytes.extend(requirements.stdout);
+        }
+    }
     Ok(hash_bytes(&bytes))
 }
 
@@ -3879,6 +3938,30 @@ mod tests {
         )
         .unwrap();
         assert!(generated_image(directory.path()).is_ok());
+    }
+
+    #[test]
+    fn evaluator_source_identity_includes_python_wheel_lock() {
+        let directory = tempdir().unwrap();
+        let happy = directory.path().join("benchmarks/giab/happy");
+        fs::create_dir_all(&happy).unwrap();
+        fs::write(happy.join("Dockerfile"), "FROM scratch\n").unwrap();
+        fs::write(happy.join("lock.json"), "{\"schema\":1}").unwrap();
+        let before = source_lock_hash(directory.path()).unwrap();
+        fs::write(
+            happy.join("requirements-py27.txt"),
+            "wheel-A --hash=sha256:aaa\n",
+        )
+        .unwrap();
+        let first = source_lock_hash(directory.path()).unwrap();
+        fs::write(
+            happy.join("requirements-py27.txt"),
+            "wheel-B --hash=sha256:bbb\n",
+        )
+        .unwrap();
+        let second = source_lock_hash(directory.path()).unwrap();
+        assert_ne!(before, first);
+        assert_ne!(first, second);
     }
 
     #[test]

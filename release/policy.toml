@@ -9,11 +9,20 @@ foundation_test_baseline = 336
 cargo_public_api_version = "0.50.1"
 public_api_toolchain = "nightly-2026-04-15"
 wasm_pack_version = "0.14.0"
-actionlint_version = "1.7.7"
+actionlint_version = "1.7.12"
 shellcheck_version = "0.10.0"
 jsonschema_version = "4.23.0"
 happy_repository = "ghcr.io/logannye/rosalind-happy"
-giab_required_from = "0.4.1"
+# The unchanged experimental caller is grandfathered without an accuracy claim.
+# Caller or shared-dependency changes require reviewed evidence from that source.
+caller_source_base = "d6b40019a24912ebdd786f59638b4edc20c41a27"
+caller_source_paths = [
+    "src/call/germline.rs", "src/call/types.rs", "src/call/gvcf.rs",
+    "src/call/pipeline.rs", "src/call/whole_genome.rs", "src/call/mod.rs",
+    "src/pileup/", "src/core/", "src/io/bam.rs", "src/io/fasta.rs",
+    "src/io/vcf.rs", "src/io/decompress.rs", "src/genomics/reference_pack.rs",
+    "src/genomics/index/", "src/selection.rs", "src/contract.rs",
+]
 partners_required_from = "0.5.0"
 required_environments = ["rc", "release"]
 required_secrets = ["CARGO_REGISTRY_TOKEN"]
@@ -33,6 +42,11 @@ cli_help = [
   "eval-somatic",
   "eval-germline",
   "index",
+  "reference",
+  "reference build",
+  "reference inspect",
+  "reference convert",
+  "merge",
   "new",
   "new analyzer",
   "demo",

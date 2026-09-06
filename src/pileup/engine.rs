@@ -12,34 +12,6 @@ use crate::core::{
 use crate::pileup::column::{Obs, PileupColumn};
 use crate::pileup::source::ReadSource;
 
-/// Fixed-seed FNV-1a-64 over a read's identity (position, end, flags, CIGAR, seq,
-/// qual). Deterministic across runs and processes (NOT `DefaultHasher`, whose seed
-/// is per-process). The hash is uncorrelated with the allele a read carries at any
-/// single column — the basis of the unbiased depth-cap sample.
-fn read_priority(read: &AlignedRead) -> u64 {
-    const FNV_OFFSET: u64 = 0xcbf2_9ce4_8422_2325;
-    const FNV_PRIME: u64 = 0x0000_0100_0000_01b3;
-    #[inline]
-    fn fold(mut h: u64, bytes: &[u8]) -> u64 {
-        for &b in bytes {
-            h ^= b as u64;
-            h = h.wrapping_mul(FNV_PRIME);
-        }
-        h
-    }
-    let mut h = FNV_OFFSET;
-    h = fold(h, &read.pos.0.to_le_bytes());
-    h = fold(h, &read.end().to_le_bytes());
-    h = fold(h, &read.flags.0.to_le_bytes());
-    for op in &read.cigar {
-        h = fold(h, &[op.kind as u8]);
-        h = fold(h, &op.len.to_le_bytes());
-    }
-    h = fold(h, &read.seq);
-    h = fold(h, &read.qual);
-    h
-}
-
 /// Read-level filters applied as reads enter the pileup.
 #[derive(Debug, Clone)]
 pub struct PileupParams {
@@ -53,10 +25,10 @@ pub struct PileupParams {
     pub skip_supplementary: bool,
     /// Skip PCR/optical duplicates (SAM flag 0x400).
     pub skip_duplicate: bool,
-    /// Cap on the active read set per position (deterministic downsampling).
-    /// `None` = uncapped (default). When `Some(d)`, an unbiased min-hash bottom-k
-    /// cap keeps `d` reads covering each position; reads removed are counted
-    /// `over_max_depth`.
+    /// Capacity of the active read set per position. `None` = uncapped (default).
+    /// `Some(d)` retains every eligible read or returns
+    /// [`CoreError::CapacityExceeded`] before accepting read `d + 1`. This is an
+    /// execution limit, never a scientific downsampling parameter.
     pub max_depth: Option<u32>,
     /// When `Some(m)` (set only under `--enforce`), a read whose `seq.len()`
     /// exceeds `m` aborts the run — the predicted memory envelope assumes `<= m`,
@@ -101,7 +73,8 @@ pub struct SkipCounts {
     pub duplicate: u64,
     /// Reads below the MAPQ threshold.
     pub low_mapq: u64,
-    /// Reads dropped because the position was already at `max_depth`.
+    /// Historical sampled-read counter, retained for API/receipt compatibility.
+    /// Exact-or-fail execution never drops reads for capacity, so this is zero.
     pub over_max_depth: u64,
 }
 
@@ -144,8 +117,6 @@ struct ActiveRead {
     mapq: u8,
     /// Reverse-strand flag (metadata only — never applied to `seq`).
     reverse: bool,
-    /// Fixed-seed content hash — the depth-cap selector admission/eviction key.
-    priority: u64,
 }
 
 /// Streaming, CIGAR-aware, bounded-memory pileup over one contig region.
@@ -243,8 +214,7 @@ impl<S: ReadSource> PileupEngine<S> {
     }
 
     /// Precompute a read's reference→read-offset map and add it to the active set.
-    /// `priority` is the precomputed selector key (see `read_priority`).
-    fn ingest(&mut self, read: AlignedRead, priority: u64) {
+    fn ingest(&mut self, read: AlignedRead) {
         let end = read.end();
         let mut ref_to_read = HashMap::new();
         for rb in read.projected_bases() {
@@ -257,7 +227,6 @@ impl<S: ReadSource> PileupEngine<S> {
             qual: Arc::clone(&read.qual),
             mapq: read.mapq,
             reverse: read.flags.is_reverse(),
-            priority,
         });
     }
 
@@ -311,33 +280,17 @@ impl<S: ReadSource> PileupEngine<S> {
                             });
                         }
                     }
-                    let prio = read_priority(&read);
                     if let Some(max) = self.params.max_depth {
-                        if self.active.len() as u32 >= max {
-                            // Unbiased min-hash bottom-k cap: keep the `max`
-                            // smallest-priority reads covering the cursor. Evict the
-                            // greatest-priority resident iff the newcomer ranks below
-                            // it; otherwise refuse. Either way the cap removed one
-                            // read (counted). Priority is a fixed-seed content hash,
-                            // so selection is independent of start position / allele
-                            // (the leftmost-arrival bias that silently dropped deep
-                            // variants is gone). The active set stays bounded by
-                            // `max`, preserving the working-set guarantee.
-                            let mut worst = 0usize;
-                            for i in 1..self.active.len() {
-                                if self.active[i].priority > self.active[worst].priority {
-                                    worst = i;
-                                }
-                            }
-                            self.skips.over_max_depth += 1;
-                            if prio < self.active[worst].priority {
-                                self.active.swap_remove(worst);
-                                self.ingest(read, prio);
-                            }
-                            continue;
+                        if self.active.len() as u64 >= u64::from(max) {
+                            return Err(CoreError::CapacityExceeded {
+                                contig: self.contig,
+                                position: pos,
+                                capacity: max,
+                                required: self.active.len() as u64 + 1,
+                            });
                         }
                     }
-                    self.ingest(read, prio);
+                    self.ingest(read);
                 }
             }
         }
@@ -378,7 +331,7 @@ impl<S: ReadSource> PileupEngine<S> {
         // Emit observations in a canonical total order so the downstream diploid
         // log-likelihood accumulation (germline.rs, an order-sensitive f64 sum) is
         // order-independent and the VCF stays byte-identical regardless of the
-        // active set's internal order (which the depth-cap selector may permute).
+        // active set's internal order.
         obs.sort_by(|a, b| {
             (a.allele, a.base_qual, a.mapq, a.reverse as u8).cmp(&(
                 b.allele,
@@ -581,53 +534,73 @@ mod tests {
     }
 
     #[test]
-    fn unbiased_cap_keeps_downstream_starting_reads() {
-        // The biased (leftmost-arrival) cap dropped reads that START at a deep
-        // variant, zeroing the alt allele. The min-hash bottom-k cap keeps a
-        // start-position-independent sample, so a variant carried only by reads
-        // that begin AT the variant column survives. Reads must be DISTINCT
-        // (real reads are) — identical content shares one hash and degenerates.
-        let reference = vec![b'A'; 64];
-        let v = 32u32; // variant column
-        let cap = 30u32;
-        let mut reads = Vec::new();
-        // 30 ref reads starting upstream (pos 0), distinct lengths -> distinct
-        // hashes, all carrying A (ref) at v.
-        for i in 0..30u32 {
-            let len = 33 + i as usize; // covers v=32 (len>32); 33..62 < 64
-            reads.push(mread(0, &vec![b'A'; len], false));
+    fn capacity_exhaustion_does_not_evict_longer_read_or_emit_inexact_column() {
+        // The previous reservoir could discard an 8-base read because a 2-base
+        // read occupied the same initial locus, then silently lose its tail.
+        for reads in [
+            vec![mread(0, b"AA", false), mread(0, b"CCCCCCCC", false)],
+            vec![mread(0, b"CCCCCCCC", false), mread(0, b"AA", false)],
+        ] {
+            let mut e = PileupEngine::new(
+                SliceSource::new(reads),
+                Arc::from(&b"AAAAAAAA"[..]),
+                0,
+                0..8,
+                PileupParams {
+                    max_depth: Some(1),
+                    ..PileupParams::default()
+                },
+            );
+            assert!(matches!(
+                e.next(),
+                Some(Err(CoreError::CapacityExceeded {
+                    contig: 0,
+                    position: 0,
+                    capacity: 1,
+                    required: 2,
+                }))
+            ));
+            assert_eq!(
+                e.active.len(),
+                1,
+                "overflow is checked before projection/allocation"
+            );
+            assert_eq!(
+                e.skip_counts().over_max_depth,
+                0,
+                "capacity never samples evidence"
+            );
+            assert!(e.next().is_none(), "capacity failure terminates the stream");
         }
-        // 30 alt reads starting AT v, distinct lengths, carrying C at v (offset 0).
-        for j in 0..30u32 {
-            let len = 1 + j as usize; // start v, covers v
-            let mut seq = vec![b'A'; len];
-            seq[0] = b'C';
-            reads.push(mread(v, &seq, false));
-        }
-        let params = PileupParams {
-            max_depth: Some(cap),
-            ..PileupParams::default()
-        };
-        let e = PileupEngine::new(
-            SliceSource::new(reads),
-            Arc::from(reference.into_boxed_slice()),
+    }
+
+    #[test]
+    fn later_capacity_failure_preserves_only_exact_prefix() {
+        let mut e = PileupEngine::new(
+            SliceSource::new(vec![mread(0, b"AAAAAAAA", false), mread(2, b"CC", false)]),
+            Arc::from(&b"AAAAAAAA"[..]),
             0,
-            0..64,
-            params,
+            0..8,
+            PileupParams {
+                max_depth: Some(1),
+                ..PileupParams::default()
+            },
         );
-        let mut at_v = None;
-        for c in e {
-            let col = c.unwrap();
-            if col.locus.pos.0 == v {
-                at_v = Some(col);
-            }
+        for expected_pos in 0..2 {
+            let col = e.next().unwrap().unwrap();
+            assert_eq!(col.locus.pos.0, expected_pos);
+            assert_eq!(col.allele_counts(), [1, 0, 0, 0]);
         }
-        let counts = at_v.expect("a column at v").allele_counts();
-        // Both alleles present: ref (A=0) AND alt (C=1) — the biased cap gave alt==0.
-        assert!(counts[1] > 0, "alt allele must survive the cap: {counts:?}");
-        assert!(counts[0] > 0, "ref allele must remain too: {counts:?}");
-        // Capped: total observed at v <= cap.
-        assert!(counts.iter().sum::<u32>() <= cap, "depth must be capped");
+        assert!(matches!(
+            e.next(),
+            Some(Err(CoreError::CapacityExceeded {
+                position: 2,
+                capacity: 1,
+                required: 2,
+                ..
+            }))
+        ));
+        assert!(e.next().is_none());
     }
 
     #[test]
@@ -989,48 +962,80 @@ mod tests {
     }
 
     #[test]
-    fn max_depth_caps_active_set_deterministically() {
-        // 5 reads all covering pos 0..4; cap at 2. Only the first 2 (arrival order)
-        // are kept; the other 3 are counted over_max_depth. Capped output is
-        // identical regardless of input order (SliceSource sorts on construction).
-        let reference = b"AAAA";
-        let params = PileupParams {
-            max_depth: Some(2),
-            ..PileupParams::default()
-        };
-        let run = |reads: Vec<AlignedRead>| -> (Vec<u32>, u64) {
-            let mut e = PileupEngine::new(
-                SliceSource::new(reads),
-                Arc::from(reference.to_vec().into_boxed_slice()),
-                0,
-                0..4,
-                params.clone(),
-            );
-            let mut depths = Vec::new();
-            for c in e.by_ref() {
-                depths.push(c.unwrap().raw_depth);
-            }
-            (depths, e.skip_counts().over_max_depth)
-        };
-        let reads_a = vec![
-            mread(0, b"CCCC", false),
-            mread(0, b"CCCC", false),
-            mread(0, b"CCCC", false),
-            mread(0, b"CCCC", false),
-            mread(0, b"CCCC", false),
+    fn sufficient_capacity_is_exact_and_partition_invariant() {
+        let reads = vec![
+            mread(0, b"AA", false),
+            mread(0, b"CCCCCCCC", false),
+            mread(4, b"GGGG", true),
         ];
-        let mut reads_b = reads_a.clone();
-        reads_b.reverse();
-        let (depths_a, over_a) = run(reads_a);
-        let (depths_b, over_b) = run(reads_b);
-        // Capped: every position sees at most 2 reads.
-        assert!(
-            depths_a.iter().all(|&d| d <= 2),
-            "raw depth must be capped at 2"
+        let collect = |region: Range<u32>, capacity| {
+            let reference: Arc<[u8]> = vec![b'A'; region.len()].into();
+            let e = PileupEngine::new(
+                SliceSource::new(reads.clone()),
+                reference,
+                0,
+                region,
+                PileupParams {
+                    max_depth: capacity,
+                    ..PileupParams::default()
+                },
+            );
+            e.collect::<Result<Vec<_>, _>>().unwrap()
+        };
+        let exact = collect(0..8, None);
+        assert_eq!(exact, collect(0..8, Some(2)));
+        assert_eq!(exact, collect(0..8, Some(10)));
+        for split in 1..8 {
+            let mut shards = collect(0..split, Some(2));
+            shards.extend(collect(split..8, Some(2)));
+            assert_eq!(
+                exact, shards,
+                "partition at {split} must preserve all evidence"
+            );
+        }
+        assert_eq!(exact[2].allele_counts(), [0, 1, 0, 0]);
+    }
+
+    #[test]
+    fn capacity_applies_after_filters_and_expiration_and_zero_is_safe() {
+        let mut duplicate = mread(0, b"CCCC", false);
+        duplicate.flags = SamFlags(0x400);
+        let mut e = PileupEngine::new(
+            SliceSource::new(vec![
+                mread(0, b"AA", false),
+                duplicate,
+                mread(2, b"GG", false),
+            ]),
+            Arc::from(&b"AAAA"[..]),
+            0,
+            0..4,
+            PileupParams {
+                max_depth: Some(1),
+                ..PileupParams::default()
+            },
         );
-        assert_eq!(over_a, 3, "3 of 5 reads dropped over max_depth");
-        // Deterministic regardless of input order.
-        assert_eq!(depths_a, depths_b);
-        assert_eq!(over_a, over_b);
+        let cols = e.by_ref().collect::<Result<Vec<_>, _>>().unwrap();
+        assert_eq!(cols.len(), 4);
+        assert!(cols.iter().all(|col| col.depth() == 1));
+        assert_eq!(e.skip_counts().duplicate, 1);
+        assert_eq!(e.skip_counts().over_max_depth, 0);
+        let mut zero = PileupEngine::new(
+            SliceSource::new(vec![mread(0, b"A", false)]),
+            Arc::from(&b"A"[..]),
+            0,
+            0..1,
+            PileupParams {
+                max_depth: Some(0),
+                ..PileupParams::default()
+            },
+        );
+        assert!(matches!(
+            zero.next(),
+            Some(Err(CoreError::CapacityExceeded {
+                capacity: 0,
+                required: 1,
+                ..
+            }))
+        ));
     }
 }

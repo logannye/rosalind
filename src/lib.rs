@@ -1,15 +1,14 @@
 //! # Rosalind — a deterministic, low-memory genomics engine
 //!
-//! Call variants across a whole genome on a laptop, with memory you can **predict
-//! and verify**, and results that are **byte-for-byte reproducible**. Rosalind
-//! treats memory as a *contract*: you declare a RAM budget, `rosalind plan` tells
-//! you up front whether the job fits, the runner applies cooperative or cgroup-backed
-//! assurance explicitly, and `rosalind verify` re-checks a BLAKE3 receipt
-//! proving the realized peak landed inside your budget.
+//! Extract reusable short-read evidence with explicit filtering, bounded execution
+//! state, and deterministic output. The exact indexed evidence path uses integer
+//! summaries over planned tiles; the legacy pileup path retains observations and
+//! fails at its declared capacity. Neither may silently sample a successful run.
 //!
-//! The kernel is a streaming, CIGAR-aware **pileup column stream** bounded by local
-//! coverage, not input size — a substrate you can compute arbitrary per-locus
-//! analytics on. Variant calling is the first consumer, not the whole product.
+//! Planning, cooperative memory monitoring, and an existing OS memory limit are
+//! distinct assurances. Receipts record claims and measurements for verification;
+//! an unsigned receipt does not prove authorship, biological accuracy, or a hard
+//! allocation bound. Custom analyzers must declare their own retained memory.
 //!
 //! ```
 //! use std::sync::Arc;
@@ -51,8 +50,14 @@ pub mod conformance;
 pub mod contract;
 /// Core types: the lingua franca shared by every layer (io, index, align, pileup, call).
 pub mod core;
+/// Canonical exact-evidence cache and bounded first-party workers.
+pub mod dataset;
+/// Verified streaming differences between exact evidence datasets.
+pub mod dataset_diff;
 /// Read-only preflight diagnostics with actionable remediation.
 pub mod doctor;
+/// Exact indexed read evidence and panel summaries with bounded batch execution.
+pub mod evidence;
 /// Genomics primitives: the FM-index, persisted memory-mapped index, alignment, sort, eval.
 pub mod genomics;
 /// IO layer: spec-valid VCF writer + streaming FASTA/FASTQ/BAM readers.

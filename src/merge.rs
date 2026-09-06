@@ -108,6 +108,23 @@ pub fn merge_shards(
                 receipt_path.display()
             )));
         }
+        if manifest.params.get("pileup.semantics").map(String::as_str) != Some("exact-or-fail-v1") {
+            return Err(MergeError::Incompatible(format!(
+                "{} lacks exact-or-fail-v1 pileup semantics; historical sampled shards cannot be canonically merged; reproduce them with their historical producer or rerun all shards with the current exact producer",
+                receipt_path.display()
+            )));
+        }
+        if manifest
+            .params
+            .get("partition.algorithm")
+            .map(String::as_str)
+            != Some("reference-span-v1")
+        {
+            return Err(MergeError::Incompatible(format!(
+                "{} has an unsupported partition algorithm",
+                receipt_path.display()
+            )));
+        }
         if manifest
             .params
             .get("run_status")
@@ -120,9 +137,13 @@ pub fn merge_shards(
         }
         let index = parse_u32(&manifest, "partition.shard_index")?;
         let count = parse_u32(&manifest, "partition.shard_count")?;
-        let output_entry = manifest.outputs.first().ok_or_else(|| {
-            MergeError::Incompatible(format!("{} has no output artifact", receipt_path.display()))
-        })?;
+        if manifest.outputs.len() != 1 {
+            return Err(MergeError::Incompatible(format!(
+                "{} must name exactly one first-party output artifact",
+                receipt_path.display()
+            )));
+        }
+        let output_entry = &manifest.outputs[0];
         let artifact_path = locate_artifact(output_entry, receipt_path, input_roots)?;
         shards.push(Shard {
             index,
@@ -240,7 +261,6 @@ fn compatibility_claim(manifest: &RunManifest) -> (Vec<String>, BTreeMap<String,
     let inputs = manifest
         .inputs
         .iter()
-        .take(2)
         .map(|input| input.blake3.clone())
         .collect();
     let ignored: BTreeSet<&str> = [
@@ -249,7 +269,18 @@ fn compatibility_claim(manifest: &RunManifest) -> (Vec<String>, BTreeMap<String,
         "manifest_blake3",
         "measurement_blake3",
         "feature_rows",
+        "over_max_depth",
+        "reads_skipped_total",
         "predicted_working_set_bytes",
+        "max_depth",
+        "max_read_len",
+        "memory_budget_mb",
+        "enforce",
+        "require_os_limit",
+        "contract.assurance",
+        "os.memory_limit_bytes",
+        "analyzer.memory_model",
+        "analyzer.max_additional_bytes",
         "shard_count",
         "shard_index",
         "target_triple",
@@ -261,7 +292,11 @@ fn compatibility_claim(manifest: &RunManifest) -> (Vec<String>, BTreeMap<String,
     let params = manifest
         .params
         .iter()
-        .filter(|(key, _)| !key.starts_with("partition.") && !ignored.contains(key.as_str()))
+        .filter(|(key, _)| {
+            (!key.starts_with("partition.") || key.as_str() == "partition.algorithm")
+                && !key.starts_with("outcome.")
+                && !ignored.contains(key.as_str())
+        })
         .map(|(key, value)| (key.clone(), value.clone()))
         .collect();
     (inputs, params)
@@ -317,57 +352,108 @@ enum TextCodec {
     Gvcf,
 }
 
+// Retain a constant-size header identity, not the header or shard contents.
+// Text merge memory is bounded by the largest record plus the writer buffer.
+type HeaderIdentity = (blake3::Hash, u64);
+
 fn merge_text(
     shards: &[Shard],
     output: &mut impl Write,
     codec: TextCodec,
 ) -> Result<(), MergeError> {
     let mut writer = BufWriter::new(output);
-    let mut expected_header: Option<Vec<String>> = None;
-    let mut pending_gvcf: Option<String> = None;
+    let mut expected_header = None;
+    let mut pending_gvcf = None;
     for shard in shards {
         let reader = BufReader::new(fs::File::open(&shard.artifact_path)?);
-        let mut header = Vec::new();
-        let mut records = Vec::new();
-        for line in reader.lines() {
-            let line = line?;
-            if line.starts_with('#') {
-                header.push(line);
-            } else if !line.is_empty() {
-                records.push(line);
-            }
-        }
-        if let Some(expected) = &expected_header {
-            if expected != &header {
-                return Err(MergeError::Incompatible("text headers differ".into()));
-            }
-        } else {
-            for line in &header {
-                writeln!(writer, "{line}")?;
-            }
-            expected_header = Some(header);
-        }
-        for record in records {
-            if matches!(codec, TextCodec::Gvcf) {
-                if let Some(previous) = pending_gvcf.take() {
-                    if let Some(merged) = coalesce_gvcf(&previous, &record) {
-                        pending_gvcf = Some(merged);
-                    } else {
-                        writeln!(writer, "{previous}")?;
-                        pending_gvcf = Some(record);
-                    }
-                } else {
-                    pending_gvcf = Some(record);
-                }
-            } else {
-                writeln!(writer, "{record}")?;
-            }
-        }
+        merge_text_stream(
+            reader,
+            &mut writer,
+            codec,
+            &mut expected_header,
+            &mut pending_gvcf,
+        )?;
     }
     if let Some(record) = pending_gvcf {
         writeln!(writer, "{record}")?;
     }
     writer.flush()?;
+    Ok(())
+}
+
+fn merge_text_stream(
+    mut reader: impl BufRead,
+    writer: &mut impl Write,
+    codec: TextCodec,
+    expected_header: &mut Option<HeaderIdentity>,
+    pending_gvcf: &mut Option<String>,
+) -> Result<(), MergeError> {
+    let first_shard = expected_header.is_none();
+    let mut header_hash = blake3::Hasher::new();
+    let mut header_lines = 0u64;
+    let mut header_finished = false;
+    let mut line = String::new();
+    loop {
+        line.clear();
+        if reader.read_line(&mut line)? == 0 {
+            break;
+        }
+        let record = line.trim_end_matches(['\r', '\n']);
+        if record.is_empty() {
+            continue;
+        }
+        if record.starts_with('#') {
+            if header_finished {
+                return Err(MergeError::Incompatible(
+                    "text header encountered after records".into(),
+                ));
+            }
+            header_hash.update(&(record.len() as u64).to_le_bytes());
+            header_hash.update(record.as_bytes());
+            header_lines += 1;
+            if first_shard {
+                writeln!(writer, "{record}")?;
+            }
+            continue;
+        }
+        if !header_finished {
+            check_text_header(expected_header, &header_hash, header_lines)?;
+            header_finished = true;
+        }
+        if matches!(codec, TextCodec::Gvcf) {
+            if let Some(previous) = pending_gvcf.take() {
+                if let Some(merged) = coalesce_gvcf(&previous, record) {
+                    *pending_gvcf = Some(merged);
+                } else {
+                    writeln!(writer, "{previous}")?;
+                    *pending_gvcf = Some(record.to_string());
+                }
+            } else {
+                *pending_gvcf = Some(record.to_string());
+            }
+        } else {
+            writeln!(writer, "{record}")?;
+        }
+    }
+    if !header_finished {
+        check_text_header(expected_header, &header_hash, header_lines)?;
+    }
+    Ok(())
+}
+
+fn check_text_header(
+    expected: &mut Option<HeaderIdentity>,
+    hash: &blake3::Hasher,
+    lines: u64,
+) -> Result<(), MergeError> {
+    let actual = (hash.finalize(), lines);
+    if expected
+        .as_ref()
+        .is_some_and(|identity| identity != &actual)
+    {
+        return Err(MergeError::Incompatible("text headers differ".into()));
+    }
+    *expected = Some(actual);
     Ok(())
 }
 
@@ -475,4 +561,181 @@ fn merge_arrow(shards: &[Shard], output: &mut fs::File) -> Result<(), MergeError
             .map_err(|error| MergeError::Incompatible(error.to_string()))?;
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cell::Cell;
+    use std::io::{Cursor, Read};
+    use std::rc::Rc;
+
+    #[test]
+    fn historical_sampled_shards_are_refused_before_publication() {
+        let dir = std::env::temp_dir().join(format!(
+            "rosalind-historical-merge-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&dir).unwrap();
+        let artifact = dir.join("shard.tsv");
+        fs::write(&artifact, "#contig\tpos\tdepth\nchr1\t1\t1\n").unwrap();
+        for semantics in [None, Some("sampled-v0")] {
+            let mut receipt = RunManifest::new("features");
+            receipt.params.extend([
+                ("partition.kind".into(), "shard".into()),
+                ("partition.algorithm".into(), "reference-span-v1".into()),
+                ("partition.shard_count".into(), "1".into()),
+                ("partition.shard_index".into(), "0".into()),
+                ("artifact.format".into(), "tsv".into()),
+                ("run_status".into(), "completed".into()),
+            ]);
+            if let Some(semantics) = semantics {
+                receipt
+                    .params
+                    .insert("pileup.semantics".into(), semantics.into());
+            }
+            receipt.outputs.push(FileHash {
+                path: artifact.display().to_string(),
+                blake3: blake3_file(&artifact).unwrap(),
+            });
+            receipt.finalize();
+            let manifest = dir.join("shard.json");
+            fs::write(&manifest, receipt.to_canonical_json()).unwrap();
+            let output = dir.join("merged.tsv");
+            let error = merge_shards(&[manifest], &[], &output, None, false).unwrap_err();
+            assert!(error.to_string().contains("historical sampled shards"));
+            assert!(!output.exists());
+        }
+        fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn outcome_counters_and_execution_capacity_do_not_change_compatibility() {
+        let mut a = RunManifest::new("features");
+        a.params.extend([
+            ("pileup.semantics".into(), "exact-or-fail-v1".into()),
+            ("partition.algorithm".into(), "reference-span-v1".into()),
+            ("min_mapq".into(), "20".into()),
+            ("max_depth".into(), "100".into()),
+            ("reads_skipped_total".into(), "2".into()),
+        ]);
+        let mut b = a.clone();
+        b.params.insert("reads_skipped_total".into(), "13".into());
+        b.params.insert("max_depth".into(), "1000".into());
+        b.params
+            .insert("outcome.covered_bases".into(), "999".into());
+        assert_eq!(compatibility_claim(&a), compatibility_claim(&b));
+        b.params.insert("min_mapq".into(), "30".into());
+        assert_ne!(compatibility_claim(&a), compatibility_claim(&b));
+        b.params.insert("min_mapq".into(), "20".into());
+        b.params
+            .insert("pileup.semantics".into(), "sampled-v0".into());
+        assert_ne!(compatibility_claim(&a), compatibility_claim(&b));
+        b.params
+            .insert("pileup.semantics".into(), "exact-or-fail-v1".into());
+        b.params
+            .insert("partition.algorithm".into(), "unknown".into());
+        assert_ne!(compatibility_claim(&a), compatibility_claim(&b));
+    }
+
+    #[test]
+    fn text_merge_emits_records_before_reading_the_complete_shard() {
+        struct ObservedRead {
+            input: Cursor<Vec<u8>>,
+            written: Rc<Cell<usize>>,
+        }
+        impl Read for ObservedRead {
+            fn read(&mut self, output: &mut [u8]) -> io::Result<usize> {
+                if self.input.position() >= 32_768 && self.written.get() == 0 {
+                    return Err(io::Error::other("shard was buffered before output"));
+                }
+                self.input.read(output)
+            }
+        }
+        struct ObservedWrite(Rc<Cell<usize>>);
+        impl Write for ObservedWrite {
+            fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+                self.0.set(self.0.get() + bytes.len());
+                Ok(bytes.len())
+            }
+            fn flush(&mut self) -> io::Result<()> {
+                Ok(())
+            }
+        }
+        let bytes = format!("#contig\tpos\tdepth\n{}", "chr1\t1\t20\n".repeat(20_000)).into_bytes();
+        let expected_len = bytes.len();
+        let written = Rc::new(Cell::new(0));
+        let reader = BufReader::new(ObservedRead {
+            input: Cursor::new(bytes),
+            written: Rc::clone(&written),
+        });
+        let mut writer = BufWriter::new(ObservedWrite(Rc::clone(&written)));
+        merge_text_stream(reader, &mut writer, TextCodec::Tsv, &mut None, &mut None).unwrap();
+        writer.flush().unwrap();
+        assert_eq!(written.get(), expected_len);
+    }
+
+    #[test]
+    fn empty_shard_headers_are_checked_and_late_headers_are_rejected() {
+        let mut expected = None;
+        let mut pending = None;
+        let mut output = Vec::new();
+        for input in ["#a\tb\n", "#a\tb\n1\t2\n", "#a\tb\n"] {
+            merge_text_stream(
+                Cursor::new(input),
+                &mut output,
+                TextCodec::Tsv,
+                &mut expected,
+                &mut pending,
+            )
+            .unwrap();
+        }
+        assert_eq!(output, b"#a\tb\n1\t2\n");
+        assert!(merge_text_stream(
+            Cursor::new("#different\n"),
+            &mut output,
+            TextCodec::Tsv,
+            &mut expected,
+            &mut pending
+        )
+        .is_err());
+        assert!(merge_text_stream(
+            Cursor::new("#a\tb\n3\t4\n#late\n"),
+            &mut output,
+            TextCodec::Tsv,
+            &mut expected,
+            &mut pending
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn gvcf_boundary_coalescing_retains_only_one_pending_record() {
+        let mut expected = None;
+        let mut pending = None;
+        let mut output = Vec::new();
+        let inputs = [
+            "#header\nchr1\t1\t.\tA\t<NON_REF>\t.\tPASS\tEND=2\tGT:PL:GQ:MIN_DP\t0/0:0,30,40:35:9\n",
+            "#header\nchr1\t3\t.\tA\t<NON_REF>\t.\tPASS\tEND=4\tGT:PL:GQ:MIN_DP\t0/0:0,30,40:32:7\n",
+        ];
+        for input in inputs {
+            merge_text_stream(
+                Cursor::new(input),
+                &mut output,
+                TextCodec::Gvcf,
+                &mut expected,
+                &mut pending,
+            )
+            .unwrap();
+        }
+        assert_eq!(output, b"#header\n");
+        assert_eq!(
+            pending.as_deref(),
+            Some("chr1\t1\t.\tA\t<NON_REF>\t.\tPASS\tEND=4\tGT:PL:GQ:MIN_DP\t0/0:0,30,40:32:7")
+        );
+    }
 }

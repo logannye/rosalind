@@ -1,0 +1,182 @@
+Processing /tmp/rosalind-roadmap-validation/wheels/rosalind_bio-0.4.0-py3-none-macosx_11_0_arm64.whl
+Collecting pyarrow>=15
+  Using cached pyarrow-21.0.0-cp39-cp39-macosx_12_0_arm64.whl (31.2 MB)
+Installing collected packages: pyarrow, rosalind-bio
+Successfully installed pyarrow-21.0.0 rosalind-bio-0.4.0
+WARNING: You are using pip version 21.2.4; however, version 26.0.1 is available.
+You should consider upgrading via the '/private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmp.Zorre6aZ3d/venv/bin/python -m pip install --upgrade pip' command.
+Collecting pysam==0.23.3
+  Using cached pysam-0.23.3-cp39-cp39-macosx_11_0_arm64.whl (5.9 MB)
+Installing collected packages: pysam
+Successfully installed pysam-0.23.3
+WARNING: You are using pip version 21.2.4; however, version 26.0.1 is available.
+You should consider upgrading via the '/private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmp.Zorre6aZ3d/venv/bin/python -m pip install --upgrade pip' command.
+rosalind 0.4.0
+wrote reproducibility receipt: /var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmp.Zorre6aZ3d/sorted.bam.manifest.json
+built /var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmp.Zorre6aZ3d/reference.rref: 1 contigs, 4000 bases, source b104b2019ea7eb2ebaf1abfe93a01255d2beaaaf07cc46d6ca6d8923f9a3cd74
+wrote reproducibility receipt: features/features.manifest.json
+features: peak RSS 10 MiB; max pileup working set 71 KiB
+verify: no budget to check (none supplied or recorded)
+verify: evidence records process RSS; individual internal allocations are modeled, not measured
+verify: OK — 4 input(s), 1 output(s) match
+created analyzer project: /private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmp.Zorre6aZ3d/wheel-smoke-analyzer
+  Cargo.toml
+  build.rs
+  src/main.rs
+  tests/contract.rs
+  scripts/contract-check.sh
+  .github/workflows/ci.yml
+  README.md
+next: cd /private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmp.Zorre6aZ3d/wheel-smoke-analyzer && cargo test
+     Locking 181 packages to latest compatible versions
+      Adding blake3 v1.8.2 (available: v1.8.6)
+      Adding hts-sys v2.2.0 (available: v2.2.1)
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.24
+   Compiling quote v1.0.47
+   Compiling libc v0.2.189
+   Compiling shlex v2.0.1
+   Compiling find-msvc-tools v0.1.12
+   Compiling cfg-if v1.0.4
+   Compiling autocfg v1.5.1
+   Compiling libm v0.2.16
+   Compiling stable_deref_trait v1.2.1
+   Compiling pkg-config v0.3.34
+   Compiling zerocopy v0.8.56
+   Compiling once_cell v1.21.4
+   Compiling writeable v0.6.4
+   Compiling litemap v0.8.3
+   Compiling utf8_iter v1.0.4
+   Compiling memchr v2.8.3
+   Compiling icu_properties_data v2.3.0
+   Compiling arrayref v0.3.9
+   Compiling vcpkg v0.2.15
+   Compiling icu_normalizer_data v2.3.0
+   Compiling constant_time_eq v0.3.1
+   Compiling arrayvec v0.7.8
+   Compiling quick-error v1.2.3
+   Compiling regex-syntax v0.8.11
+   Compiling smallvec v1.16.0
+   Compiling getrandom v0.3.4
+   Compiling version_check v0.9.5
+   Compiling fs-utils v1.1.4
+   Compiling num-traits v0.2.19
+   Compiling aho-corasick v1.1.5
+   Compiling core-foundation-sys v0.8.7
+   Compiling rustversion v1.0.23
+   Compiling bytes v1.12.1
+   Compiling ahash v0.8.12
+   Compiling semver v0.1.20
+   Compiling glob v0.3.4
+   Compiling heck v0.5.0
+   Compiling semver v1.0.28
+   Compiling rustc_version v0.1.7
+   Compiling rustc_version v0.4.1
+   Compiling iana-time-zone v0.1.65
+   Compiling thiserror v1.0.69
+   Compiling arrow-schema v55.2.0
+   Compiling syn v1.0.109
+   Compiling lazy_static v1.5.0
+   Compiling utf8parse v0.2.2
+   Compiling anstyle-parse v1.0.0
+   Compiling flatbuffers v25.12.19
+   Compiling newtype_derive v0.1.6
+   Compiling tracing-core v0.1.36
+   Compiling anstyle-query v1.1.5
+   Compiling radium v0.7.0
+   Compiling regex-automata v0.4.18
+   Compiling syn v2.0.119
+   Compiling syn v3.0.5
+   Compiling percent-encoding v2.3.2
+   Compiling anstyle v1.0.14
+   Compiling jobserver v0.1.35
+   Compiling hashbrown v0.15.5
+   Compiling colorchoice v1.0.5
+   Compiling crc32fast v1.5.1
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling form_urlencoded v1.2.2
+   Compiling anstream v1.0.0
+   Compiling cc v1.4.5
+   Compiling strsim v0.11.1
+   Compiling clap_lex v1.1.0
+   Compiling tap v1.0.1
+   Compiling pin-project-lite v0.2.17
+   Compiling simd-adler32 v0.3.10
+   Compiling num-integer v0.1.47
+   Compiling num-complex v0.4.6
+   Compiling chrono v0.4.45
+   Compiling log v0.4.34
+   Compiling num-bigint v0.4.8
+   Compiling cmake v0.1.58
+   Compiling num-iter v0.1.46
+   Compiling adler2 v2.0.1
+   Compiling anyhow v1.0.104
+   Compiling bitflags v2.13.1
+   Compiling miniz_oxide v0.9.1
+   Compiling tracing-log v0.2.0
+   Compiling wyz v0.5.1
+   Compiling clap_builder v4.6.6
+   Compiling sharded-slab v0.1.7
+   Compiling thread_local v1.1.10
+   Compiling blake3 v1.8.2
+   Compiling libz-sys v1.1.29
+   Compiling lzma-sys v0.1.20
+   Compiling bzip2-sys v0.1.13+1.0.8
+   Compiling num-rational v0.4.2
+   Compiling hts-sys v2.2.0
+   Compiling regex v1.13.1
+   Compiling num v0.4.3
+   Compiling matchers v0.2.0
+   Compiling ieee754 v0.2.6
+   Compiling linear-map v1.2.0
+   Compiling nu-ansi-term v0.50.3
+   Compiling custom_derive v0.1.7
+   Compiling byteorder v1.5.0
+   Compiling funty v2.0.0
+   Compiling flate2 v1.1.10
+   Compiling synstructure v0.13.2
+   Compiling bitvec v1.1.1
+   Compiling zerovec-derive v0.11.6
+   Compiling displaydoc v0.2.7
+   Compiling clap_derive v4.6.4
+   Compiling zerofrom-derive v0.1.7
+   Compiling yoke-derive v0.8.2
+   Compiling zerocopy-derive v0.8.56
+   Compiling thiserror-impl v1.0.69
+   Compiling tracing-attributes v0.1.31
+   Compiling derive-new v0.6.0
+   Compiling strum_macros v0.26.4
+   Compiling derive-new v0.5.9
+   Compiling zerofrom v0.1.8
+   Compiling clap v4.6.6
+   Compiling tracing v0.1.44
+   Compiling rosalind-build-info v0.1.0 (/Users/logannye/rosalind/crates/build-info)
+   Compiling rosalind-receipt v0.3.0 (/Users/logannye/rosalind/crates/receipt)
+   Compiling rosalind-bio v0.4.0 (/Users/logannye/rosalind)
+   Compiling yoke v0.8.3
+   Compiling wheel-smoke-analyzer v0.1.0 (/private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmp.Zorre6aZ3d/wheel-smoke-analyzer)
+   Compiling bio-types v1.0.4
+   Compiling tracing-subscriber v0.3.23
+   Compiling zerovec v0.11.8
+   Compiling zerotrie v0.2.5
+   Compiling half v2.7.1
+   Compiling tinystr v0.8.4
+   Compiling potential_utf v0.1.6
+   Compiling icu_collections v2.3.0
+   Compiling icu_locale_core v2.3.0
+   Compiling arrow-buffer v55.2.0
+   Compiling arrow-data v55.2.0
+   Compiling icu_provider v2.3.1
+   Compiling icu_normalizer v2.3.0
+   Compiling icu_properties v2.3.0
+   Compiling arrow-array v55.2.0
+   Compiling idna_adapter v1.2.2
+   Compiling idna v1.1.0
+   Compiling url v2.5.8
+   Compiling arrow-ipc v55.2.0
+   Compiling arrow-select v55.2.0
+   Compiling rust-htslib v0.44.1
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 12.70s
+installed rosalind 0.4.0: 3972 Arrow rows; receipt inspected
+installed version identity, evidence stream, materialization, offline replay and panel QC passed
+packaged scaffold built offline against candidate SDK and passed packaged conformance

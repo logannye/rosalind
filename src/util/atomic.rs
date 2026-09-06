@@ -138,6 +138,50 @@ pub fn write_atomic(path: &Path, bytes: &[u8], replace: bool) -> io::Result<()> 
     Ok(())
 }
 
+/// Publish a small group of staged artifacts, rolling back completed publications
+/// if a later destination fails. Existing files are preserved with same-directory
+/// hard links before replacement. This handles reported I/O failures; it does not
+/// promise a multi-file atomic view to concurrent readers or across process death.
+pub fn commit_group(files: Vec<(AtomicFile, PathBuf)>, replace: bool) -> io::Result<()> {
+    let mut backups = Vec::with_capacity(files.len());
+    for (_, destination) in &files {
+        let backup = if replace && destination.exists() {
+            let mut backup = AtomicFile::create(destination)?;
+            backup.close_for_path_writer();
+            std::fs::remove_file(backup.temporary_path())?;
+            std::fs::hard_link(destination, backup.temporary_path())?;
+            Some(backup)
+        } else {
+            None
+        };
+        backups.push(backup);
+    }
+    let mut published: Vec<(usize, PathBuf)> = Vec::with_capacity(files.len());
+    for (index, (file, destination)) in files.into_iter().enumerate() {
+        if let Err(error) = file.commit_as(&destination, replace) {
+            let mut rollback_error = None;
+            for (prior_index, prior_path) in published.iter().rev() {
+                let result = if let Some(backup) = &backups[*prior_index] {
+                    std::fs::rename(backup.temporary_path(), prior_path)
+                } else {
+                    std::fs::remove_file(prior_path)
+                };
+                if let Err(error) = result {
+                    rollback_error = Some(error);
+                }
+            }
+            return Err(match rollback_error {
+                Some(rollback) => io::Error::other(format!(
+                    "publication failed: {error}; rollback also failed: {rollback}"
+                )),
+                None => error,
+            });
+        }
+        published.push((index, destination));
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -172,5 +216,33 @@ mod tests {
         };
         assert!(!temporary.exists());
         assert!(!output.exists());
+    }
+
+    #[test]
+    fn group_failure_restores_replaced_outputs_and_leaves_no_new_success() {
+        let first = path("group-existing");
+        let fresh = path("group-fresh");
+        let last = path("group-invalid");
+        write_atomic(&first, b"original", false).unwrap();
+        let stage = |path: &Path, bytes: &[u8]| {
+            let mut file = AtomicFile::create(path).unwrap();
+            file.file_mut().write_all(bytes).unwrap();
+            file
+        };
+        let files = vec![
+            (stage(&first, b"replacement"), first.clone()),
+            (stage(&fresh, b"new"), fresh.clone()),
+            (stage(&last, b"last"), last.clone()),
+        ];
+        // A directory cannot be replaced by the staged regular file. It appears
+        // after backup preparation would normally occur; a missing parent is an
+        // equally useful failure injected at the last commit.
+        let invalid = path("group-missing-parent").join("last");
+        let mut files = files;
+        files[2].1 = invalid;
+        assert!(commit_group(files, true).is_err());
+        assert_eq!(std::fs::read(&first).unwrap(), b"original");
+        assert!(!fresh.exists());
+        let _ = std::fs::remove_file(first);
     }
 }
