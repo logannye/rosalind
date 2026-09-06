@@ -1,0 +1,9 @@
+   Compiling rosalind-bio v0.5.0 (/work)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 11.84s
+     Running unittests src/lib.rs (target/debug/deps/rosalind-ea2096ccf42559b8)
+
+running 1 test
+test evidence::artifact::tests::resource_failure_during_publication_seals_partials ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 257 filtered out; finished in 0.19s
+

@@ -73,7 +73,8 @@ supported. Focused lifecycle and cancellation tests and fresh generated Rust 1.8
 projects pass. All 19 external conformance checks, full workspace tests, Clippy/MSRV and both
 Python suites pass. A fresh Python3.11 wheel passes installed analysis, verification,
 replay, datasets/Parquet, both generated analyzers and all 19 evidence conformance
-checks. Linux focused artifact/cancellation tests pass; platform PR gates remain.
+checks. Linux focused artifact/cancellation tests and all 19 external conformance checks
+pass; platform PR gates remain.
 [Retained SDK results](findings/evidence-sdk-2026-09-06/README.md) include the fresh
 wheel reproduction that caught a receipt-sealing bug and its focused correction.
 These are source-candidate checks, not registry publication or independent adoption.

@@ -1,0 +1,91 @@
+    Updating crates.io index
+ Downloading crates ...
+  Downloaded icu_locid_transform v1.5.0
+  Downloaded yoke-derive v0.7.5
+  Downloaded icu_provider_macros v1.5.0
+  Downloaded utf16_iter v1.0.5
+  Downloaded write16 v1.0.0
+  Downloaded idna_adapter v1.2.0
+  Downloaded yoke v0.7.5
+  Downloaded zerovec-derive v0.10.4
+  Downloaded tinystr v0.7.6
+  Downloaded icu_locid_transform_data v1.5.1
+  Downloaded writeable v0.5.5
+  Downloaded icu_provider v1.5.0
+  Downloaded litemap v0.7.5
+  Downloaded icu_normalizer v1.5.0
+  Downloaded zerovec v0.10.4
+  Downloaded icu_properties v1.5.1
+  Downloaded icu_collections v1.5.0
+  Downloaded icu_normalizer_data v1.5.1
+  Downloaded icu_locid v1.5.0
+  Downloaded icu_properties_data v1.5.1
+   Compiling zerofrom v0.1.6
+   Compiling yoke-derive v0.7.5
+   Compiling stable_deref_trait v1.2.1
+   Compiling zerovec-derive v0.10.4
+   Compiling icu_locid_transform_data v1.5.1
+   Compiling litemap v0.7.5
+   Compiling writeable v0.5.5
+   Compiling icu_provider_macros v1.5.0
+   Compiling yoke v0.7.5
+   Compiling icu_properties_data v1.5.1
+   Compiling icu_normalizer_data v1.5.1
+   Compiling zerovec v0.10.4
+   Compiling utf16_iter v1.0.5
+   Compiling write16 v1.0.0
+   Compiling rosalind-bio v0.5.0 (/work)
+   Compiling rosalind-receipt v0.3.0 (/work/crates/receipt)
+   Compiling tinystr v0.7.6
+   Compiling icu_collections v1.5.0
+   Compiling icu_locid v1.5.0
+   Compiling icu_provider v1.5.0
+   Compiling icu_locid_transform v1.5.0
+   Compiling icu_properties v1.5.1
+   Compiling icu_normalizer v1.5.0
+   Compiling idna_adapter v1.2.0
+   Compiling idna v1.1.0
+   Compiling url v2.5.7
+   Compiling rust-htslib v0.44.1
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 30.73s
+     Running tests/cancellation.rs (target/debug/deps/cancellation-a5753251a77c31e0)
+
+running 3 tests
+
+running 1 test
+
+running 1 test
+
+running 1 test
+test opt_in_signals_cancel_the_active_scope_and_restore_existing_handlers ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered outtest token_scope_cancels_workers_and_old_tokens_cannot_cancel_a_new_job ... ok
+; finished in 0.01s
+
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.01s
+
+test pre_cancelled_tokens_are_observed_before_any_work_and_drop_disarms ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.01s
+
+test opt_in_signals_cancel_the_active_scope_and_restore_existing_handlers ... ok
+test token_scope_cancels_workers_and_old_tokens_cannot_cancel_a_new_job ... ok
+test pre_cancelled_tokens_are_observed_before_any_work_and_drop_disarms ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/evidence_artifact.rs (target/debug/deps/evidence_artifact-02c696da618e9811)
+
+running 8 tests
+test cancellation_and_source_mutation_never_publish ... ok
+test inline_queries_are_bounded_and_typed ... ok
+test canonical_batches_and_science_are_identical_across_three_budgets_and_tiles ... ok
+test factory_batch_finish_and_flush_failures_preserve_existing_artifact_and_receipt ... ok
+test large_file_selection_is_admitted_before_factory_construction ... ok
+test native_and_projected_persisted_source_outputs_and_science_match_after_relocation ... ok
+test resource_breach_publishes_only_identified_partials ... ok
+test tiny_budget_unknown_bound_invalid_claims_and_input_aliases_refuse_without_outputs ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.75s
+

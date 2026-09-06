@@ -80,3 +80,12 @@ all-19 result.
 
 Wheel SHA256: `eb7ede881ff5a9e517d6b19cd8473cbeb049b1ef20f7431a39b31f7f96a8568c`.
 Bundled native SHA256: `a284df54a5d5da4f0053b4520d5402f7005c34b40df3e347ee8d73d91271baba`.
+
+## Linux native SDK
+
+`linux-validation.json` and the three `linux-*.log` files retain the frozen
+candidate's eight artifact and three cancellation integration checks, publication
+resource regression, four standalone example tests, and all 19 executable
+conformance checks. This is a Linux/amd64 container on the same Apple Silicon host
+via Rosetta; it is platform validation, not an independent user's machine.
+Native CLI SHA256: `b3ed85fec8c7de920d2983e8ef72e8c5c16860057a88e36f9f37ca47fbc12755`.
