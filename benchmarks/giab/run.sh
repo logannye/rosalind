@@ -22,6 +22,7 @@ test -f "$DATA/data-manifest.json" || {
   echo "prepare the opt-in data first: benchmarks/giab/prepare.sh '$DATA'" >&2
   exit 2
 }
+python3 "$HERE/preflight.py" "$DATA"
 
 cd "$ROOT"
 BIN="${ROSALIND_BIN:-target/release/rosalind}"

@@ -9,17 +9,57 @@ mutations remain protected by GitHub environments.
 
 ```sh
 cargo xtask doctor --json
-cargo install cargo-public-api --version 0.50.1
+cargo install cargo-public-api --version '=0.50.1' --locked
 rustup toolchain install 1.95.0 --profile minimal
 rustup toolchain install nightly-2026-04-15 --profile minimal
 gh secret set CARGO_REGISTRY_TOKEN --repo logannye/rosalind
 ```
 
-Create `rc` and `release` repository environments with required reviewers before
-dispatching. Keep the hap.py GHCR package public after its first successful build.
-The `release` environment protects crate uploads, image pushes, and automated
-baseline PRs; `rc` protects prerelease tag creation. `doctor` checks names only and
-never reads or prints secret values.
+Create `rc` and `release` repository environments with required reviewers and
+deployment rules allowing the intended dispatch branch, normally `main`, before
+dispatching. The control plane dispatches workflows from the default branch while
+their checkout is pinned to the planned candidate SHA. A custom deployment policy
+with no allowed refs blocks every protected job.
+
+Keep the hap.py GHCR package public after its first successful build. The `release`
+environment protects crate uploads, image pushes, both Python indexes, and
+automated baseline PRs; `rc` protects prerelease tag creation. `doctor` checks names
+only and never reads or prints secret values. Its local Docker/tool diagnostics
+are distinct from the prerequisites for a build on a GitHub-hosted runner.
+
+## Python trusted publishers
+
+Wheel builds and fresh-install checks run in reusable `wheels.yml` without OIDC
+or publication privileges. Final uploads run directly in `rc.yml` and
+`release.yml`, because PyPI currently does not support a reusable workflow as a
+[trusted publisher](https://docs.pypi.org/trusted-publishers/troubleshooting/#reusable-workflows-on-github).
+Keep the protected `release` environment on both upload jobs.
+
+Configure these exact publisher fields in each index's authenticated project
+publishing settings, or as a pending publisher if `rosalind-bio` does not yet exist:
+
+| Field | TestPyPI candidate publisher | PyPI stable publisher |
+|---|---|---|
+| Project name | `rosalind-bio` | `rosalind-bio` |
+| Repository owner | `logannye` | `logannye` |
+| Repository name | `rosalind` | `rosalind` |
+| Workflow filename | `rc.yml` | `release.yml` |
+| Environment | `release` | `release` |
+
+The workflow filename is the top-level caller, not `wheels.yml`, and does not
+include `.github/workflows/`. Account settings are separate on
+[TestPyPI](https://test.pypi.org/manage/account/publishing/) and
+[PyPI](https://pypi.org/manage/account/publishing/). GitHub secret-name inspection
+and a public project API response cannot establish whether a private pending
+publisher is configured. No long-lived PyPI token is used by these workflows.
+
+Before upload, `wheel-artifacts.py` requires exactly the three supported target
+reports, verifies the requested commit/native/Python versions, checks platform and
+distribution metadata, and verifies each tested wheel's SHA-256 and size. It
+rejects missing, extra, changed, or mismatched wheels before staging upload files.
+`verify-wheel-upload.py` then permits retrying an existing filename only when the
+index reports identical bytes. GitHub release assets retain the candidate reports;
+PyPI's upload action retains its trusted-publishing attestation behavior.
 
 Every `plan` is create-new JSON with one common report schema. Its BLAKE3 `plan_id`
 authenticates the commit, gate outcomes, contract fingerprint, metadata, and intended
@@ -66,19 +106,31 @@ and every restored input is re-hashed by `prepare.sh`.
 ## RC and stable release
 
 ```sh
-cargo xtask rc plan --version 0.4.0 --number 1 --output rc-plan.json --json
-cargo xtask rc dispatch --plan rc-plan.json --confirm PLAN_ID
-cargo xtask rc status --tag v0.4.0-rc.1 --json
+cargo xtask rc plan --version 0.5.0 --number 1 --ref FULL_CANDIDATE_SHA \
+  --output /tmp/rosalind-rc-plan.json --json
+cargo xtask rc dispatch --plan /tmp/rosalind-rc-plan.json --confirm PLAN_ID
+cargo xtask rc status --tag v0.5.0-rc.1 --json
 
-cargo xtask release plan --version 0.4.0 --rc-tag v0.4.0-rc.1 \
-  --output release-plan.json --json
-cargo xtask release dispatch --plan release-plan.json --confirm PLAN_ID
+cargo xtask release plan --version 0.5.0 --rc-tag v0.5.0-rc.1 \
+  --ref FULL_CANDIDATE_SHA --output /tmp/rosalind-release-plan.json --json
+cargo xtask release dispatch --plan /tmp/rosalind-release-plan.json --confirm PLAN_ID
 ```
 
 The stable workflow enforces an identical public-contract fingerprint, idempotent
 publication, and fresh-cache downstream installation before creating the stable
-tag. The server-timestamped seven-day soak and three partner personas begin at
-0.5.0; they do not block 0.4.0 stabilization.
+tag. The requested version must match the committed root package and release
+policy, and the clean candidate must be reachable from the pushed default branch.
+Each `PLAN_ID` is the exact ID returned by the corresponding plan. Plans are kept
+outside the checkout so they do not make the release tree dirty.
+
+The feature-bearing evidence-engine candidate uses the 0.5.0 release sequence.
+The server-timestamped seven-day soak and three partner personas apply at 0.5.0
+and later. The soak begins when the GitHub prerelease is published, after its
+TestPyPI wheels and OCI image pass their protected jobs. The historical 0.4.0
+stabilization exemption does not justify relabeling the evidence-engine release.
+Changed caller/shared-processing source additionally requires the reviewed GIAB
+baseline described below before stable promotion. Missing crate credentials or
+that baseline do not prevent preparing an RC that is clearly labeled experimental.
 
 Publication can be rerun after interruption. Each package is recreated locally and
 the downloaded registry `.crate` must have identical SHA-256 bytes before it is
@@ -123,11 +175,13 @@ normalization. Persisted evidence is replayed through that installed binary with
 local inputs. The packaged scaffold is generated, built offline against the
 candidate SDK source, and checked by the packaged conformance runner. This source
 patch is explicit pre-publication validation; fresh registry SDK installation is
-still checked separately after crate publication. Candidate build dependencies
-must already be present in Cargo's cache for the offline scaffold build.
-RC build checkouts derive `0.4.0-rc.N` native and `0.4.0rcN` Python versions with
-recorded source/manifest hashes; the tracked source version stays 0.4.0. Generated
-build reports live outside the source checkout before compilation.
+still checked separately after crate publication. The candidate smoke explicitly
+prepares its dependency cache before the locked offline scaffold build. RC build
+checkouts derive numbered native and Python versions, for example `0.5.0-rc.N` and
+`0.5.0rcN`, from the committed stable base version. Derivation records source and
+manifest hashes; it does not change the committed candidate. Generated build
+reports live outside the source checkout before compilation, then wheel hashes
+are captured after testing. Reusable builds never publish by themselves.
 
 Caller evidence is change-based: the selected variants dispatch/defaults,
 transitive local helpers, watched caller/shared-input files, and dependency lock
@@ -145,10 +199,14 @@ HG002 execution still requires the reviewed published image and prepared data.
 Python 2.7 is required by pinned hap.py 0.3.15; compatible bx-python/six wheels are
 hash-locked rather than resolved from floating dependencies.
 
-Read-only prerequisite inspection on 2026-09-05 found no repository, rc, or release
+Read-only prerequisite inspection on 2026-09-06 found no repository, rc, or release
 secrets: CARGO_REGISTRY_TOKEN is absent. Both protected environments have the owner
 as required reviewer, but custom deployment policies contain zero allowed
 branch/tag rules. Configure the intended release workflow refs before dispatch.
-PyPI/TestPyPI trusted publishers must also be configured for the reusable workflow
-and protected release environment; GitHub secret-name inspection cannot establish
-that external state. No secret values were read and no settings were changed.
+PyPI/TestPyPI trusted publishers must be configured with the top-level caller and
+protected environment listed above; GitHub secret-name inspection cannot establish
+that external state. The public PyPI/TestPyPI project APIs returned 404, which does
+not rule out a pending publisher. GitHub's setting for Actions to create/approve
+pull requests was disabled, so automatic evaluator-lock/baseline PR creation also
+needs explicit maintainer handling. No secret values were read and no settings
+were changed by that inspection.

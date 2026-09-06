@@ -8,7 +8,7 @@ artifact verification remain requirements throughout.
 | Order | Delivery | Status |
 |---|---|---|
 | 1 | Shared panel defaults and explicit named/unknown/pooled sample scope | Implemented; 11 sample tests, Rust/CLI threshold parity, Python/native parity, cache/replay and existing evidence regressions pass |
-| 2 | Installable evidence-engine RC, executable onboarding, candidate publication gates | Prerequisites inspected; publication not performed |
+| 2 | Installable evidence-engine RC, executable onboarding, candidate publication gates | Implemented for 0.5.0-rc.1; native bundle and fresh wheel onboarding pass locally; GitHub candidate build and protected publication pending |
 | 3 | Physical field projection and bounded coalesced sparse fetches | Pending |
 | 4 | VCF.gz/BCF selection, record-preserving annotation, optional per-allele quality/position sums | Pending |
 | 5 | Verified subset/superset dataset reuse, persisted analysis, bounded Parquet and Python/R/SQL adapters | Pending |
@@ -53,3 +53,19 @@ project APIs. These prerequisites have not been changed or waived.
 
 The latest public release remains v0.1.0. Candidate builds and authored integration
 examples are not registry publication or independent adoption.
+
+## Candidate preparation evidence
+
+Source version 0.5.0 is synchronized across Cargo, Python, release policy, and
+standalone examples. The local workspace suite passed 483 tests; the Python source
+suite passed 11 tests on fresh Python 3.9 and 3.11 environments. A native archive
+and Python 3.11 wheel were installed outside the checkout and completed documented
+analysis, byte verification, offline replay, scaffold conformance, and the bundled
+evidence reducer example. Candidate SDK checks used explicit source patches;
+registry-only SDK installation remains unverified until its crates are published.
+
+Publication workflows bind platform reports to the exact tested wheel bytes and
+candidate commit, and use top-level protected OIDC upload jobs. GIAB preparation
+validates its indexed reference and input hashes; evaluator source version pinning
+is regression-tested. The full evaluator container requires its CI smoke run.
+These local results are not public release or independent-user evidence.

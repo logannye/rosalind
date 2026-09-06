@@ -10,7 +10,7 @@ try:
     __version__ = version("rosalind-bio")
 except PackageNotFoundError:
     # Source-tree fallback; release wheels derive this value from Cargo metadata.
-    __version__ = "0.4.0"
+    __version__ = "0.5.0"
 
 __all__ = [
     "EvidenceProcessError",

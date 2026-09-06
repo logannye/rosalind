@@ -20,8 +20,9 @@ the same evidence reusable across consumers.
 
 **Development status:** exact evidence, panel QC, verified cache/resume, and dataset
 comparison are implemented, with local and CI validation. The source package still has
-version 0.4.0; this development work is unpublished, with staged 0.5/0.6/0.7
-releases planned. The [retained validation report](docs/findings/evidence-engine-2026-09-05/README.md)
+version 0.5.0, preparing its first feature-bearing release candidate; 0.4.0 was
+not published. Panel/cache APIs remain preview capabilities with independent
+validation and stabilization gates. The [retained validation report](docs/findings/evidence-engine-2026-09-05/README.md)
 records 467 passing Rust tests, eight Python tests on both Python 3.9 and 3.11,
 and fresh macOS arm64 wheel installs. Subsequent [wheel CI](https://github.com/logannye/rosalind/actions/runs/34009965756)
 also passed fresh Python 3.9/3.11 installations on Linux x86_64 and both macOS
@@ -63,6 +64,9 @@ rosalind reproduce --manifest evidence.arrow.manifest.json --inputs .
 Use `--regions targets.bed` instead of `--sites` to emit every selected locus,
 including zero-depth positions. See [SEMANTICS.md](docs/SEMANTICS.md) for coordinate,
 flag, quality, depth, and denominator definitions before comparing another tool.
+Sample identity is resolved from read-group metadata. For multiple declared
+samples use `--sample NAME` or deliberately pool with `--pool-samples`;
+receipts distinguish named, unknown, and pooled evidence.
 
 ## Panel QC and shared extraction
 
@@ -184,8 +188,9 @@ retains raw test, package, workflow, and benchmark evidence. On the small NA1850
 example, all 34 evidence fields matched an independent pysam oracle exactly across
 three budgets and three repetitions; cache resume preserved output while avoiding
 partition extraction. These checks establish the tested behavior on this dataset.
-Larger-data efficiency, Linux/macOS Intel packages, container enforcement, and
-independent adoption still have separate gates.
+Larger-data efficiency, public package installation, enforcement for the new
+evidence engine, and independent adoption still have separate gates. Candidate
+wheel CI and the legacy-extraction cgroup benchmark have passed independently.
 
 The [exact-evidence curve](benchmarks/evidence/) compares a semantically matched
 streaming pysam oracle with three repeated declared-budget runs, retaining raw

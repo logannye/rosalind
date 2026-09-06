@@ -29,7 +29,7 @@ required_secrets = ["CARGO_REGISTRY_TOKEN"]
 partner_personas = ["analyzer-builder", "workflow-hpc", "constrained-offline"]
 publish_order = ["rosalind-build-info", "rosalind-receipt", "rosalind-bio"]
 
-package_versions = { rosalind-build-info = "0.1.0", rosalind-receipt = "0.3.0", rosalind-bio = "0.4.0" }
+package_versions = { rosalind-build-info = "0.1.0", rosalind-receipt = "0.3.0", rosalind-bio = "0.5.0" }
 
 cli_help = [
   "",
@@ -37,6 +37,10 @@ cli_help = [
   "variants",
   "features",
   "analyze",
+  "analyze evidence",
+  "analyze panel-qc",
+  "analyze coverage",
+  "analyze features",
   "sort",
   "somatic",
   "eval-somatic",

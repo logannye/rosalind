@@ -46,6 +46,9 @@ samtools view -H "$reads" | grep -q $'^@SQ.*SN:chr20' || {
 samtools view --no-PG -b "$reads" chr20 -o "$prepared/HG002.chr20.bam"
 samtools index "$prepared/HG002.chr20.bam"
 samtools faidx "$reference" chr20 > "$prepared/GRCh38.chr20.fa"
+# The extracted FASTA has different offsets from the downloaded whole-reference
+# FAI. Build its own sidecar before manifesting or mounting prepared inputs read-only.
+samtools faidx "$prepared/GRCh38.chr20.fa"
 gzip -dc "$downloads/HG002_GRCh38_v5.0q_smvar.vcf.gz" \
   | awk 'BEGIN{FS=OFS="\t"} /^#/ || $1=="chr20"' > "$prepared/HG002.v5.0q.chr20.vcf"
 awk 'BEGIN{FS=OFS="\t"} $1=="chr20"' \
@@ -106,4 +109,5 @@ manifest = {
 (root / "data-manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
 PY
 
+python3 "$HERE/preflight.py" "$DEST"
 echo "Prepared chr20 data and wrote $DEST/data-manifest.json"

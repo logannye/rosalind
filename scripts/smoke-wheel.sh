@@ -1,16 +1,29 @@
 #!/usr/bin/env bash
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-if [[ "$#" -ne 1 ]]; then
-  echo "usage: $0 path/to/candidate.whl" >&2
+PYTHON="${PYTHON:-python3}"
+if [[ "$#" -lt 2 ]]; then
+  echo "usage: $0 candidate.whl (--candidate-source PATH | --registry-sdk)" >&2
   exit 2
 fi
+case "$2" in
+  --candidate-source)
+    [[ "$#" -eq 3 ]] || { echo "--candidate-source needs one path" >&2; exit 2; }
+    SOURCE="$("$PYTHON" -c 'import pathlib, sys; print(pathlib.Path(sys.argv[1]).resolve(strict=True))' "$3")"
+    ORIGIN=(--candidate-source "$SOURCE")
+    ;;
+  --registry-sdk)
+    [[ "$#" -eq 2 ]] || { echo "--registry-sdk takes no path" >&2; exit 2; }
+    ORIGIN=(--registry-sdk)
+    ;;
+  *) echo "choose --candidate-source PATH or --registry-sdk" >&2; exit 2 ;;
+esac
 # Resolve before entering the isolated work directory; never install a different
 # candidate merely because the caller supplied a relative path.
-WHEEL="$(python -c 'import pathlib, sys; print(pathlib.Path(sys.argv[1]).resolve(strict=True))' "$1")"
+WHEEL="$("$PYTHON" -c 'import pathlib, sys; print(pathlib.Path(sys.argv[1]).resolve(strict=True))' "$1")"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
-python -m venv "$WORK/venv"
+"$PYTHON" -m venv "$WORK/venv"
 "$WORK/venv/bin/pip" install "$WHEEL"
 "$WORK/venv/bin/pip" install 'pysam==0.23.3'
 "$WORK/venv/bin/rosalind" --version
@@ -18,10 +31,8 @@ python -m venv "$WORK/venv"
 "$WORK/venv/bin/rosalind" reference build --fasta "$ROOT/examples/data/illumina_toy/reference.fa" --output "$WORK/reference.rref"
 # Run outside the checkout so import cannot accidentally use source Python files.
 cd "$WORK"
-export ROSALIND_SMOKE_SOURCE_ROOT="$ROOT"
 "$WORK/venv/bin/python" - <<'PY'
 import json
-import os
 import rosalind
 import pysam
 import subprocess
@@ -54,30 +65,13 @@ summary = rosalind.panel_qc("sorted.bam", "targets.bed", "panel.tsv", reference=
 assert summary.returncode == 0
 print("installed version identity, evidence stream, materialization, offline replay and panel QC passed")
 
-# The packaged executable supplies every scaffold file and runs conformance.
-# Before registry publication, resolve its SDK dependencies to this candidate's
-# source checkout. Fetch the generated SDK consumer's dependencies explicitly:
-# on Linux maturin's container does not populate the host Cargo registry. The
-# subsequent locked offline build proves compilation needs no further network.
-source = Path(os.environ["ROSALIND_SMOKE_SOURCE_ROOT"])
-scaffold = Path("wheel-smoke-analyzer").resolve()
-subprocess.run([str(binary), "new", "analyzer", "wheel-smoke-analyzer", "--output", str(scaffold)], check=True)
-assert f'version = "={native_version}"' in (scaffold / "Cargo.toml").read_text()
-target = source / "target" / "wheel-sdk-smoke"
-sdk_args = [
-    "--manifest-path", str(scaffold / "Cargo.toml"),
-    "--config", "patch.crates-io.rosalind-bio.path=" + json.dumps(str(source)),
-    "--config", "patch.crates-io.rosalind-build-info.path=" + json.dumps(str(source / "crates/build-info")),
-]
-subprocess.run(["cargo", "fetch", *sdk_args], check=True)
-assert (scaffold / "Cargo.lock").is_file(), "dependency preparation must lock the scaffold"
-subprocess.run([
-    "cargo", "build", "--locked", "--offline", *sdk_args,
-    "--target-dir", str(target),
-], check=True)
-with Path("scaffold.conformance.json").open("w") as report:
-    subprocess.run([str(binary), "conformance", "analyzer", "--binary",
-                    str(target / "debug/wheel-smoke-analyzer"), "--json"], stdout=report, check=True)
-assert json.loads(Path("scaffold.conformance.json").read_text())["passed"]
-print("packaged scaffold built offline against candidate SDK and passed packaged conformance")
 PY
+# Stage the maintained SDK guide and validate its offline links, then execute the
+# Python example from the installed wheel metadata and the SDK guide verbatim.
+# Candidate source patches are an explicit option; registry mode has a fresh
+# Cargo home and never substitutes an unpublished local SDK.
+"$PYTHON" "$ROOT/scripts/onboarding.py" stage "$ROOT" "$WORK/bundle"
+mkdir -p "$WORK/bundle/examples/data"
+cp -R "$ROOT/examples/data/illumina_toy" "$WORK/bundle/examples/data/"
+"$PYTHON" "$ROOT/scripts/onboarding.py" smoke --bundle "$WORK/bundle" \
+  --binary "$WORK/venv/bin/rosalind" --python "$WORK/venv/bin/python" "${ORIGIN[@]}"

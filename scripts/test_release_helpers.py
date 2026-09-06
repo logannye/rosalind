@@ -18,6 +18,8 @@ def module(name):
 prepare = module('prepare-wheel-version').prepare
 readiness = module('giab-readiness').readiness
 verify = module('verify-wheel-upload').verify
+wheel_artifacts = module('wheel-artifacts')
+release_policy = module('verify-release-automation')
 
 
 class ReleaseHelpers(unittest.TestCase):
@@ -80,6 +82,108 @@ class ReleaseHelpers(unittest.TestCase):
             exact['urls'][0]['digests']['sha256'] = 'a' * 64
             with self.assertRaises(ValueError):
                 verify(root, 'testpypi', lambda _: exact)
+
+
+class WheelArtifacts(unittest.TestCase):
+    def fixture(self, version='0.5.0-rc.1'):
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        artifacts = root / 'artifacts'
+        artifacts.mkdir()
+        candidate = 'b' * 40
+        for target, platform in [
+            ('aarch64-apple-darwin', 'macosx_11_0_arm64'),
+            ('x86_64-apple-darwin', 'macosx_10_12_x86_64'),
+            ('x86_64-unknown-linux-gnu', 'manylinux_2_28_x86_64'),
+        ]:
+            directory = root / target
+            directory.mkdir()
+            pyversion = version.replace('-rc.', 'rc')
+            wheel = directory / f'rosalind_bio-{pyversion}-py3-none-{platform}.whl'
+            with zipfile.ZipFile(wheel, 'w') as archive:
+                archive.writestr(f'rosalind_bio-{pyversion}.dist-info/METADATA', f'Name: rosalind-bio\nVersion: {pyversion}\n')
+            build = directory / 'build.json'
+            build.write_text(json.dumps({'source_commit': candidate, 'rust_version': version, 'python_version': pyversion}))
+            report = wheel_artifacts.record(directory, build, target)
+            (artifacts / wheel.name).write_bytes(wheel.read_bytes())
+            (artifacts / f'wheel-build-{target}.json').write_text(json.dumps(report))
+        return root, artifacts, candidate
+
+    def test_complete_stable_and_rc_sets_stage_only_the_recorded_bytes(self):
+        for version, index in [('0.5.0', 'pypi'), ('0.5.0-rc.1', 'testpypi')]:
+            root, artifacts, candidate = self.fixture(version)
+            output = root / 'dist'
+            identities = wheel_artifacts.stage(artifacts, output, candidate, version, index)
+            self.assertEqual(len(identities), 3)
+            self.assertEqual(len(list(output.iterdir())), 3)
+            for identity in identities:
+                self.assertEqual((output / identity['filename']).read_bytes(), (artifacts / identity['filename']).read_bytes())
+
+    def test_wrong_candidate_version_or_index_refuses_before_staging(self):
+        for candidate, version, index in [('a' * 40, '0.5.0-rc.1', 'testpypi'), ('b' * 40, '0.5.0-rc.2', 'testpypi'), ('b' * 40, '0.5.0-rc.1', 'pypi')]:
+            root, artifacts, _ = self.fixture()
+            with self.assertRaises(ValueError):
+                wheel_artifacts.stage(artifacts, root / 'dist', candidate, version, index)
+            self.assertFalse((root / 'dist').exists())
+
+    def test_missing_extra_or_tampered_artifacts_refuse_before_staging(self):
+        for mutation in ('missing-report', 'extra-wheel', 'changed-wheel', 'wrong-target', 'path-escape'):
+            root, artifacts, candidate = self.fixture()
+            report_path = next(artifacts.glob('wheel-build-*.json'))
+            report = json.loads(report_path.read_text())
+            if mutation == 'missing-report':
+                report_path.unlink()
+            elif mutation == 'extra-wheel':
+                (artifacts / 'unrecorded.whl').write_bytes(b'extra')
+            elif mutation == 'changed-wheel':
+                with (artifacts / report['wheel']['filename']).open('ab') as stream:
+                    stream.write(b'tampered')
+            else:
+                if mutation == 'wrong-target':
+                    report['target'] = 'x86_64-unknown-linux-gnu'
+                    if report_path.name == 'wheel-build-x86_64-unknown-linux-gnu.json':
+                        report['target'] = 'aarch64-apple-darwin'
+                else:
+                    report['wheel']['filename'] = '../escaped.whl'
+                report_path.write_text(json.dumps(report))
+            with self.assertRaises(ValueError):
+                wheel_artifacts.stage(artifacts, root / 'dist', candidate, '0.5.0-rc.1', 'testpypi')
+            self.assertFalse((root / 'dist').exists(), mutation)
+
+    def test_wheel_metadata_and_platform_must_match_report(self):
+        root, artifacts, _ = self.fixture()
+        report = json.loads((artifacts / 'wheel-build-aarch64-apple-darwin.json').read_text())
+        wheel = artifacts / report['wheel']['filename']
+        with self.assertRaises(ValueError):
+            wheel_artifacts.wheel_identity(wheel, 'x86_64-apple-darwin', '0.5.0-rc.1')
+        with zipfile.ZipFile(wheel, 'w') as archive:
+            archive.writestr('rosalind_bio-0.5.0rc1.dist-info/METADATA', 'Name: rosalind-bio\nVersion: 0.5.0rc2\n')
+        with self.assertRaises(ValueError):
+            wheel_artifacts.wheel_identity(wheel, 'aarch64-apple-darwin', '0.5.0-rc.1')
+
+
+class PublisherBoundaries(unittest.TestCase):
+    def workflows(self):
+        root = Path(__file__).resolve().parents[1] / '.github/workflows'
+        return {name: (root / name).read_text() for name in ('rc.yml', 'release.yml', 'wheels.yml')}
+
+    def test_actual_workflows_preserve_top_level_protected_publishers(self):
+        release_policy.verify_pypi_boundary(self.workflows())
+
+    def test_reusable_publishing_or_missing_protection_is_rejected(self):
+        for filename, old, new in [
+            ('wheels.yml', 'contents: read', 'contents: read\n  id-token: write'),
+            ('rc.yml', '    environment: release', '    environment: unprotected'),
+            ('release.yml', 'https://upload.pypi.org/legacy/', 'https://test.pypi.org/legacy/'),
+            ('rc.yml', 'python3 scripts/wheel-artifacts.py stage', 'python3 scripts/unverified-stage.py'),
+            ('release.yml', 'needs: [authorize, build-wheels]', 'needs: authorize'),
+        ]:
+            workflows = self.workflows()
+            self.assertIn(old, workflows[filename])
+            workflows[filename] = workflows[filename].replace(old, new)
+            with self.assertRaises(SystemExit, msg=(filename, old)):
+                release_policy.verify_pypi_boundary(workflows)
 
 
 if __name__ == '__main__':
