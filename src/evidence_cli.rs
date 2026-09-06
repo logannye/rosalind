@@ -53,7 +53,7 @@ pub(crate) struct EvidenceOptions {
     /// Maximum execution microtile width; does not change scientific results.
     #[arg(long, default_value_t = 16_384)]
     tile_bases: u32,
-    /// Maximum decoded record envelope; larger records cause a resource failure.
+    /// Maximum decoded record envelope; checked across the whole file for CRAM.
     #[arg(long, default_value_t = 1_048_576)]
     max_record_bytes: usize,
     /// Bounded workers for independent canonical partitions.
@@ -71,7 +71,7 @@ pub(crate) struct EvidenceOptions {
     /// Verified replay dependencies for persisted source reuse.
     #[arg(long = "reuse-artifact", hide = true, requires = "reuse_dataset")]
     reuse_artifacts: Vec<PathBuf>,
-    /// Reuse compatible verified completed partitions; requires --cache-dir.
+    /// Reuse verified partitions; requires --cache-dir. CRAM still validates the whole file.
     #[arg(long, requires = "cache_dir")]
     resume: bool,
     /// Explicit local FASTA used to decode CRAM when the analysis reference is a pack.
@@ -92,7 +92,7 @@ pub(crate) struct EvidenceOptions {
     /// Optional exact per-position evidence from the same panel traversal.
     #[arg(long)]
     position_output: Option<PathBuf>,
-    /// Print the complete admitted evidence plan as JSON without creating output.
+    /// Print the admitted plan as JSON; includes whole-file validation for CRAM, without creating output.
     #[arg(long)]
     plan: bool,
 }

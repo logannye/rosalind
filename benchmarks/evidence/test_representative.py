@@ -237,6 +237,10 @@ class HarnessTests(unittest.TestCase):
                     "execution.evidence_dataset_manifest": str(root / "portable.manifest.json")}
                 if mode == "wrong-rows":
                     values["execution.emitted_loci"] = "74"
+                if mode == "cram-validation":
+                    values.update({"execution.decoder_model": "cram-container-envelope-v1", "execution.decoder_bytes": "80",
+                        "execution.cram.validated_records": "500", "execution.cram.validated_bases": "75000",
+                        "execution.cram.validation_wall_micros": "1250000"})
                 params = dict(memory_budget_mb=str(budget + (1 if mode == "wrong-budget" else 0)), run_status="completed")
                 receipt.write_text("broken JSON" if mode == "native-metadata" else json.dumps(dict(params=params, measurements=values)))
                 if mode == "rss-breach":
@@ -282,6 +286,21 @@ class HarnessTests(unittest.TestCase):
         self.assertEqual(report["measurements"][0]["wall_seconds"], 0.01)
         self.assertTrue(all(row["status"] == "not-run" for row in report["measurements"][1:]))
         self.assertTrue(any(not row["valid"] for row in report["final_input_checks"]))
+
+    def test_resume_gate_does_not_hide_separate_cram_validation(self):
+        report = harness.execute(self.manifest, Path(sys.executable), self.fixture.root / "cram-validation", self.path,
+                                 measure=self.fake_measure("cram-validation"))
+        self.assertEqual(report["status"], "passed", report.get("error"))
+        resumed = [row for row in report["measurements"] if row.get("phase") == "resumed"]
+        self.assertTrue(resumed)
+        for row in resumed:
+            self.assertEqual(row["indexed_alignment_record_visits"], 0)
+            self.assertEqual(row["cram_validation_records"], 500)
+            self.assertEqual(row["cram_validation_bases"], 75000)
+            self.assertEqual(row["cram_validation_wall_seconds"], 1.25)
+        for gate in report["gates"].values():
+            self.assertTrue(gate["checks"]["resume_performs_no_indexed_extraction"])
+            self.assertNotIn("resume_performs_no_alignment_extraction", gate["checks"])
 
     def test_final_checks_rehash_even_when_snapshot_check_is_not_used(self):
         identities, _ = harness.verify_inputs(self.manifest)
