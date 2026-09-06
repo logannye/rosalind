@@ -22,10 +22,23 @@ use libc::rusage;
 /// budget, which is exactly the failure the contract forbids.
 pub fn peak_rss_bytes() -> u64 {
     #[cfg(target_os = "linux")]
-    if let Some(bytes) = linux_peak_rss_bytes() {
-        return bytes;
-    }
+    {
+        use std::sync::atomic::{AtomicU64, Ordering};
 
+        // Linux's batched RSS accounting can settle between samples, including
+        // after unmapping an allocation. Never forget a peak we already saw.
+        // This state starts at zero in a newly exec'd native worker.
+        static OBSERVED_PEAK: AtomicU64 = AtomicU64::new(0);
+        let bytes = linux_peak_rss_bytes().unwrap_or_else(rusage_peak_rss_bytes);
+        OBSERVED_PEAK.fetch_max(bytes, Ordering::Relaxed).max(bytes)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        rusage_peak_rss_bytes()
+    }
+}
+
+fn rusage_peak_rss_bytes() -> u64 {
     let mut usage: rusage = unsafe { std::mem::zeroed() };
     let rc = unsafe { libc::getrusage(libc::RUSAGE_SELF, &mut usage as *mut rusage) };
     if rc != 0 {
