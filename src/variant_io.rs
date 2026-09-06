@@ -373,11 +373,14 @@ impl CheckedVariantWriter {
         }
         for (key, values) in strings {
             let key = checked_key(key)?;
-            let joined = values.join(&b',');
+            // BCF_HT_STR uses strlen: its count is not a byte-length bound.
+            // Include the NUL already reserved by annotation_bytes above.
+            let joined = CString::new(values.join(&b','))
+                .map_err(|_| invalid("variant INFO string contains NUL"))?;
             self.update_info(
                 &key,
                 joined.as_ptr().cast(),
-                joined.len(),
+                usize::from(!values.is_empty()),
                 htslib::BCF_HT_STR,
             )?;
         }
@@ -473,8 +476,8 @@ impl CheckedVariantWriter {
         kind: u32,
     ) -> Result<(), EvidenceError> {
         let count = i32::try_from(count).map_err(|_| EvidenceError::CounterOverflow)?;
-        // SAFETY: the caller's typed slice or joined byte string lives for the
-        // call. HTSlib copies it into the exclusive scratch record.
+        // SAFETY: the caller's typed slice or NUL-terminated CString lives for
+        // the call. HTSlib copies it into the exclusive scratch record.
         if unsafe {
             htslib::bcf_update_info(
                 self.header.inner,
@@ -689,6 +692,11 @@ fn check_record_header(record: &bcf::Record) -> Result<(), EvidenceError> {
 }
 
 fn check_record(record: &htslib::bcf1_t, limits: VariantLimits) -> Result<usize, EvidenceError> {
+    // Bindgen names this pointee differently on Linux and macOS. Infer its
+    // native layout from the field type without dereferencing the pointer.
+    fn pointee_size<T>(_: *const T) -> usize {
+        size_of::<T>()
+    }
     if record.errcode != 0 {
         return Err(invalid(format!(
             "variant parser error flags {} (undefined contig/tag or malformed record)",
@@ -709,7 +717,7 @@ fn check_record(record: &htslib::bcf1_t, limits: VariantLimits) -> Result<usize,
         (d.m_flt, size_of::<libc::c_int>()),
         (d.m_info, size_of::<htslib::bcf_info_t>()),
         (d.m_fmt, size_of::<htslib::bcf_fmt_t>()),
-        (d.n_var, size_of::<htslib::bcf_variant_t>()),
+        (d.n_var, pointee_size(d.var)),
     ] {
         let count =
             usize::try_from(count).map_err(|_| invalid("negative variant allocation capacity"))?;
