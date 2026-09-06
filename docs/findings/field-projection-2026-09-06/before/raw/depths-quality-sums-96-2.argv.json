@@ -1,0 +1,19 @@
+[
+  "/Users/logannye/rosalind/target/release/rosalind",
+  "analyze",
+  "panel-qc",
+  "--reference",
+  "/private/tmp/rosalind-projection-pressure-20260906/reference.fa",
+  "--alignments",
+  "/private/tmp/rosalind-projection-pressure-20260906/panel.bam",
+  "--regions",
+  "/private/tmp/rosalind-projection-pressure-20260906/panel.bed",
+  "--fields",
+  "depths,quality-sums",
+  "--memory-budget-mb",
+  "96",
+  "--output",
+  "/private/tmp/rosalind-projection-pressure-20260906/depths-quality-sums-96-2.tsv",
+  "--manifest",
+  "/private/tmp/rosalind-projection-pressure-20260906/depths-quality-sums-96-2.manifest.json"
+]

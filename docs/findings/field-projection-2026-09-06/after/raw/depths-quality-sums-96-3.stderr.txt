@@ -1,0 +1,1 @@
+evidence: 200000 loci; peak RSS 11 MiB; 81150 record visits; receipt /private/tmp/rosalind-projection-pressure-final-20260906/depths-quality-sums-96-3.manifest.json

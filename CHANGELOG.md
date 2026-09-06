@@ -19,6 +19,19 @@ protected publication review, and change-based caller evidence requirements appl
 - Development status and the ordered next implementation sequence are tracked in
   `docs/ADOPTION_ROADMAP.md`; implementation does not imply publication or adoption.
 
+### Physical evidence projection
+
+- Requested groups now determine actual accumulator, Arrow/TSV, and cached storage.
+  Full schema-1 bytes are preserved; projections carry explicit schema-2 masks.
+  Panel summaries default to depths and quality sums.
+- Nearby sparse loci share bounded indexed windows without widening selection.
+  Reusable batch allocations correct the admitted-budget boundary-tile failure.
+- The preview Rust batch API exposes borrowed optional groups through `rows()`;
+  full owned rows require explicit fallible materialization. Python accepts fields.
+- Cached Arrow readers reject field mismatches before record allocation and validate
+  canonical frame offsets, sizes, alignment, and counts before decoder access.
+  Dataset comparison supports matching projections and refuses absent-as-zero comparisons.
+
 ### Analyzer-platform foundation
 
 - Repositioned Rosalind around deterministic per-locus analysis contracts; the

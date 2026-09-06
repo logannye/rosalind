@@ -37,6 +37,10 @@ pub(crate) struct EvidenceOptions {
     /// Exact evidence output format (panel summaries use TSV).
     #[arg(long, value_enum, default_value_t = FeatureFormat::Tsv)]
     format: FeatureFormat,
+    /// Physical evidence groups, comma separated: all, none, depths, alleles, strands,
+    /// quality-sums, quality-histograms, read-position. Panel defaults to depths,quality-sums.
+    #[arg(long, value_delimiter = ',')]
+    fields: Option<Vec<String>>,
     /// Maximum execution microtile width; does not change scientific results.
     #[arg(long, default_value_t = 16_384)]
     tile_bases: u32,
@@ -78,6 +82,7 @@ pub(crate) struct EvidenceOptions {
 impl EvidenceOptions {
     pub(crate) fn reject_legacy_options(&self) -> Result<()> {
         if self.sites.is_some()
+            || self.fields.is_some()
             || self.sample.is_some()
             || self.pool_samples
             || self.cram_reference.is_some()
@@ -99,6 +104,38 @@ impl EvidenceOptions {
         }
         Ok(())
     }
+}
+
+fn requested_fields(command: &EvidenceCommand) -> Result<EvidenceFields> {
+    let panel_fields = EvidenceFields::DEPTHS.union(EvidenceFields::QUALITY_SUMS);
+    let Some(names) = &command.options.fields else {
+        return Ok(
+            if command.panel && command.options.position_output.is_none() {
+                panel_fields
+            } else {
+                EvidenceFields::ALL
+            },
+        );
+    };
+    let mut fields = EvidenceFields::from_bits(0)?;
+    for name in names {
+        let group = match name.as_str() {
+            "all" if names.len() == 1 => EvidenceFields::ALL,
+            "none" if names.len() == 1 => EvidenceFields::from_bits(0)?,
+            "depths" => EvidenceFields::DEPTHS,
+            "alleles" => EvidenceFields::ALLELES,
+            "strands" => EvidenceFields::STRANDS,
+            "quality-sums" => EvidenceFields::QUALITY_SUMS,
+            "quality-histograms" => EvidenceFields::QUALITY_HISTOGRAMS,
+            "read-position" => EvidenceFields::READ_POSITION,
+            _ => bail!("invalid evidence field group {name:?}; use comma-separated groups or all/none alone"),
+        };
+        fields = fields.union(group);
+    }
+    if command.panel && !fields.contains(panel_fields) {
+        bail!("panel-qc --fields must include depths and quality-sums");
+    }
+    Ok(fields)
 }
 
 pub(crate) struct EvidenceCommand {
@@ -325,6 +362,7 @@ fn run_inner(mut command: EvidenceCommand) -> Result<()> {
     if command.options.workers == 0 {
         bail!("--workers must be positive");
     }
+    let fields = requested_fields(&command)?;
     let receipt_path = command.manifest.clone().or_else(|| {
         command
             .output
@@ -424,6 +462,7 @@ fn run_inner(mut command: EvidenceCommand) -> Result<()> {
     } else {
         EvidenceRequest::coverage(&command.alignments)
     };
+    request.fields = fields;
     request.cram_reference = command.options.cram_reference.clone();
     request.alignment_index = command.options.alignment_index.clone();
     request.reference_fai = command.options.reference_fai.clone();
@@ -462,7 +501,10 @@ fn run_inner(mut command: EvidenceCommand) -> Result<()> {
             "package_version".to_string(),
             env!("CARGO_PKG_VERSION").to_string(),
         ),
-        ("schema".to_string(), EVIDENCE_SCHEMA_VERSION.to_string()),
+        (
+            "schema".to_string(),
+            engine.request().fields.schema_version().to_string(),
+        ),
         (
             "fields_version".to_string(),
             EvidenceFields::VERSION.to_string(),

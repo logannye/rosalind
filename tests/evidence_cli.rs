@@ -17,6 +17,9 @@ struct Fixture {
 }
 impl Fixture {
     fn new() -> Self {
+        Self::with_length(4099)
+    }
+    fn with_length(length: usize) -> Self {
         static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let root = std::env::temp_dir().join(format!(
             "rosalind-evidence-cli-{}-{}",
@@ -32,8 +35,12 @@ impl Fixture {
         );
         std::fs::create_dir(&root).unwrap();
         let reference = root.join("ref.fa");
-        std::fs::write(&reference, format!(">chr1\n{}\n", "A".repeat(4099))).unwrap();
-        std::fs::write(root.join("ref.fa.fai"), "chr1\t4099\t6\t4099\t4100\n").unwrap();
+        std::fs::write(&reference, format!(">chr1\n{}\n", "A".repeat(length))).unwrap();
+        std::fs::write(
+            root.join("ref.fa.fai"),
+            format!("chr1\t{length}\t6\t{length}\t{}\n", length + 1),
+        )
+        .unwrap();
         let bam = root.join("reads.bam");
         let mut header = Header::new();
         header.push_record(
@@ -44,7 +51,7 @@ impl Fixture {
         header.push_record(
             HeaderRecord::new(b"SQ")
                 .push_tag(b"SN", "chr1")
-                .push_tag(b"LN", 4099),
+                .push_tag(b"LN", length),
         );
         let mut writer = bam::Writer::from_path(&bam, &header, bam::Format::Bam).unwrap();
         for (i, (pos, length, flags, mq, bq)) in [
@@ -74,7 +81,11 @@ impl Fixture {
         drop(writer);
         bam::index::build(&bam, None::<&PathBuf>, bam::index::Type::Bai, 1).unwrap();
         let bed = root.join("panel.bed");
-        std::fs::write(&bed, "chr1\t0\t4099\twhole\nchr1\t2\t8\toverlap\n").unwrap();
+        std::fs::write(
+            &bed,
+            format!("chr1\t0\t{length}\twhole\nchr1\t2\t8\toverlap\n"),
+        )
+        .unwrap();
         Self {
             root,
             reference,
@@ -454,6 +465,46 @@ fn legacy_arrow_full_batch_refuses_small_budget_and_verifies_admitted_run() {
                     .arg(format!("{}.manifest.json", path.display()))
                     .output()
                     .unwrap(),
+            );
+        }
+    }
+}
+
+#[test]
+fn panel_boundary_buffers_reuse_capacity_under_three_process_budgets() {
+    // A full tile followed by smaller boundary windows formerly retained both
+    // allocations and breached an admitted 64 MiB budget on macOS.
+    let fixture = Fixture::with_length(200_000);
+    let mut expected = None;
+    for fields in ["all", "depths,quality-sums"] {
+        for budget in [64, 96, 128] {
+            let output = fixture.root.join(format!("pressure-{fields}-{budget}.tsv"));
+            success(
+                fixture
+                    .command("panel-qc")
+                    .args([
+                        "--fields",
+                        fields,
+                        "--memory-budget-mb",
+                        &budget.to_string(),
+                        "--output",
+                    ])
+                    .arg(&output)
+                    .output()
+                    .unwrap(),
+            );
+            let bytes = std::fs::read(&output).unwrap();
+            if let Some(before) = &expected {
+                assert_eq!(&bytes, before);
+            } else {
+                expected = Some(bytes);
+            }
+            let manifest = receipt(&output);
+            assert!(
+                manifest.measurements["peak_rss_bytes"]
+                    .parse::<u64>()
+                    .unwrap()
+                    <= budget * (1 << 20)
             );
         }
     }

@@ -1,0 +1,90 @@
+   Compiling rosalind-bio v0.5.0 (/Users/logannye/rosalind)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.67s
+     Running tests/evidence_cli.rs (target/debug/deps/evidence_cli-0eb5fdcb12454175)
+
+running 8 tests
+test explicitly_supplied_inapplicable_defaults_are_rejected ... ok
+test arrow_legacy_plan_includes_encoder_flush_transients ... ok
+test evidence_resource_and_input_failures_never_publish_success ... ok
+test finalization_breach_demotes_both_panel_artifacts ... ok
+test legacy_arrow_full_batch_refuses_small_budget_and_verifies_admitted_run ... ok
+test panel_fuses_position_evidence_and_uses_full_target_denominators ... ok
+test evidence_cli_arrow_is_invariant_and_receipts_replay ... ok
+test cache_reuse_and_worker_cli_preserve_canonical_output ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.19s
+
+     Running tests/evidence_dataset.rs (target/debug/deps/evidence_dataset-32db8ba3b23a55fa)
+
+running 14 tests
+test input_snapshot_refuses_replacement_and_mutation_before_cache_publication ... ok
+test failed_worker_disconnects_a_full_job_queue_and_leaves_no_complete_dataset ... ok
+test worker_admission_counts_single_baseline_and_refuses_before_cache_creation ... ok
+test dataset_diff_refuses_tampered_artifacts_before_publishing_delta_output ... ok
+test resumed_cache_hash_corruption_is_refused_before_analyzer_receives_rows ... ok
+test snv_site_annotations_survive_partition_cache_and_execution_changes ... ok
+test completed_dataset_binds_partition_receipts_and_missing_partitions ... ok
+test dataset_diff_refuses_different_reference_dictionaries ... ok
+test reused_caller_cache_key_cannot_override_request_scientific_semantics ... ok
+test incomplete_cache_requires_resume_and_recomputes_only_missing_partition ... ok
+test dataset_diff_compares_panel_position_artifact_and_refuses_missing_positions ... ok
+test canonical_cache_workers_and_microtiles_produce_identical_evidence ... ok
+test dataset_diff_is_empty_across_arrow_and_tsv_and_reports_profile_reference_and_locus_changes ... ok
+test worker_rejects_source_mutation_before_publishing_its_partition ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.91s
+
+     Running tests/evidence_engine.rs (target/debug/deps/evidence_engine-236437a47bfbd4a6)
+
+running 19 tests
+test malformed_cigar_and_declared_read_envelope_fail_instead_of_truncating ... [W::cram_get_ref] Failed to populate reference for id 0
+[W::cram_write_SAM_hdr] No M5 tags present and could not find reference
+[W::cram_write_SAM_hdr] Enabling embed_ref=2 option
+[W::cram_write_SAM_hdr] NOTE: the CRAM file will be bigger than using an external reference
+ok
+test sam_reference_equality_bases_resolve_with_reference_and_refuse_without_it ... ok
+test overlapping_panel_targets_keep_full_length_denominators_and_fuse ... ok
+test analyzer_capabilities_and_unknown_budget_bounds_are_validated_before_callbacks ... ok
+test coverage_without_reference_and_tiny_budget_refusal_are_explicit ... ok
+test csi_and_relocated_fai_index_inputs_work_without_adjacent_sidecars ... ok
+test independent_hand_calculated_cigar_and_filter_oracle ... ok
+test repeated_planning_preserves_admitted_baseline_and_charges_new_selection ... ok
+test arrow_reader_rejects_oversized_frames_before_decoder_allocation ... ok
+test selection_identity_is_independent_of_input_interval_order_and_duplicates ... ok
+test worker_factory_shares_open_reference_without_reopening_its_path ... ok
+test equal_position_read_order_does_not_change_exact_integer_summaries ... ok
+test snv_sites_validate_reference_and_merge_duplicate_alternates ... ok
+test cram_uses_explicit_local_fasta_and_matches_bam_evidence ... ok
+test file_backed_pack_and_legacy_reference_windows_match_fasta_across_word_and_contig_boundaries ... ok
+test arrow_bytes_are_canonical_and_reader_roundtrips_all_fields ... ok
+test exact_depth_exceeds_old_cap_and_tile_width_does_not_change_rows ... ok
+test every_projection_preserves_present_values_and_roundtrips_empty_metadata ... ok
+test full_evidence_egress_matches_frozen_schema_one_bytes ... ok
+
+test result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.33s
+
+     Running tests/evidence_samples.rs (target/debug/deps/evidence_samples-4447e8bb8a0f2532)
+
+running 11 tests
+[W::sam_hrecs_update_hashes] Duplicate entry "same" in sam header
+test duplicate_read_group_ids_are_rejected_even_for_explicit_pooling ... ok
+test deliberate_pooling_includes_named_and_unassigned_records ... ok
+test auto_unifies_read_groups_of_one_sample_and_matches_explicit_selection ... ok
+test named_selection_precedes_every_locus_depth_and_filter_counter ... ok
+test sample_header_state_is_reserved_through_replanning ... ok
+test auto_refuses_multiple_samples_and_mixed_named_unnamed_groups ... ok
+test named_selection_must_exist_in_the_header ... ok
+test canonical_scope_ignores_header_order_and_escapes_identifiers ... ok
+test sample_scope_and_rows_are_invariant_across_microtiles_workers_and_boundaries ... ok
+test unlabeled_inputs_keep_explicit_unknown_identity_and_existing_counts ... ok
+test named_runs_refuse_missing_undeclared_unnamed_or_nonstring_rg ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/panel_defaults.rs (target/debug/deps/panel_defaults-40fd38ce1e5ad0c4)
+
+running 1 test
+test rust_and_cli_share_default_and_explicit_panel_callability_thresholds ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+

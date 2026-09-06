@@ -14,9 +14,9 @@ use std::sync::{mpsc, Arc, Mutex};
 use thiserror::Error;
 
 use crate::evidence::{
-    read_evidence_batches, EvidenceAnalyzer, EvidenceArrowWriter, EvidenceEngine, EvidenceError,
-    EvidenceExecution, EvidenceRunStats, EvidenceSelection, CANONICAL_TILE_BASES,
-    EVIDENCE_SCHEMA_VERSION, EVIDENCE_SEMANTICS_VERSION,
+    evidence_reader_memory_bytes, read_evidence_batches_expected_fields, EvidenceAnalyzer,
+    EvidenceArrowWriter, EvidenceEngine, EvidenceError, EvidenceExecution, EvidenceFields,
+    EvidenceRunStats, EvidenceSelection, CANONICAL_TILE_BASES, EVIDENCE_SEMANTICS_VERSION,
 };
 use crate::provenance::{blake3_file, FileHash, RunManifest};
 use crate::selection::GenomicInterval;
@@ -152,7 +152,7 @@ fn request_digest(engine: &EvidenceEngine) -> String {
     field(b"rosalind-dataset-request-v1");
     field(EVIDENCE_SEMANTICS_VERSION.as_bytes());
     field(env!("CARGO_PKG_VERSION").as_bytes());
-    field(&EVIDENCE_SCHEMA_VERSION.to_le_bytes());
+    field(&request.fields.schema_version().to_le_bytes());
     field(&crate::evidence::EvidenceFields::VERSION.to_le_bytes());
     field(&request.fields.bits().to_le_bytes());
     field(crate::evidence::EvidenceProfile::ID.as_bytes());
@@ -389,7 +389,7 @@ pub fn plan_dataset(
         }
         None => execution.analyzer_bytes,
     };
-    let arrow_bytes = EvidenceArrowWriter::new(std::io::sink())
+    let arrow_bytes = EvidenceArrowWriter::with_fields(std::io::sink(), engine.request().fields)
         .additional_memory_bytes()
         .expect("first-party encoder bound");
     let bytes_per_locus = engine.plan().bytes_per_locus;
@@ -399,7 +399,8 @@ pub fn plan_dataset(
         .saturating_sub(engine.plan().analyzer_bytes)
         .saturating_sub(engine.plan().selection_bytes);
     let worker_fixed = decoder_bytes.saturating_add(arrow_bytes);
-    let reducer_bytes = arrow_bytes.saturating_add(final_analyzer);
+    let reducer_bytes =
+        evidence_reader_memory_bytes(engine.request().fields).saturating_add(final_analyzer);
     let site_count = match &engine.request().selection {
         EvidenceSelection::Sites(sites) => sites.len(),
         _ => 0,
@@ -474,6 +475,7 @@ pub fn run_dataset_with_snapshot(
 ) -> Result<DatasetOutcome, DatasetError> {
     inputs.verify()?;
     let request_digest = request_digest(engine);
+    let fields = engine.request().fields;
     if science_digest.len() != 64 || !science_digest.bytes().all(|byte| byte.is_ascii_hexdigit()) {
         return Err(DatasetError::Incompatible(
             "science digest must be a 64-character BLAKE3 hex string".into(),
@@ -514,7 +516,8 @@ pub fn run_dataset_with_snapshot(
                 .params
                 .get("evidence.schema")
                 .and_then(|value| value.parse::<u32>().ok())
-                != Some(EVIDENCE_SCHEMA_VERSION)
+                != Some(fields.schema_version())
+            || receipt_fields(&manifest)? != fields
             || manifest.params.get("pileup.semantics").map(String::as_str)
                 != Some("exact-or-fail-v1")
         {
@@ -539,7 +542,7 @@ pub fn run_dataset_with_snapshot(
             }
             missing.push(index);
         } else {
-            let receipt = verify_partition(&path, part, science_digest, &request_digest)?;
+            let receipt = verify_partition(&path, part, science_digest, &request_digest, fields)?;
             if let Some(complete) = &completed {
                 if blake3_file(&path.join("manifest.json"))? != complete.inputs[index].blake3
                     || receipt.outputs[0].blake3 != complete.outputs[index].blake3
@@ -558,9 +561,10 @@ pub fn run_dataset_with_snapshot(
     let mut worker_execution: EvidenceExecution = engine.request().execution.clone();
     worker_execution.memory_budget_bytes = None;
     worker_execution.max_microtile_bases = plan.microtile_bases;
-    worker_execution.analyzer_bytes = EvidenceArrowWriter::new(std::io::sink())
-        .additional_memory_bytes()
-        .unwrap();
+    worker_execution.analyzer_bytes =
+        EvidenceArrowWriter::with_fields(std::io::sink(), engine.request().fields)
+            .additional_memory_bytes()
+            .unwrap();
     let mut stats = EvidenceRunStats::default();
     if !missing.is_empty() {
         let cancelled = Arc::new(AtomicBool::new(false));
@@ -643,7 +647,15 @@ pub fn run_dataset_with_snapshot(
         ("dataset.request_blake3".into(), request_digest.clone()),
         (
             "evidence.schema".into(),
-            EVIDENCE_SCHEMA_VERSION.to_string(),
+            engine.request().fields.schema_version().to_string(),
+        ),
+        (
+            "evidence.fields".into(),
+            engine.request().fields.bits().to_string(),
+        ),
+        (
+            "evidence.fields_version".into(),
+            EvidenceFields::VERSION.to_string(),
         ),
         ("pileup.semantics".into(), "exact-or-fail-v1".into()),
         ("dataset.partition_count".into(), parts.len().to_string()),
@@ -657,7 +669,7 @@ pub fn run_dataset_with_snapshot(
     for part in &parts {
         crate::core::governor::checkpoint().map_err(EvidenceError::from)?;
         let path = root.join(part.name());
-        let receipt = verify_partition(&path, part, science_digest, &request_digest)?;
+        let receipt = verify_partition(&path, part, science_digest, &request_digest, fields)?;
         let mut interval_index = 0usize;
         let mut next_position = part
             .intervals
@@ -665,16 +677,22 @@ pub fn run_dataset_with_snapshot(
             .map(|interval| interval.start)
             .unwrap_or(0);
         let mut consumer_failed = false;
-        let read_result = read_evidence_batches(
+        let read_result = read_evidence_batches_expected_fields(
             BufReader::new(File::open(path.join("evidence.arrow"))?),
             engine.contigs(),
+            fields,
             |batch| {
+                if batch.fields() != fields {
+                    return Err(EvidenceError::InvalidInput(
+                        "cached batch field mask differs from request".into(),
+                    ));
+                }
                 if batch.contig_id != part.contig {
                     return Err(EvidenceError::InvalidInput(
                         "cached batch contig differs from ownership".into(),
                     ));
                 }
-                for row in &batch.rows {
+                for row in batch.rows() {
                     let interval = part.intervals.get(interval_index).ok_or_else(|| {
                         EvidenceError::InvalidInput("cached partition contains extra loci".into())
                     })?;
@@ -692,19 +710,24 @@ pub fn run_dataset_with_snapshot(
                     }
                 }
                 emitted = emitted
-                    .checked_add(batch.rows.len() as u64)
+                    .checked_add(batch.len() as u64)
                     .ok_or(EvidenceError::CounterOverflow)?;
                 let result = analyzer.on_batch(batch);
                 consumer_failed = result.is_err();
                 result
             },
         );
-        if let Err(error) = read_result {
-            return Err(if consumer_failed {
+        let metadata = read_result.map_err(|error| {
+            if consumer_failed {
                 error.into()
             } else {
                 DatasetError::Corrupt(format!("invalid cached Arrow evidence: {error}"))
-            });
+            }
+        })?;
+        if metadata.fields != fields || metadata.schema_version != fields.schema_version() {
+            return Err(DatasetError::Corrupt(
+                "cached Arrow metadata differs from requested fields/schema".into(),
+            ));
         }
         if interval_index != part.intervals.len() {
             return Err(DatasetError::Corrupt(
@@ -792,7 +815,10 @@ fn write_partition(
     )));
     fs::create_dir(&temporary.0)?;
     let output = temporary.0.join("evidence.arrow");
-    let mut writer = EvidenceArrowWriter::new(BufWriter::new(File::create(&output)?));
+    let mut writer = EvidenceArrowWriter::with_fields(
+        BufWriter::new(File::create(&output)?),
+        engine.request().fields,
+    );
     let stats = engine.run(&mut writer)?;
     let mut file = writer.into_inner()?;
     file.flush()?;
@@ -809,7 +835,15 @@ fn write_partition(
         ("dataset.request_blake3".into(), request_digest.into()),
         (
             "evidence.schema".into(),
-            EVIDENCE_SCHEMA_VERSION.to_string(),
+            engine.request().fields.schema_version().to_string(),
+        ),
+        (
+            "evidence.fields".into(),
+            engine.request().fields.bits().to_string(),
+        ),
+        (
+            "evidence.fields_version".into(),
+            EvidenceFields::VERSION.to_string(),
         ),
         ("pileup.semantics".into(), "exact-or-fail-v1".into()),
         ("dataset.contig".into(), part.contig.to_string()),
@@ -854,11 +888,44 @@ fn read_receipt(path: &Path) -> Result<RunManifest, DatasetError> {
     Ok(receipt)
 }
 
+fn receipt_fields(receipt: &RunManifest) -> Result<EvidenceFields, DatasetError> {
+    let schema = receipt.params.get("evidence.schema").map(String::as_str);
+    let fields = match receipt.params.get("evidence.fields") {
+        None if schema == Some("1") => EvidenceFields::ALL,
+        Some(bits) => bits
+            .parse::<u32>()
+            .ok()
+            .and_then(|bits| EvidenceFields::from_bits(bits).ok())
+            .ok_or_else(|| DatasetError::Corrupt("invalid evidence field mask".into()))?,
+        None => {
+            return Err(DatasetError::Corrupt(
+                "missing projected evidence field mask".into(),
+            ))
+        }
+    };
+    match receipt.params.get("evidence.fields_version") {
+        None if schema == Some("1") => (),
+        Some(version) if version == &EvidenceFields::VERSION.to_string() => (),
+        _ => {
+            return Err(DatasetError::Corrupt(
+                "unsupported evidence field mask version".into(),
+            ))
+        }
+    }
+    if schema != Some(fields.schema_version().to_string().as_str()) {
+        return Err(DatasetError::Corrupt(
+            "inconsistent evidence schema and field mask".into(),
+        ));
+    }
+    Ok(fields)
+}
+
 fn verify_partition(
     path: &Path,
     part: &Partition,
     science: &str,
     request_digest: &str,
+    fields: EvidenceFields,
 ) -> Result<RunManifest, DatasetError> {
     if !path.join("manifest.json").is_file() || !path.join("evidence.arrow").is_file() {
         return Err(DatasetError::Corrupt(format!(
@@ -877,9 +944,14 @@ fn verify_partition(
             "cache partition was produced with different request semantics".into(),
         ));
     }
+    if receipt_fields(&receipt)? != fields {
+        return Err(DatasetError::Corrupt(
+            "partition field mask differs from request".into(),
+        ));
+    }
     let expected = [
         ("evidence.science_blake3", science.to_string()),
-        ("evidence.schema", EVIDENCE_SCHEMA_VERSION.to_string()),
+        ("evidence.schema", fields.schema_version().to_string()),
         ("pileup.semantics", "exact-or-fail-v1".into()),
         ("dataset.contig", part.contig.to_string()),
         ("dataset.partition_start", part.start.to_string()),

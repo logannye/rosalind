@@ -35,10 +35,11 @@ pub(super) fn execute_outputs(
     } else {
         None
     };
-    let arrow_memory = EvidenceArrowWriter::new(io::sink())
+    let fields = engine.request().fields;
+    let arrow_memory = EvidenceArrowWriter::with_fields(io::sink(), fields)
         .additional_memory_bytes()
         .unwrap();
-    let tsv_memory = EvidenceTsvWriter::new(io::sink())
+    let tsv_memory = EvidenceTsvWriter::with_fields(io::sink(), fields)
         .additional_memory_bytes()
         .unwrap();
     let consumer_bytes = panel
@@ -52,7 +53,7 @@ pub(super) fn execute_outputs(
         } else {
             tsv_memory
         };
-    let planner = EvidenceCallback::new(|_: &EvidenceBatch| Ok(()), consumer_bytes);
+    let planner = EvidenceCallback::with_fields(|_: &EvidenceBatch| Ok(()), consumer_bytes, fields);
     let plan = engine.plan_for_analyzer(&planner)?.clone();
     let temporary_cache = TemporaryCache(
         if command.options.cache_dir.is_none() && command.options.workers > 1 {
@@ -98,10 +99,10 @@ pub(super) fn execute_outputs(
         });
     if command.options.plan {
         input_snapshot.verify()?;
-        println!("{{\"model\":\"{}\",\"baseline_rss_bytes\":{},\"fixed_bytes\":{},\"bytes_per_locus\":{},\"microtile_bases\":{},\"canonical_tile_bases\":{},\"analyzer_bytes\":{},\"selected_loci\":{},\"predicted_peak_rss_bytes\":{},\"science_blake3\":\"{}\"}}",
+        println!("{{\"model\":\"{}\",\"baseline_rss_bytes\":{},\"fixed_bytes\":{},\"bytes_per_locus\":{},\"microtile_bases\":{},\"canonical_tile_bases\":{},\"analyzer_bytes\":{},\"selected_loci\":{},\"fields\":{},\"schema\":{},\"predicted_peak_rss_bytes\":{},\"science_blake3\":\"{}\"}}",
             plan.model_id, plan.baseline_rss_bytes, plan.fixed_bytes, plan.bytes_per_locus,
             dataset_plan.as_ref().map_or(plan.microtile_bases, |plan| plan.microtile_bases), plan.canonical_tile_bases, plan.analyzer_bytes,
-            plan.selected_loci, predicted_peak, science_digest);
+            plan.selected_loci, fields.bits(), fields.schema_version(), predicted_peak, science_digest);
         return Ok(());
     }
     let mut primary = command
@@ -147,7 +148,8 @@ pub(super) fn execute_outputs(
         };
         let result = if let Some(panel) = &mut panel {
             let result = if let Some(file) = &mut positional {
-                let mut writer = EvidenceArrowWriter::new(io::BufWriter::new(file.file_mut()));
+                let mut writer =
+                    EvidenceArrowWriter::with_fields(io::BufWriter::new(file.file_mut()), fields);
                 let result = drive(engine, &mut FusedAnalyzers::new(vec![panel, &mut writer]));
                 if result.is_err() {
                     let _ = writer.finish();
@@ -167,14 +169,14 @@ pub(super) fn execute_outputs(
             }
             result
         } else if command.options.format == FeatureFormat::ArrowIpc {
-            let mut writer = EvidenceArrowWriter::new(&mut output);
+            let mut writer = EvidenceArrowWriter::with_fields(&mut output, fields);
             let result = drive(engine, &mut writer);
             if result.is_err() {
                 let _ = writer.finish();
             }
             result
         } else {
-            let mut writer = EvidenceTsvWriter::new(&mut output);
+            let mut writer = EvidenceTsvWriter::with_fields(&mut output, fields);
             drive(engine, &mut writer)
         };
         output.flush()?;
@@ -258,6 +260,15 @@ pub(super) fn execute_outputs(
     capture.opt("--max-record-bytes", command.options.max_record_bytes);
     capture.opt("--tile-bases", command.options.tile_bases);
     capture.opt("--workers", command.options.workers);
+    let field_names = fields.names().join(",");
+    capture.opt(
+        "--fields",
+        if field_names.is_empty() {
+            "none"
+        } else {
+            &field_names
+        },
+    );
     if let Some(sample) = &command.options.sample {
         capture.opt("--sample", sample);
     }
@@ -333,7 +344,11 @@ pub(super) fn execute_outputs(
         ("producer.version", env!("CARGO_PKG_VERSION").to_string()),
         ("producer.binary", "rosalind".to_string()),
         ("replay.kind", "rosalind".to_string()),
-        ("evidence.schema", EVIDENCE_SCHEMA_VERSION.to_string()),
+        ("evidence.schema", fields.schema_version().to_string()),
+        (
+            "evidence.fields_version",
+            EvidenceFields::VERSION.to_string(),
+        ),
         ("evidence.profile", EvidenceProfile::ID.to_string()),
         ("evidence.counting_unit", "read".to_string()),
         (
@@ -446,6 +461,15 @@ pub(super) fn execute_outputs(
         ),
         ("execution.sample_scope_bytes", plan.sample_scope_bytes),
         ("execution.microtiles", stats.microtiles),
+        (
+            "execution.microtile_bases",
+            u64::from(
+                dataset_plan
+                    .as_ref()
+                    .map_or(plan.microtile_bases, |value| value.microtile_bases),
+            ),
+        ),
+        ("execution.bytes_per_locus", plan.bytes_per_locus),
         ("execution.emitted_loci", stats.emitted_loci),
         ("execution.analyzer_bytes", plan.analyzer_bytes),
         ("execution.hashing_ms", hashing_ms as u64),

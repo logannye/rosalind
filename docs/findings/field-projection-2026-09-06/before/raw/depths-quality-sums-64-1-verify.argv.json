@@ -1,0 +1,6 @@
+[
+  "/Users/logannye/rosalind/target/release/rosalind",
+  "verify",
+  "--manifest",
+  "/private/tmp/rosalind-projection-pressure-20260906/depths-quality-sums-64-1.manifest.json"
+]

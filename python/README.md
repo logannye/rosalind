@@ -73,3 +73,9 @@ locked offline SDK build and then performs local receipt verification/replay.
 Legacy `iter_features` and `collect_features` remain available with their original
 feature schema. `collect_features` explicitly materializes the whole result in
 Python memory; its semantics differ from the new exact evidence profile.
+
+For physical projection, pass `fields=["depths", "alleles"]` to `iter_evidence`
+or `materialize_evidence`. Native accumulation, Arrow batches, and persisted
+artifacts contain only those groups and the locus identity columns. Missing
+columns are absent. `panel_qc` defaults to depths and quality sums; an explicit
+field list must include both groups. Use `fields="all"` for complete evidence.

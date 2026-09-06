@@ -89,8 +89,10 @@ clinical interpretation.
 ## Build on the evidence
 
 The Rust `EvidenceRequest`/`EvidenceEngine`/`EvidenceAnalyzer` API accepts explicit
-field, reference, context, and memory requirements. Schema v1 emits complete rows;
-field requirements do not yet reduce physical row size. The
+field, reference, context, and memory requirements. Requested field groups control
+actual accumulator and output allocation. Panel summaries default to depths and
+quality sums; `analyze evidence --fields depths,alleles` omits unused histograms.
+Nearby sparse loci share bounded indexed fetches while retaining exact selection. The
 [standalone consumer crate](examples/evidence-analyzer/) demonstrates a bounded
 integer reducer outside the workspace. The [SDK guide](docs/analyzer-sdk.md)
 distinguishes extraction from the artifact/receipt lifecycle.

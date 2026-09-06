@@ -4,6 +4,7 @@
 //! execution microtile; it never selects biological observations. Read counts
 //! intentionally count overlapping mates separately and do not collapse UMIs.
 
+mod batch;
 mod encoding;
 mod engine;
 mod panel;
@@ -11,8 +12,14 @@ mod reference;
 mod sample;
 mod selection;
 
+pub use batch::{
+    EvidenceAlleles, EvidenceBatch, EvidenceDepths, EvidenceLocus, EvidenceQualityHistograms,
+    EvidenceQualitySums, EvidenceReadPosition, EvidenceRowRef, EvidenceStrands,
+};
 pub use encoding::{
-    read_evidence_batches, EvidenceArrowWriter, EvidenceTsvWriter, EVIDENCE_ARROW_BATCH_ROWS,
+    evidence_reader_memory_bytes, read_evidence_batches, read_evidence_batches_expected_fields,
+    read_evidence_batches_with_metadata, EvidenceArrowWriter, EvidenceArtifactMetadata,
+    EvidenceTsvWriter, EVIDENCE_ARROW_BATCH_ROWS,
 };
 pub use engine::{EvidenceEngine, EvidencePlan, EvidenceRunStats, EvidenceWorkerFactory};
 pub use panel::{
@@ -134,8 +141,8 @@ impl Default for EvidenceExecution {
     }
 }
 
-/// Versioned evidence capability set. Version 1 always emits ALL physically;
-/// smaller consumer requirements are recorded without silently zeroing fields.
+/// Versioned evidence capability set. Only requested groups are allocated and
+/// emitted; omitted groups are unavailable, never scientific zeros.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct EvidenceFields(u32);
 impl EvidenceFields {
@@ -176,6 +183,41 @@ impl EvidenceFields {
     /// Union of two capability sets.
     pub fn union(self, other: Self) -> Self {
         Self(self.0 | other.0)
+    }
+    /// Full output preserves schema 1; explicit projections use schema 2.
+    pub fn schema_version(self) -> u32 {
+        if self == Self::ALL {
+            1
+        } else {
+            2
+        }
+    }
+    /// Exact retained locus and requested summary bytes, excluding vector
+    /// headers, ALT payloads, reference windows, and allocator overhead.
+    pub fn storage_bytes_per_locus(self) -> u64 {
+        let mut bytes = std::mem::size_of::<EvidenceLocus>();
+        for (group, size) in [
+            (Self::DEPTHS, std::mem::size_of::<EvidenceDepths>()),
+            (Self::ALLELES, std::mem::size_of::<EvidenceAlleles>()),
+            (Self::STRANDS, std::mem::size_of::<EvidenceStrands>()),
+            (
+                Self::QUALITY_SUMS,
+                std::mem::size_of::<EvidenceQualitySums>(),
+            ),
+            (
+                Self::QUALITY_HISTOGRAMS,
+                std::mem::size_of::<EvidenceQualityHistograms>(),
+            ),
+            (
+                Self::READ_POSITION,
+                std::mem::size_of::<EvidenceReadPosition>(),
+            ),
+        ] {
+            if self.contains(group) {
+                bytes += size;
+            }
+        }
+        bytes as u64
     }
     /// Canonical names in fixed schema order for human-readable receipts.
     pub fn names(self) -> Vec<&'static str> {
@@ -229,7 +271,7 @@ pub struct EvidenceRequest {
     pub selection: EvidenceSelection,
     /// Resolve or explicitly select sample membership from alignment RG/SM metadata.
     pub sample_selection: EvidenceSampleSelection,
-    /// Physical output fields; schema v1 requires the complete field set.
+    /// Physical summary groups. Omitted groups are neither allocated nor emitted.
     pub fields: EvidenceFields,
     /// Scientific filtering rules, independent of the memory budget.
     pub profile: EvidenceProfile,
@@ -344,20 +386,6 @@ impl Default for EvidenceRow {
     }
 }
 
-/// Borrowed by analyzers during a callback. Retaining rows requires an explicit
-/// copy, which the analyzer must include in its declared memory model.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EvidenceBatch {
-    /// Stable contig identifier from the reference dictionary.
-    pub contig_id: u32,
-    /// Reference contig identifier or canonical contig name for a batch.
-    pub contig: String,
-    /// Zero-based start of the immutable16384-base ownership tile.
-    pub canonical_tile_start: u32,
-    /// Exact rows in strictly increasing coordinate order.
-    pub rows: Vec<EvidenceRow>,
-}
-
 /// Batch consumer. The engine owns exact extraction; consumers own bounded
 /// downstream state. Unknown memory models are refused for budgeted runs.
 pub trait EvidenceAnalyzer {
@@ -387,19 +415,33 @@ pub trait EvidenceAnalyzer {
 pub struct EvidenceCallback<F> {
     callback: F,
     bound: u64,
+    fields: EvidenceFields,
 }
 impl<F> EvidenceCallback<F> {
     /// Construct the configured value without starting evidence extraction.
     pub fn new(callback: F, additional_memory_bytes: u64) -> Self {
+        Self::with_fields(callback, additional_memory_bytes, EvidenceFields::ALL)
+    }
+    /// Declare the physical groups consumed by a bounded callback.
+    pub fn with_fields(callback: F, additional_memory_bytes: u64, fields: EvidenceFields) -> Self {
         Self {
             callback,
             bound: additional_memory_bytes,
+            fields,
         }
     }
 }
 impl<F: FnMut(&EvidenceBatch) -> Result<(), EvidenceError>> EvidenceAnalyzer
     for EvidenceCallback<F>
 {
+    fn requirements(&self) -> EvidenceRequirements {
+        EvidenceRequirements {
+            fields: self.fields,
+            requires_reference: false,
+            context_bases: 0,
+            retained_bytes: Some(self.bound),
+        }
+    }
     fn on_batch(&mut self, batch: &EvidenceBatch) -> Result<(), EvidenceError> {
         (self.callback)(batch)
     }

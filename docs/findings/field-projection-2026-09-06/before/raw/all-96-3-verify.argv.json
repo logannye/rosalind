@@ -1,0 +1,6 @@
+[
+  "/Users/logannye/rosalind/target/release/rosalind",
+  "verify",
+  "--manifest",
+  "/private/tmp/rosalind-projection-pressure-20260906/all-96-3.manifest.json"
+]
