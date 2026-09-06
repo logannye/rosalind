@@ -44,6 +44,23 @@ those additional encoder checks and the 18-test Python 3.11 suite pass. Python 3
 also passes the existing suite and all five annotation tests. Clippy, Rust 1.83,
 and offline documentation-link checks pass. Platform CI remains pending.
 
+## Portable evidence follow-up
+
+The development tree now implements portable dataset descriptors/session hashes,
+verified offline subset extraction and panel QC, serial reuse that computes missing
+loci, bounded Parquet export, and Python/R/SQL adapters. Focused Rust tests cover
+field projection, source/selection mutation, malformed ownership, local budget
+checks, integer preservation, and transactional publication. Five Python dataset
+tests pass on macOS and Linux, including three-budget byte equality and relocated
+replay. The R adapter passes on Linux after removing original alignments and
+preserves the full uint64 range as strings. The full workspace suite, Clippy,
+Rust 1.83, all 23 Python tests on both 3.9/3.11, DuckDB 1.4.4 queries, and a fresh
+wheel installation/onboarding pass. [Retained results](findings/portable-evidence-2026-09-06/README.md)
+distinguish the frozen Linux snapshot and later focused error-reporting changes.
+These results do not establish registry publication or external adoption.
+
+See [reusable evidence](reusable-evidence.md) for supported paths and limitations.
+
 ## Validation results
 
 These checks apply to the locally edited tree, not a published candidate.
@@ -101,8 +118,10 @@ protected environment approval before publication. Wheel CI results above
 establish candidate installation on the three supported platforms. Standalone
 native release assets and registry installations retain their publication gates.
 
-The local Docker daemon is unavailable. Container builds, cgroup probes, and the
-pinned platform benchmark have not run here. Static harness validation is not a
+The original local Docker daemon was unavailable during the foundational checks.
+A separate Linux x86_64 validation environment is now available and has exercised
+native dataset/R interoperability and variant I/O. New-engine representative
+benchmarks and real cgroup probes remain pending. Static harness validation is not a
 benchmark result.
 
 The inspected repository has no `CARGO_REGISTRY_TOKEN`. The protected `rc` and

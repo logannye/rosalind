@@ -1,5 +1,8 @@
 use super::*;
-use rosalind::dataset::{plan_dataset, run_dataset_with_snapshot, DatasetError, DatasetOptions};
+use rosalind::dataset::{
+    plan_dataset, publication_memory_bytes, publish_evidence_dataset, run_dataset_with_snapshot,
+    DatasetError, DatasetOptions, DescriptorLimits,
+};
 
 struct TemporaryCache(Option<PathBuf>);
 impl Drop for TemporaryCache {
@@ -21,9 +24,29 @@ pub(super) fn execute_outputs(
     hashing_ms: u128,
     os_limit: Option<u64>,
     science_digest: String,
-    input_snapshot: InputSnapshot,
+    input_session: VerifiedInputSession,
 ) -> Result<()> {
-    input_snapshot.verify()?;
+    input_session.verify()?;
+    let mut reuse_source = command
+        .options
+        .reuse_dataset
+        .as_ref()
+        .map(|path| {
+            rosalind::dataset::VerifiedEvidenceDataset::open(
+                path,
+                rosalind::dataset::DatasetReadLimits {
+                    memory_budget_bytes: engine.request().execution.memory_budget_bytes,
+                    max_manifest_bytes: command.options.max_dataset_metadata_bytes,
+                    max_descriptor_bytes: command.options.max_dataset_metadata_bytes,
+                    ..Default::default()
+                },
+            )
+        })
+        .transpose()?;
+    if let Some(source) = &reuse_source {
+        let parent = &source.source_hashes()[0];
+        capture.input_hashed("--reuse-dataset", &parent.path, &parent.blake3);
+    }
     let mut panel = if command.panel {
         let targets = PanelTarget::from_bed(
             command.selection.regions.as_ref().unwrap(),
@@ -57,7 +80,21 @@ pub(super) fn execute_outputs(
     } else {
         tsv_memory
     };
+    let publication_bytes = if command.options.cache_dir.is_some() {
+        publication_memory_bytes(
+            engine,
+            DescriptorLimits {
+                max_bytes: command.options.max_dataset_metadata_bytes,
+            },
+        )?
+    } else {
+        0
+    };
     let consumer_bytes = annotation_bytes
+        .checked_add(publication_bytes)
+        .ok_or_else(|| {
+            EvidenceError::InvalidRequest("dataset publication memory envelope is too large".into())
+        })?
         .checked_add(
             panel
                 .as_ref()
@@ -70,6 +107,15 @@ pub(super) fn execute_outputs(
         })?;
     let planner = EvidenceCallback::with_fields(|_: &EvidenceBatch| Ok(()), consumer_bytes, fields);
     let plan = engine.plan_for_analyzer(&planner)?.clone();
+    let reuse_options = rosalind::dataset::ReuseOptions {
+        workers: command.options.workers,
+    };
+    let reuse_plan = reuse_source
+        .as_ref()
+        .map(|source| {
+            rosalind::dataset::plan_reuse(engine, &input_session, source, &planner, &reuse_options)
+        })
+        .transpose()?;
     let temporary_cache = TemporaryCache(
         if command.options.cache_dir.is_none()
             && (command.options.workers > 1 || command.options.annotated_variants.is_some())
@@ -95,16 +141,7 @@ pub(super) fn execute_outputs(
             resume: command.options.resume,
             workers: command.options.workers,
         });
-    let cache_digest = if dataset_options.is_some() {
-        let binary_hash = hash_file(&std::env::current_exe()?)?;
-        blake3::hash(
-            format!("rosalind-cache-producer-v1\n{science_digest}\n{binary_hash}\n").as_bytes(),
-        )
-        .to_hex()
-        .to_string()
-    } else {
-        science_digest.clone()
-    };
+    let cache_digest = input_session.dataset_namespace(engine)?;
     let dataset_plan = dataset_options
         .as_ref()
         .map(|options| plan_dataset(engine, options, &planner))
@@ -114,8 +151,18 @@ pub(super) fn execute_outputs(
         .map_or(plan.predicted_peak_rss_bytes, |plan| {
             plan.predicted_peak_rss_bytes
         });
+    let predicted_peak = reuse_plan
+        .as_ref()
+        .map_or(predicted_peak, |p| p.predicted_peak_rss_bytes);
     if command.options.plan {
-        input_snapshot.verify()?;
+        input_session.verify()?;
+        if let Some(p) = &reuse_plan {
+            println!(
+                "{}",
+                serde_json::json!({"model":p.model_id,"reused_loci":p.reused_loci,"computed_loci":p.computed_loci,"metadata_bytes":p.metadata_bytes,"source_decoder_bytes":p.source_decoder_bytes,"merge_bytes":p.merge_bytes,"analyzer_bytes":p.analyzer_bytes,"native_bytes":p.native_bytes,"fields":p.output_fields.bits(),"source_fields":p.source_fields.bits(),"predicted_peak_rss_bytes":p.predicted_peak_rss_bytes,"science_blake3":science_digest})
+            );
+            return Ok(());
+        }
         println!("{{\"model\":\"{}\",\"baseline_rss_bytes\":{},\"fixed_bytes\":{},\"bytes_per_locus\":{},\"microtile_bases\":{},\"canonical_tile_bases\":{},\"analyzer_bytes\":{},\"selected_loci\":{},\"fields\":{},\"schema\":{},\"predicted_peak_rss_bytes\":{},\"science_blake3\":\"{}\"}}",
             plan.model_id, plan.baseline_rss_bytes, plan.fixed_bytes, plan.bytes_per_locus,
             dataset_plan.as_ref().map_or(plan.microtile_bases, |plan| plan.microtile_bases), plan.canonical_tile_bases, plan.analyzer_bytes,
@@ -141,16 +188,32 @@ pub(super) fn execute_outputs(
         .transpose()?;
     let setup_ms = started.elapsed().as_millis();
     let mut dataset_outcome = None;
+    let mut reuse_outcome = None;
     let mut drive = |engine: &mut EvidenceEngine,
                      analyzer: &mut dyn EvidenceAnalyzer|
      -> Result<EvidenceRunStats> {
-        if let Some(options) = &dataset_options {
+        if let Some(source) = &mut reuse_source {
+            let outcome = rosalind::dataset::run_reusing_dataset(
+                engine,
+                &input_session,
+                source,
+                analyzer,
+                &reuse_options,
+            )
+            .map_err(|error| match error {
+                DatasetError::Evidence(error) => anyhow::Error::from(error),
+                other => anyhow::Error::from(other),
+            })?;
+            let stats = outcome.stats.clone();
+            reuse_outcome = Some(outcome);
+            Ok(stats)
+        } else if let Some(options) = &dataset_options {
             let outcome = run_dataset_with_snapshot(
                 engine,
                 &cache_digest,
                 options,
                 analyzer,
-                &input_snapshot,
+                input_session.snapshot(),
             )
             .map_err(|error| match error {
                 DatasetError::Evidence(error) => anyhow::Error::from(error),
@@ -205,6 +268,22 @@ pub(super) fn execute_outputs(
         output.flush()?;
         result
     };
+    let mut persisted_manifest = None;
+    if result.is_ok() && command.options.cache_dir.is_some() {
+        let published = publish_evidence_dataset(
+            engine,
+            dataset_outcome.as_ref().unwrap(),
+            &input_session,
+            DescriptorLimits {
+                max_bytes: command.options.max_dataset_metadata_bytes,
+            },
+        );
+        match published {
+            Ok(path) => persisted_manifest = Some(path),
+            Err(DatasetError::Evidence(error)) => result = Err(error.into()),
+            Err(error) => result = Err(error.into()),
+        }
+    }
     let mut annotated_records = None;
     if result.is_ok() {
         if let (Some(file), Some(requested)) = (&mut annotated, &command.options.annotated_variants)
@@ -232,7 +311,7 @@ pub(super) fn execute_outputs(
         // No annotation bytes exist if extraction failed. Drop its staging file.
         annotated = None;
     }
-    input_snapshot.verify()?;
+    input_session.verify()?;
     let analysis_ms = started.elapsed().as_millis().saturating_sub(setup_ms);
     let (stats, mut failure) = match result {
         Ok(stats) => (stats, None),
@@ -306,6 +385,27 @@ pub(super) fn execute_outputs(
         };
         capture.output_hashed(flag, &path.display().to_string(), hash);
     }
+    if let Some(source) = &reuse_source {
+        source.verify_unchanged()?;
+        let dependencies = source
+            .source_hashes()
+            .iter()
+            .cloned()
+            .chain(source.verified_partition_hashes()?)
+            .collect::<Vec<_>>();
+        for path in &command.options.reuse_artifacts {
+            let path = std::fs::canonicalize(path)?;
+            if !dependencies.iter().any(|s| Path::new(&s.path) == path) {
+                let hash = hash_file(&path)?;
+                if !dependencies.iter().any(|s| s.blake3 == hash) {
+                    bail!("--reuse-artifact must match a verified source dependency");
+                }
+            }
+        }
+        for file in dependencies.iter().skip(1) {
+            capture.input_hashed("--reuse-artifact", &file.path, &file.blake3);
+        }
+    }
     capture.opt("--mapq-threshold", engine.request().profile.min_mapq);
     capture.opt(
         "--base-quality-threshold",
@@ -325,6 +425,12 @@ pub(super) fn execute_outputs(
     }
     capture.opt("--tile-bases", command.options.tile_bases);
     capture.opt("--workers", command.options.workers);
+    if command.options.cache_dir.is_some() || command.options.reuse_dataset.is_some() {
+        capture.opt(
+            "--max-dataset-metadata-bytes",
+            command.options.max_dataset_metadata_bytes,
+        );
+    }
     let field_names = fields.names().join(",");
     capture.opt(
         "--fields",
@@ -506,6 +612,30 @@ pub(super) fn execute_outputs(
             )
             .to_string(),
     );
+    if let Some(path) = persisted_manifest {
+        manifest.measurements.insert(
+            "execution.evidence_dataset_manifest".into(),
+            path.display().to_string(),
+        );
+        manifest.measurements.insert(
+            "execution.dataset_publication_bytes".into(),
+            publication_bytes.to_string(),
+        );
+    }
+    if let Some(outcome) = reuse_outcome {
+        manifest.measurements.insert(
+            "execution.reused_loci".into(),
+            outcome.reused_loci.to_string(),
+        );
+        manifest.measurements.insert(
+            "execution.computed_loci".into(),
+            outcome.computed_loci.to_string(),
+        );
+        manifest.measurements.insert(
+            "execution.reuse_model".into(),
+            reuse_plan.as_ref().unwrap().model_id.into(),
+        );
+    }
     if let Some(outcome) = dataset_outcome {
         manifest
             .params
@@ -664,6 +794,9 @@ pub(super) fn execute_outputs(
             .write_all(manifest.to_canonical_json().as_bytes())?;
         file.file_mut().sync_all()?;
     }
+    if let Some(source) = &reuse_source {
+        source.verify_unchanged()?;
+    }
     let mut group = Vec::new();
     for (file, requested) in [
         (primary.take(), command.output.as_ref()),
@@ -687,7 +820,7 @@ pub(super) fn execute_outputs(
     if let (Some(file), Some(path)) = (receipt, receipt_path.as_ref()) {
         group.push((file, path.clone()));
     }
-    input_snapshot.verify()?;
+    input_session.verify()?;
     rosalind::util::atomic::commit_group(group, command.force)?;
     if let Some(error) = failure {
         return Err(error.into());

@@ -10,7 +10,7 @@ use anyhow::{bail, Result};
 use clap::Args;
 use rosalind::core::governor::{checkpoint, MemoryGovernor};
 use rosalind::core::CoreError;
-use rosalind::dataset::InputSnapshot;
+use rosalind::dataset::VerifiedInputSession;
 use rosalind::evidence::*;
 use rosalind::provenance::{CommandCapture, RunManifest};
 use rosalind::util::atomic::{ensure_destination, AtomicFile};
@@ -62,6 +62,15 @@ pub(crate) struct EvidenceOptions {
     /// Opt-in verified local evidence cache.
     #[arg(long)]
     cache_dir: Option<PathBuf>,
+    /// Maximum portable dataset descriptor/receipt bytes; retained metadata is included in planning.
+    #[arg(long, default_value_t = 33_554_432)]
+    max_dataset_metadata_bytes: usize,
+    /// Reuse a portable evidence dataset, computing only missing requested loci (one worker).
+    #[arg(long, conflicts_with_all = ["cache_dir", "resume", "annotated_variants"])]
+    reuse_dataset: Option<PathBuf>,
+    /// Verified replay dependencies for persisted source reuse.
+    #[arg(long = "reuse-artifact", hide = true, requires = "reuse_dataset")]
+    reuse_artifacts: Vec<PathBuf>,
     /// Reuse compatible verified completed partitions; requires --cache-dir.
     #[arg(long, requires = "cache_dir")]
     resume: bool,
@@ -110,6 +119,9 @@ impl EvidenceOptions {
             || self.position_output.is_some()
             || self.cache_dir.is_some()
             || self.resume
+            || self.reuse_dataset.is_some()
+            || self.max_dataset_metadata_bytes != 33_554_432
+            || !self.reuse_artifacts.is_empty()
             || self.workers != 1
             || self.plan
             || self.format != FeatureFormat::Tsv
@@ -303,6 +315,7 @@ fn validate_destinations(command: &EvidenceCommand, receipt: Option<&Path>) -> R
         command.options.cram_reference.as_ref(),
         command.options.cram_reference_fai.as_ref(),
         command.options.sites.as_ref(),
+        command.options.reuse_dataset.as_ref(),
         command.selection.regions.as_ref(),
     ]
     .into_iter()
@@ -317,6 +330,15 @@ fn validate_destinations(command: &EvidenceCommand, receipt: Option<&Path>) -> R
         .chain(partials.iter().map(PathBuf::as_path))
     {
         let resolved = resolved_destination(path)?;
+        if let Some(source) = &command.options.reuse_dataset {
+            let parent = std::fs::canonicalize(source)?
+                .parent()
+                .unwrap()
+                .to_path_buf();
+            if resolved.starts_with(parent) {
+                bail!("write derived output outside the immutable reuse dataset directory");
+            }
+        }
         if inputs.iter().any(|input| same_file(&resolved, input)) {
             bail!(
                 "output, receipt, and partial destinations must not overwrite an input: {}",
@@ -449,7 +471,6 @@ fn run_inner(mut command: EvidenceCommand) -> Result<()> {
         "analyze evidence"
     };
     let mut capture = CommandCapture::new(label);
-    let mut hashes = BTreeMap::<PathBuf, String>::new();
     let mut identities = BTreeMap::<String, String>::new();
     let inputs = [
         ("--alignments", Some(&command.alignments)),
@@ -467,27 +488,14 @@ fn run_inner(mut command: EvidenceCommand) -> Result<()> {
         ("--sites", command.options.sites.as_ref()),
         ("--regions", command.selection.regions.as_ref()),
     ];
-    let input_snapshot = InputSnapshot::capture(
-        inputs
-            .iter()
-            .filter_map(|(_, path)| path.map(|path| path.to_path_buf())),
-    )?;
-    for (flag, path) in inputs {
-        if let Some(path) = path {
-            let key = std::fs::canonicalize(path)?;
-            let hash = match hashes.get(&key) {
-                Some(hash) => hash.clone(),
-                None => {
-                    let hash = hash_file(path)?;
-                    hashes.insert(key.clone(), hash.clone());
-                    hash
-                }
-            };
-            capture.input_hashed(flag, &key.display().to_string(), &hash);
-            identities.insert(flag.trim_start_matches('-').to_string(), hash);
-        }
+    let input_session = VerifiedInputSession::open(inputs.iter().filter_map(|(flag, path)| {
+        path.map(|path| (flag.trim_start_matches('-').to_string(), path.to_path_buf()))
+    }))?;
+    for source in input_session.identities() {
+        capture.input_hashed(&format!("--{}", source.role), &source.path, &source.blake3);
+        identities.insert(source.role.clone(), source.blake3.clone());
     }
-    input_snapshot.verify()?;
+    input_session.verify()?;
     let hashing_ms = started.elapsed().as_millis();
     let mut request = if let Some(reference) = &command.reference {
         EvidenceRequest::new(&command.alignments, reference)
@@ -606,7 +614,7 @@ fn run_inner(mut command: EvidenceCommand) -> Result<()> {
         hashing_ms,
         os_limit,
         science_digest,
-        input_snapshot,
+        input_session,
     )
 }
 
@@ -622,7 +630,7 @@ fn execute(
     hashing_ms: u128,
     os_limit: Option<u64>,
     science_digest: String,
-    input_snapshot: InputSnapshot,
+    input_session: VerifiedInputSession,
 ) -> Result<()> {
     // Implemented together with the first-party encoder interfaces below.
     execute_outputs(
@@ -635,6 +643,6 @@ fn execute(
         hashing_ms,
         os_limit,
         science_digest,
-        input_snapshot,
+        input_session,
     )
 }

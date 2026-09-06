@@ -18,9 +18,9 @@ pub use batch::{
     EvidenceStrands,
 };
 pub use encoding::{
-    evidence_reader_memory_bytes, read_evidence_batches, read_evidence_batches_expected_fields,
-    read_evidence_batches_with_metadata, EvidenceArrowWriter, EvidenceArtifactMetadata,
-    EvidenceTsvWriter, EVIDENCE_ARROW_BATCH_ROWS,
+    evidence_reader_memory_bytes, evidence_record_batch, read_evidence_batches,
+    read_evidence_batches_expected_fields, read_evidence_batches_with_metadata,
+    EvidenceArrowWriter, EvidenceArtifactMetadata, EvidenceTsvWriter, EVIDENCE_ARROW_BATCH_ROWS,
 };
 pub use engine::{EvidenceEngine, EvidencePlan, EvidenceRunStats, EvidenceWorkerFactory};
 pub use panel::{

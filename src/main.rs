@@ -1,3 +1,4 @@
+mod dataset_cli;
 mod evidence_cli;
 
 use std::fs::File;
@@ -52,6 +53,11 @@ struct SelectionArgs {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
+    /// Inspect, verify, query, and export portable evidence without alignments.
+    Dataset {
+        #[command(subcommand)]
+        action: dataset_cli::DatasetAction,
+    },
     /// Build, inspect, or convert lightweight analysis reference packs.
     Reference {
         #[command(subcommand)]
@@ -805,6 +811,9 @@ fn main() -> Result<()> {
             "max_record_bytes",
             "workers",
             "cache_dir",
+            "reuse_dataset",
+            "max_dataset_metadata_bytes",
+            "reuse_artifacts",
             "resume",
             "cram_reference",
             "alignment_index",
@@ -844,6 +853,7 @@ fn main() -> Result<()> {
     let cli = Cli::from_arg_matches(&matches)?;
 
     match cli.command {
+        Commands::Dataset { action } => dataset_cli::run(action)?,
         Commands::Reference { action } => run_reference(action)?,
         Commands::Merge {
             manifest,

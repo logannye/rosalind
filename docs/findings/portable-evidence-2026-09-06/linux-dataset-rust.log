@@ -1,0 +1,38 @@
+   Compiling rosalind-bio v0.5.0 (/work)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.83s
+     Running unittests src/lib.rs (target/debug/deps/rosalind-d20753c6520e81ce)
+
+running 30 tests
+test dataset::descriptor::tests::discovered_index_cannot_hide_under_a_selection_role ... ok
+test dataset::descriptor::tests::publication_memory_reserves_read_group_and_sample_metadata ... ok
+test dataset::descriptor::tests::verified_session_detects_symlink_retargeting ... ok
+test dataset::descriptor::tests::compatibility_ignores_selection_projection_and_locations_but_binds_filters ... ok
+test dataset::lookup::tests::oversized_parent_receipt_refuses_before_parsing ... ok
+test dataset::descriptor::tests::arbitrary_old_key_and_changed_input_session_cannot_promote_stale_partitions ... ok
+test dataset::lookup::tests::final_guard_checks_previously_loaded_partitions_and_parent_mutation ... ok
+test dataset::lookup::tests::parent_request_and_partition_hash_anchors_are_required ... ok
+test dataset::lookup::tests::unsorted_repeated_lookups_preserve_projected_allele_quality_and_zero_depth ... ok
+test dataset::descriptor::tests::verified_publication_preserves_legacy_and_binds_relative_partition_inventory ... ok
+test dataset::lookup::tests::resealed_rows_cannot_change_selected_order_annotations_or_fields ... ok
+test dataset::parquet::tests::empty_projection_export_is_schema_bearing_and_existing_destinations_are_preserved ... ok
+test dataset::parquet::tests::corruption_late_query_mutation_and_nested_destinations_never_publish_success ... ok
+test dataset::parquet::tests::parquet_preserves_unsigned_values_above_signed_integer_range ... ok
+test dataset::persisted::tests::corrupt_hash_unknown_versions_and_mutation_are_rejected ... ok
+test dataset::persisted::tests::coverage_split_preserves_query_annotations_and_never_synthesizes_holes ... ok
+test dataset::persisted::tests::metadata_open_refuses_before_parsing_when_budget_or_envelope_is_too_small ... ok
+test dataset::parquet::tests::encoder_and_receipt_inventory_are_admitted_before_creating_directory ... ok
+test dataset::persisted::tests::output_batches_are_canonical_and_planner_reserves_source_projection_and_analyzer ... ok
+test dataset::persisted::tests::resealed_omitted_or_duplicate_source_rows_still_fail_exact_ownership ... ok
+test dataset::persisted::tests::source_alt_annotations_do_not_limit_new_queries_but_reference_must_match ... ok
+test dataset::reuse::tests::consumer_failure_restores_engine_selection_and_does_not_finish ... ok
+test dataset::persisted::tests::projected_subset_and_new_alts_equal_fresh_after_relocation_without_sources ... ok
+test dataset::reuse::tests::joint_plan_counts_source_decoder_and_inherits_source_budget ... ok
+test dataset::reuse::tests::missing_only_and_empty_selection_finish_once_and_match_fresh ... ok
+test dataset::reuse::tests::scientific_mismatch_missing_fields_and_parallel_options_are_refused ... ok
+test dataset::reuse::tests::subset_changes_query_alt_and_reuses_zero_rows_without_alignment_visits ... ok
+test dataset::parquet::tests::roundtrip_preserves_unsigned_scalars_fixed_lists_and_bounded_deterministic_files ... ok
+test dataset::reuse::tests::partial_overlap_and_projection_equal_fresh_across_microtiles ... ok
+test dataset::persisted::tests::local_budget_stops_after_first_breaching_callback_without_a_global_governor ... ok
+
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 223 filtered out; finished in 1.39s
+

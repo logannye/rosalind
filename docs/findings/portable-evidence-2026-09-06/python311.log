@@ -1,0 +1,37 @@
+test_early_close_terminates_the_native_child (test_api.FeatureRunLifecycleTest.test_early_close_terminates_the_native_child) ... ok
+test_rc_versions_match_without_accepting_other_candidates (test_api.FeatureRunLifecycleTest.test_rc_versions_match_without_accepting_other_candidates) ... ok
+test_successful_consumption_closes_reader_and_stdout_even_when_run_is_retained (test_api.FeatureRunLifecycleTest.test_successful_consumption_closes_reader_and_stdout_even_when_run_is_retained) ... ok
+test_iterator_lifecycle_empty_and_missing_evidence (test_dataset.PersistedDatasetTest.test_iterator_lifecycle_empty_and_missing_evidence) ... ok
+test_mutation_refuses_without_overwriting_previous_artifacts (test_dataset.PersistedDatasetTest.test_mutation_refuses_without_overwriting_previous_artifacts) ... ok
+test_parquet_parts_preserve_uint64_lists_and_are_deterministic (test_dataset.PersistedDatasetTest.test_parquet_parts_preserve_uint64_lists_and_are_deterministic) ... ok
+test_partial_reuse_computes_holes_and_keeps_scientific_identity (test_dataset.PersistedDatasetTest.test_partial_reuse_computes_holes_and_keeps_scientific_identity) ... ok
+test_portable_subset_matches_fresh_across_budgets_and_replays (test_dataset.PersistedDatasetTest.test_portable_subset_matches_fresh_across_budgets_and_replays) ... ok
+test_exclusive_selection_is_checked_before_starting_native_code (test_evidence.EvidenceLifecycleTest.test_exclusive_selection_is_checked_before_starting_native_code) ... ok
+test_malformed_producer_cannot_deadlock_on_its_output_pipe (test_evidence.EvidenceLifecycleTest.test_malformed_producer_cannot_deadlock_on_its_output_pipe) ... ok
+test_native_errors_preserve_exit_code_and_diagnostics (test_evidence.EvidenceLifecycleTest.test_native_errors_preserve_exit_code_and_diagnostics) ... ok
+test_native_stream_is_lazy_bounded_and_finalizes (test_evidence.EvidenceLifecycleTest.test_native_stream_is_lazy_bounded_and_finalizes) ... ok
+test_partial_consumption_cancels_child_and_has_no_success_result (test_evidence.EvidenceLifecycleTest.test_partial_consumption_cancels_child_and_has_no_success_result) ... ok
+test_annotation_bytes_are_invariant_and_zero_is_distinct_from_absent (test_evidence_annotation.EvidenceAnnotationTest.test_annotation_bytes_are_invariant_and_zero_is_distinct_from_absent) ... [E::idx_find_and_load] Could not retrieve index file for '/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmpbrdqqv01/counts-0.vcf.gz'
+[E::idx_find_and_load] Could not retrieve index file for '/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmpbrdqqv01/counts-0.vcf.gz'
+[E::idx_find_and_load] Could not retrieve index file for '/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmpbrdqqv01/counts-1.vcf.gz'
+[E::idx_find_and_load] Could not retrieve index file for '/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmpbrdqqv01/counts-1.vcf.gz'
+[E::idx_find_and_load] Could not retrieve index file for '/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmpbrdqqv01/counts-2.vcf.gz'
+[E::idx_find_and_load] Could not retrieve index file for '/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmpbrdqqv01/counts-2.vcf.gz'
+ok
+test_empty_selection_and_late_resource_failure_have_explicit_artifacts (test_evidence_annotation.EvidenceAnnotationTest.test_empty_selection_and_late_resource_failure_have_explicit_artifacts) ... [E::idx_find_and_load] Could not retrieve index file for '/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmphg8qj7__/empty.bcf'
+ok
+test_invalid_annotation_preserves_all_existing_destinations (test_evidence_annotation.EvidenceAnnotationTest.test_invalid_annotation_preserves_all_existing_destinations) ... ok
+test_oversized_declared_annotation_envelope_cannot_wrap_admission (test_evidence_annotation.EvidenceAnnotationTest.test_oversized_declared_annotation_envelope_cannot_wrap_admission) ... ok
+test_record_order_allele_order_samples_and_exact_sums_survive_formats_and_replay (test_evidence_annotation.EvidenceAnnotationTest.test_record_order_allele_order_samples_and_exact_sums_survive_formats_and_replay) ... [E::idx_find_and_load] Could not retrieve index file for '/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmpglodk8ks/annotated-1.vcf.gz'
+[E::idx_find_and_load] Could not retrieve index file for '/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmpglodk8ks/annotated-2.bcf'
+ok
+test_conflicting_sample_options_fail_before_execution (test_evidence_contract.EvidenceContractTest.test_conflicting_sample_options_fail_before_execution) ... ok
+test_multiple_samples_require_explicit_scope_and_cache_keeps_it (test_evidence_contract.EvidenceContractTest.test_multiple_samples_require_explicit_scope_and_cache_keeps_it) ... ok
+test_python_and_cli_defaults_match_at_callability_boundaries (test_evidence_contract.EvidenceContractTest.test_python_and_cli_defaults_match_at_callability_boundaries) ... ok
+test_panel_projection_is_default_and_matches_explicit_full (test_evidence_projection.EvidenceProjectionTest.test_panel_projection_is_default_and_matches_explicit_full) ... ok
+test_projection_survives_workers_budgets_cache_replay_and_diff (test_evidence_projection.EvidenceProjectionTest.test_projection_survives_workers_budgets_cache_replay_and_diff) ... ok
+
+----------------------------------------------------------------------
+Ran 23 tests in 11.429s
+
+OK
