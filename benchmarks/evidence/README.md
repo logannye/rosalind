@@ -29,3 +29,17 @@ hard limit for the baseline. The tiny four-locus example establishes repeatabili
 and agreement only; scale the supplied candidate set and aligned data, retaining
 the same evidence, before making performance claims. Kernel-only encoding timing,
 large-data curves, and independent-machine reproduction remain separate gates.
+
+The synthetic projection pressure harness separately measures the storage change:
+
+```sh
+python benchmarks/evidence/projection.py --binary target/release/rosalind \
+  --output /tmp/projection-pressure
+```
+
+It generates a deterministic 200-kb panel with approximately 100x read depth,
+compares default panel fields with ALL at three budgets and three repetitions,
+and retains exact commands, input/binary hashes, process RSS/time/I/O counters,
+actual microtile widths, record visits, verification timing, and output equality.
+This measures a controlled pressure case; it is not representative cohort or
+whole-genome performance evidence.

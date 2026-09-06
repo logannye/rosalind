@@ -16,7 +16,8 @@ use thiserror::Error;
 
 use crate::core::ContigSet;
 use crate::evidence::{
-    read_evidence_batches, EvidenceAnalyzer, EvidenceReference, EvidenceTsvWriter,
+    read_evidence_batches_expected_fields, EvidenceAnalyzer, EvidenceFields, EvidenceReference,
+    EvidenceTsvWriter,
 };
 use crate::provenance::{command_template_tokens, verify_receipt, VerifyOpts};
 use crate::util::atomic::AtomicFile;
@@ -67,6 +68,7 @@ struct VerifiedDataset {
     path: PathBuf,
     arrow: bool,
     contigs: ContigSet,
+    fields: EvidenceFields,
 }
 
 fn operand<'a>(tokens: &'a [String], flags: &[&str]) -> Option<&'a str> {
@@ -92,17 +94,38 @@ fn verified_dataset(receipt_path: &Path) -> Result<VerifiedDataset, DatasetDiffE
         )));
     }
     let manifest = verified.manifest.unwrap();
-    let compatible = [
-        ("evidence.schema", "1"),
-        ("evidence.sampling", "none"),
-        ("run_status", "completed"),
-    ];
+    let compatible = [("evidence.sampling", "none"), ("run_status", "completed")];
     if compatible
         .iter()
         .any(|(key, value)| manifest.params.get(*key).map(String::as_str) != Some(*value))
     {
         return Err(DatasetDiffError::Incompatible(
-            "requires completed exact evidence schema version 1 receipts".into(),
+            "requires completed exact evidence receipts".into(),
+        ));
+    }
+    let schema = manifest.params.get("evidence.schema").map(String::as_str);
+    let fields = match manifest.params.get("evidence.fields") {
+        None if schema == Some("1") => EvidenceFields::ALL,
+        Some(value) => value
+            .parse::<u32>()
+            .ok()
+            .and_then(|bits| EvidenceFields::from_bits(bits).ok())
+            .ok_or_else(|| DatasetDiffError::Incompatible("invalid evidence field mask".into()))?,
+        None => {
+            return Err(DatasetDiffError::Incompatible(
+                "missing projected evidence field mask".into(),
+            ))
+        }
+    };
+    let field_version = manifest
+        .params
+        .get("evidence.fields_version")
+        .map(String::as_str);
+    if schema != Some(fields.schema_version().to_string().as_str())
+        || !matches!((schema, field_version), (Some("1"), None) | (_, Some("1")))
+    {
+        return Err(DatasetDiffError::Incompatible(
+            "unsupported evidence schema/field mask version".into(),
         ));
     }
     let tokens = command_template_tokens(&manifest).map_err(DatasetDiffError::Integrity)?;
@@ -243,6 +266,7 @@ fn verified_dataset(receipt_path: &Path) -> Result<VerifiedDataset, DatasetDiffE
         path: PathBuf::from(&output.path),
         arrow,
         contigs,
+        fields,
     })
 }
 
@@ -263,6 +287,11 @@ pub fn diff_evidence_datasets(
     }
     let first = verified_dataset(a)?;
     let second = verified_dataset(b)?;
+    if first.fields != second.fields {
+        return Err(DatasetDiffError::Incompatible(
+            "physical field masks differ; request the same projection for comparison (absent metrics are not zero)".into(),
+        ));
+    }
     if !first
         .contigs
         .iter()
@@ -273,7 +302,7 @@ pub fn diff_evidence_datasets(
             "reference dictionaries differ in contig names, lengths, or order".into(),
         ));
     }
-    let mut header_writer = EvidenceTsvWriter::new(Vec::new());
+    let mut header_writer = EvidenceTsvWriter::with_fields(Vec::new(), first.fields);
     header_writer
         .finish()
         .map_err(|error| DatasetDiffError::Integrity(error.to_string()))?;
@@ -347,16 +376,29 @@ fn send_rows(dataset: VerifiedDataset, sender: SyncSender<Result<String, Dataset
     let result = (|| {
         let file = File::open(&dataset.path)?;
         if dataset.arrow {
-            let mut writer = EvidenceTsvWriter::new(LineSender {
-                sender: sender.clone(),
-                pending: Vec::new(),
-            });
-            read_evidence_batches(BufReader::new(file), &dataset.contigs, |batch| {
-                writer.on_batch(batch)
-            })
+            let mut writer = EvidenceTsvWriter::with_fields(
+                LineSender {
+                    sender: sender.clone(),
+                    pending: Vec::new(),
+                },
+                dataset.fields,
+            );
+            let metadata = read_evidence_batches_expected_fields(
+                BufReader::new(file),
+                &dataset.contigs,
+                dataset.fields,
+                |batch| writer.on_batch(batch),
+            )
             .map_err(|error| {
                 DatasetDiffError::Integrity(format!("invalid Arrow evidence: {error}"))
             })?;
+            if metadata.fields != dataset.fields
+                || metadata.schema_version != dataset.fields.schema_version()
+            {
+                return Err(DatasetDiffError::Integrity(
+                    "Arrow metadata differs from receipt".into(),
+                ));
+            }
             writer
                 .finish()
                 .map_err(|error| DatasetDiffError::Integrity(error.to_string()))?;
@@ -395,6 +437,7 @@ struct Rows<'a> {
     receiver: &'a Receiver<Result<String, DatasetDiffError>>,
     dictionary: &'a BTreeMap<String, (u32, u32)>,
     previous: Option<(u32, u32)>,
+    columns: Vec<String>,
 }
 impl<'a> Rows<'a> {
     fn new(
@@ -407,13 +450,14 @@ impl<'a> Rows<'a> {
             .map_err(|_| DatasetDiffError::Integrity("missing evidence TSV header".into()))??;
         if actual != header {
             return Err(DatasetDiffError::Incompatible(
-                "per-locus TSV schema differs from exact evidence version 1".into(),
+                "per-locus TSV schema differs from the recorded evidence projection".into(),
             ));
         }
         Ok(Self {
             receiver,
             dictionary,
             previous: None,
+            columns: header.trim_end().split('\t').map(str::to_owned).collect(),
         })
     }
     fn next(&mut self) -> Result<Option<Row>, DatasetDiffError> {
@@ -422,7 +466,7 @@ impl<'a> Rows<'a> {
             Err(_) => return Ok(None),
         };
         let fields: Vec<&str> = line.trim_end_matches('\n').split('\t').collect();
-        if fields.len() != 34 {
+        if fields.len() != self.columns.len() {
             return Err(DatasetDiffError::Integrity(
                 "invalid number of TSV evidence fields".into(),
             ));
@@ -459,16 +503,29 @@ impl<'a> Rows<'a> {
                 "invalid evidence reference or ALT".into(),
             ));
         }
-        if fields[4..32].iter().any(|value| {
-            value
-                .parse::<u64>()
-                .map_or(true, |number| number.to_string() != *value)
-        }) {
+        if fields
+            .iter()
+            .zip(&self.columns)
+            .skip(4)
+            .filter(|(_, name)| !name.ends_with("_histogram"))
+            .any(|(value, _)| {
+                value
+                    .parse::<u64>()
+                    .map_or(true, |number| number.to_string() != *value)
+            })
+        {
             return Err(DatasetDiffError::Integrity(
                 "invalid evidence scalar counter".into(),
             ));
         }
-        for (field, bins) in [(fields[32], 94usize), (fields[33], 255)] {
+        for (name, bins) in [
+            ("base_quality_histogram", 94usize),
+            ("mapping_quality_histogram", 255),
+        ] {
+            let Some(index) = self.columns.iter().position(|column| column == name) else {
+                continue;
+            };
+            let field = fields[index];
             if field == "." {
                 continue;
             }

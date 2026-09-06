@@ -277,7 +277,7 @@ enum Commands {
         #[command(flatten)]
         selection: SelectionArgs,
         #[command(flatten)]
-        evidence: evidence_cli::EvidenceOptions,
+        evidence: Box<evidence_cli::EvidenceOptions>,
     },
     /// Deterministically coordinate-sort a BAM file using bounded memory.
     Sort {
@@ -1017,7 +1017,7 @@ fn main() -> Result<()> {
                     output,
                     manifest,
                     selection,
-                    options: evidence,
+                    options: *evidence,
                 })?;
             } else {
                 if reference.is_some() || (index.is_none() && reference_pack.is_none()) {

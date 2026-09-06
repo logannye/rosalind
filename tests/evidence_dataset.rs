@@ -167,7 +167,7 @@ fn resumed_cache_hash_corruption_is_refused_before_analyzer_receives_rows() {
     struct Count(usize);
     impl EvidenceAnalyzer for Count {
         fn on_batch(&mut self, batch: &EvidenceBatch) -> Result<(), EvidenceError> {
-            self.0 += batch.rows.len();
+            self.0 += batch.len();
             Ok(())
         }
         fn additional_memory_bytes(&self) -> Option<u64> {

@@ -27,8 +27,11 @@ matching producer.
 
 `analyze evidence` and `analyze panel-qc` form the indexed path. Their scientific
 profile is defined in [SEMANTICS.md](SEMANTICS.md), separately from legacy feature
-and caller defaults. Schema v1 emits full rows; field requirements do not yet imply
-smaller physically projected rows.
+and caller defaults. Full evidence preserves schema-1 output bytes; selected field
+groups use schema 2 and allocate only those groups. Panel summaries request depths
+and quality sums. Sparse selection shares bounded fetch windows without emitting
+gap loci. The public preview batch API now exposes borrowed optional groups through
+`rows()`; owned full-row materialization is an explicit fallible adapter.
 
 ## Validation results
 

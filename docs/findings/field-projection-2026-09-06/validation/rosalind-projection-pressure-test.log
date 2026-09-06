@@ -1,0 +1,9 @@
+   Compiling rosalind-bio v0.5.0 (/Users/logannye/rosalind)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.52s
+     Running tests/evidence_cli.rs (target/debug/deps/evidence_cli-0eb5fdcb12454175)
+
+running 1 test
+test panel_boundary_buffers_reuse_capacity_under_three_process_budgets ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 8 filtered out; finished in 0.96s
+

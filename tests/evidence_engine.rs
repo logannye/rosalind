@@ -104,7 +104,12 @@ fn matched(name: &str, pos: i64, len: usize, mapq: u8, flags: u16) -> Record {
 struct Capture(Vec<EvidenceRow>);
 impl EvidenceAnalyzer for Capture {
     fn on_batch(&mut self, batch: &EvidenceBatch) -> Result<(), EvidenceError> {
-        self.0.extend(batch.rows.clone());
+        self.0.extend(
+            batch
+                .rows()
+                .map(|row| row.try_to_full_row())
+                .collect::<Result<Vec<_>, _>>()?,
+        );
         Ok(())
     }
 }
@@ -237,8 +242,8 @@ fn arrow_bytes_are_canonical_and_reader_roundtrips_all_fields() {
     let engine = EvidenceEngine::open(f.request(100)).unwrap();
     let mut rows = Vec::new();
     read_evidence_batches(a.as_slice(), engine.contigs(), |batch| {
-        assert!(batch.rows.len() <= 1024);
-        rows.extend(batch.rows.clone());
+        assert!(batch.len() <= 1024);
+        rows.extend(batch.rows().map(|row| row.try_to_full_row().unwrap()));
         Ok(())
     })
     .unwrap();
@@ -381,8 +386,8 @@ fn cram_uses_explicit_local_fasta_and_matches_bam_evidence() {
             }
         }
         fn on_batch(&mut self, batch: &EvidenceBatch) -> Result<(), EvidenceError> {
-            assert!(batch.rows.iter().all(|row| row.reference == b'A'));
-            self.0 += batch.rows.len();
+            assert!(batch.rows().all(|row| row.reference == b'A'));
+            self.0 += batch.len();
             Ok(())
         }
     }
@@ -434,7 +439,8 @@ fn analyzer_capabilities_and_unknown_budget_bounds_are_validated_before_callback
     assert!(engine.run(&mut NeedsContext).is_err());
     let mut projected = f.request(4);
     projected.fields = EvidenceFields::DEPTHS;
-    assert!(EvidenceEngine::open(projected).is_err());
+    let mut projected = EvidenceEngine::open(projected).unwrap();
+    assert!(projected.run(&mut Capture::default()).is_err());
     let mut budgeted = f.request(4);
     budgeted.execution.memory_budget_bytes = Some(1 << 30);
     let mut engine = EvidenceEngine::open(budgeted).unwrap();
@@ -667,4 +673,215 @@ fn sam_reference_equality_bases_resolve_with_reference_and_refuse_without_it() {
             .contains("SEQ '=' requires a local analysis reference"),
         "{error}"
     );
+}
+
+#[test]
+fn full_evidence_egress_matches_frozen_schema_one_bytes() {
+    let f = Fixture::new(2051);
+    f.write(
+        vec![
+            record(
+                "forward",
+                0,
+                b"ACGTN",
+                &[30, 25, 40, 20, 30],
+                60,
+                0,
+                vec![Cigar::Match(5)],
+            ),
+            record(
+                "reverse",
+                0,
+                b"TGCAN",
+                &[45, 35, 20, 30, 30],
+                30,
+                16,
+                vec![Cigar::Match(5)],
+            ),
+            matched("duplicate", 2, 4, 60, 1024),
+            matched("boundary", 1021, 10, 50, 0),
+        ],
+        bam::index::Type::Bai,
+    );
+    for width in [1, 1024, 16384] {
+        let mut engine = EvidenceEngine::open(f.request(width)).unwrap();
+        let mut arrow = EvidenceArrowWriter::new(Vec::new());
+        engine.run(&mut arrow).unwrap();
+        let arrow = arrow.into_inner().unwrap();
+        let mut engine = EvidenceEngine::open(f.request(width)).unwrap();
+        let mut tsv = EvidenceTsvWriter::new(Vec::new());
+        engine.run(&mut tsv).unwrap();
+        let tsv = tsv.into_inner();
+        assert_eq!(
+            blake3::hash(&arrow).to_hex().as_str(),
+            "e6f048b3afb076282bccddb27e8c8da4fd37454d13053984c7b2e2474995b435",
+            "Arrow width={width}"
+        );
+        assert_eq!(
+            blake3::hash(&tsv).to_hex().as_str(),
+            "76e4b150ec48b59d5c3fc3feecae554484ea6f8fbc20df3c85bfd9dfaf7e84b2",
+            "TSV width={width}"
+        );
+    }
+    {
+        let mut arrow = EvidenceArrowWriter::new(Vec::new());
+        arrow.finish().unwrap();
+        let arrow = arrow.into_inner().unwrap();
+        let mut tsv = EvidenceTsvWriter::new(Vec::new());
+        tsv.finish().unwrap();
+        let tsv = tsv.into_inner();
+        assert_eq!(
+            blake3::hash(&arrow).to_hex().as_str(),
+            "6161135a64f7010b05b5acfbc590ba6e439a8245e966f01134f58df12f31cc2f"
+        );
+        assert_eq!(
+            blake3::hash(&tsv).to_hex().as_str(),
+            "8e22e4f3c8fb1cb04c5178debfc4707ec6e26b75c3fd3f8eb8ef432d0fbbeeef"
+        );
+    }
+}
+
+#[test]
+fn every_projection_preserves_present_values_and_roundtrips_empty_metadata() {
+    let f = Fixture::new(20);
+    f.write(
+        vec![
+            record(
+                "forward",
+                0,
+                b"ACGTN",
+                &[30, 25, 40, 20, 30],
+                60,
+                0,
+                vec![Cigar::Match(5)],
+            ),
+            record(
+                "reverse",
+                0,
+                b"TGCAN",
+                &[45, 35, 20, 30, 30],
+                30,
+                16,
+                vec![Cigar::Match(5)],
+            ),
+            matched("duplicate", 2, 4, 60, 1024),
+        ],
+        bam::index::Type::Bai,
+    );
+    let full = collect(f.request(20));
+    let mut full_tsv = EvidenceTsvWriter::new(Vec::new());
+    EvidenceEngine::open(f.request(20))
+        .unwrap()
+        .run(&mut full_tsv)
+        .unwrap();
+    let full_tsv = String::from_utf8(full_tsv.into_inner()).unwrap();
+    let full_lines: Vec<Vec<&str>> = full_tsv
+        .lines()
+        .map(|line| line.split('\t').collect())
+        .collect();
+    for bits in 0..64 {
+        let fields = EvidenceFields::from_bits(bits).unwrap();
+        let mut previous = None;
+        for width in [1, 20] {
+            let mut request = f.request(width);
+            request.fields = fields;
+            let mut engine = EvidenceEngine::open(request.clone()).unwrap();
+            let mut arrow = EvidenceArrowWriter::with_fields(Vec::new(), fields);
+            engine.run(&mut arrow).unwrap();
+            let bytes = arrow.into_inner().unwrap();
+            if let Some(before) = &previous {
+                assert_eq!(before, &bytes, "bits={bits}");
+            }
+            let mut count = 0;
+            let metadata =
+                read_evidence_batches_with_metadata(bytes.as_slice(), engine.contigs(), |batch| {
+                    assert_eq!(batch.fields(), fields);
+                    for row in batch.rows() {
+                        let expected = &full[row.position as usize];
+                        assert_eq!(row.reference, expected.reference);
+                        assert_eq!(
+                            row.depths.is_some(),
+                            fields.contains(EvidenceFields::DEPTHS)
+                        );
+                        if let Some(d) = row.depths {
+                            assert_eq!(
+                                (
+                                    d.prefilter_depth,
+                                    d.aligned_depth,
+                                    d.callable_depth,
+                                    d.filters
+                                ),
+                                (
+                                    expected.prefilter_depth,
+                                    expected.aligned_depth,
+                                    expected.callable_depth,
+                                    expected.filters
+                                )
+                            );
+                        }
+                        if let Some(a) = row.alleles {
+                            assert_eq!(a.allele_counts, expected.allele_counts);
+                        }
+                        if let Some(s) = row.strands {
+                            assert_eq!(s.strand_counts, expected.strand_counts);
+                        }
+                        if let Some(q) = row.quality_sums {
+                            assert_eq!(
+                                (q.base_quality_sum, q.mapping_quality_sum),
+                                (expected.base_quality_sum, expected.mapping_quality_sum)
+                            );
+                        }
+                        if let Some(h) = row.quality_histograms {
+                            assert_eq!(h.base_quality_histogram, expected.base_quality_histogram);
+                            assert_eq!(
+                                h.mapping_quality_histogram,
+                                expected.mapping_quality_histogram
+                            );
+                        }
+                        if let Some(p) = row.read_position {
+                            assert_eq!(
+                                (p.read_position_sum, p.read_length_sum),
+                                (expected.read_position_sum, expected.read_length_sum)
+                            );
+                        }
+                        assert_eq!(row.try_to_full_row().is_ok(), fields == EvidenceFields::ALL);
+                        count += 1;
+                    }
+                    Ok(())
+                })
+                .unwrap();
+            assert_eq!(count, 20);
+            assert_eq!(metadata.fields, fields);
+            assert_eq!(metadata.schema_version, fields.schema_version());
+            previous = Some(bytes);
+            let mut tsv = EvidenceTsvWriter::with_fields(Vec::new(), fields);
+            EvidenceEngine::open(request)
+                .unwrap()
+                .run(&mut tsv)
+                .unwrap();
+            let tsv = String::from_utf8(tsv.into_inner()).unwrap();
+            let lines: Vec<Vec<&str>> =
+                tsv.lines().map(|line| line.split('\t').collect()).collect();
+            assert_eq!(lines.len(), full_lines.len());
+            for (column, name) in lines[0].iter().enumerate() {
+                let source = full_lines[0]
+                    .iter()
+                    .position(|candidate| candidate == name)
+                    .unwrap();
+                for (line, expected) in lines.iter().zip(&full_lines) {
+                    assert_eq!(line[column], expected[source]);
+                }
+            }
+        }
+        let mut empty = EvidenceArrowWriter::with_fields(Vec::new(), fields);
+        empty.finish().unwrap();
+        let bytes = empty.into_inner().unwrap();
+        let engine = EvidenceEngine::open(f.request(20)).unwrap();
+        let metadata =
+            read_evidence_batches_with_metadata(bytes.as_slice(), engine.contigs(), |_| {
+                panic!("empty stream")
+            })
+            .unwrap();
+        assert_eq!(metadata.fields, fields);
+    }
 }

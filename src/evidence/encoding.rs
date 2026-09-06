@@ -43,37 +43,59 @@ const SCALAR_NAMES: [&str; 28] = [
     "filtered_low_base_quality",
     "filtered_ambiguous_base",
 ];
-fn scalars(row: &EvidenceRow) -> [u64; 28] {
-    [
-        row.prefilter_depth,
-        row.aligned_depth,
-        row.callable_depth,
-        row.allele_counts[0],
-        row.allele_counts[1],
-        row.allele_counts[2],
-        row.allele_counts[3],
-        row.strand_counts[0][0],
-        row.strand_counts[0][1],
-        row.strand_counts[1][0],
-        row.strand_counts[1][1],
-        row.strand_counts[2][0],
-        row.strand_counts[2][1],
-        row.strand_counts[3][0],
-        row.strand_counts[3][1],
-        row.base_quality_sum,
-        row.mapping_quality_sum,
-        row.read_position_sum,
-        row.read_length_sum,
-        row.filters.secondary,
-        row.filters.supplementary,
-        row.filters.qc_fail,
-        row.filters.duplicate,
-        row.filters.unavailable_mapq,
-        row.filters.low_mapq,
-        row.filters.unavailable_base_quality,
-        row.filters.low_base_quality,
-        row.filters.ambiguous_base,
-    ]
+fn scalar_group(index: usize) -> EvidenceFields {
+    match index {
+        0..=2 | 19..=27 => EvidenceFields::DEPTHS,
+        3..=6 => EvidenceFields::ALLELES,
+        7..=14 => EvidenceFields::STRANDS,
+        15..=16 => EvidenceFields::QUALITY_SUMS,
+        17..=18 => EvidenceFields::READ_POSITION,
+        _ => unreachable!("known scalar index"),
+    }
+}
+fn scalar(row: EvidenceRowRef<'_>, index: usize) -> u64 {
+    match index {
+        0 => row.depths.unwrap().prefilter_depth,
+        1 => row.depths.unwrap().aligned_depth,
+        2 => row.depths.unwrap().callable_depth,
+        3..=6 => row.alleles.unwrap().allele_counts[index - 3],
+        7..=14 => row.strands.unwrap().strand_counts[(index - 7) / 2][(index - 7) % 2],
+        15 => row.quality_sums.unwrap().base_quality_sum,
+        16 => row.quality_sums.unwrap().mapping_quality_sum,
+        17 => row.read_position.unwrap().read_position_sum,
+        18 => row.read_position.unwrap().read_length_sum,
+        19..=27 => {
+            let f = row.depths.unwrap().filters;
+            [
+                f.secondary,
+                f.supplementary,
+                f.qc_fail,
+                f.duplicate,
+                f.unavailable_mapq,
+                f.low_mapq,
+                f.unavailable_base_quality,
+                f.low_base_quality,
+                f.ambiguous_base,
+            ][index - 19]
+        }
+        _ => unreachable!("known scalar index"),
+    }
+}
+fn requirements(fields: EvidenceFields, retained_bytes: Option<u64>) -> EvidenceRequirements {
+    EvidenceRequirements {
+        fields,
+        requires_reference: false,
+        context_bases: 0,
+        retained_bytes,
+    }
+}
+fn require_fields(actual: EvidenceFields, expected: EvidenceFields) -> Result<(), EvidenceError> {
+    if actual != expected {
+        return Err(EvidenceError::InvalidInput(
+            "evidence batch field mask differs from configured encoder".into(),
+        ));
+    }
+    Ok(())
 }
 fn write_histogram(out: &mut dyn Write, bins: &[u64]) -> std::io::Result<()> {
     let mut first = true;
@@ -96,13 +118,19 @@ fn write_histogram(out: &mut dyn Write, bins: &[u64]) -> std::io::Result<()> {
 pub struct EvidenceTsvWriter<W: Write> {
     out: W,
     started: bool,
+    fields: EvidenceFields,
 }
 impl<W: Write> EvidenceTsvWriter<W> {
     /// Construct the configured value without starting evidence extraction.
     pub fn new(out: W) -> Self {
+        Self::with_fields(out, EvidenceFields::ALL)
+    }
+    /// Configure the physical field groups before any rows, including empty output.
+    pub fn with_fields(out: W, fields: EvidenceFields) -> Self {
         Self {
             out,
             started: false,
+            fields,
         }
     }
     /// Finish encoding when necessary and return the underlying output writer.
@@ -112,22 +140,31 @@ impl<W: Write> EvidenceTsvWriter<W> {
     fn header(&mut self) -> Result<(), EvidenceError> {
         if !self.started {
             write!(self.out, "#contig\tpos\tref\trequested_alts")?;
-            for name in SCALAR_NAMES {
-                write!(self.out, "\t{name}")?;
+            for (index, name) in SCALAR_NAMES.iter().enumerate() {
+                if self.fields.contains(scalar_group(index)) {
+                    write!(self.out, "\t{name}")?;
+                }
             }
-            writeln!(
-                self.out,
-                "\tbase_quality_histogram\tmapping_quality_histogram"
-            )?;
+            if self.fields.contains(EvidenceFields::QUALITY_HISTOGRAMS) {
+                write!(
+                    self.out,
+                    "\tbase_quality_histogram\tmapping_quality_histogram"
+                )?;
+            }
+            writeln!(self.out)?;
             self.started = true;
         }
         Ok(())
     }
 }
 impl<W: Write> EvidenceAnalyzer for EvidenceTsvWriter<W> {
+    fn requirements(&self) -> EvidenceRequirements {
+        requirements(self.fields, self.additional_memory_bytes())
+    }
     fn on_batch(&mut self, batch: &EvidenceBatch) -> Result<(), EvidenceError> {
+        require_fields(batch.fields(), self.fields)?;
         self.header()?;
-        for row in &batch.rows {
+        for row in batch.rows() {
             write!(
                 self.out,
                 "{}\t{}\t{}\t",
@@ -145,13 +182,17 @@ impl<W: Write> EvidenceAnalyzer for EvidenceTsvWriter<W> {
                     write!(self.out, "{}", char::from(*alternate))?;
                 }
             }
-            for value in scalars(row) {
-                write!(self.out, "\t{value}")?;
+            for index in 0..SCALAR_NAMES.len() {
+                if self.fields.contains(scalar_group(index)) {
+                    write!(self.out, "\t{}", scalar(row, index))?;
+                }
             }
-            write!(self.out, "\t")?;
-            write_histogram(&mut self.out, &row.base_quality_histogram)?;
-            write!(self.out, "\t")?;
-            write_histogram(&mut self.out, &row.mapping_quality_histogram)?;
+            if let Some(histograms) = row.quality_histograms {
+                write!(self.out, "\t")?;
+                write_histogram(&mut self.out, &histograms.base_quality_histogram)?;
+                write!(self.out, "\t")?;
+                write_histogram(&mut self.out, &histograms.mapping_quality_histogram)?;
+            }
             writeln!(self.out)?;
         }
         Ok(())
@@ -166,7 +207,7 @@ impl<W: Write> EvidenceAnalyzer for EvidenceTsvWriter<W> {
     }
 }
 
-fn schema() -> Schema {
+fn schema(selected: EvidenceFields) -> Schema {
     let mut fields = vec![
         Field::new("contig", DataType::Utf8, false),
         Field::new("pos", DataType::UInt32, false),
@@ -176,27 +217,35 @@ fn schema() -> Schema {
     fields.extend(
         SCALAR_NAMES
             .iter()
-            .map(|name| Field::new(*name, DataType::UInt64, false)),
+            .enumerate()
+            .filter(|(index, _)| selected.contains(scalar_group(*index)))
+            .map(|(_, name)| Field::new(*name, DataType::UInt64, false)),
     );
-    fields.push(Field::new(
-        "base_quality_histogram",
-        DataType::FixedSizeList(
-            Arc::new(Field::new("item", DataType::UInt64, false)),
-            BASE_QUALITY_BINS as i32,
-        ),
-        false,
-    ));
-    fields.push(Field::new(
-        "mapping_quality_histogram",
-        DataType::FixedSizeList(
-            Arc::new(Field::new("item", DataType::UInt64, false)),
-            MAPPING_QUALITY_BINS as i32,
-        ),
-        false,
-    ));
+    if selected.contains(EvidenceFields::QUALITY_HISTOGRAMS) {
+        fields.push(Field::new(
+            "base_quality_histogram",
+            DataType::FixedSizeList(
+                Arc::new(Field::new("item", DataType::UInt64, false)),
+                BASE_QUALITY_BINS as i32,
+            ),
+            false,
+        ));
+        fields.push(Field::new(
+            "mapping_quality_histogram",
+            DataType::FixedSizeList(
+                Arc::new(Field::new("item", DataType::UInt64, false)),
+                MAPPING_QUALITY_BINS as i32,
+            ),
+            false,
+        ));
+    }
     Schema::new(fields).with_metadata(std::collections::HashMap::from([(
         "rosalind.evidence.schema".into(),
-        EVIDENCE_SCHEMA_VERSION.to_string(),
+        if selected == EvidenceFields::ALL {
+            "1".into()
+        } else {
+            format!("2;fields-v{}={}", EvidenceFields::VERSION, selected.bits())
+        },
     )]))
 }
 
@@ -205,7 +254,9 @@ fn schema() -> Schema {
 pub struct EvidenceArrowWriter<W: Write> {
     output: Option<W>,
     writer: Option<StreamWriter<W>>,
-    rows: Vec<(Arc<str>, EvidenceRow)>,
+    rows: EvidenceBatch,
+    contigs: Vec<Arc<str>>,
+    fields: EvidenceFields,
     last_contig: Option<Arc<str>>,
     finished: bool,
 }
@@ -220,10 +271,16 @@ impl<W: Write> std::fmt::Debug for EvidenceArrowWriter<W> {
 impl<W: Write> EvidenceArrowWriter<W> {
     /// Construct the configured value without starting evidence extraction.
     pub fn new(output: W) -> Self {
+        Self::with_fields(output, EvidenceFields::ALL)
+    }
+    /// Configure the physical field groups before the stream header is written.
+    pub fn with_fields(output: W, fields: EvidenceFields) -> Self {
         Self {
             output: Some(output),
             writer: None,
-            rows: Vec::new(),
+            rows: EvidenceBatch::new(0, "", 0, fields, Vec::new()),
+            contigs: Vec::new(),
+            fields,
             last_contig: None,
             finished: false,
         }
@@ -237,7 +294,7 @@ impl<W: Write> EvidenceArrowWriter<W> {
             let options =
                 IpcWriteOptions::try_new(8, false, MetadataVersion::V5).map_err(arrow_error)?;
             self.writer = Some(
-                StreamWriter::try_new_with_options(output, &schema(), options)
+                StreamWriter::try_new_with_options(output, &schema(self.fields), options)
                     .map_err(arrow_error)?,
             );
         }
@@ -250,60 +307,62 @@ impl<W: Write> EvidenceArrowWriter<W> {
         }
         let mut arrays: Vec<ArrayRef> = Vec::with_capacity(34);
         arrays.push(Arc::new(StringArray::from_iter_values(
-            self.rows.iter().map(|(contig, _)| contig.as_ref()),
+            self.contigs.iter().map(|contig| contig.as_ref()),
         )));
         arrays.push(Arc::new(UInt32Array::from_iter_values(
-            self.rows.iter().map(|(_, row)| row.position + 1),
+            self.rows.rows().map(|row| row.position + 1),
         )));
         arrays.push(Arc::new(StringArray::from_iter_values(
             self.rows
-                .iter()
-                .map(|(_, row)| char::from(row.reference).to_string()),
+                .rows()
+                .map(|row| char::from(row.reference).to_string()),
         )));
         arrays.push(Arc::new(StringArray::from_iter_values(
-            self.rows.iter().map(|(_, row)| {
-                String::from_utf8(row.requested_alts.clone()).expect("validated nucleotide ALT")
+            self.rows.rows().map(|row| {
+                String::from_utf8(row.requested_alts.to_vec()).expect("validated nucleotide ALT")
             }),
         )));
         for field in 0..SCALAR_NAMES.len() {
+            if !self.fields.contains(scalar_group(field)) {
+                continue;
+            }
             arrays.push(Arc::new(UInt64Array::from_iter_values(
-                self.rows.iter().map(|(_, row)| scalars(row)[field]),
+                self.rows.rows().map(|row| scalar(row, field)),
             )));
         }
-        let bq: ArrayRef = Arc::new(UInt64Array::from_iter_values(
-            self.rows
-                .iter()
-                .flat_map(|(_, row)| row.base_quality_histogram.iter().copied()),
-        ));
-        let mq: ArrayRef =
-            Arc::new(UInt64Array::from_iter_values(self.rows.iter().flat_map(
-                |(_, row)| row.mapping_quality_histogram.iter().copied(),
-            )));
-        arrays.push(Arc::new(
-            FixedSizeListArray::try_new(
-                Arc::new(Field::new("item", DataType::UInt64, false)),
-                BASE_QUALITY_BINS as i32,
-                bq,
-                None,
-            )
-            .map_err(arrow_error)?,
-        ));
-        arrays.push(Arc::new(
-            FixedSizeListArray::try_new(
-                Arc::new(Field::new("item", DataType::UInt64, false)),
-                MAPPING_QUALITY_BINS as i32,
-                mq,
-                None,
-            )
-            .map_err(arrow_error)?,
-        ));
-        let batch = RecordBatch::try_new(Arc::new(schema()), arrays).map_err(arrow_error)?;
+        if self.fields.contains(EvidenceFields::QUALITY_HISTOGRAMS) {
+            for (bins, base_quality) in [(BASE_QUALITY_BINS, true), (MAPPING_QUALITY_BINS, false)] {
+                let values: ArrayRef = Arc::new(UInt64Array::from_iter_values(
+                    self.rows.rows().flat_map(|row| {
+                        let histogram = row.quality_histograms.unwrap();
+                        let values: &[u64] = if base_quality {
+                            &histogram.base_quality_histogram
+                        } else {
+                            &histogram.mapping_quality_histogram
+                        };
+                        values.iter().copied()
+                    }),
+                ));
+                arrays.push(Arc::new(
+                    FixedSizeListArray::try_new(
+                        Arc::new(Field::new("item", DataType::UInt64, false)),
+                        bins as i32,
+                        values,
+                        None,
+                    )
+                    .map_err(arrow_error)?,
+                ));
+            }
+        }
+        let batch =
+            RecordBatch::try_new(Arc::new(schema(self.fields)), arrays).map_err(arrow_error)?;
         self.writer
             .as_mut()
             .unwrap()
             .write(&batch)
             .map_err(arrow_error)?;
         self.rows.clear();
+        self.contigs.clear();
         Ok(())
     }
     /// Finish encoding when necessary and return the underlying output writer.
@@ -317,7 +376,11 @@ impl<W: Write> EvidenceArrowWriter<W> {
     }
 }
 impl<W: Write> EvidenceAnalyzer for EvidenceArrowWriter<W> {
+    fn requirements(&self) -> EvidenceRequirements {
+        requirements(self.fields, self.additional_memory_bytes())
+    }
     fn on_batch(&mut self, batch: &EvidenceBatch) -> Result<(), EvidenceError> {
+        require_fields(batch.fields(), self.fields)?;
         if self.finished {
             return Err(EvidenceError::Analyzer(
                 "cannot append to a finished Arrow stream".into(),
@@ -336,11 +399,13 @@ impl<W: Write> EvidenceAnalyzer for EvidenceArrowWriter<W> {
                 contig
             }
         };
-        for row in &batch.rows {
-            if self.rows.is_empty() && self.rows.capacity() == 0 {
+        for row in batch.rows() {
+            if self.contigs.capacity() == 0 {
                 self.rows.reserve_exact(EVIDENCE_ARROW_BATCH_ROWS);
+                self.contigs.reserve_exact(EVIDENCE_ARROW_BATCH_ROWS);
             }
-            self.rows.push((Arc::clone(&contig), row.clone()));
+            self.rows.push_row(row)?;
+            self.contigs.push(Arc::clone(&contig));
             if self.rows.len() == EVIDENCE_ARROW_BATCH_ROWS {
                 self.flush_batch()?;
             }
@@ -363,8 +428,8 @@ impl<W: Write> EvidenceAnalyzer for EvidenceArrowWriter<W> {
         // Row storage, Arrow arrays, IPC scratch, plus worst-case names for a
         // batch spanning many short contigs. Old feature encoding is unchanged.
         Some(
-            (std::mem::size_of::<EvidenceRow>() as u64) * EVIDENCE_ARROW_BATCH_ROWS as u64 * 4
-                + (8 << 20),
+            self.fields.storage_bytes_per_locus() * EVIDENCE_ARROW_BATCH_ROWS as u64 * 4
+                + (16 << 20),
         )
     }
 }
@@ -372,28 +437,112 @@ fn arrow_error(error: impl std::fmt::Display) -> EvidenceError {
     EvidenceError::Analyzer(error.to_string())
 }
 
-/// Stream a canonical evidence Arrow artifact into bounded callbacks. Cached
-/// input is schema-checked, rejects nulls/oversized batches, and is required to
-/// be uniquely sorted. `contigs` supplies stable IDs from the verified reference.
+/// Physical schema descriptor, available even for an empty evidence stream.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct EvidenceArtifactMetadata {
+    /// Actual stored field groups.
+    pub fields: EvidenceFields,
+    /// Evidence schema version, independent of receipt-envelope version.
+    pub schema_version: u32,
+}
+
+fn body_envelope(fields: EvidenceFields) -> u64 {
+    // At most 1024 contig names of 4096 bytes, small REF/ALT/offset arrays,
+    // selected counters, alignment padding, and bounded Arrow bookkeeping.
+    (EVIDENCE_ARROW_BATCH_ROWS as u64)
+        .saturating_mul(4160 + fields.storage_bytes_per_locus())
+        .saturating_add(65_536)
+        .min(MAX_IPC_BODY_BYTES)
+}
+/// Conservative retained IPC buffers, decoded arrays, projected callback storage,
+/// and metadata. Does not include memory retained by the downstream analyzer.
+/// Use ALL when the input field set is unknown, or enforce the expected set with
+/// `read_evidence_batches_expected_fields` before admitting a smaller reservation.
+pub fn evidence_reader_memory_bytes(fields: EvidenceFields) -> u64 {
+    2 * body_envelope(fields)
+        + fields.storage_bytes_per_locus() * EVIDENCE_ARROW_BATCH_ROWS as u64
+        + (1 << 20)
+}
+
+/// Stream verified canonical evidence into bounded callbacks.
 pub fn read_evidence_batches<R: std::io::Read>(
     reader: R,
     contigs: &crate::core::ContigSet,
-    mut on_batch: impl FnMut(&EvidenceBatch) -> Result<(), EvidenceError>,
+    on_batch: impl FnMut(&EvidenceBatch) -> Result<(), EvidenceError>,
 ) -> Result<(), EvidenceError> {
+    read_evidence_batches_with_metadata(reader, contigs, on_batch).map(|_| ())
+}
+
+/// Read physical fields without synthesizing omitted metrics; return the schema
+/// descriptor even when the stream contains no loci.
+pub fn read_evidence_batches_with_metadata<R: std::io::Read>(
+    reader: R,
+    contigs: &crate::core::ContigSet,
+    on_batch: impl FnMut(&EvidenceBatch) -> Result<(), EvidenceError>,
+) -> Result<EvidenceArtifactMetadata, EvidenceError> {
+    read_evidence_batches_impl(reader, contigs, None, on_batch)
+}
+
+/// Check a known field mask before decoding any body buffers. Budgeted readers
+/// can reserve `evidence_reader_memory_bytes(expected)` without accepting a
+/// larger, differently projected artifact first. Empty streams are also checked.
+pub fn read_evidence_batches_expected_fields<R: std::io::Read>(
+    reader: R,
+    contigs: &crate::core::ContigSet,
+    expected: EvidenceFields,
+    on_batch: impl FnMut(&EvidenceBatch) -> Result<(), EvidenceError>,
+) -> Result<EvidenceArtifactMetadata, EvidenceError> {
+    read_evidence_batches_impl(reader, contigs, Some(expected), on_batch)
+}
+
+fn read_evidence_batches_impl<R: std::io::Read>(
+    reader: R,
+    contigs: &crate::core::ContigSet,
+    expected: Option<EvidenceFields>,
+    mut on_batch: impl FnMut(&EvidenceBatch) -> Result<(), EvidenceError>,
+) -> Result<EvidenceArtifactMetadata, EvidenceError> {
     use arrow_array::Array;
+    let invalid = |message: &str| EvidenceError::InvalidInput(message.into());
     let mut reader = arrow_ipc::reader::StreamReader::try_new(BoundedIpcReader::new(reader), None)
         .map_err(arrow_error)?;
-    if reader.schema().as_ref() != &schema() {
-        return Err(EvidenceError::InvalidInput(
-            "cached Arrow evidence schema mismatch".into(),
+    let metadata = reader
+        .schema()
+        .metadata()
+        .get("rosalind.evidence.schema")
+        .cloned()
+        .ok_or_else(|| invalid("missing evidence schema metadata"))?;
+    let fields = if metadata == "1" {
+        EvidenceFields::ALL
+    } else {
+        let bits = metadata
+            .strip_prefix("2;fields-v1=")
+            .and_then(|value| value.parse::<u32>().ok())
+            .ok_or_else(|| invalid("unsupported evidence schema or field mask version"))?;
+        EvidenceFields::from_bits(bits)?
+    };
+    if reader.schema().as_ref() != &schema(fields) {
+        return Err(invalid("cached Arrow evidence schema mismatch"));
+    }
+    if expected.is_some_and(|expected| expected != fields) {
+        return Err(invalid(
+            "evidence schema field mask differs from expected fields",
         ));
     }
+    reader.get_mut().max_body_bytes = body_envelope(fields);
+    reader.get_mut().fields = Some(fields);
+    let descriptor = EvidenceArtifactMetadata {
+        fields,
+        schema_version: fields.schema_version(),
+    };
+    let scalar_indices: Vec<usize> = (0..SCALAR_NAMES.len())
+        .filter(|index| fields.contains(scalar_group(*index)))
+        .collect();
     let mut previous = None;
     for encoded in &mut reader {
         let encoded = encoded.map_err(arrow_error)?;
         if encoded.num_rows() > EVIDENCE_ARROW_BATCH_ROWS {
-            return Err(EvidenceError::InvalidInput(
-                "cached Arrow evidence batch exceeds canonical 1024 rows".into(),
+            return Err(invalid(
+                "cached Arrow evidence batch exceeds canonical 1024 rows",
             ));
         }
         if encoded
@@ -401,165 +550,181 @@ pub fn read_evidence_batches<R: std::io::Read>(
             .iter()
             .any(|array| array.null_count() != 0)
         {
-            return Err(EvidenceError::InvalidInput(
-                "cached evidence cannot contain nulls".into(),
-            ));
+            return Err(invalid("cached evidence cannot contain nulls"));
         }
-        let names = encoded
-            .column(0)
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .ok_or_else(|| EvidenceError::InvalidInput("invalid contig array".into()))?;
+        let strings = |column: usize| {
+            encoded
+                .column(column)
+                .as_any()
+                .downcast_ref::<StringArray>()
+                .ok_or_else(|| invalid("invalid evidence string array"))
+        };
+        let names = strings(0)?;
         let positions = encoded
             .column(1)
             .as_any()
             .downcast_ref::<UInt32Array>()
-            .ok_or_else(|| EvidenceError::InvalidInput("invalid position array".into()))?;
-        let references = encoded
-            .column(2)
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .ok_or_else(|| EvidenceError::InvalidInput("invalid reference array".into()))?;
-        let alts = encoded
-            .column(3)
-            .as_any()
-            .downcast_ref::<StringArray>()
-            .ok_or_else(|| EvidenceError::InvalidInput("invalid ALT array".into()))?;
-        let mut numeric = Vec::new();
-        for column in 4..32 {
-            numeric.push(
+            .ok_or_else(|| invalid("invalid position array"))?;
+        let references = strings(2)?;
+        let alts = strings(3)?;
+        let mut numeric: [Option<&UInt64Array>; 28] = [None; 28];
+        for (column, index) in scalar_indices.iter().enumerate() {
+            numeric[*index] = Some(
                 encoded
-                    .column(column)
+                    .column(column + 4)
                     .as_any()
                     .downcast_ref::<UInt64Array>()
-                    .ok_or_else(|| {
-                        EvidenceError::InvalidInput("invalid scalar evidence array".into())
-                    })?,
+                    .ok_or_else(|| invalid("invalid scalar evidence array"))?,
             );
         }
-        let bq = encoded
-            .column(32)
-            .as_any()
-            .downcast_ref::<FixedSizeListArray>()
-            .ok_or_else(|| EvidenceError::InvalidInput("invalid BQ histogram".into()))?;
-        let mq = encoded
-            .column(33)
-            .as_any()
-            .downcast_ref::<FixedSizeListArray>()
-            .ok_or_else(|| EvidenceError::InvalidInput("invalid MAPQ histogram".into()))?;
-        let mut batch: Option<EvidenceBatch> = None;
-        for index in 0..encoded.num_rows() {
-            if names.value(index).len() > 4096 || alts.value(index).len() > 3 {
-                return Err(EvidenceError::InvalidInput(
-                    "cached evidence string exceeds canonical bounds".into(),
-                ));
+        let histogram = |offset: usize| -> Result<Option<&FixedSizeListArray>, EvidenceError> {
+            if !fields.contains(EvidenceFields::QUALITY_HISTOGRAMS) {
+                return Ok(None);
             }
-            let contig = contigs.by_name(names.value(index)).ok_or_else(|| {
-                EvidenceError::InvalidInput("cached evidence contig not in dictionary".into())
-            })?;
-            let position = positions.value(index).checked_sub(1).ok_or_else(|| {
-                EvidenceError::InvalidInput("evidence POS must be 1-based".into())
-            })?;
-            if position >= contig.length {
-                return Err(EvidenceError::InvalidInput(
-                    "cached evidence position out of bounds".into(),
-                ));
-            }
-            let locus = (contig.id, position);
-            if previous.is_some_and(|previous| locus <= previous) {
-                return Err(EvidenceError::InvalidInput(
-                    "cached evidence rows are not uniquely coordinate sorted".into(),
-                ));
-            }
-            previous = Some(locus);
-            let ref_text = references.value(index);
-            if ref_text.len() != 1 || !b"ACGTN".contains(&ref_text.as_bytes()[0]) {
-                return Err(EvidenceError::InvalidInput(
-                    "invalid cached reference base".into(),
-                ));
-            }
-            let v = |column: usize| numeric[column].value(index);
-            let mut row = EvidenceRow {
-                position,
-                reference: ref_text.as_bytes()[0],
-                prefilter_depth: v(0),
-                aligned_depth: v(1),
-                callable_depth: v(2),
-                allele_counts: [v(3), v(4), v(5), v(6)],
-                strand_counts: [[v(7), v(8)], [v(9), v(10)], [v(11), v(12)], [v(13), v(14)]],
-                base_quality_sum: v(15),
-                mapping_quality_sum: v(16),
-                read_position_sum: v(17),
-                read_length_sum: v(18),
-                filters: EvidenceFilterCounts {
-                    secondary: v(19),
-                    supplementary: v(20),
-                    qc_fail: v(21),
-                    duplicate: v(22),
-                    unavailable_mapq: v(23),
-                    low_mapq: v(24),
-                    unavailable_base_quality: v(25),
-                    low_base_quality: v(26),
-                    ambiguous_base: v(27),
-                },
-                requested_alts: alts.value(index).as_bytes().to_vec(),
-                ..EvidenceRow::default()
-            };
-            if row
-                .requested_alts
-                .iter()
-                .any(|base| !b"ACGT".contains(base))
-            {
-                return Err(EvidenceError::InvalidInput("invalid cached SNV ALT".into()));
-            }
-            let bq_value = bq.value(index);
-            let mq_value = mq.value(index);
-            let bq_values = bq_value
+            let array = encoded
+                .column(4 + scalar_indices.len() + offset)
                 .as_any()
-                .downcast_ref::<UInt64Array>()
-                .ok_or_else(|| EvidenceError::InvalidInput("invalid BQ histogram values".into()))?;
-            let mq_values = mq_value
-                .as_any()
-                .downcast_ref::<UInt64Array>()
-                .ok_or_else(|| {
-                    EvidenceError::InvalidInput("invalid MAPQ histogram values".into())
-                })?;
-            if bq_values.null_count() != 0 || mq_values.null_count() != 0 {
-                return Err(EvidenceError::InvalidInput(
-                    "histograms cannot contain nulls".into(),
-                ));
+                .downcast_ref::<FixedSizeListArray>()
+                .ok_or_else(|| invalid("invalid histogram array"))?;
+            if array.values().null_count() != 0 {
+                return Err(invalid("histograms cannot contain nulls"));
             }
-            row.base_quality_histogram
-                .copy_from_slice(bq_values.values());
-            row.mapping_quality_histogram
-                .copy_from_slice(mq_values.values());
-            validate_row(&row)?;
-            let canonical_start = position / CANONICAL_TILE_BASES * CANONICAL_TILE_BASES;
-            if batch.as_ref().is_some_and(|batch| {
-                batch.contig_id != contig.id || batch.canonical_tile_start != canonical_start
-            }) {
-                on_batch(batch.as_ref().unwrap())?;
-                batch = None;
+            Ok(Some(array))
+        };
+        let bq = histogram(0)?;
+        let mq = histogram(1)?;
+        let mut index = 0;
+        while index < encoded.num_rows() {
+            let start = index;
+            let contig = contigs
+                .by_name(names.value(index))
+                .ok_or_else(|| invalid("cached evidence contig not in dictionary"))?;
+            let first_position = positions
+                .value(index)
+                .checked_sub(1)
+                .ok_or_else(|| invalid("evidence POS must be 1-based"))?;
+            let canonical_start = first_position / CANONICAL_TILE_BASES * CANONICAL_TILE_BASES;
+            let mut loci = Vec::new();
+            while index < encoded.num_rows() {
+                let position = positions
+                    .value(index)
+                    .checked_sub(1)
+                    .ok_or_else(|| invalid("evidence POS must be 1-based"))?;
+                if names.value(index) != contig.name.as_ref()
+                    || position / CANONICAL_TILE_BASES * CANONICAL_TILE_BASES != canonical_start
+                {
+                    break;
+                }
+                if names.value(index).len() > 4096 || alts.value(index).len() > 3 {
+                    return Err(invalid("cached evidence string exceeds canonical bounds"));
+                }
+                if position >= contig.length {
+                    return Err(invalid("cached evidence position out of bounds"));
+                }
+                let locus = (contig.id, position);
+                if previous.is_some_and(|before| locus <= before) {
+                    return Err(invalid(
+                        "cached evidence rows are not uniquely coordinate sorted",
+                    ));
+                }
+                previous = Some(locus);
+                let reference = references.value(index).as_bytes();
+                if reference.len() != 1 || !b"ACGTN".contains(&reference[0]) {
+                    return Err(invalid("invalid cached reference base"));
+                }
+                let requested_alts = alts.value(index).as_bytes().to_vec();
+                if requested_alts.iter().any(|base| !b"ACGT".contains(base)) {
+                    return Err(invalid("invalid cached SNV ALT"));
+                }
+                loci.push(EvidenceLocus {
+                    position,
+                    reference: reference[0],
+                    requested_alts,
+                });
+                index += 1;
             }
-            batch
-                .get_or_insert_with(|| EvidenceBatch {
-                    contig_id: contig.id,
-                    contig: contig.name.to_string(),
-                    canonical_tile_start: canonical_start,
-                    rows: Vec::new(),
-                })
-                .rows
-                .push(row);
-        }
-        if let Some(batch) = batch {
+            let mut batch = EvidenceBatch::new(
+                contig.id,
+                contig.name.to_string(),
+                canonical_start,
+                fields,
+                loci,
+            );
+            for offset in 0..batch.len() {
+                let source = start + offset;
+                let v = |column: usize| {
+                    numeric[column]
+                        .expect("schema field invariant")
+                        .value(source)
+                };
+                let row = batch.row_mut(offset).unwrap();
+                if let Some(depths) = row.depths {
+                    *depths = EvidenceDepths {
+                        prefilter_depth: v(0),
+                        aligned_depth: v(1),
+                        callable_depth: v(2),
+                        filters: EvidenceFilterCounts {
+                            secondary: v(19),
+                            supplementary: v(20),
+                            qc_fail: v(21),
+                            duplicate: v(22),
+                            unavailable_mapq: v(23),
+                            low_mapq: v(24),
+                            unavailable_base_quality: v(25),
+                            low_base_quality: v(26),
+                            ambiguous_base: v(27),
+                        },
+                    };
+                }
+                if let Some(alleles) = row.alleles {
+                    alleles.allele_counts = [v(3), v(4), v(5), v(6)];
+                }
+                if let Some(strands) = row.strands {
+                    strands.strand_counts =
+                        [[v(7), v(8)], [v(9), v(10)], [v(11), v(12)], [v(13), v(14)]];
+                }
+                if let Some(quality) = row.quality_sums {
+                    quality.base_quality_sum = v(15);
+                    quality.mapping_quality_sum = v(16);
+                }
+                if let Some(position) = row.read_position {
+                    position.read_position_sum = v(17);
+                    position.read_length_sum = v(18);
+                }
+                if let Some(histograms) = row.quality_histograms {
+                    for (array, destination) in [
+                        (
+                            bq.unwrap(),
+                            histograms.base_quality_histogram.as_mut_slice(),
+                        ),
+                        (
+                            mq.unwrap(),
+                            histograms.mapping_quality_histogram.as_mut_slice(),
+                        ),
+                    ] {
+                        let value = array.value(source);
+                        let values = value
+                            .as_any()
+                            .downcast_ref::<UInt64Array>()
+                            .ok_or_else(|| invalid("invalid histogram values"))?;
+                        destination.copy_from_slice(values.values());
+                    }
+                }
+                validate_row(batch.row(offset).unwrap())?;
+            }
             on_batch(&batch)?;
         }
     }
     reader.get_mut().validate_complete()?;
-    Ok(())
+    Ok(descriptor)
 }
 
-fn validate_row(row: &EvidenceRow) -> Result<(), EvidenceError> {
+fn validate_row(row: EvidenceRowRef<'_>) -> Result<(), EvidenceError> {
+    let invalid = || {
+        EvidenceError::InvalidInput(
+            "cached evidence counters or ALT annotations are inconsistent".into(),
+        )
+    };
     let sum = |values: &[u64]| values.iter().map(|value| u128::from(*value)).sum::<u128>();
     let weighted = |values: &[u64]| {
         values
@@ -568,44 +733,82 @@ fn validate_row(row: &EvidenceRow) -> Result<(), EvidenceError> {
             .map(|(quality, count)| quality as u128 * u128::from(*count))
             .sum::<u128>()
     };
-    let f = &row.filters;
-    let read_filtered = sum(&[
-        f.secondary,
-        f.supplementary,
-        f.qc_fail,
-        f.duplicate,
-        f.unavailable_mapq,
-        f.low_mapq,
-    ]);
-    let base_filtered = sum(&[
-        f.unavailable_base_quality,
-        f.low_base_quality,
-        f.ambiguous_base,
-    ]);
     if row
         .requested_alts
         .windows(2)
         .any(|bases| bases[0] >= bases[1])
         || row.requested_alts.contains(&row.reference)
         || (!row.requested_alts.is_empty() && row.reference == b'N')
-        || u128::from(row.prefilter_depth) != u128::from(row.aligned_depth) + read_filtered
-        || u128::from(row.aligned_depth) != u128::from(row.callable_depth) + base_filtered
-        || sum(&row.allele_counts) != u128::from(row.callable_depth)
-        || row
-            .strand_counts
-            .iter()
-            .zip(row.allele_counts)
-            .any(|(strands, allele)| sum(strands) != u128::from(allele))
-        || sum(&row.base_quality_histogram) != u128::from(row.callable_depth)
-        || sum(&row.mapping_quality_histogram) != u128::from(row.callable_depth)
-        || weighted(&row.base_quality_histogram) != u128::from(row.base_quality_sum)
-        || weighted(&row.mapping_quality_histogram) != u128::from(row.mapping_quality_sum)
-        || u128::from(row.read_position_sum) + u128::from(row.callable_depth)
-            > u128::from(row.read_length_sum)
     {
-        return Err(EvidenceError::InvalidInput(
-            "cached evidence counters or ALT annotations are inconsistent".into(),
-        ));
+        return Err(invalid());
+    }
+    let mut depth = None;
+    let mut check_depth = |value: u128| -> Result<(), EvidenceError> {
+        if value > u64::MAX as u128 || depth.is_some_and(|before| before != value) {
+            return Err(invalid());
+        }
+        depth = Some(value);
+        Ok(())
+    };
+    if let Some(d) = row.depths {
+        let f = d.filters;
+        let read_filtered = sum(&[
+            f.secondary,
+            f.supplementary,
+            f.qc_fail,
+            f.duplicate,
+            f.unavailable_mapq,
+            f.low_mapq,
+        ]);
+        let base_filtered = sum(&[
+            f.unavailable_base_quality,
+            f.low_base_quality,
+            f.ambiguous_base,
+        ]);
+        if u128::from(d.prefilter_depth) != u128::from(d.aligned_depth) + read_filtered
+            || u128::from(d.aligned_depth) != u128::from(d.callable_depth) + base_filtered
+        {
+            return Err(invalid());
+        }
+        check_depth(u128::from(d.callable_depth))?;
+    }
+    if let Some(a) = row.alleles {
+        check_depth(sum(&a.allele_counts))?;
+    }
+    if let Some(s) = row.strands {
+        check_depth(s.strand_counts.iter().map(|pair| sum(pair)).sum())?;
+        if let Some(a) = row.alleles {
+            if s.strand_counts
+                .iter()
+                .zip(a.allele_counts)
+                .any(|(pair, allele)| sum(pair) != u128::from(allele))
+            {
+                return Err(invalid());
+            }
+        }
+    }
+    if let Some(h) = row.quality_histograms {
+        check_depth(sum(&h.base_quality_histogram))?;
+        check_depth(sum(&h.mapping_quality_histogram))?;
+        if let Some(q) = row.quality_sums {
+            if weighted(&h.base_quality_histogram) != u128::from(q.base_quality_sum)
+                || weighted(&h.mapping_quality_histogram) != u128::from(q.mapping_quality_sum)
+            {
+                return Err(invalid());
+            }
+        }
+    }
+    if let Some(q) = row.quality_sums {
+        if depth.is_some_and(|d| {
+            u128::from(q.base_quality_sum) > d * 93 || u128::from(q.mapping_quality_sum) > d * 254
+        }) {
+            return Err(invalid());
+        }
+    }
+    if let Some(p) = row.read_position {
+        if u128::from(p.read_position_sum) + depth.unwrap_or(0) > u128::from(p.read_length_sum) {
+            return Err(invalid());
+        }
     }
     Ok(())
 }
@@ -620,6 +823,8 @@ struct BoundedIpcReader<R> {
     source: R,
     prefix: std::io::Cursor<Vec<u8>>,
     body_remaining: u64,
+    max_body_bytes: u64,
+    fields: Option<EvidenceFields>,
     ended: bool,
 }
 impl<R: std::io::Read> BoundedIpcReader<R> {
@@ -628,6 +833,8 @@ impl<R: std::io::Read> BoundedIpcReader<R> {
             source,
             prefix: std::io::Cursor::new(Vec::new()),
             body_remaining: 0,
+            max_body_bytes: MAX_IPC_BODY_BYTES,
+            fields: None,
             ended: false,
         }
     }
@@ -677,7 +884,7 @@ impl<R: std::io::Read> BoundedIpcReader<R> {
         let message = arrow_ipc::root_as_message(&prefix[offset..])
             .map_err(|_| invalid("invalid evidence IPC metadata"))?;
         let body = message.bodyLength();
-        if body < 0 || body as u64 > MAX_IPC_BODY_BYTES {
+        if body < 0 || body as u64 > self.max_body_bytes {
             return Err(invalid(
                 "evidence IPC body exceeds the bounded frame envelope",
             ));
@@ -698,16 +905,72 @@ impl<R: std::io::Read> BoundedIpcReader<R> {
                         "canonical evidence IPC does not permit compressed buffers",
                     ));
                 }
-                if batch.nodes().is_some_and(|nodes| {
-                    nodes.iter().any(|node| {
-                        node.length() < 0
-                            || node.length() as usize
-                                > EVIDENCE_ARROW_BATCH_ROWS * MAPPING_QUALITY_BINS
-                    })
-                }) {
+                let fields = self
+                    .fields
+                    .ok_or_else(|| invalid("record batch precedes verified schema"))?;
+                let scalar_count = (0..SCALAR_NAMES.len())
+                    .filter(|index| fields.contains(scalar_group(*index)))
+                    .count();
+                let histograms = fields.contains(EvidenceFields::QUALITY_HISTOGRAMS);
+                let nodes = batch
+                    .nodes()
+                    .ok_or_else(|| invalid("evidence IPC field nodes missing"))?;
+                let buffers = batch
+                    .buffers()
+                    .ok_or_else(|| invalid("evidence IPC buffers missing"))?;
+                let expected_nodes = 4 + scalar_count + if histograms { 4 } else { 0 };
+                let expected_buffers = 11 + scalar_count * 2 + if histograms { 6 } else { 0 };
+                if nodes.len() != expected_nodes || buffers.len() != expected_buffers {
                     return Err(invalid(
-                        "evidence IPC array exceeds the bounded row envelope",
+                        "evidence IPC node/buffer count differs from projected schema",
                     ));
+                }
+                if batch
+                    .variadicBufferCounts()
+                    .is_some_and(|counts| !counts.is_empty())
+                {
+                    return Err(invalid("canonical evidence IPC has no variadic buffers"));
+                }
+                let rows = batch.length();
+                for (index, node) in nodes.iter().enumerate() {
+                    let expected_length = match index.checked_sub(4 + scalar_count) {
+                        Some(1) => rows * BASE_QUALITY_BINS as i64,
+                        Some(3) => rows * MAPPING_QUALITY_BINS as i64,
+                        _ => rows,
+                    };
+                    if node.length() != expected_length || node.null_count() != 0 {
+                        return Err(invalid(
+                            "evidence IPC array length/null count differs from projected schema",
+                        ));
+                    }
+                }
+                // Arrow may copy every unaligned buffer before validating the
+                // completed RecordBatch. Canonical disjoint, aligned ranges
+                // prevent overlapping slices from multiplying those allocations,
+                // and checked bounds prevent Arrow's buffer slicing from panicking.
+                let mut previous_end = 0;
+                for buffer in buffers {
+                    let offset = buffer.offset();
+                    let length = buffer.length();
+                    let end = offset
+                        .checked_add(length)
+                        .ok_or_else(|| invalid("evidence IPC buffer range overflow"))?;
+                    if offset < 0 || length < 0 || end > body {
+                        return Err(invalid("evidence IPC buffer outside declared body"));
+                    }
+                    if offset % 8 != 0 {
+                        return Err(invalid(
+                            "canonical evidence IPC buffers require 8-byte alignment",
+                        ));
+                    }
+                    if length != 0 {
+                        if offset < previous_end {
+                            return Err(invalid(
+                                "canonical evidence IPC buffers overlap or are out of order",
+                            ));
+                        }
+                        previous_end = end;
+                    }
                 }
             }
             _ => {
@@ -753,6 +1016,158 @@ impl<R: std::io::Read> std::io::Read for BoundedIpcReader<R> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn fixture(fields: EvidenceFields, rows: u32) -> (Vec<u8>, crate::core::ContigSet) {
+        let mut contigs = crate::core::ContigSet::new();
+        contigs.push("chr1", 100);
+        let batch = EvidenceBatch::new(
+            0,
+            "chr1",
+            0,
+            fields,
+            (0..rows)
+                .map(|position| EvidenceLocus {
+                    position,
+                    reference: b'A',
+                    requested_alts: Vec::new(),
+                })
+                .collect(),
+        );
+        let mut writer = EvidenceArrowWriter::with_fields(Vec::new(), fields);
+        writer.on_batch(&batch).unwrap();
+        (writer.into_inner().unwrap(), contigs)
+    }
+
+    fn indirect(bytes: &[u8], offset: usize) -> usize {
+        offset + u32::from_le_bytes(bytes[offset..offset + 4].try_into().unwrap()) as usize
+    }
+    fn table_field(bytes: &[u8], table: usize, slot: u16) -> usize {
+        let vtable = (table as isize
+            - i32::from_le_bytes(bytes[table..table + 4].try_into().unwrap()) as isize)
+            as usize;
+        let relative = u16::from_le_bytes(
+            bytes[vtable + slot as usize..vtable + slot as usize + 2]
+                .try_into()
+                .unwrap(),
+        ) as usize;
+        assert_ne!(relative, 0);
+        table + relative
+    }
+
+    #[test]
+    fn malformed_buffer_ranges_are_refused_from_metadata_before_body_reads() {
+        let (bytes, contigs) = fixture(EvidenceFields::ALL, 1);
+        let schema_end = 8 + u32::from_le_bytes(bytes[4..8].try_into().unwrap()) as usize;
+        let metadata_start = schema_end + 8;
+        let metadata_end = metadata_start
+            + u32::from_le_bytes(bytes[schema_end + 4..schema_end + 8].try_into().unwrap())
+                as usize;
+        let message = indirect(&bytes, metadata_start);
+        let batch = indirect(
+            &bytes,
+            table_field(&bytes, message, arrow_ipc::Message::VT_HEADER),
+        );
+        let buffers = indirect(
+            &bytes,
+            table_field(&bytes, batch, arrow_ipc::RecordBatch::VT_BUFFERS),
+        );
+        let nodes = indirect(
+            &bytes,
+            table_field(&bytes, batch, arrow_ipc::RecordBatch::VT_NODES),
+        );
+        let body_length = i64::from_le_bytes(
+            bytes[table_field(&bytes, message, arrow_ipc::Message::VT_BODYLENGTH)..][..8]
+                .try_into()
+                .unwrap(),
+        );
+        let first_nonempty = buffers + 4 + 16; // contig offsets, following its empty validity bitmap
+        let next_nonempty = buffers + 4 + 32; // contig UTF-8 bytes
+        let first_offset = i64::from_le_bytes(
+            bytes[first_nonempty..first_nonempty + 8]
+                .try_into()
+                .unwrap(),
+        );
+        let cases = [
+            (first_nonempty, -8, "outside declared body"),
+            (first_nonempty + 8, -1, "outside declared body"),
+            (first_nonempty + 8, body_length + 1, "outside declared body"),
+            (first_nonempty, 1, "8-byte alignment"),
+            (next_nonempty, first_offset, "overlap or are out of order"),
+            (nodes + 4, 2, "array length/null count"),
+            (nodes + 12, 1, "array length/null count"),
+        ];
+        for (offset, value, expected) in cases {
+            // No body is available at all: these errors must arise while
+            // validating metadata, before Arrow allocates or reads body data.
+            let mut malformed = bytes[..metadata_end].to_vec();
+            malformed[offset..offset + 8].copy_from_slice(&value.to_le_bytes());
+            let error =
+                read_evidence_batches(malformed.as_slice(), &contigs, |_| Ok(())).unwrap_err();
+            assert!(
+                error.to_string().contains(expected),
+                "expected {expected}, got {error}"
+            );
+        }
+        for vector in [buffers, nodes] {
+            let mut malformed = bytes[..metadata_end].to_vec();
+            let count = u32::from_le_bytes(malformed[vector..vector + 4].try_into().unwrap());
+            malformed[vector..vector + 4].copy_from_slice(&(count - 1).to_le_bytes());
+            let error =
+                read_evidence_batches(malformed.as_slice(), &contigs, |_| Ok(())).unwrap_err();
+            assert!(error.to_string().contains("node/buffer count"), "{error}");
+        }
+    }
+
+    #[test]
+    fn expected_projection_is_checked_before_any_body_and_on_empty_streams() {
+        let (full, contigs) = fixture(EvidenceFields::ALL, 1);
+        let header_end = 8 + u32::from_le_bytes(full[4..8].try_into().unwrap()) as usize;
+        let error = read_evidence_batches_expected_fields(
+            &full[..header_end],
+            &contigs,
+            EvidenceFields::DEPTHS,
+            |_| panic!("unexpected callback"),
+        )
+        .unwrap_err();
+        assert!(
+            error.to_string().contains("differs from expected fields"),
+            "{error}"
+        );
+        for bits in 0..=EvidenceFields::ALL.bits() {
+            let fields = EvidenceFields::from_bits(bits).unwrap();
+            for rows in [0, 2] {
+                let (bytes, contigs) = fixture(fields, rows);
+                let mut observed = 0;
+                let metadata = read_evidence_batches_expected_fields(
+                    bytes.as_slice(),
+                    &contigs,
+                    fields,
+                    |batch| {
+                        assert_eq!(batch.fields(), fields);
+                        observed += batch.len();
+                        Ok(())
+                    },
+                )
+                .unwrap();
+                assert_eq!(observed, rows as usize);
+                assert_eq!(
+                    metadata,
+                    EvidenceArtifactMetadata {
+                        fields,
+                        schema_version: fields.schema_version()
+                    }
+                );
+            }
+        }
+        let (empty, contigs) = fixture(EvidenceFields::ALL, 0);
+        assert!(read_evidence_batches_expected_fields(
+            empty.as_slice(),
+            &contigs,
+            EvidenceFields::DEPTHS,
+            |_| Ok(())
+        )
+        .is_err());
+    }
 
     #[test]
     fn final_buffered_flush_error_is_returned_after_arrow_end_of_stream() {

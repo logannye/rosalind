@@ -35,14 +35,35 @@ An analyzer declares `EvidenceRequirements`: field capabilities, whether real
 reference bases are required, flanking context, and a conservative peak retained
 byte bound. Call `plan_for_analyzer` before exposing the final plan or creating an
 output. Unknown memory is allowed without a declared budget and rejected for
-budgeted runs. Schema v1 supports zero flanking context and physically emits all
-fields; a smaller consumer capability set is not physical projection.
+budgeted runs. Flanking context remains zero. Set `request.fields` explicitly to
+match the desired groups: omitted groups have no accumulator or encoder buffer.
+The engine validates that the request contains every analyzer requirement; it does
+not silently expand scientific metrics. Full output retains schema 1; physical
+projections use schema 2 with a versioned field mask.
 
-`on_batch` borrows ordered exact rows. Copies retained after a callback belong to
+`on_batch` borrows ordered exact rows through `batch.rows()` and `batch.row(index)`.
+Groups such as `row.depths` and `row.alleles` are optional borrowed values. Check
+capabilities before reading metrics; absence never means zero. Copies retained
+after a callback belong to
 the analyzer's memory model. Use checked integer reducers and deterministic order;
 do not retain a genome table, timestamps, random identifiers, or unordered output.
 `PanelQcAnalyzer` keeps state proportional to original target count and declares
 that memory. `FusedAnalyzers` combines two consumers over one traversal.
+
+The unpublished batch API changed from a public `Vec<EvidenceRow>` to private
+contiguous group storage. Migrate `batch.rows.len()` to `batch.len()` and
+`batch.rows.iter()` to `batch.rows()`. `row.try_to_full_row()` copies a full owned
+row only when every group is available. `EvidenceBatch::from_full_rows(...)`
+provides an explicit fixture/compatibility constructor. Existing `ColumnAnalyzer`
+APIs are unchanged.
+
+Use `EvidenceArrowWriter::with_fields(output, fields)` or the TSV equivalent;
+`new(output)` remains ALL. Configure fields before writing, including empty
+streams. `read_evidence_batches_expected_fields` validates the expected schema
+before allocating record buffers; use its field-specific reader memory bound for
+budgeted persisted consumption. The metadata-returning reader reports fields even
+for an empty stream. Custom consumers without a known input mask should reserve
+the full reader bound.
 
 The engine supplies exact indexed extraction and resource planning. It does not
 automatically supply every standalone binary with transactional files, receipts,

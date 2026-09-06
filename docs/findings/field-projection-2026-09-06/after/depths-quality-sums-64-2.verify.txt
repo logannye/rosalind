@@ -1,0 +1,3 @@
+verify: peak 11 MiB within budget 64 MiB
+verify: evidence records process RSS; individual internal allocations are modeled, not measured
+verify: OK — 5 input(s), 1 output(s) match

@@ -241,7 +241,18 @@ impl EvidenceAnalyzer for PanelQcAnalyzer {
         }
     }
     fn on_batch(&mut self, batch: &EvidenceBatch) -> Result<(), EvidenceError> {
-        for row in &batch.rows {
+        if !batch.fields().contains(self.requirements().fields) {
+            return Err(EvidenceError::Analyzer(
+                "panel QC requires depth and quality-sum fields".into(),
+            ));
+        }
+        for row in batch.rows() {
+            let depths = row.depths.ok_or_else(|| {
+                EvidenceError::Analyzer("panel QC depth fields are absent".into())
+            })?;
+            let quality_sums = row.quality_sums.ok_or_else(|| {
+                EvidenceError::Analyzer("panel QC quality-sum fields are absent".into())
+            })?;
             let locus = (batch.contig_id, row.position);
             if self.last_locus.is_some_and(|previous| locus <= previous) {
                 return Err(EvidenceError::Analyzer(
@@ -266,20 +277,23 @@ impl EvidenceAnalyzer for PanelQcAnalyzer {
             for &index in &self.active_targets {
                 let summary = &mut self.summaries[index];
                 checked_add(&mut summary.observed_loci, 1)?;
-                checked_add(&mut summary.prefilter_depth_sum, row.prefilter_depth)?;
-                checked_add(&mut summary.aligned_depth_sum, row.aligned_depth)?;
-                checked_add(&mut summary.callable_depth_sum, row.callable_depth)?;
-                checked_add(&mut summary.base_quality_sum, row.base_quality_sum)?;
-                checked_add(&mut summary.mapping_quality_sum, row.mapping_quality_sum)?;
-                if row.callable_depth >= self.min_callable_depth {
+                checked_add(&mut summary.prefilter_depth_sum, depths.prefilter_depth)?;
+                checked_add(&mut summary.aligned_depth_sum, depths.aligned_depth)?;
+                checked_add(&mut summary.callable_depth_sum, depths.callable_depth)?;
+                checked_add(&mut summary.base_quality_sum, quality_sums.base_quality_sum)?;
+                checked_add(
+                    &mut summary.mapping_quality_sum,
+                    quality_sums.mapping_quality_sum,
+                )?;
+                if depths.callable_depth >= self.min_callable_depth {
                     checked_add(&mut summary.callable_positions, 1)?;
                 }
                 summary.minimum_callable_depth =
-                    summary.minimum_callable_depth.min(row.callable_depth);
+                    summary.minimum_callable_depth.min(depths.callable_depth);
                 summary.maximum_callable_depth =
-                    summary.maximum_callable_depth.max(row.callable_depth);
+                    summary.maximum_callable_depth.max(depths.callable_depth);
                 for (i, threshold) in [1, 10, 20, 30].iter().enumerate() {
-                    if row.callable_depth >= *threshold {
+                    if depths.callable_depth >= *threshold {
                         checked_add(&mut summary.breadth_positions[i], 1)?;
                     }
                 }

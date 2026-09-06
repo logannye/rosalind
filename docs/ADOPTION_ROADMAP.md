@@ -8,8 +8,8 @@ artifact verification remain requirements throughout.
 | Order | Delivery | Status |
 |---|---|---|
 | 1 | Shared panel defaults and explicit named/unknown/pooled sample scope | Implemented; 11 sample tests, Rust/CLI threshold parity, Python/native parity, cache/replay and existing evidence regressions pass |
-| 2 | Installable evidence-engine RC, executable onboarding, candidate publication gates | Implemented for 0.5.0-rc.1; native bundle and fresh wheel onboarding pass locally; GitHub candidate build and protected publication pending |
-| 3 | Physical field projection and bounded coalesced sparse fetches | Pending |
+| 2 | Installable evidence-engine RC, executable onboarding, candidate publication gates | Implemented for 0.5.0-rc.1; native bundle and fresh wheel onboarding pass locally; all 16 PR checks pass and PR #98 merged; immutable RC build and protected publication pending |
+| 3 | Physical field projection and bounded coalesced sparse fetches | Implemented; all 64 masks, frozen full-output hashes, cache/replay/workers, and corrected 18-run pressure matrix verified locally; CI pending |
 | 4 | VCF.gz/BCF selection, record-preserving annotation, optional per-allele quality/position sums | Pending |
 | 5 | Verified subset/superset dataset reuse, persisted analysis, bounded Parquet and Python/R/SQL adapters | Pending |
 | 6 | Evidence-native artifact runner, scaffold, and conformance | Pending |
@@ -69,3 +69,11 @@ candidate commit, and use top-level protected OIDC upload jobs. GIAB preparation
 validates its indexed reference and input hashes; evaluator source version pinning
 is regression-tested. The full evaluator container requires its CI smoke run.
 These local results are not public release or independent-user evidence.
+
+## Physical projection evidence
+
+[Retained findings](findings/field-projection-2026-09-06/README.md) include the
+initial admitted-budget failure and the corrected matrix. Buffers are reused
+across execution windows, omitted groups have no corresponding storage, and cache
+readers reject incompatible fields before record allocation. Synthetic results
+are tracked separately from representative BAM/CRAM performance and external use.

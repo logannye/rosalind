@@ -11,7 +11,7 @@ import subprocess
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator, Optional, Union
+from typing import Iterator, Optional, Sequence, Union
 
 from .features import _require_pyarrow, _resolve_binary
 
@@ -127,6 +127,7 @@ def _command(
     cram_reference: Optional[PathLike] = None, panel: bool = False,
     min_callable_depth: Optional[int] = None,
     sample: Optional[str] = None, pool_samples: bool = False,
+    fields: Optional[Union[str, Sequence[str]]] = None,
 ) -> list[str]:
     if (sites is None) == (regions is None):
         raise ValueError("supply exactly one of sites (VCF) or regions (BED)")
@@ -140,6 +141,16 @@ def _command(
         raise ValueError("sample must be a nonempty declared sample name")
     if not panel and min_callable_depth is not None:
         raise ValueError("min_callable_depth is a panel QC option")
+    field_names = None
+    if fields is not None:
+        field_names = fields.split(",") if isinstance(fields, str) else list(fields)
+        groups = {"depths", "alleles", "strands", "quality-sums", "quality-histograms", "read-position"}
+        if not field_names:
+            field_names = ["none"]
+        if field_names not in (["all"], ["none"]) and any(name not in groups for name in field_names):
+            raise ValueError("fields must contain known evidence groups, or all/none alone")
+        if panel and field_names != ["all"] and not {"depths", "quality-sums"}.issubset(field_names):
+            raise ValueError("panel QC fields must include depths and quality-sums")
     executable = _resolve_binary(binary, allow_version_mismatch)
     command = [str(executable), "analyze", "panel-qc" if panel else "evidence",
                "--alignments", str(alignments), "--mapq-threshold", str(mapq),
@@ -161,6 +172,8 @@ def _command(
         command += ["--sample", sample]
     if pool_samples:
         command.append("--pool-samples")
+    if field_names is not None:
+        command += ["--fields", ",".join(field_names)]
     # The native executable owns the shared default; Python only passes overrides.
     if panel and min_callable_depth is not None:
         command += ["--min-callable-depth", str(min_callable_depth)]
@@ -178,6 +191,8 @@ def iter_evidence(
     mates count as separate reads. A supplied budget governs the native process.
     Use ``sample="name"`` for a declared SM sample or ``pool_samples=True`` for
     deliberate pooling. Ambiguous sample scope is refused by default.
+    Pass ``fields=["depths", "alleles"]`` to allocate and encode only those
+    groups. Omitted columns are absent, never filled with zeros.
     """
     command = _command(reference, alignments, **options)
     directory = Path(workdir) if workdir else Path(tempfile.mkdtemp(prefix="rosalind-evidence-"))

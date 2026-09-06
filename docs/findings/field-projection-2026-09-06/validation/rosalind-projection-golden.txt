@@ -1,0 +1,10 @@
+
+running 1 test
+test full_evidence_egress_matches_frozen_schema_one_bytes ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 17 filtered out; finished in 0.29s
+
+FROZEN ALL width=1 arrow=e6f048b3afb076282bccddb27e8c8da4fd37454d13053984c7b2e2474995b435 bytes=6335072 tsv=76e4b150ec48b59d5c3fc3feecae554484ea6f8fbc20df3c85bfd9dfaf7e84b2 bytes=151291
+FROZEN ALL width=1024 arrow=e6f048b3afb076282bccddb27e8c8da4fd37454d13053984c7b2e2474995b435 bytes=6335072 tsv=76e4b150ec48b59d5c3fc3feecae554484ea6f8fbc20df3c85bfd9dfaf7e84b2 bytes=151291
+FROZEN ALL width=16384 arrow=e6f048b3afb076282bccddb27e8c8da4fd37454d13053984c7b2e2474995b435 bytes=6335072 tsv=76e4b150ec48b59d5c3fc3feecae554484ea6f8fbc20df3c85bfd9dfaf7e84b2 bytes=151291
+FROZEN EMPTY EvidenceFields(63) arrow=6161135a64f7010b05b5acfbc590ba6e439a8245e966f01134f58df12f31cc2f bytes=2136 tsv=8e22e4f3c8fb1cb04c5178debfc4707ec6e26b75c3fd3f8eb8ef432d0fbbeeef bytes=458

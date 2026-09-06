@@ -29,15 +29,26 @@ impl EvidenceAnalyzer for CandidateSummary {
     }
 
     fn on_batch(&mut self, batch: &EvidenceBatch) -> Result<(), EvidenceError> {
-        for row in &batch.rows {
+        if !batch.fields().contains(self.requirements().fields) {
+            return Err(EvidenceError::Analyzer(
+                "candidate summary requires depth and allele fields".into(),
+            ));
+        }
+        for row in batch.rows() {
+            let depths = row.depths.ok_or_else(|| {
+                EvidenceError::Analyzer("candidate depth fields are absent".into())
+            })?;
+            let alleles = row.alleles.ok_or_else(|| {
+                EvidenceError::Analyzer("candidate allele fields are absent".into())
+            })?;
             add(&mut self.loci, 1)?;
-            add(&mut self.callable_reads, row.callable_depth)?;
-            for alternate in &row.requested_alts {
+            add(&mut self.callable_reads, depths.callable_depth)?;
+            for alternate in row.requested_alts {
                 let index = b"ACGT"
                     .iter()
                     .position(|base| base == alternate)
                     .ok_or_else(|| EvidenceError::Analyzer("invalid SNV allele".into()))?;
-                add(&mut self.candidate_alt_reads, row.allele_counts[index])?;
+                add(&mut self.candidate_alt_reads, alleles.allele_counts[index])?;
             }
         }
         Ok(())
@@ -51,12 +62,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "usage: rosalind-example-evidence-analyzer ALIGNMENTS REFERENCE CANDIDATES.vcf".into(),
         );
     }
+    let mut analyzer = CandidateSummary::default();
     let mut request = EvidenceRequest::new(&args[0], &args[1]);
+    request.fields = analyzer.requirements().fields;
     request.execution.memory_budget_bytes = Some(128 << 20);
     let mut engine = EvidenceEngine::open(request)?;
     let selection = EvidenceSelection::from_vcf(&args[2], engine.contigs())?;
     engine.set_selection(selection)?;
-    let mut analyzer = CandidateSummary::default();
     eprintln!("plan: {:?}", engine.plan_for_analyzer(&analyzer)?);
     engine.run(&mut analyzer)?;
     // Publish this tiny result only after the complete traversal succeeded.
@@ -76,11 +88,11 @@ mod tests {
     #[test]
     fn counts_requested_alts_once_and_keeps_zero_loci() {
         let mut analyzer = CandidateSummary::default();
-        let batch = EvidenceBatch {
-            contig_id: 0,
-            contig: "chr1".into(),
-            canonical_tile_start: 0,
-            rows: vec![
+        let batch = EvidenceBatch::from_full_rows(
+            0,
+            "chr1",
+            0,
+            vec![
                 EvidenceRow {
                     callable_depth: 10,
                     allele_counts: [6, 3, 1, 0],
@@ -89,7 +101,7 @@ mod tests {
                 },
                 EvidenceRow::default(),
             ],
-        };
+        );
         analyzer.on_batch(&batch).unwrap();
         assert_eq!(
             (

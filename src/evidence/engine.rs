@@ -74,12 +74,6 @@ pub struct EvidenceEngine {
 impl EvidenceEngine {
     /// Open and validate local inputs, retaining only indexed reference access and metadata.
     pub fn open(mut request: EvidenceRequest) -> Result<Self, EvidenceError> {
-        if request.fields != EvidenceFields::ALL {
-            return Err(EvidenceError::InvalidRequest(
-                "evidence schema v1 emits all fields; physical field projection is not supported"
-                    .into(),
-            ));
-        }
         if request.execution.max_microtile_bases == 0
             || request.execution.max_read_len == 0
             || request.execution.max_record_bytes == 0
@@ -191,6 +185,7 @@ impl EvidenceEngine {
         request.selection = canonical_selection(&request.selection, &intervals, &sites);
         let plan = make_plan(
             &request.execution,
+            request.fields,
             selected_loci,
             request.execution.analyzer_bytes,
             crate::util::rss::peak_rss_bytes(),
@@ -297,6 +292,7 @@ impl EvidenceEngine {
         })?;
         let plan = make_plan(
             &self.request.execution,
+            self.request.fields,
             selected,
             self.plan.analyzer_bytes,
             self.plan.baseline_rss_bytes,
@@ -342,6 +338,7 @@ impl EvidenceEngine {
         };
         self.plan = make_plan(
             &self.request.execution,
+            self.request.fields,
             self.plan.selected_loci,
             bytes,
             self.plan.baseline_rss_bytes,
@@ -359,116 +356,138 @@ impl EvidenceEngine {
         self.plan_for_analyzer(analyzer)?;
         let mut stats = EvidenceRunStats::default();
         let mut record = bam::Record::new();
-        for interval in &self.intervals {
-            let mut start = interval.start;
-            while start < interval.end {
-                crate::core::governor::checkpoint()?;
-                let canonical_start = start / CANONICAL_TILE_BASES * CANONICAL_TILE_BASES;
-                let canonical_end = canonical_start.saturating_add(CANONICAL_TILE_BASES);
-                let end = interval
-                    .end
-                    .min(canonical_end)
-                    .min(start.saturating_add(self.plan.microtile_bases));
-                let sequence = self.reference.read_window(interval.contig, start, end)?;
-                let mut rows = Vec::with_capacity((end - start) as usize);
-                for (offset, reference) in sequence.into_iter().enumerate() {
-                    let position = start + offset as u32;
+        // Determine local selected pressure from normalized intervals alone.
+        // Allocate each summary group once, avoiding allocator-retained full
+        // tiles followed by differently sized boundary tiles. Sparse requests
+        // reserve their largest actual selected batch, not a dense chromosome.
+        let mut interval_index = 0;
+        let mut start = self.intervals.first().map_or(0, |interval| interval.start);
+        let mut max_batch_loci = 0;
+        while interval_index < self.intervals.len() {
+            crate::core::governor::checkpoint()?;
+            let window = coalesced_window(
+                &self.intervals,
+                interval_index,
+                start,
+                self.plan.microtile_bases,
+            );
+            max_batch_loci = max_batch_loci.max(window.selected_loci);
+            interval_index = window.next_interval;
+            start = window.next_start;
+        }
+        let mut batch = EvidenceBatch::new(0, "", 0, self.request.fields, Vec::new());
+        batch.reserve_exact(max_batch_loci);
+        let mut loci = Vec::with_capacity(max_batch_loci);
+        interval_index = 0;
+        start = self.intervals.first().map_or(0, |interval| interval.start);
+        while interval_index < self.intervals.len() {
+            let interval = &self.intervals[interval_index];
+            crate::core::governor::checkpoint()?;
+            let canonical_start = start / CANONICAL_TILE_BASES * CANONICAL_TILE_BASES;
+            let window = coalesced_window(
+                &self.intervals,
+                interval_index,
+                start,
+                self.plan.microtile_bases,
+            );
+            let end = window.end;
+            let sequence = self.reference.read_window(interval.contig, start, end)?;
+            loci.clear();
+            for selected in &self.intervals[interval_index..] {
+                if selected.contig != interval.contig || selected.start >= end {
+                    break;
+                }
+                for position in selected.start.max(start)..selected.end.min(end) {
                     let requested_alts = self
                         .sites
                         .get(&(interval.contig, position))
                         .map_or_else(Vec::new, |site| site.alternates.clone());
-                    rows.push(EvidenceRow {
+                    loci.push(EvidenceLocus {
                         position,
-                        reference,
+                        reference: sequence[(position - start) as usize],
                         requested_alts,
-                        ..EvidenceRow::default()
                     });
                 }
-                self.reader
-                    .fetch((
-                        self.tids[interval.contig as usize],
-                        start as i64,
-                        end as i64,
-                    ))
-                    .map_err(|error| {
-                        EvidenceError::InvalidInput(format!("indexed interval fetch: {error}"))
-                    })?;
-                let mut previous = None;
-                while let Some(result) = self.reader.read(&mut record) {
-                    result.map_err(|error| {
-                        EvidenceError::InvalidInput(format!("decode alignment: {error}"))
-                    })?;
-                    crate::core::governor::checkpoint()?;
-                    checked_add(&mut stats.record_visits, 1)?;
-                    let record_bytes = record.inner().l_data.max(0) as usize;
-                    stats.max_record_bytes = stats.max_record_bytes.max(record_bytes as u64);
-                    stats.max_read_length = stats.max_read_length.max(record.seq_len() as u64);
-                    if record_bytes > self.request.execution.max_record_bytes {
-                        return Err(EvidenceError::RecordLimit(format!(
-                            "record has {record_bytes} bytes, maximum is {}",
-                            self.request.execution.max_record_bytes
-                        )));
-                    }
-                    if record.seq_len() > self.request.execution.max_read_len {
-                        return Err(EvidenceError::RecordLimit(format!(
-                            "read has {} bases, maximum is {}",
-                            record.seq_len(),
-                            self.request.execution.max_read_len
-                        )));
-                    }
-                    if record.is_unmapped() || record.tid() < 0 {
-                        continue;
-                    }
-                    let coordinate = (record.tid(), record.pos());
-                    if previous.is_some_and(|previous| coordinate < previous) {
-                        return Err(EvidenceError::InvalidInput(
-                            "indexed alignment records are not coordinate sorted".into(),
-                        ));
-                    }
-                    previous = Some(coordinate);
-                    if record.tid() != self.tids[interval.contig as usize] as i32
-                        || record.pos() < 0
-                    {
-                        return Err(EvidenceError::InvalidInput(
-                            "indexed fetch returned an invalid contig/coordinate".into(),
-                        ));
-                    }
-                    if !self.sample_scope.includes_record(&record)? {
-                        checked_add(&mut stats.sample_filtered_record_visits, 1)?;
-                        continue;
-                    }
-                    let rejected = read_filter(&record, &self.request.profile);
-                    if rejected.is_some() {
-                        checked_add(&mut stats.filtered_record_visits, 1)?;
-                    }
-                    accumulate_record(
-                        &record,
-                        &mut rows,
-                        start,
-                        end,
-                        self.contigs.by_id(interval.contig).unwrap().length,
-                        &self.request.profile,
-                        rejected,
-                        self.reference.has_sequence(),
-                    )?;
-                }
-                checked_add(&mut stats.microtiles, 1)?;
-                checked_add(&mut stats.emitted_loci, rows.len() as u64)?;
-                let batch = EvidenceBatch {
-                    contig_id: interval.contig,
-                    contig: self
-                        .contigs
-                        .by_id(interval.contig)
-                        .unwrap()
-                        .name
-                        .to_string(),
-                    canonical_tile_start: canonical_start,
-                    rows,
-                };
-                analyzer.on_batch(&batch)?;
-                self.check_budget()?;
-                start = end;
             }
+            batch.contig_id = interval.contig;
+            batch.contig.clear();
+            batch
+                .contig
+                .push_str(&self.contigs.by_id(interval.contig).unwrap().name);
+            batch.canonical_tile_start = canonical_start;
+            loci = batch.reset_loci(loci);
+            self.reader
+                .fetch((
+                    self.tids[interval.contig as usize],
+                    start as i64,
+                    end as i64,
+                ))
+                .map_err(|error| {
+                    EvidenceError::InvalidInput(format!("indexed interval fetch: {error}"))
+                })?;
+            let mut previous = None;
+            while let Some(result) = self.reader.read(&mut record) {
+                result.map_err(|error| {
+                    EvidenceError::InvalidInput(format!("decode alignment: {error}"))
+                })?;
+                crate::core::governor::checkpoint()?;
+                checked_add(&mut stats.record_visits, 1)?;
+                let record_bytes = record.inner().l_data.max(0) as usize;
+                stats.max_record_bytes = stats.max_record_bytes.max(record_bytes as u64);
+                stats.max_read_length = stats.max_read_length.max(record.seq_len() as u64);
+                if record_bytes > self.request.execution.max_record_bytes {
+                    return Err(EvidenceError::RecordLimit(format!(
+                        "record has {record_bytes} bytes, maximum is {}",
+                        self.request.execution.max_record_bytes
+                    )));
+                }
+                if record.seq_len() > self.request.execution.max_read_len {
+                    return Err(EvidenceError::RecordLimit(format!(
+                        "read has {} bases, maximum is {}",
+                        record.seq_len(),
+                        self.request.execution.max_read_len
+                    )));
+                }
+                if record.is_unmapped() || record.tid() < 0 {
+                    continue;
+                }
+                let coordinate = (record.tid(), record.pos());
+                if previous.is_some_and(|previous| coordinate < previous) {
+                    return Err(EvidenceError::InvalidInput(
+                        "indexed alignment records are not coordinate sorted".into(),
+                    ));
+                }
+                previous = Some(coordinate);
+                if record.tid() != self.tids[interval.contig as usize] as i32 || record.pos() < 0 {
+                    return Err(EvidenceError::InvalidInput(
+                        "indexed fetch returned an invalid contig/coordinate".into(),
+                    ));
+                }
+                if !self.sample_scope.includes_record(&record)? {
+                    checked_add(&mut stats.sample_filtered_record_visits, 1)?;
+                    continue;
+                }
+                let rejected = read_filter(&record, &self.request.profile);
+                if rejected.is_some() {
+                    checked_add(&mut stats.filtered_record_visits, 1)?;
+                }
+                accumulate_record(
+                    &record,
+                    &mut batch,
+                    start,
+                    end,
+                    self.contigs.by_id(interval.contig).unwrap().length,
+                    &self.request.profile,
+                    rejected,
+                    self.reference.has_sequence(),
+                )?;
+            }
+            checked_add(&mut stats.microtiles, 1)?;
+            checked_add(&mut stats.emitted_loci, batch.len() as u64)?;
+            analyzer.on_batch(&batch)?;
+            self.check_budget()?;
+            interval_index = window.next_interval;
+            start = window.next_start;
         }
         analyzer.finish()?;
         self.check_budget()?;
@@ -487,17 +506,67 @@ impl EvidenceEngine {
     }
 }
 
+struct CoalescedWindow {
+    end: u32,
+    selected_loci: usize,
+    next_interval: usize,
+    next_start: u32,
+}
+
+// Fetch nearby selected intervals together, but allocate and count only their
+// requested loci. Neither a canonical boundary nor the admitted coordinate span
+// is crossed. This keeps a sparse VCF from fetching once for every single SNV.
+fn coalesced_window(
+    intervals: &[GenomicInterval],
+    interval_index: usize,
+    start: u32,
+    width: u32,
+) -> CoalescedWindow {
+    let contig = intervals[interval_index].contig;
+    let canonical_end =
+        (start / CANONICAL_TILE_BASES * CANONICAL_TILE_BASES).saturating_add(CANONICAL_TILE_BASES);
+    let limit = start.saturating_add(width).min(canonical_end);
+    let mut next_interval = interval_index;
+    let mut next_start = start;
+    let mut selected_loci = 0;
+    let mut end = start;
+    while let Some(interval) = intervals.get(next_interval) {
+        if interval.contig != contig || next_start >= limit {
+            break;
+        }
+        end = interval.end.min(limit);
+        selected_loci += (end - next_start) as usize;
+        if end < interval.end {
+            next_start = end;
+            break;
+        }
+        next_interval += 1;
+        next_start = intervals
+            .get(next_interval)
+            .map_or(0, |interval| interval.start);
+    }
+    CoalescedWindow {
+        end,
+        selected_loci,
+        next_interval,
+        next_start,
+    }
+}
+
 fn make_plan(
     execution: &EvidenceExecution,
+    fields: EvidenceFields,
     selected_loci: u64,
     analyzer_bytes: u64,
     baseline: u64,
     selection_bytes: u64,
     sample_scope_bytes: u64,
 ) -> Result<EvidencePlan, EvidenceError> {
-    // Capacity, site annotation and one-byte reference window included. One
-    // reusable decoded BAM record and one CIGAR view each fit this envelope.
-    let bytes_per_locus = std::mem::size_of::<EvidenceRow>() as u64 + 16;
+    // Two reusable identity vectors coexist while selecting the next window.
+    // Reserve two small ALT allocations, reference-window bytes, and alignment
+    // slack per coordinate in addition to both identity/vector element layouts.
+    let bytes_per_locus =
+        fields.storage_bytes_per_locus() + std::mem::size_of::<EvidenceLocus>() as u64 + 48;
     let fixed = DECODER_SLACK_BYTES
         .checked_add(
             (execution.max_record_bytes as u64)
@@ -524,7 +593,7 @@ fn make_plan(
         maximum
     };
     Ok(EvidencePlan {
-        model_id: "exact-summary-tiles-v2",
+        model_id: "exact-summary-tiles-v3",
         baseline_rss_bytes: baseline,
         fixed_bytes: fixed,
         bytes_per_locus,
@@ -597,7 +666,7 @@ fn read_filter(record: &bam::Record, profile: &EvidenceProfile) -> Option<ReadFi
         None
     }
 }
-fn increment_filter(row: &mut EvidenceRow, reason: ReadFilter) -> Result<(), EvidenceError> {
+fn increment_filter(row: &mut EvidenceDepths, reason: ReadFilter) -> Result<(), EvidenceError> {
     let counter = match reason {
         ReadFilter::Secondary => &mut row.filters.secondary,
         ReadFilter::Supplementary => &mut row.filters.supplementary,
@@ -611,7 +680,7 @@ fn increment_filter(row: &mut EvidenceRow, reason: ReadFilter) -> Result<(), Evi
 #[allow(clippy::too_many_arguments)]
 fn accumulate_record(
     record: &bam::Record,
-    rows: &mut [EvidenceRow],
+    batch: &mut EvidenceBatch,
     start: u32,
     end: u32,
     contig_len: u32,
@@ -639,18 +708,33 @@ fn accumulate_record(
                 }
                 let overlap_start = reference_position.max(start as u64);
                 let overlap_end = reference_end.min(end as u64);
-                for position in overlap_start..overlap_end {
+                let first = batch
+                    .loci()
+                    .partition_point(|locus| u64::from(locus.position) < overlap_start);
+                for index in first..batch.len() {
+                    let mut row = batch.row_mut(index).expect("selected locus index");
+                    let position = u64::from(row.position);
+                    if position >= overlap_end {
+                        break;
+                    }
                     let offset = query_position + (position - reference_position) as usize;
-                    let row = &mut rows[(position - start as u64) as usize];
-                    checked_add(&mut row.prefilter_depth, 1)?;
+                    if let Some(depths) = row.depths.as_deref_mut() {
+                        checked_add(&mut depths.prefilter_depth, 1)?;
+                    }
                     if let Some(reason) = rejected {
-                        increment_filter(row, reason)?;
+                        if let Some(depths) = row.depths.as_deref_mut() {
+                            increment_filter(depths, reason)?;
+                        }
                         continue;
                     }
-                    checked_add(&mut row.aligned_depth, 1)?;
+                    if let Some(depths) = row.depths.as_deref_mut() {
+                        checked_add(&mut depths.aligned_depth, 1)?;
+                    }
                     let quality = qualities[offset];
                     if quality == 255 {
-                        checked_add(&mut row.filters.unavailable_base_quality, 1)?;
+                        if let Some(depths) = row.depths.as_deref_mut() {
+                            checked_add(&mut depths.filters.unavailable_base_quality, 1)?;
+                        }
                         continue;
                     }
                     if quality > 93 {
@@ -659,7 +743,9 @@ fn accumulate_record(
                         ));
                     }
                     if quality < profile.min_base_quality {
-                        checked_add(&mut row.filters.low_base_quality, 1)?;
+                        if let Some(depths) = row.depths.as_deref_mut() {
+                            checked_add(&mut depths.filters.low_base_quality, 1)?;
+                        }
                         continue;
                     }
                     // SAMv1 §1.4 SEQ: '=' means identical to the reference,
@@ -679,30 +765,44 @@ fn accumulate_record(
                         b'G' => 2,
                         b'T' => 3,
                         _ => {
-                            checked_add(&mut row.filters.ambiguous_base, 1)?;
+                            if let Some(depths) = row.depths.as_deref_mut() {
+                                checked_add(&mut depths.filters.ambiguous_base, 1)?;
+                            }
                             continue;
                         }
                     };
-                    checked_add(&mut row.callable_depth, 1)?;
-                    checked_add(&mut row.allele_counts[allele], 1)?;
-                    checked_add(
-                        &mut row.strand_counts[allele][usize::from(record.is_reverse())],
-                        1,
-                    )?;
-                    checked_add(&mut row.base_quality_sum, quality as u64)?;
-                    checked_add(&mut row.mapping_quality_sum, record.mapq() as u64)?;
-                    let cycle = if record.is_reverse() {
-                        record.seq_len() - 1 - offset
-                    } else {
-                        offset
-                    };
-                    checked_add(&mut row.read_position_sum, cycle as u64)?;
-                    checked_add(&mut row.read_length_sum, record.seq_len() as u64)?;
-                    checked_add(&mut row.base_quality_histogram[quality as usize], 1)?;
-                    checked_add(
-                        &mut row.mapping_quality_histogram[record.mapq() as usize],
-                        1,
-                    )?;
+                    if let Some(depths) = row.depths {
+                        checked_add(&mut depths.callable_depth, 1)?;
+                    }
+                    if let Some(alleles) = row.alleles {
+                        checked_add(&mut alleles.allele_counts[allele], 1)?;
+                    }
+                    if let Some(strands) = row.strands {
+                        checked_add(
+                            &mut strands.strand_counts[allele][usize::from(record.is_reverse())],
+                            1,
+                        )?;
+                    }
+                    if let Some(sums) = row.quality_sums {
+                        checked_add(&mut sums.base_quality_sum, quality as u64)?;
+                        checked_add(&mut sums.mapping_quality_sum, record.mapq() as u64)?;
+                    }
+                    if let Some(position) = row.read_position {
+                        let cycle = if record.is_reverse() {
+                            record.seq_len() - 1 - offset
+                        } else {
+                            offset
+                        };
+                        checked_add(&mut position.read_position_sum, cycle as u64)?;
+                        checked_add(&mut position.read_length_sum, record.seq_len() as u64)?;
+                    }
+                    if let Some(histograms) = row.quality_histograms {
+                        checked_add(&mut histograms.base_quality_histogram[quality as usize], 1)?;
+                        checked_add(
+                            &mut histograms.mapping_quality_histogram[record.mapq() as usize],
+                            1,
+                        )?;
+                    }
                 }
                 reference_position = reference_end;
                 query_position = query_end;
@@ -816,6 +916,7 @@ impl EvidenceWorkerFactory {
             .collect::<Result<Vec<_>, _>>()?;
         let plan = make_plan(
             &request.execution,
+            request.fields,
             0,
             request.execution.analyzer_bytes,
             crate::util::rss::peak_rss_bytes(),
@@ -843,4 +944,336 @@ fn alignment_is_cram(path: &std::path::Path) -> Result<bool, EvidenceError> {
     let mut magic = [0u8; 4];
     let count = std::io::Read::read(&mut file, &mut magic)?;
     Ok(count == 4 && &magic == b"CRAM")
+}
+
+#[cfg(test)]
+mod projection_tests {
+    use super::*;
+
+    fn selected_loci() -> Vec<EvidenceLocus> {
+        [0, 2, 3, 5, 9, 20, 24, 30]
+            .into_iter()
+            .map(|position| EvidenceLocus {
+                position,
+                reference: b'A',
+                requested_alts: Vec::new(),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn every_physical_projection_matches_full_selected_observations() {
+        let mut records = Vec::new();
+        for (flags, mapq) in [(0, 60), (16, 60), (1024, 60), (0, 255)] {
+            let mut record = bam::Record::new();
+            let mut sequence = b"ACGTACGTACGTACGTACGTACGT".to_vec();
+            sequence[5] = b'N';
+            let mut qualities = vec![30; sequence.len()];
+            qualities[2] = 255;
+            qualities[3] = 10;
+            record.set(
+                b"read",
+                Some(&bam::record::CigarString(vec![Cigar::Match(
+                    sequence.len() as u32,
+                )])),
+                &sequence,
+                &qualities,
+            );
+            record.set_tid(0);
+            record.set_pos(0);
+            record.set_flags(flags);
+            record.set_mapq(mapq);
+            records.push(record);
+        }
+        let extract = |fields| {
+            let mut batch = EvidenceBatch::new(0, "chr1", 0, fields, selected_loci());
+            for record in &records {
+                let profile = EvidenceProfile::default();
+                accumulate_record(
+                    record,
+                    &mut batch,
+                    0,
+                    31,
+                    100,
+                    &profile,
+                    read_filter(record, &profile),
+                    true,
+                )
+                .unwrap();
+            }
+            batch
+        };
+        let full = extract(EvidenceFields::ALL);
+        assert_eq!(full.row(0).unwrap().depths.unwrap().prefilter_depth, 4);
+        assert_eq!(full.row(0).unwrap().depths.unwrap().callable_depth, 2);
+        assert_eq!(
+            full.row(1)
+                .unwrap()
+                .depths
+                .unwrap()
+                .filters
+                .unavailable_base_quality,
+            2
+        );
+        assert_eq!(
+            full.row(2)
+                .unwrap()
+                .depths
+                .unwrap()
+                .filters
+                .low_base_quality,
+            2
+        );
+        assert_eq!(
+            full.row(3).unwrap().depths.unwrap().filters.ambiguous_base,
+            2
+        );
+        assert_eq!(full.row(6).unwrap().depths.unwrap().prefilter_depth, 0);
+        for bits in 0..=EvidenceFields::ALL.bits() {
+            let fields = EvidenceFields::from_bits(bits).unwrap();
+            let projected = extract(fields);
+            assert_eq!(projected.len(), selected_loci().len());
+            for (row, expected) in projected.rows().zip(full.rows()) {
+                assert_eq!(
+                    (row.position, row.reference),
+                    (expected.position, expected.reference)
+                );
+                assert_eq!(
+                    row.depths,
+                    expected
+                        .depths
+                        .filter(|_| fields.contains(EvidenceFields::DEPTHS))
+                );
+                assert_eq!(
+                    row.alleles,
+                    expected
+                        .alleles
+                        .filter(|_| fields.contains(EvidenceFields::ALLELES))
+                );
+                assert_eq!(
+                    row.strands,
+                    expected
+                        .strands
+                        .filter(|_| fields.contains(EvidenceFields::STRANDS))
+                );
+                assert_eq!(
+                    row.quality_sums,
+                    expected
+                        .quality_sums
+                        .filter(|_| fields.contains(EvidenceFields::QUALITY_SUMS))
+                );
+                assert_eq!(
+                    row.quality_histograms,
+                    expected
+                        .quality_histograms
+                        .filter(|_| fields.contains(EvidenceFields::QUALITY_HISTOGRAMS))
+                );
+                assert_eq!(
+                    row.read_position,
+                    expected
+                        .read_position
+                        .filter(|_| fields.contains(EvidenceFields::READ_POSITION))
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn sparse_windows_obey_span_ownership_and_exact_selection() {
+        let intervals = vec![
+            GenomicInterval {
+                contig: 0,
+                start: 1,
+                end: 2,
+            },
+            GenomicInterval {
+                contig: 0,
+                start: 10,
+                end: 12,
+            },
+            GenomicInterval {
+                contig: 0,
+                start: 16_380,
+                end: 16_390,
+            },
+            GenomicInterval {
+                contig: 1,
+                start: 3,
+                end: 5,
+            },
+        ];
+        for width in [1, 2, 10, 128, 16_384] {
+            let mut index = 0;
+            let mut start = intervals[0].start;
+            let mut observed = Vec::new();
+            while index < intervals.len() {
+                let contig = intervals[index].contig;
+                let window = coalesced_window(&intervals, index, start, width);
+                assert!(window.end > start);
+                assert!(window.end - start <= width);
+                assert_eq!(
+                    start / CANONICAL_TILE_BASES,
+                    (window.end - 1) / CANONICAL_TILE_BASES
+                );
+                let before = observed.len();
+                for interval in &intervals[index..] {
+                    if interval.contig != contig || interval.start >= window.end {
+                        break;
+                    }
+                    observed.extend(
+                        (interval.start.max(start)..interval.end.min(window.end))
+                            .map(|position| (contig, position)),
+                    );
+                }
+                assert_eq!(observed.len() - before, window.selected_loci);
+                index = window.next_interval;
+                start = window.next_start;
+            }
+            let expected: Vec<_> = intervals
+                .iter()
+                .flat_map(|interval| {
+                    (interval.start..interval.end).map(|position| (interval.contig, position))
+                })
+                .collect();
+            assert_eq!(observed, expected);
+        }
+        let combined = coalesced_window(&intervals, 0, 1, 128);
+        assert_eq!(
+            (combined.end, combined.selected_loci, combined.next_interval),
+            (12, 3, 2)
+        );
+    }
+
+    #[test]
+    fn projected_memory_model_admits_larger_windows_without_changing_fields() {
+        let mut execution = EvidenceExecution::default();
+        let full = make_plan(&execution, EvidenceFields::ALL, 16_384, 0, 0, 0, 0).unwrap();
+        execution.memory_budget_bytes = Some(full.fixed_bytes + full.bytes_per_locus * 128);
+        let full = make_plan(&execution, EvidenceFields::ALL, 16_384, 0, 0, 0, 0).unwrap();
+        let fields = EvidenceFields::DEPTHS.union(EvidenceFields::QUALITY_SUMS);
+        let projected = make_plan(&execution, fields, 16_384, 0, 0, 0, 0).unwrap();
+        assert_eq!(full.microtile_bases, 128);
+        assert!(projected.microtile_bases > full.microtile_bases * 10);
+        assert!(projected.predicted_peak_rss_bytes <= execution.memory_budget_bytes.unwrap());
+        assert_eq!(projected.model_id, "exact-summary-tiles-v3");
+    }
+
+    #[test]
+    fn indexed_sparse_fetches_reduce_visits_and_preserve_full_output_bytes() {
+        struct Fixture(PathBuf);
+        impl Drop for Fixture {
+            fn drop(&mut self) {
+                let _ = std::fs::remove_dir_all(&self.0);
+            }
+        }
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let fixture = Fixture(std::env::temp_dir().join(format!(
+            "rosalind-projection-{}-{nonce}",
+            std::process::id()
+        )));
+        std::fs::create_dir(&fixture.0).unwrap();
+        let fasta = fixture.0.join("reference.fa");
+        std::fs::write(&fasta, format!(">chr1\n{}\n", "A".repeat(20_000))).unwrap();
+        std::fs::write(
+            fixture.0.join("reference.fa.fai"),
+            "chr1\t20000\t6\t20000\t20001\n",
+        )
+        .unwrap();
+        let alignment = fixture.0.join("reads.bam");
+        let mut header = bam::Header::new();
+        let mut hd = bam::header::HeaderRecord::new(b"HD");
+        hd.push_tag(b"VN", "1.6").push_tag(b"SO", "coordinate");
+        header.push_record(&hd);
+        let mut sq = bam::header::HeaderRecord::new(b"SQ");
+        sq.push_tag(b"SN", "chr1").push_tag(b"LN", 20_000);
+        header.push_record(&sq);
+        let mut writer = bam::Writer::from_path(&alignment, &header, bam::Format::Bam).unwrap();
+        for (index, position) in [0, 9000, 16_375].into_iter().enumerate() {
+            let mut record = bam::Record::new();
+            record.set(
+                format!("read-{index}").as_bytes(),
+                Some(&bam::record::CigarString(vec![Cigar::Match(100)])),
+                &[b'T'; 100],
+                &[30; 100],
+            );
+            record.set_tid(0);
+            record.set_pos(position);
+            record.set_mapq(60);
+            record.set_flags(0);
+            writer.write(&record).unwrap();
+        }
+        drop(writer);
+        bam::index::build(&alignment, None::<&PathBuf>, bam::index::Type::Bai, 1).unwrap();
+        let positions = [1, 10, 20, 9000, 16_383, 16_384, 19_999];
+        let request = |width, fields| {
+            let mut request = EvidenceRequest::new(&alignment, &fasta);
+            request.fields = fields;
+            request.execution.max_microtile_bases = width;
+            request.selection = EvidenceSelection::Sites(
+                positions
+                    .into_iter()
+                    .map(|position| SnvSite {
+                        contig: 0,
+                        position,
+                        reference: b'A',
+                        alternates: vec![b'T'],
+                    })
+                    .collect(),
+            );
+            request
+        };
+        let run = |width| {
+            let mut engine = EvidenceEngine::open(request(width, EvidenceFields::ALL)).unwrap();
+            let mut writer = EvidenceArrowWriter::new(Vec::new());
+            let stats = engine.run(&mut writer).unwrap();
+            let arrow = writer.into_inner().unwrap();
+            let mut writer = EvidenceTsvWriter::new(Vec::new());
+            engine.run(&mut writer).unwrap();
+            (stats, arrow, writer.into_inner())
+        };
+        let narrow = run(1);
+        let coalesced = run(CANONICAL_TILE_BASES);
+        assert_eq!(narrow.1, coalesced.1);
+        assert_eq!(narrow.2, coalesced.2);
+        assert_eq!(narrow.0.emitted_loci, positions.len() as u64);
+        assert_eq!(narrow.0.record_visits, 6);
+        assert_eq!(coalesced.0.record_visits, 4);
+        assert!(coalesced.0.microtiles < narrow.0.microtiles);
+        let fields = EvidenceFields::DEPTHS.union(EvidenceFields::QUALITY_SUMS);
+        let mut engine = EvidenceEngine::open(request(CANONICAL_TILE_BASES, fields)).unwrap();
+        let mut observed = Vec::new();
+        let mut callback = EvidenceCallback::with_fields(
+            |batch: &EvidenceBatch| {
+                assert_eq!(batch.fields(), fields);
+                for row in batch.rows() {
+                    assert!(row.quality_histograms.is_none());
+                    assert!(row.alleles.is_none());
+                    assert!(row.try_to_full_row().is_err());
+                    observed.push((
+                        row.position,
+                        row.depths.unwrap().callable_depth,
+                        row.quality_sums.unwrap().base_quality_sum,
+                    ));
+                }
+                Ok(())
+            },
+            4096,
+            fields,
+        );
+        engine.run(&mut callback).unwrap();
+        assert_eq!(
+            observed,
+            positions
+                .into_iter()
+                .map(|position| (
+                    position,
+                    u64::from(position != 19_999),
+                    if position == 19_999 { 0 } else { 30 }
+                ))
+                .collect::<Vec<_>>()
+        );
+    }
 }

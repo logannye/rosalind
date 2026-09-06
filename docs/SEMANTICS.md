@@ -1,6 +1,7 @@
 # Short-read evidence semantics
 
-`analyze evidence` and `analyze panel-qc` use evidence schema **1** and profile
+`analyze evidence` and `analyze panel-qc` use evidence schema **1** for full output,
+**2** for physical projections, and profile
 **shortread-dna-readcount-v1**. Existing `features`, `analyze coverage`, and
 `variants` keep their legacy defaults. Do not mix their similarly named columns
 without explicitly matching filtering rules.
@@ -112,8 +113,25 @@ Successful scientific output is invariant to budget, microtile, and worker count
 
 Canonical ownership tiles span 16,384 reference bases. Arrow encoding uses fixed
 **1,024-row** batches independently of computation width. This differs from the
-legacy feature encoder's 65,536-row batches. Schema v1 always emits full rows;
-field requirements are validated capabilities, not physical projection savings.
+legacy feature encoder's 65,536-row batches. Full evidence retains schema-1 bytes.
+Physical projections use schema 2 and a versioned field mask, stored in one
+canonical Arrow metadata value. Groups are `depths` (including exclusive filter
+counts), `alleles`, `strands`, `quality-sums`, `quality-histograms`, and
+`read-position`. Identity columns are always present; `--fields none` emits only
+those columns. Omitted groups allocate no corresponding summary or encoder vectors
+and never appear as zero-valued output columns. Group selection does not change
+filtering, reference/CIGAR validation, or the values of retained metrics.
+
+Panel summaries default to `depths,quality-sums`; optional position output defaults
+to full evidence. An explicit panel projection must include both required groups.
+The planner accounts for the chosen groups and bounded IPC frames, arrays,
+serialization, reference span, and decoder overhead. Nearby disjoint selections
+share fetch windows up to the admitted microtile width within each ownership tile.
+Unrequested gaps are never emitted. Repeated record visits are execution diagnostics.
+
+Dataset caches record and validate physical schema and field masks before decoding
+records. Dataset comparison accepts matching masks and explicitly refuses differing
+masks. Full schema-1 artifacts and their byte verification remain supported.
 
 Plans include engine, consumer/encoder, and process overhead. The htslib record
 envelope is checked after decode, so it is a cooperative check rather than an

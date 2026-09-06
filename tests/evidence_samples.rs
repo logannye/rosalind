@@ -102,7 +102,9 @@ fn read(name: &str, group: Option<&str>, base: u8, start: u32, length: usize) ->
 struct Capture(Vec<EvidenceRow>);
 impl EvidenceAnalyzer for Capture {
     fn on_batch(&mut self, batch: &EvidenceBatch) -> Result<(), EvidenceError> {
-        self.0.extend_from_slice(&batch.rows);
+        for row in batch.rows() {
+            self.0.push(row.try_to_full_row()?);
+        }
         Ok(())
     }
     fn additional_memory_bytes(&self) -> Option<u64> {
