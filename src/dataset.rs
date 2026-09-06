@@ -6,6 +6,22 @@
 
 mod lookup;
 pub use lookup::VerifiedEvidenceLookup;
+mod persisted;
+pub use persisted::{canonical_dataset_query, dataset_query_digest};
+pub use persisted::{
+    DatasetCoverage, DatasetQuery, DatasetReadLimits, DatasetReadPlan, VerifiedEvidenceDataset,
+};
+mod parquet;
+pub use parquet::plan_parquet_export_with_inputs;
+pub use parquet::{
+    export_parquet_dataset, export_parquet_dataset_with_inputs, plan_parquet_export,
+    ParquetExportOptions, ParquetExportOutcome, PARQUET_EXPORT_MANIFEST_NAME,
+    PARQUET_EXPORT_SEMANTICS,
+};
+mod reuse;
+pub use reuse::*;
+mod descriptor;
+pub use descriptor::*;
 
 use std::collections::BTreeMap;
 use std::fs::{self, File};

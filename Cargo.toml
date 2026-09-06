@@ -80,6 +80,11 @@ arrow-array = "=55.2.0"
 arrow-schema = "=55.2.0"
 arrow-ipc = { version = "=55.2.0", default-features = false }
 arrow-select = "=55.2.0"
+# Versioned native evidence dataset descriptors (receipt schemas remain unchanged).
+serde = { version = "=1.0.228", features = ["derive"] }
+serde_json = "=1.0.150"
+# Deterministic bounded partition export, sharing the pinned Arrow major version.
+parquet = { version = "=55.2.0", default-features = false, features = ["arrow"] }
 
 [dev-dependencies]
 proptest = "1.4"

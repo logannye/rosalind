@@ -125,6 +125,8 @@ def _command(
     mapq: int = 20, base_quality: int = 20, memory_budget_mb: Optional[int] = None,
     max_read_len: int = 250, tile_bases: int = 16384, workers: int = 1,
     cache_dir: Optional[PathLike] = None, resume: bool = False,
+    reuse_dataset: Optional[PathLike] = None,
+    max_dataset_metadata_bytes: Optional[int] = None,
     cram_reference: Optional[PathLike] = None, panel: bool = False,
     min_callable_depth: Optional[int] = None,
     sample: Optional[str] = None, pool_samples: bool = False,
@@ -167,6 +169,14 @@ def _command(
         command += ["--memory-budget-mb", str(memory_budget_mb)]
     if cache_dir is not None:
         command += ["--cache-dir", str(cache_dir)]
+    if max_dataset_metadata_bytes is not None:
+        if isinstance(max_dataset_metadata_bytes, bool) or not isinstance(max_dataset_metadata_bytes, int) or max_dataset_metadata_bytes <= 0:
+            raise ValueError("max_dataset_metadata_bytes must be a positive integer")
+        command += ["--max-dataset-metadata-bytes", str(max_dataset_metadata_bytes)]
+    if reuse_dataset is not None:
+        if cache_dir is not None or resume or workers != 1:
+            raise ValueError("reuse_dataset requires one worker and cannot be combined with cache_dir/resume")
+        command += ["--reuse-dataset", str(reuse_dataset)]
     if resume:
         command.append("--resume")
     if sample is not None:

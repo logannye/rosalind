@@ -289,6 +289,87 @@ fn schema(selected: EvidenceFields) -> Schema {
     )]))
 }
 
+/// Convert a bounded native batch to Arrow arrays without serializing IPC.
+/// The returned arrays allocate independently; callers must reserve their memory.
+/// At most 1,024 rows are accepted, matching canonical output batching.
+pub fn evidence_record_batch(batch: &EvidenceBatch) -> Result<RecordBatch, EvidenceError> {
+    if batch.len() > EVIDENCE_ARROW_BATCH_ROWS {
+        return Err(EvidenceError::InvalidRequest(
+            "Arrow conversion requires at most 1,024 evidence rows".into(),
+        ));
+    }
+    encode_rows(
+        batch,
+        std::iter::repeat_n(batch.contig.as_str(), batch.len()),
+    )
+}
+
+fn encode_rows<'a>(
+    rows: &EvidenceBatch,
+    contigs: impl Iterator<Item = &'a str>,
+) -> Result<RecordBatch, EvidenceError> {
+    let mut arrays: Vec<ArrayRef> = Vec::with_capacity(34);
+    arrays.push(Arc::new(StringArray::from_iter_values(contigs)));
+    arrays.push(Arc::new(UInt32Array::from_iter_values(
+        rows.rows().map(|row| row.position + 1),
+    )));
+    arrays.push(Arc::new(StringArray::from_iter_values(
+        rows.rows().map(|row| char::from(row.reference).to_string()),
+    )));
+    arrays.push(Arc::new(StringArray::from_iter_values(rows.rows().map(
+        |row| String::from_utf8(row.requested_alts.to_vec()).expect("validated nucleotide ALT"),
+    ))));
+    for field in 0..SCALAR_NAMES.len() {
+        if !rows.fields().contains(scalar_group(field)) {
+            continue;
+        }
+        arrays.push(Arc::new(UInt64Array::from_iter_values(
+            rows.rows().map(|row| scalar(row, field)),
+        )));
+    }
+    if rows.fields().contains(EvidenceFields::QUALITY_HISTOGRAMS) {
+        for (bins, base_quality) in [(BASE_QUALITY_BINS, true), (MAPPING_QUALITY_BINS, false)] {
+            let values: ArrayRef =
+                Arc::new(UInt64Array::from_iter_values(rows.rows().flat_map(|row| {
+                    let histogram = row.quality_histograms.unwrap();
+                    let values: &[u64] = if base_quality {
+                        &histogram.base_quality_histogram
+                    } else {
+                        &histogram.mapping_quality_histogram
+                    };
+                    values.iter().copied()
+                })));
+            arrays.push(Arc::new(
+                FixedSizeListArray::try_new(
+                    Arc::new(Field::new("item", DataType::UInt64, false)),
+                    bins as i32,
+                    values,
+                    None,
+                )
+                .map_err(arrow_error)?,
+            ));
+        }
+    }
+    if rows.fields().contains(EvidenceFields::ALLELE_QUALITY) {
+        for index in 0..4 {
+            let values: ArrayRef = Arc::new(UInt64Array::from_iter_values(
+                rows.rows()
+                    .flat_map(|row| allele_sum(row, index).iter().copied()),
+            ));
+            arrays.push(Arc::new(
+                FixedSizeListArray::try_new(
+                    Arc::new(Field::new("item", DataType::UInt64, false)),
+                    4,
+                    values,
+                    None,
+                )
+                .map_err(arrow_error)?,
+            ));
+        }
+    }
+    RecordBatch::try_new(Arc::new(schema(rows.fields())), arrays).map_err(arrow_error)
+}
+
 /// Canonical Arrow IPC writer. Buffering is limited to 1024 evidence rows plus
 /// encoding scratch. Construction performs no writes, so admission can run first.
 pub struct EvidenceArrowWriter<W: Write> {
@@ -345,75 +426,10 @@ impl<W: Write> EvidenceArrowWriter<W> {
         if self.rows.is_empty() {
             return Ok(());
         }
-        let mut arrays: Vec<ArrayRef> = Vec::with_capacity(34);
-        arrays.push(Arc::new(StringArray::from_iter_values(
+        let batch = encode_rows(
+            &self.rows,
             self.contigs.iter().map(|contig| contig.as_ref()),
-        )));
-        arrays.push(Arc::new(UInt32Array::from_iter_values(
-            self.rows.rows().map(|row| row.position + 1),
-        )));
-        arrays.push(Arc::new(StringArray::from_iter_values(
-            self.rows
-                .rows()
-                .map(|row| char::from(row.reference).to_string()),
-        )));
-        arrays.push(Arc::new(StringArray::from_iter_values(
-            self.rows.rows().map(|row| {
-                String::from_utf8(row.requested_alts.to_vec()).expect("validated nucleotide ALT")
-            }),
-        )));
-        for field in 0..SCALAR_NAMES.len() {
-            if !self.fields.contains(scalar_group(field)) {
-                continue;
-            }
-            arrays.push(Arc::new(UInt64Array::from_iter_values(
-                self.rows.rows().map(|row| scalar(row, field)),
-            )));
-        }
-        if self.fields.contains(EvidenceFields::QUALITY_HISTOGRAMS) {
-            for (bins, base_quality) in [(BASE_QUALITY_BINS, true), (MAPPING_QUALITY_BINS, false)] {
-                let values: ArrayRef = Arc::new(UInt64Array::from_iter_values(
-                    self.rows.rows().flat_map(|row| {
-                        let histogram = row.quality_histograms.unwrap();
-                        let values: &[u64] = if base_quality {
-                            &histogram.base_quality_histogram
-                        } else {
-                            &histogram.mapping_quality_histogram
-                        };
-                        values.iter().copied()
-                    }),
-                ));
-                arrays.push(Arc::new(
-                    FixedSizeListArray::try_new(
-                        Arc::new(Field::new("item", DataType::UInt64, false)),
-                        bins as i32,
-                        values,
-                        None,
-                    )
-                    .map_err(arrow_error)?,
-                ));
-            }
-        }
-        if self.fields.contains(EvidenceFields::ALLELE_QUALITY) {
-            for index in 0..4 {
-                let values: ArrayRef = Arc::new(UInt64Array::from_iter_values(
-                    self.rows
-                        .rows()
-                        .flat_map(|row| allele_sum(row, index).iter().copied()),
-                ));
-                arrays.push(Arc::new(
-                    FixedSizeListArray::try_new(
-                        Arc::new(Field::new("item", DataType::UInt64, false)),
-                        4,
-                        values,
-                        None,
-                    )
-                    .map_err(arrow_error)?,
-                ));
-            }
-        }
-        let batch =
-            RecordBatch::try_new(Arc::new(schema(self.fields)), arrays).map_err(arrow_error)?;
+        )?;
         self.writer
             .as_mut()
             .unwrap()

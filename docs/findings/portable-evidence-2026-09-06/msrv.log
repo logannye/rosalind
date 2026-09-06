@@ -1,0 +1,48 @@
+    Updating crates.io index
+    Blocking waiting for file lock on package cache
+ Downloading crates ...
+  Downloaded integer-encoding v3.0.4
+  Downloaded lexical-parse-integer v1.0.6
+  Downloaded ordered-float v2.10.1
+  Downloaded atoi v2.0.0
+  Downloaded seq-macro v0.3.6
+  Downloaded paste v1.0.15
+  Downloaded lexical-core v1.0.6
+  Downloaded twox-hash v2.1.4
+  Downloaded thrift v0.17.0
+  Downloaded ryu v1.0.23
+  Downloaded base64 v0.22.1
+  Downloaded lexical-write-float v1.0.6
+  Downloaded lexical-util v1.0.7
+  Downloaded arrow-cast v55.2.0
+  Downloaded lexical-write-integer v1.0.6
+  Downloaded lexical-parse-float v1.0.6
+  Downloaded parquet v55.2.0
+    Blocking waiting for file lock on package cache
+    Checking lexical-util v1.0.7
+    Checking getrandom v0.3.4
+   Compiling paste v1.0.15
+    Checking bitflags v2.10.0
+    Checking atoi v2.0.0
+    Checking ordered-float v2.10.1
+    Checking integer-encoding v3.0.4
+    Checking base64 v0.22.1
+    Checking ryu v1.0.23
+    Checking twox-hash v2.1.4
+   Compiling seq-macro v0.3.6
+   Compiling rosalind-bio v0.5.0 (/Users/logannye/rosalind)
+    Checking xtask v0.1.0 (/Users/logannye/rosalind/xtask)
+    Checking ahash v0.8.12
+    Checking flatbuffers v25.12.19
+    Checking thrift v0.17.0
+    Checking lexical-parse-integer v1.0.6
+    Checking lexical-write-integer v1.0.6
+    Checking arrow-array v55.2.0
+    Checking lexical-parse-float v1.0.6
+    Checking lexical-write-float v1.0.6
+    Checking lexical-core v1.0.6
+    Checking arrow-select v55.2.0
+    Checking arrow-ipc v55.2.0
+    Checking arrow-cast v55.2.0
+    Checking parquet v55.2.0
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 9.91s

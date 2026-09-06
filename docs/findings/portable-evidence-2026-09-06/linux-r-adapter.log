@@ -1,0 +1,11 @@
+PASS: exact all-character parsing at uint64 maximum and above 2^53
+  #contig pos callable_depth a c g t
+1    chr1   6             12 8 4 0 0
+2    chr1   7             12 8 4 0 0
+3    chr1   8             12 8 4 0 0
+4    chr1   9             12 8 4 0 0
+5    chr1  10             12 8 4 0 0
+6    chr1  11             12 8 4 0 0
+Verified query: 55 positions. Receipt: /tmp/tmphhhsn4yh/R subset exact.tsv.manifest.json
+PASS: base-R adapter, relocated sources absent, paths with spaces, exact rows, receipt byte replay
+PASS: native failure propagates through R without creating successful output

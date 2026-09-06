@@ -55,7 +55,7 @@ with pysam.AlignmentFile("sorted.bam", "rb") as bam:
 with rosalind.iter_evidence("reference.rref", "sorted.bam", regions="targets.bed", workdir="evidence") as evidence:
     assert sum(batch.num_rows for batch in evidence) == 100
     assert evidence.result is not None
-materialized = rosalind.materialize_evidence("reference.rref", "sorted.bam", "evidence.arrow", regions="targets.bed")
+materialized = rosalind.materialize_evidence("reference.rref", "sorted.bam", "evidence.arrow", regions="targets.bed", cache_dir="evidence-cache")
 subprocess.run([str(binary), "verify", "--manifest", str(materialized.manifest_path)], check=True)
 with Path("evidence.replay.json").open("w") as report:
     subprocess.run([str(binary), "reproduce", "--manifest", str(materialized.manifest_path),
@@ -63,7 +63,23 @@ with Path("evidence.replay.json").open("w") as report:
                    stdout=report, check=True)
 summary = rosalind.panel_qc("sorted.bam", "targets.bed", "panel.tsv", reference="reference.rref")
 assert summary.returncode == 0
-print("installed version identity, evidence stream, materialization, offline replay and panel QC passed")
+portable_path = json.loads(materialized.manifest_path.read_text())["measurements"]["execution.evidence_dataset_manifest"]
+dataset = rosalind.open_dataset(portable_path)
+assert dataset.verify()["verified_loci"] == 100
+with dataset.batches(fields=["depths"], workdir="dataset-query") as query:
+    assert sum(batch.num_rows for batch in query) == 100
+    assert query.result.manifest_path.is_file()
+projected = dataset.materialize("projected.arrow", fields=["depths", "alleles"])
+subprocess.run([str(binary), "reproduce", "--manifest", str(projected.manifest_path),
+                "--inputs", str(Path.cwd()), "--binary", str(binary), "--no-attest"], check=True)
+exported = dataset.export_parquet("parquet-export", fields=["depths", "alleles"])
+import pyarrow as pa
+import pyarrow.parquet as pq
+parts = sorted(exported.directory.glob("*.parquet"))
+assert sum(pq.ParquetFile(path).metadata.num_rows for path in parts) == 100
+assert pq.read_schema(parts[0]).field("callable_depth").type == pa.uint64()
+assert exported.manifest_path.is_file()
+print("installed version, evidence, panel QC, portable dataset, replay and Parquet passed")
 
 PY
 # Stage the maintained SDK guide and validate its offline links, then execute the

@@ -22,6 +22,8 @@ CODE_FILES = (
     "examples/research-filter/prepare.py", "examples/research-filter/join.py",
     "examples/research-filter/sources.json", "examples/evidence-analyzer/Cargo.toml",
     "examples/evidence-analyzer/Cargo.lock", "examples/evidence-analyzer/src/main.rs",
+    "examples/persisted-evidence/query.py", "examples/persisted-evidence/query.R",
+    "examples/persisted-evidence/query.sql",
 )
 CODE_DIRECTORIES = ("integrations/nextflow", "integrations/snakemake")
 

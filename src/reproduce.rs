@@ -323,21 +323,42 @@ fn artifact_is_byte_comparable(manifest: &RunManifest, index: usize) -> bool {
         }
 }
 
-/// Build a content-hash → path index of every file directly under `inputs_dir`.
-fn index_inputs(inputs_dir: &Path) -> Result<BTreeMap<String, PathBuf>> {
-    let mut idx = BTreeMap::new();
-    let rd = std::fs::read_dir(inputs_dir)
-        .with_context(|| format!("failed to read --inputs dir {}", inputs_dir.display()))?;
-    for entry in rd {
-        let p = entry?.path();
-        if p.is_file() {
-            if let Ok(h) = blake3_file(&p) {
-                let absolute = std::fs::canonicalize(&p).unwrap_or(p);
-                idx.entry(h).or_insert(absolute);
+/// Content-locate requested inputs beneath one explicitly supplied root. The
+/// iterator stack is bounded to 64 directory levels and the retained hash map to
+/// receipt inputs. Directory symlinks are not followed; payload files may be links.
+fn index_inputs(
+    inputs_dir: &Path,
+    wanted: &std::collections::BTreeSet<String>,
+) -> Result<BTreeMap<String, PathBuf>> {
+    let mut index = BTreeMap::new();
+    let mut stack = vec![std::fs::read_dir(inputs_dir)
+        .with_context(|| format!("failed to read --inputs dir {}", inputs_dir.display()))?];
+    while let Some(directory) = stack.last_mut() {
+        let Some(entry) = directory.next() else {
+            stack.pop();
+            continue;
+        };
+        let entry = entry?;
+        let path = entry.path();
+        let kind = entry.file_type()?;
+        if kind.is_dir() {
+            if stack.len() >= 64 {
+                anyhow::bail!("replay input tree exceeds 64 directory levels");
+            }
+            stack.push(std::fs::read_dir(&path)?);
+        } else if path.is_file() {
+            if let Ok(hash) = blake3_file(&path) {
+                if wanted.contains(&hash) {
+                    let absolute = std::fs::canonicalize(&path).unwrap_or(path);
+                    index.entry(hash).or_insert(absolute);
+                }
             }
         }
+        if index.len() == wanted.len() {
+            break;
+        }
     }
-    Ok(idx)
+    Ok(index)
 }
 
 /// A fresh, unique temp directory for the re-run's outputs.
@@ -477,8 +498,13 @@ fn build_reproduction_plan(
         }
     };
 
-    let index =
-        index_inputs(inputs_dir).map_err(|error| ReplaySafetyError::Io(error.to_string()))?;
+    let wanted = manifest
+        .inputs
+        .iter()
+        .map(|input| input.blake3.clone())
+        .collect();
+    let index = index_inputs(inputs_dir, &wanted)
+        .map_err(|error| ReplaySafetyError::Io(error.to_string()))?;
     let mut inputs = Vec::with_capacity(manifest.inputs.len());
     for (position, input) in manifest.inputs.iter().enumerate() {
         let path = index
@@ -728,6 +754,11 @@ fn built_in_prefix_allowed(prefix: &[String]) -> bool {
             prefix.get(1).map(String::as_str),
             Some("features" | "coverage" | "evidence" | "panel-qc")
         ))
+        || (prefix.first().map(String::as_str) == Some("dataset")
+            && matches!(
+                prefix.get(1).map(String::as_str),
+                Some("extract" | "panel-qc")
+            ))
         || (prefix.first().map(String::as_str) == Some("reference")
             && matches!(prefix.get(1).map(String::as_str), Some("build" | "convert")))
 }

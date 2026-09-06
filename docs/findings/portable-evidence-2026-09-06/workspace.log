@@ -1,0 +1,903 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on artifact directory
+   Compiling rosalind-bio v0.5.0 (/Users/logannye/rosalind)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 18.40s
+     Running unittests src/lib.rs (target/debug/deps/rosalind-d7a33a2be9cdf854)
+
+running 252 tests
+test call::germline::tests::no_alt_or_non_callable_ref_yields_none ... ok
+test call::germline::tests::mapping_quality_is_marginalized_and_255_preserves_the_legacy_model ... ok
+test call::germline::tests::likelihoods_rank_genotypes_correctly ... ok
+test call::germline::tests::hom_ref_site_abstains ... ok
+test call::arrow::tests::schema_field_order_types_and_nullability_are_frozen ... ok
+test call::columnkit::tests::coverage_track_header_and_params ... ok
+test call::germline::tests::clear_hom_alt_passes ... ok
+test call::germline::tests::gvcf_genotype_classifies_every_column ... ok
+test call::germline::tests::shallow_variant_is_flagged_low_depth_not_dropped ... ok
+test call::germline::tests::clear_het_passes ... ok
+test call::germline::tests::qual_increases_with_evidence ... ok
+test call::germline::tests::thin_alt_evidence_abstains ... ok
+test call::pack::tests::empty_jobs_pack_to_zero_nodes ... ok
+test call::pack::tests::is_deterministic_regardless_of_input_order ... ok
+test call::pack::tests::refuses_a_job_larger_than_a_node ... ok
+test call::pack::tests::packs_all_jobs_and_every_node_is_within_capacity ... ok
+test call::pack::tests::refuses_when_jobs_exceed_the_node_budget ... ok
+test call::pipeline::tests::calls_a_het_snv_including_a_reverse_strand_read ... ok
+test call::pipeline::tests::pure_reference_yields_no_calls ... ok
+test call::pipeline::tests::calls_a_somatic_snv_from_tumor_normal_cowalk ... ok
+test call::pipeline::tests::streaming_emits_same_sites_as_tracked_and_returns_working_set ... ok
+test call::plan::tests::estimate_grows_with_inputs_and_does_not_overflow ... ok
+test call::plan::tests::predicted_peak_is_baseline_plus_working_set_plus_io_margin ... ok
+test call::plan::tests::render_reports_fits_and_refuse ... ok
+test call::features::tests::feature_row_has_the_expected_fields ... ok
+test call::arrow::tests::empty_stream_has_schema_and_no_batches ... ok
+test call::somatic::tests::calls_clean_somatic_snv ... ok
+test call::somatic::tests::filters_normal_contamination ... ok
+test call::somatic::tests::llr_math_matches_legacy_reference ... ok
+test call::somatic::tests::respects_min_depth ... ok
+test call::types::tests::defaults_match_spec ... ok
+test core::budget::tests::budget_admits_within_and_rejects_beyond ... ok
+test core::budget::tests::unlimited_admits_everything_and_working_set_checks_fit ... ok
+test core::error::tests::budget_exceeded_displays_both_numbers ... ok
+test core::error::tests::io_error_converts_via_from ... ok
+test core::governor::tests::checkpoint_ok_when_unarmed_and_governor_error_displays ... ok
+test core::locus::tests::by_id_out_of_range_is_none ... ok
+test core::locus::tests::contig_set_assigns_ids_and_global_offsets ... ok
+test core::locus::tests::empty_contig_set_is_empty_with_zero_total_length ... ok
+test core::locus::tests::loci_order_by_contig_then_position ... ok
+test core::locus::tests::resolve_maps_global_offset_to_locus ... ok
+test call::whole_genome::tests::whole_genome_equals_per_contig_calls ... ok
+test core::locus::tests::resolve_out_of_range_is_none ... ok
+test core::locus::tests::resolve_span_crossing_a_boundary_is_rejected ... ok
+test core::locus::tests::resolve_span_within_a_contig_returns_start ... ok
+test call::columnkit::tests::feature_analyzer_via_driver_equals_the_direct_features_path ... ok
+test core::record::tests::empty_cigar_projects_nothing ... ok
+test core::record::tests::pad_consumes_neither_ref_nor_read ... ok
+test core::record::tests::projection_handles_softclip_insertion_deletion_refskip ... ok
+test core::record::tests::projection_offsets_follow_cigar_not_seq_len ... ok
+test core::record::tests::ref_span_and_end_are_cigar_derived_not_seq_len ... ok
+test core::record::tests::long_read_projects_every_match_base ... ok
+test core::record::tests::refskip_consumes_reference_only_like_a_long_intron ... ok
+test core::record::tests::sam_flags_decode_common_bits ... ok
+test core::sequence::tests::allele_index_is_some_for_acgt_and_none_for_n ... ok
+test core::sequence::tests::ambiguous_and_unknown_fold_to_n_and_are_not_exact ... ok
+test core::sequence::tests::exact_bases_map_directly_and_u_folds_to_t ... ok
+test call::columnkit::tests::a_custom_analyzer_inherits_the_bounded_working_set ... ok
+test dataset::descriptor::tests::verified_session_detects_symlink_retargeting ... ok
+test call::whole_genome::tests::working_set_is_bounded_by_reference_and_local_pressure_not_read_count ... ok
+test dataset::descriptor::tests::discovered_index_cannot_hide_under_a_selection_role ... ok
+test dataset::descriptor::tests::publication_memory_reserves_read_group_and_sample_metadata ... ok
+test dataset::descriptor::tests::compatibility_ignores_selection_projection_and_locations_but_binds_filters ... ok
+test call::arrow::tests::fixed_batch_boundaries_and_repeat_bytes ... ok
+test call::features::tests::feature_stream_is_deterministic_and_bounded ... ok
+test dataset::lookup::tests::oversized_parent_receipt_refuses_before_parsing ... ok
+test dataset::lookup::tests::parent_request_and_partition_hash_anchors_are_required ... ok
+test dataset::descriptor::tests::verified_publication_preserves_legacy_and_binds_relative_partition_inventory ... ok
+test dataset::lookup::tests::unsorted_repeated_lookups_preserve_projected_allele_quality_and_zero_depth ... ok
+test dataset::parquet::tests::parquet_preserves_unsigned_values_above_signed_integer_range ... ok
+test dataset::descriptor::tests::arbitrary_old_key_and_changed_input_session_cannot_promote_stale_partitions ... ok
+test dataset::persisted::tests::coverage_split_preserves_query_annotations_and_never_synthesizes_holes ... ok
+test dataset::parquet::tests::corruption_late_query_mutation_and_nested_destinations_never_publish_success ... ok
+test dataset::parquet::tests::empty_projection_export_is_schema_bearing_and_existing_destinations_are_preserved ... ok
+test dataset::persisted::tests::corrupt_hash_unknown_versions_and_mutation_are_rejected ... ok
+test dataset::persisted::tests::metadata_open_refuses_before_parsing_when_budget_or_envelope_is_too_small ... ok
+test evidence::batch::tests::every_mask_allocates_exactly_its_requested_groups ... ok
+test evidence::batch::tests::owned_full_adapter_and_projected_append_preserve_nonzero_values ... ok
+test dataset::reuse::tests::consumer_failure_restores_engine_selection_and_does_not_finish ... ok
+test evidence::encoding::tests::allele_sums_validate_against_each_independently_available_count_source ... ok
+test evidence::encoding::tests::final_buffered_flush_error_is_returned_after_arrow_end_of_stream ... ok
+test evidence::encoding::tests::malformed_buffer_ranges_are_refused_from_metadata_before_body_reads ... ok
+test evidence::engine::projection_tests::every_physical_projection_matches_full_selected_observations ... ok
+test dataset::lookup::tests::final_guard_checks_previously_loaded_partitions_and_parent_mutation ... ok
+test evidence::engine::projection_tests::projected_memory_model_admits_larger_windows_without_changing_fields ... ok
+test evidence::engine::projection_tests::sparse_windows_obey_span_ownership_and_exact_selection ... ok
+test dataset::persisted::tests::source_alt_annotations_do_not_limit_new_queries_but_reference_must_match ... ok
+test genomics::block_alignment::tests::backward_search_produces_expected_interval ... ok
+test genomics::block_alignment::tests::merge_combines_metrics_and_intervals ... ok
+test genomics::block_alignment::tests::unsupported_base_records_mismatch ... ok
+test genomics::bwt_aligner::tests::aligner_returns_interval_for_read ... ok
+test genomics::compressed_dna::tests::iterator_yields_correct_bases ... ok
+test genomics::compressed_dna::tests::compress_and_decode_roundtrip ... ok
+test genomics::compressed_dna::tests::push_and_extend ... ok
+test genomics::compressed_dna::tests::unsupported_base_returns_error ... ok
+test genomics::eval::compare::gt_concordance_tests::het_called_as_hom_is_a_detection_tp_but_a_genotype_error ... ok
+test genomics::eval::compare::gt_concordance_tests::unknown_genotype_is_counted_separately_not_as_error ... ok
+test genomics::eval::compare::gt_concordance_tests::matching_genotype_is_concordant ... ok
+test genomics::eval::vcf::gt_tests::missing_sample_is_genotype_none_and_still_parses ... ok
+test genomics::eval::vcf::gt_tests::multiallelic_decomposes_per_alt_with_decomposed_genotype ... ok
+test genomics::eval::vcf::gt_tests::multiallelic_hom_second_allele_drops_the_absent_first ... ok
+test genomics::eval::vcf::gt_tests::multiallelic_without_gt_emits_all_alleles_unscored ... ok
+test genomics::eval::vcf::gt_tests::parses_gt_zygosity_from_format_sample ... ok
+test dataset::reuse::tests::missing_only_and_empty_selection_finish_once_and_match_fresh ... ok
+test genomics::fm_index::tests::owned_backing_matches_generic_ops ... ok
+test genomics::fm_index::tests::fm_index_builds_and_ranks ... ok
+test genomics::fm_index::tests::sa_at_recovers_reference_position ... ok
+test genomics::fm_index::tests::sanitize_maps_iupac_ambiguity_codes_to_n ... ok
+test genomics::fm_index::tests::serialization_accessors_expose_backing ... ok
+test genomics::fm_index::tests::sampled_sa_is_sparse_not_dense ... ok
+test genomics::genome_index::tests::empty_pattern_returns_nothing ... ok
+test genomics::genome_index::tests::from_named_sequences_rejects_an_empty_genome ... ok
+test genomics::genome_index::tests::from_named_sequences_builds_a_multi_contig_index ... ok
+test genomics::genome_index::tests::exact_match_matches_a_naive_scan ... ok
+test evidence::engine::projection_tests::indexed_sparse_fetches_reduce_visits_and_preserve_full_output_bytes ... ok
+test genomics::genome_index::tests::locate_exact_is_deterministic ... ok
+test genomics::genome_index::tests::locates_a_pattern_unique_to_chr1 ... ok
+test genomics::genome_index::tests::locates_a_pattern_unique_to_chr2 ... ok
+test genomics::genome_index::tests::max_hits_caps_candidates ... ok
+test genomics::genome_index::tests::stores_contigs_and_reference ... ok
+test genomics::genome_index::tests::rejects_a_boundary_straddling_match ... ok
+test genomics::genome_index::tests::validate_concat_len_enforces_the_u32_ceiling ... ok
+test genomics::index::format::tests::section_kind_discriminants_round_trip ... ok
+test evidence::encoding::tests::expected_projection_is_checked_before_any_body_and_on_empty_streams ... ok
+test dataset::reuse::tests::joint_plan_counts_source_decoder_and_inherits_source_budget ... ok
+test genomics::index::io::tests::open_parses_header_contigs_and_sections ... ok
+test genomics::index::io::tests::reference_view_is_a_small_borrow ... ok
+test genomics::index::io::tests::open_rejects_a_misaligned_block_offset ... ok
+test genomics::index::io::tests::open_rejects_a_corrupt_block_directory ... ok
+test genomics::index::io::tests::open_rejects_a_truncated_index ... ok
+test genomics::index::report::tests::build_model_breaks_down_and_sums ... ok
+test genomics::index::report::tests::build_model_is_monotonic_and_overflow_safe ... ok
+test genomics::index::report::tests::model_envelopes_the_d0_measured_realized_peak ... ok
+test genomics::index::report::tests::plan_line_reports_ok_and_over ... ok
+test genomics::index::report::tests::receipt_render_is_deterministic_and_contains_fields ... ok
+test genomics::rank_select::tests::rank_all_returns_expected_counts ... ok
+test genomics::rank_select::tests::rank_queries_match_naive_counts ... ok
+test genomics::rank_select::tests::totals_match_full_sequence ... ok
+test genomics::index::io::tests::open_rejects_bad_magic ... ok
+test genomics::index::io::tests::serialized_sections_are_present_aligned_and_in_bounds ... ok
+test dataset::reuse::tests::scientific_mismatch_missing_fields_and_parallel_options_are_refused ... ok
+test genomics::sampled_sa::tests::empty_has_no_samples ... ok
+test genomics::sampled_sa::tests::handles_a_superblock_boundary ... ok
+test genomics::index::io::tests::reference_view_decodes_bytes_identical_to_in_ram ... ok
+test genomics::sampled_sa::tests::metadata_is_correct ... ok
+test genomics::sampled_sa::tests::rank_is_correct_for_unaligned_positions_in_a_higher_superblock ... ok
+test genomics::sampled_sa::tests::sample_at_returns_none_at_unsampled_positions ... ok
+test genomics::sampled_sa::tests::sample_at_returns_value_at_sampled_positions ... ok
+test genomics::sort::tests::merge_tie_break_pops_equal_key_records_in_source_index_order ... ok
+test genomics::suffix_array::tests::sais_handles_repeated_symbols ... ok
+test genomics::suffix_array::tests::sais_matches_naive_small ... ok
+test genomics::index::io::tests::view_is_byte_identical_to_in_ram_index ... ok
+test genomics::reference_pack::tests::invalid_fasta_is_rejected_without_publishing_destination ... ok
+test io::bam::tests::streaming_source_rejects_disjoint_contig_naming ... ok
+test io::bam::tests::reads_bam_into_core_reads_with_flags_and_cigar ... ok
+test genomics::index::io::tests::serialized_index_is_byte_identical_across_builds ... ok
+test dataset::parquet::tests::encoder_and_receipt_inventory_are_admitted_before_creating_directory ... ok
+test io::decompress::tests::empty_input_is_treated_as_plain_and_yields_nothing ... ok
+test io::decompress::tests::gzip_detected_even_when_source_yields_one_byte_at_a_time ... ok
+test io::decompress::tests::gzip_input_is_transparently_decompressed ... ok
+test io::decompress::tests::plain_input_passes_through ... ok
+test io::fasta::tests::empty_input_yields_no_records ... ok
+test io::fasta::tests::header_without_sequence_is_a_malformed_record_error ... ok
+test io::bam::tests::streaming_source_rejects_out_of_order ... ok
+test io::fasta::tests::missing_header_is_a_malformed_record_error ... ok
+test io::fasta::tests::reads_single_record_uppercased ... ok
+test io::fasta::tests::reads_three_records_and_builds_a_three_contig_set ... ok
+test io::bam::tests::streaming_source_yields_same_reads_as_materializing ... ok
+test io::fasta::tests::skips_blank_lines_between_records ... ok
+test io::fastq::tests::empty_input_yields_no_records ... ok
+test io::fastq::tests::missing_at_prefix_is_malformed ... ok
+test io::fastq::tests::missing_plus_separator_is_malformed ... ok
+test io::fastq::tests::quality_line_starting_with_at_is_not_a_header ... ok
+test io::bam::tests::streaming_source_rejects_sq_length_mismatch ... ok
+test io::fastq::tests::reads_two_records_and_trims_name_after_space ... ok
+test io::fastq::tests::seq_qual_length_mismatch_is_malformed ... ok
+test io::fastq::tests::truncated_record_at_eof_is_malformed ... ok
+test io::vcf::tests::filter_and_genotype_strings_render ... ok
+test io::vcf::tests::germline_record_is_exact ... ok
+test io::bam::tests::unknown_contig_records_are_skipped ... ok
+test io::vcf::tests::header_has_required_tags ... ok
+test io::vcf::tests::header_then_streamed_rows_equals_batch_write ... ok
+test io::vcf::tests::records_are_sorted_deterministically ... ok
+test io::vcf::tests::somatic_header_has_two_samples ... ok
+test io::vcf::tests::somatic_record_is_exact ... ok
+test merge::tests::empty_shard_headers_are_checked_and_late_headers_are_rejected ... ok
+test merge::tests::gvcf_boundary_coalescing_retains_only_one_pending_record ... ok
+test pileup::column::tests::depth_allele_and_strand_counts ... ok
+test merge::tests::outcome_counters_and_execution_capacity_do_not_change_compatibility ... ok
+test merge::tests::text_merge_emits_records_before_reading_the_complete_shard ... ok
+test pileup::engine::tests::basic_ungapped_pileup_counts ... ok
+test genomics::reference_pack::tests::build_is_deterministic_and_round_trips_contigs_and_ambiguity ... ok
+test pileup::engine::tests::capacity_applies_after_filters_and_expiration_and_zero_is_safe ... ok
+test pileup::engine::tests::capacity_exhaustion_does_not_evict_longer_read_or_emit_inexact_column ... ok
+test pileup::engine::tests::deletion_leaves_a_reference_gap_with_no_observation ... ok
+test pileup::engine::tests::emit_all_positions_preserves_the_working_set_bound ... ok
+test pileup::engine::tests::default_params_skip_noise_and_keep_quality_open ... ok
+test pileup::engine::tests::emit_all_positions_reports_gaps_at_depth_zero ... ok
+test pileup::engine::tests::engine_is_an_open_substrate_for_arbitrary_per_locus_analysis ... ok
+test pileup::engine::tests::filters_skip_low_mapq_reads ... ok
+test pileup::engine::tests::filters_skip_secondary_supplementary_and_duplicate_reads ... ok
+test pileup::engine::tests::insertion_bases_do_not_shift_downstream_reference_positions ... ok
+test pileup::engine::tests::later_capacity_failure_preserves_only_exact_prefix ... ok
+test pileup::engine::tests::low_base_quality_observations_are_dropped ... ok
+test pileup::engine::tests::obs_are_emitted_in_canonical_order ... ok
+test pileup::engine::tests::params_default_max_depth_is_none_and_skipcounts_total_includes_over_max_depth ... ok
+test pileup::engine::tests::raw_depth_counts_covering_reads_even_when_base_is_dropped ... ok
+test pileup::engine::tests::read_exceeding_declared_max_read_len_errors ... ok
+test pileup::engine::tests::reverse_strand_reads_are_not_complemented ... ok
+test pileup::engine::tests::long_read_piles_up_every_matched_base ... ok
+test pileup::engine::tests::shuffled_source_yields_identical_columns ... ok
+test pileup::engine::tests::skip_counts_accumulate_sums_fieldwise ... ok
+test pileup::engine::tests::skip_counts_total_sums_all_reasons ... ok
+test pileup::engine::tests::soft_clipped_bases_are_excluded ... ok
+test pileup::engine::tests::working_set_counts_reference_and_read_byte_buffers ... ok
+test genomics::reference_pack::tests::corruption_and_truncation_are_rejected_at_open ... ok
+test reproduce::tests::classify_diverged_names_the_first_mismatch ... ok
+test pileup::engine::tests::sufficient_capacity_is_exact_and_partition_invariant ... ok
+test pileup::source::tests::slice_source_yields_reads_sorted_by_contig_then_pos ... ok
+test reproduce::tests::classify_reproduced_when_all_outputs_match ... ok
+test pileup::engine::tests::sparse_coverage_skips_empty_positions_without_recursion ... ok
+test reproduce::tests::exit_codes_are_stable ... ok
+test reproduce::tests::strict_recipe_accepts_tokenized_spaces_and_unicode ... ok
+test reproduce::tests::historical_pileup_requires_explicit_historical_binary_before_input_lookup ... ok
+test reproduce::tests::strict_recipe_rejects_prefix_duplicate_and_unrecorded_output_operands ... ok
+test reproduce::tests::strict_recipe_rejects_manifest_paths_unsupported_builtins_and_legacy_externals ... ok
+test merge::tests::historical_sampled_shards_are_refused_before_publication ... ok
+test scaffold::tests::rejects_names_that_are_not_cargo_kebab_case ... ok
+test selection::tests::normalization_merges_overlap_and_adjacency ... ok
+test selection::tests::region_is_one_based_inclusive ... ok
+test selection::tests::shard_union_is_complete_and_disjoint ... ok
+test studio::tests::one_byte_reads_assemble_the_complete_javascript_request ... ok
+test studio::tests::complete_headers_at_the_capacity_boundary_are_accepted ... ok
+test studio::tests::incomplete_and_oversized_headers_are_rejected_with_bounded_reads ... ok
+test studio::tests::preload_json_cannot_close_its_script_element ... ok
+test selection::tests::randomized_shards_cover_every_base_once ... ok
+test util::atomic::tests::dropping_uncommitted_file_cleans_the_temporary_path ... ok
+test util::rss::tests::peak_rss_reflects_a_real_allocation_in_bytes ... ok
+test selection::tests::bed_comments_unusual_names_ordering_and_empty_rows_normalize ... ok
+test pileup::engine::tests::working_set_is_bounded_by_coverage_not_input_size ... ok
+test dataset::reuse::tests::subset_changes_query_alt_and_reuses_zero_rows_without_alignment_visits ... ok
+test util::atomic_directory::tests::publish_is_complete_and_raced_empty_destination_is_preserved ... ok
+test util::atomic::tests::commit_is_atomic_and_create_new_refuses_replacement ... ok
+test util::atomic::tests::group_failure_restores_replaced_outputs_and_leaves_no_new_success ... ok
+test scaffold::tests::creates_the_complete_analyzer_project_and_refuses_overwrite ... ok
+test dataset::persisted::tests::resealed_omitted_or_duplicate_source_rows_still_fail_exact_ownership ... ok
+test dataset::lookup::tests::resealed_rows_cannot_change_selected_order_annotations_or_fields ... ok
+test dataset::persisted::tests::projected_subset_and_new_alts_equal_fresh_after_relocation_without_sources ... ok
+test dataset::persisted::tests::output_batches_are_canonical_and_planner_reserves_source_projection_and_analyzer ... ok
+test dataset::reuse::tests::partial_overlap_and_projection_equal_fresh_across_microtiles ... ok
+test dataset::persisted::tests::local_budget_stops_after_first_breaching_callback_without_a_global_governor ... ok
+test dataset::parquet::tests::roundtrip_preserves_unsigned_scalars_fixed_lists_and_bounded_deterministic_files ... ok
+
+test result: ok. 252 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.81s
+
+     Running unittests src/main.rs (target/debug/deps/rosalind-9d66f89355bd5c73)
+
+running 11 tests
+test tests::fastq_quals_to_phred_decodes_single_byte ... ok
+test tests::fastq_quals_to_phred_decodes_run ... ok
+test tests::fastq_quals_to_phred_decodes_lowest_quality ... ok
+test tests::fastq_quals_to_phred_empty_input_returns_empty ... ok
+test tests::fastq_quals_to_phred_saturating_does_not_underflow ... ok
+test tests::align_reads_with_fm_index ... ok
+test tests::parse_cigar_handles_multi_op_indels ... ok
+test tests::parse_cigar_rejects_length_mismatch_and_star ... ok
+test tests::parse_cigar_handles_match_softclip_and_deletion ... ok
+test tests::fasta_parser_extracts_primary_name ... ok
+test tests::fastq_parser_trims_after_space ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/alignment_pipeline.rs (target/debug/deps/alignment_pipeline-c92421dbb2a396ec)
+
+running 2 tests
+test alignment_interval_is_within_bounds ... ok
+test align_batch_produces_results ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/analyze.rs (target/debug/deps/analyze-bd8d67bfe885160e)
+
+running 1 test
+test analyze_coverage_writes_a_verifiable_receipt_with_analyzer_params ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/atomic_outputs.rs (target/debug/deps/atomic_outputs-cc3f6756f492badc)
+
+running 2 tests
+test ordinary_input_failure_leaves_no_output_or_temporary_file ... ok
+test index_align_sort_and_variants_refuse_collisions_and_force_replaces ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+     Running tests/bam_quality_encoding.rs (target/debug/deps/bam_quality_encoding-216a0413ee7f6a73)
+
+running 2 tests
+wrote reproducibility receipt: /var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-bam-qual-out-1788716234726959000.bam.manifest.json
+test bam_qual_field_stores_raw_phred_not_ascii ... ok
+wrote reproducibility receipt: /var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-bam-qual-out2-1788716234726944000.bam.manifest.json
+test bam_qual_field_is_not_double_decoded ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/bam_sort.rs (target/debug/deps/bam_sort-46af25d19fed2e46)
+
+running 1 test
+test deterministic_bam_sort_orders_by_tid_pos_strand_qname ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/chain.rs (target/debug/deps/chain-92bfc92002f266f0)
+
+running 5 tests
+test index_writes_a_self_verifying_receipt ... ok
+test chain_verify_breaks_when_the_index_receipt_is_tampered ... ok
+test chain_verify_resolves_the_bam_input_through_sort_and_align_receipts ... ok
+test index_output_hash_equals_variants_index_input_hash ... ok
+test chain_verify_is_intact_on_a_real_index_variants_chain ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+     Running tests/clinical_eval_gates.rs (target/debug/deps/clinical_eval_gates-d3355a07ecc10839)
+
+running 1 test
+test eval_compare_smoke_and_thresholds ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/conformance.rs (target/debug/deps/conformance-65b50d9545c81974)
+
+running 1 test
+test generated_analyzer_passes_the_embedded_conformance_harness ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 14.95s
+
+     Running tests/contract_public.rs (target/debug/deps/contract_public-4c8c72de525a2838)
+
+running 12 tests
+test analyzer_replay_options_cannot_shadow_contract_flags ... ok
+test receipt_staging_failure_preserves_existing_output ... ok
+test direct_runner_refuses_before_primary_output_creation ... ok
+test required_os_limit_refuses_unavailable_or_broad_limits_before_output ... ok
+test create_new_policy_preserves_existing_output ... ok
+test invalid_receipt_claim_does_not_publish_or_replace_output ... ok
+test enforced_unknown_analyzer_is_rejected_before_output_creation ... ok
+test required_os_limit_accepts_a_finite_cgroup_ceiling ... ok
+test exact_capacity_failure_preserves_partial_and_distinct_receipt_without_rss_budget ... ok
+test replace_policy_atomically_replaces_existing_output ... ok
+test direct_runner_completes_and_seals_external_identity ... ok
+test fixed_analyzer_contribution_is_reported_exactly_once ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.30s
+
+     Running tests/determinism.rs (target/debug/deps/determinism-2b879c18482609b4)
+
+running 1 test
+test germline_calling_and_vcf_are_deterministic ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/diff.rs (target/debug/deps/diff-c4729f6c93824113)
+
+running 2 tests
+test diff_of_a_receipt_against_itself_is_identical_and_exits_zero ... ok
+test diff_localizes_a_science_param_change_and_exits_one ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s
+
+     Running tests/doctor.rs (target/debug/deps/doctor-83bc8cfa8f650552)
+
+running 2 tests
+test doctor_reports_an_existing_output_as_actionable ... ok
+test doctor_proves_a_ready_fixture_and_reports_output_safety ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/eval_multicontig.rs (target/debug/deps/eval_multicontig-5e1cf8baa79b7523)
+
+running 2 tests
+test eval_germline_compares_each_variant_against_its_own_contig ... ok
+test eval_germline_errors_clearly_on_a_contig_naming_mismatch ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/evidence_cli.rs (target/debug/deps/evidence_cli-f43fde4eee77fdf4)
+
+running 9 tests
+test explicitly_supplied_inapplicable_defaults_are_rejected ... ok
+test arrow_legacy_plan_includes_encoder_flush_transients ... ok
+test evidence_resource_and_input_failures_never_publish_success ... ok
+test finalization_breach_demotes_both_panel_artifacts ... ok
+test legacy_arrow_full_batch_refuses_small_budget_and_verifies_admitted_run ... ok
+test panel_fuses_position_evidence_and_uses_full_target_denominators ... ok
+test panel_boundary_buffers_reuse_capacity_under_three_process_budgets ... ok
+test cache_reuse_and_worker_cli_preserve_canonical_output ... ok
+test evidence_cli_arrow_is_invariant_and_receipts_replay ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.67s
+
+     Running tests/evidence_dataset.rs (target/debug/deps/evidence_dataset-b57bad67bb7ad34b)
+
+running 14 tests
+test input_snapshot_refuses_replacement_and_mutation_before_cache_publication ... ok
+test worker_admission_counts_single_baseline_and_refuses_before_cache_creation ... ok
+test failed_worker_disconnects_a_full_job_queue_and_leaves_no_complete_dataset ... ok
+test dataset_diff_refuses_tampered_artifacts_before_publishing_delta_output ... ok
+test snv_site_annotations_survive_partition_cache_and_execution_changes ... ok
+test completed_dataset_binds_partition_receipts_and_missing_partitions ... ok
+test resumed_cache_hash_corruption_is_refused_before_analyzer_receives_rows ... ok
+test reused_caller_cache_key_cannot_override_request_scientific_semantics ... ok
+test dataset_diff_refuses_different_reference_dictionaries ... ok
+test incomplete_cache_requires_resume_and_recomputes_only_missing_partition ... ok
+test dataset_diff_compares_panel_position_artifact_and_refuses_missing_positions ... ok
+test canonical_cache_workers_and_microtiles_produce_identical_evidence ... ok
+test dataset_diff_is_empty_across_arrow_and_tsv_and_reports_profile_reference_and_locus_changes ... ok
+test worker_rejects_source_mutation_before_publishing_its_partition ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.98s
+
+     Running tests/evidence_engine.rs (target/debug/deps/evidence_engine-bd5c877bb329985b)
+
+running 20 tests
+[W::cram_get_ref] Failed to populate reference for id 0
+[W::cram_write_SAM_hdr] No M5 tags present and could not find reference
+[W::cram_write_SAM_hdr] Enabling embed_ref=2 option
+[W::cram_write_SAM_hdr] NOTE: the CRAM file will be bigger than using an external reference
+test malformed_cigar_and_declared_read_envelope_fail_instead_of_truncating ... ok
+test csi_and_relocated_fai_index_inputs_work_without_adjacent_sidecars ... ok
+test overlapping_panel_targets_keep_full_length_denominators_and_fuse ... ok
+test coverage_without_reference_and_tiny_budget_refusal_are_explicit ... ok
+test arrow_reader_rejects_oversized_frames_before_decoder_allocation ... ok
+test independent_hand_calculated_cigar_and_filter_oracle ... ok
+test analyzer_capabilities_and_unknown_budget_bounds_are_validated_before_callbacks ... ok
+test repeated_planning_preserves_admitted_baseline_and_charges_new_selection ... ok
+test sam_reference_equality_bases_resolve_with_reference_and_refuse_without_it ... ok
+test equal_position_read_order_does_not_change_exact_integer_summaries ... ok
+test selection_identity_is_independent_of_input_interval_order_and_duplicates ... ok
+test worker_factory_shares_open_reference_without_reopening_its_path ... ok
+test snv_sites_validate_reference_and_merge_duplicate_alternates ... ok
+test cram_uses_explicit_local_fasta_and_matches_bam_evidence ... ok
+test per_allele_quality_distinguishes_equal_pooled_quality_distributions ... ok
+test file_backed_pack_and_legacy_reference_windows_match_fasta_across_word_and_contig_boundaries ... ok
+test arrow_bytes_are_canonical_and_reader_roundtrips_all_fields ... ok
+test exact_depth_exceeds_old_cap_and_tile_width_does_not_change_rows ... ok
+test every_projection_preserves_present_values_and_roundtrips_empty_metadata ... ok
+test full_evidence_egress_matches_frozen_schema_one_bytes ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s
+
+     Running tests/evidence_preflight.rs (target/debug/deps/evidence_preflight-dd4399be78c132e1)
+
+running 3 tests
+test irrelevant_reference_and_panel_options_are_rejected ... ok
+test preflight_rejects_output_receipt_partial_and_input_aliases_before_writing ... ok
+test scientific_identity_uses_normalized_selection_and_captures_index_content ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/evidence_samples.rs (target/debug/deps/evidence_samples-0700e48dc9c8db8e)
+
+running 11 tests
+[W::sam_hrecs_update_hashes] Duplicate entry "same" in sam header
+test duplicate_read_group_ids_are_rejected_even_for_explicit_pooling ... ok
+test named_selection_precedes_every_locus_depth_and_filter_counter ... ok
+test auto_unifies_read_groups_of_one_sample_and_matches_explicit_selection ... ok
+test deliberate_pooling_includes_named_and_unassigned_records ... ok
+test sample_header_state_is_reserved_through_replanning ... ok
+test sample_scope_and_rows_are_invariant_across_microtiles_workers_and_boundaries ... ok
+test auto_refuses_multiple_samples_and_mixed_named_unnamed_groups ... ok
+test named_selection_must_exist_in_the_header ... ok
+test canonical_scope_ignores_header_order_and_escapes_identifiers ... ok
+test unlabeled_inputs_keep_explicit_unknown_identity_and_existing_counts ... ok
+test named_runs_refuse_missing_undeclared_unnamed_or_nonstring_rg ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/evidence_variant_input.rs (target/debug/deps/evidence_variant_input-912f95ba44b5b6dc)
+
+running 13 tests
+[W::vcf_parse_info] INFO 'UNDEFINED' is not defined in the header, assuming Type=String
+[E::bcf_hdr_parse] Could not parse the header, sample line not found
+[E::bcf_hdr_parse_sample_line] Could not parse the "#CHROM.." line, either the fields are incorrect or spaces are present instead of tabs:
+	#CHROM	POS
+
+[W::vcf_parse_format_dict2] FORMAT 'UNKNOWN' at chr1:1 is not defined in the header, assuming Type=String
+test malformed_or_missing_header_fails_without_native_null_header_access ... ok
+[E::inflate_gzip_block] Gzip file truncated
+[E::bgzf_read_block] Reading GZIP stream failed at offset 0
+[W::vcf_parse] Contig 'chr2' is not defined in the header. (Quick workaround: index the file with tabix.)
+test ordinary_gzip_vcf_is_supported_without_a_tabix_index ... ok
+test header_record_and_annotation_envelopes_fail_closed ... ok
+test annotation_updates_copy_and_preserves_original_header_record_and_allele_order ... ok
+[E::vcf_parse_format_empty1] FORMAT column with no sample columns starting at chr1:1
+test output_type_errors_do_not_mutate_source_and_prevent_successful_finish ... ok
+test parser_warning_recovery_is_rejected_and_cannot_be_resumed ... ok
+test output_cannot_silently_omit_input_definitions_or_relabel_samples ... ok
+test translation_cache_is_isolated_between_writers_using_the_same_input_record ... ok
+test missing_bgzf_end_marker_cannot_be_accepted_as_successful_eof ... ok
+test sample_free_vcf_and_empty_stream_roundtrip_without_null_sample_access ... ok
+test snv_selection_rejects_non_snvs_coordinates_and_conflicting_duplicate_ref ... ok
+test vcf_bgzf_and_bcf_have_identical_normalized_unsorted_duplicate_selection ... ok
+test repeated_info_strings_have_exact_boundaries_and_empty_updates_remove_tags ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/evidence_workers.rs (target/debug/deps/evidence_workers-a5f6032055c626b2)
+
+running 1 test
+test eight_canonical_partitions_are_identical_across_worker_and_budget_matrix ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.42s
+
+     Running tests/features.rs (target/debug/deps/features-a49ee5ef94f4a4b7)
+
+running 2 tests
+test features_honor_the_memory_contract ... ok
+test features_emit_a_schema_correct_byte_identical_table_with_a_receipt ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s
+
+     Running tests/fm_index_props.rs (target/debug/deps/fm_index_props-15aad40196889e93)
+
+running 1 test
+test rank_totals_are_consistent ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.26s
+
+     Running tests/frontdoor_demo.rs (target/debug/deps/frontdoor_demo-405355ba2283461e)
+
+running 1 test
+test readme_inhouse_contract_demo_runs_end_to_end ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running tests/germline_accuracy.rs (target/debug/deps/germline_accuracy-f56e44ffc5a3a78e)
+
+running 2 tests
+test detection_accuracy_low_coverage_stress_12x ... ok
+test detection_accuracy_clean_baseline_40x ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.61s
+
+     Running tests/golden_vcf.rs (target/debug/deps/golden_vcf-f982e83ff1e61092)
+
+running 1 test
+test germline_vcf_matches_golden ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/governor.rs (target/debug/deps/governor-d6d1e6f1cf1541d5)
+
+running 4 tests
+test a_below_budget_source_never_trips ... ok
+test a_second_governor_while_one_is_active_is_rejected ... ok
+test checkpoint_is_ok_when_no_governor_is_armed ... ok
+test governor_trips_when_rss_crosses_budget_and_disarms_on_drop ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/gvcf.rs (target/debug/deps/gvcf-cd37c2ac11375807)
+
+running 1 test
+test gvcf_is_banded_byte_reproducible_and_well_formed ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+     Running tests/index_cli.rs (target/debug/deps/index_cli-5d2462534a476438)
+
+running 5 tests
+test index_memory_budget_prints_plan_line_and_never_refuses ... ok
+test index_builds_a_loadable_artifact ... ok
+test locate_works_from_the_artifact_alone ... ok
+test index_build_is_deterministic_via_cli ... ok
+test locate_matches_in_ram_ground_truth ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/index_persistence.rs (target/debug/deps/index_persistence-d03a8f1906b2c29e)
+
+running 4 tests
+test view_is_a_small_borrow_not_an_owned_copy ... ok
+test index_is_self_contained ... ok
+test build_is_deterministic ... ok
+test view_equals_in_ram_over_a_pattern_battery ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/io_readers.rs (target/debug/deps/io_readers-ab9d5a72e39c3c87)
+
+running 1 test
+test gzipped_multi_record_fasta_builds_a_contig_set ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/pack.rs (target/debug/deps/pack-545230ecf3fbf990)
+
+running 2 tests
+test plan_json_emits_machine_readable_prediction ... ok
+test pack_shows_a_co_location_fits_and_refuses_when_it_cannot ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests/panel_defaults.rs (target/debug/deps/panel_defaults-3c441b675129b563)
+
+running 1 test
+test rust_and_cli_share_default_and_explicit_panel_callability_thresholds ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/partition_arrow_merge.rs (target/debug/deps/partition_arrow_merge-240527221f57e719)
+
+running 2 tests
+test sparse_selection_without_bai_refuses_before_output ... ok
+merge: merge input/output error: merge receipt already exists: /var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-partition-1788716282308355000/existing-merge.manifest.json
+merge: incompatible shard set: expected exactly shard indices 0..3
+merge: tampered shard receipt: /var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-partition-1788716282308355000/tampered.manifest.json
+test arrow_shards_merge_byte_identically_to_whole_genome ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.87s
+
+     Running tests/plan_enforce.rs (target/debug/deps/plan_enforce-9c2ede8a9a8e7660)
+
+running 22 tests
+test plan_reference_reports_build_estimate ... ok
+test plan_index_reports_a_breakdown_and_fits_a_generous_budget ... ok
+test enforce_passes_within_a_generous_budget ... ok
+test enforce_aborts_on_a_read_longer_than_declared_max_read_len ... ok
+test receipt_records_skip_counts ... ok
+test enforce_refuses_up_front_when_budget_below_predicted ... ok
+test stdout_run_persists_a_self_describing_receipt ... ok
+test receipt_records_build_identity_and_verify_expect_code_catches_a_mismatch ... ok
+test estimator_upper_bounds_the_realized_working_set ... ok
+test enforce_breach_exits_4_after_preserving_partial_and_receipt ... ok
+test receipt_is_self_hashing_and_schema_versioned ... ok
+test receipt_records_residual_and_governor_fields_on_a_fitting_run ... ok
+test features_governor_aborts_loud_and_records_residual ... ok
+test governor_aborts_loud_when_live_rss_exceeds_budget ... ok
+test verify_passes_on_an_untampered_run_and_fails_on_a_tampered_output ... ok
+test verify_rejects_a_receipt_with_its_measurement_block_stripped ... ok
+test verify_rejects_a_consistent_measurement_tamper_via_the_measurement_hash ... ok
+test verify_rejects_a_self_consistent_but_tampered_receipt ... ok
+test verify_rejects_an_internally_inconsistent_manifest ... ok
+test variants_enforce_records_predicted_working_set_in_the_claim ... ok
+test predicted_peak_rss_upper_bounds_realized_peak ... ok
+test near_saturation_margin_holds_on_a_larger_contig ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.40s
+
+     Running tests/receipt_tools.rs (target/debug/deps/receipt_tools-4a03849249219340)
+
+running 3 tests
+test inspect_matches_artifacts_and_a_linked_certificate_by_hash ... ok
+test export_intoto_is_unsigned_and_carries_native_evidence ... ok
+test sanitize_removes_paths_without_changing_claim ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests/reference_pack_cli.rs (target/debug/deps/reference_pack_cli-7eaa7f1616bc4e0b)
+
+running 4 tests
+built /var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-reference-cli-receipt-replay-1788716295804942000/reference.rref: 1 contigs, 10 bases, source c2294a542b6c4017aa3d2ed3d02837b1e5809e756544f3260d2f216111cd1377
+verify: no budget to check (none supplied or recorded)
+verify: no predicted_working_set_bytes to re-check (a pre-soundness-check receipt)
+verify: OK — 1 input(s), 1 output(s) match
+test build_and_inspect_json_are_deterministic ... ok
+test legacy_index_conversion_preserves_reference_identity_and_bytes ... ok
+test reference_pack_receipt_verifies_and_replays ... ok
+test reference_pack_and_legacy_index_produce_identical_feature_bytes ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.21s
+
+     Running tests/reproduce.rs (target/debug/deps/reproduce-fd280d12150f74bb)
+
+running 4 tests
+test inconclusive_on_a_pre_schema_5_receipt ... ok
+test inconclusive_when_an_input_is_missing ... ok
+test reproduces_a_variants_index_vcf_byte_for_byte ... ok
+test independent_reproductions_share_a_parent_claim ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s
+
+     Running tests/rss_budget.rs (target/debug/deps/rss_budget-f364c5aa62e37140)
+
+running 1 test
+test rss_peak_is_bounded_for_small_workloads ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.05s
+
+     Running tests/rss_exec.rs (target/debug/deps/rss_exec-77efb972deb98551)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/studio.rs (target/debug/deps/studio-5427911768da9481)
+
+running 2 tests
+test studio_binds_loopback_serves_embedded_assets_and_preloads_receipts ... ok
+test studio_waits_for_fragmented_request_headers_before_selecting_the_asset ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.76s
+
+     Running tests/truthset_validation.rs (target/debug/deps/truthset_validation-7bb726cacbdb02d8)
+
+running 2 tests
+test alignment_truth_exact_matches_map_to_expected_position ... ok
+test somatic_snv_truth_mixture_simple ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/variant_pipeline.rs (target/debug/deps/variant_pipeline-1a7900ef14575fa8)
+
+running 1 test
+test germline_pipeline_detects_a_het_snv ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/variants_index.rs (target/debug/deps/variants_index-01092456cdb24abe)
+
+running 6 tests
+test variants_index_rejects_sam ... ok
+test variants_requires_exactly_one_reference_source ... ok
+test variants_index_is_self_contained ... ok
+test variants_index_matches_reference_on_the_same_sorted_bam ... ok
+test variants_index_memory_budget_reports_and_never_refuses ... ok
+test variants_index_receipt_records_a_replayable_command ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+     Running unittests src/lib.rs (target/debug/deps/rosalind_build_info-3bb2245914fba8cf)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/rosalind_receipt-e5b7ae63247b9da4)
+
+running 68 tests
+test badge::tests::badge_json_is_shields_endpoint_shaped ... ok
+test badge::tests::intact_without_certificate_is_blue_not_reproduced ... ok
+test badge::tests::badge_json_red_when_not_reproducible ... ok
+test badge::tests::badge_svg_is_well_formed ... ok
+test command::tests::malformed_argv_recipe_does_not_silently_fall_back ... ok
+test command::tests::argv_errors_when_an_input_cannot_be_located ... ok
+test command::tests::argv_recipe_preserves_spaces_without_shell_parsing ... ok
+test command::tests::argv_roundtrips_from_the_recorded_command ... ok
+test command::tests::record_into_writes_command_inputs_outputs_and_discrete_params ... ok
+test chain::tests::an_unresolved_external_input_does_not_break_the_chain ... ok
+test diff::tests::code_identity_drift_is_its_own_bucket ... ok
+test chain::tests::a_tampered_node_breaks_the_chain ... ok
+test diff::tests::exact_evidence_quality_filter_remains_a_scientific_cause ... ok
+test chain::tests::resolves_the_index_edge_and_marks_external_inputs ... ok
+test chain::tests::an_unresolved_index_input_is_broken ... ok
+test diff::tests::science_param_change_is_isolated_from_code_identity ... ok
+test diff::tests::identical_claims_with_only_a_measurement_diff_exit_zero ... ok
+test diff::tests::historical_capacity_and_unknown_receipt_formats_keep_existing_classification ... ok
+test repro::tests::tamper_breaks_the_self_hash ... ok
+test diff::tests::exact_evidence_resource_settings_are_execution_and_preserve_science ... ok
+test tests::a_manifest_without_a_self_hash_returns_none ... ok
+test diff::tests::input_change_is_a_cause_with_the_output_as_effect ... ok
+test repro::tests::certificate_keeps_both_build_identities ... ok
+test tests::check_expected_code_matches_mismatches_and_flags_dirty ... ok
+test tests::analyzer_prefixed_params_stay_in_the_claim ... ok
+test diff::tests::outputs_differ_with_identical_cause_flags_nondeterminism ... ok
+test tests::build_identity_keys_match_the_pairs_helper ... ok
+test tests::blake3_is_deterministic_and_sensitive ... ok
+test tests::canonical_json_has_sorted_keys_and_is_exact ... ok
+test tests::check_expected_code_rejects_a_degenerate_expected_sha ... ok
+test tests::canonical_json_is_order_independent ... ok
+test repro::tests::certificate_self_hashes_and_roundtrips ... ok
+test tests::claim_drops_paths_but_the_on_disk_form_keeps_them ... ok
+test tests::claim_excludes_but_full_form_includes_measurements ... ok
+test diff::tests::exact_evidence_encoding_changes_do_not_imply_nondeterminism ... ok
+test tests::claim_hash_still_tracks_content ... ok
+test tests::editing_a_measurement_breaks_only_the_measurement_hash ... ok
+test tests::claim_hash_is_stable_across_machine_dependent_paths ... ok
+test tests::finalize_is_idempotent ... ok
+test tests::finalize_relocates_measured_keys_out_of_the_claim ... ok
+test tests::claim_hash_is_stable_across_machine_dependent_measurements ... ok
+test tests::json_escapes_special_characters ... ok
+test tests::finalize_stamps_build_identity_into_the_claim ... ok
+test tests::parse_rejects_malformed ... ok
+test tests::parser_rejects_a_duplicate_key ... ok
+test tests::parse_round_trips_canonical_json_including_escapes ... ok
+test tests::finalize_stamps_schema_version_and_a_matching_self_hash ... ok
+test tests::finalize_records_a_claim_marker_only_when_a_measurement_exists ... ok
+test tests::pre_v2_receipt_with_measurements_in_params_still_verifies ... ok
+test tests::stripping_the_measurement_block_leaves_the_claim_asserting_one_exists ... ok
+test tests::soundness_fails_when_enforced_and_prediction_underbounds_realized ... ok
+test tests::soundness_is_advisory_when_not_enforced ... ok
+test tests::verify_manifest_str_reports_tampered_when_a_claim_byte_is_flipped ... ok
+test tests::tampering_any_field_breaks_the_self_hash ... ok
+test tests::verify_manifest_str_reports_unparseable_for_non_manifest_json ... ok
+test tests::soundness_skipped_when_no_prediction_recorded ... ok
+test tests::soundness_ok_when_enforced_and_prediction_bounds_realized ... ok
+test tests::verify_manifest_str_reports_unverifiable_without_a_self_hash ... ok
+test tests::verify_manifest_str_reports_tampered_when_the_measurement_block_is_edited ... ok
+test tests::verify_manifest_str_reports_verified_for_a_finalized_receipt ... ok
+test tests::v2_receipt_round_trips_through_the_parser ... ok
+test tests::the_schema_gate_keeps_v2_verifying_and_makes_only_v3_path_independent ... ok
+test tests::verify_receipt_passes_a_clean_receipt ... ok
+test trust::tests::intact_receipt_without_certificate_is_neutral_about_reproduction ... ok
+test tests::verify_receipt_reports_a_tampered_claim ... ok
+test trust::tests::wrong_parent_certificate_fails_independently ... ok
+test trust::tests::valid_linked_certificate_is_reproduced ... ok
+test tests::write_manifest_emits_sidecar_file ... ok
+
+test result: ok. 68 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests/legacy_fixtures.rs (target/debug/deps/legacy_fixtures-c16c33b11985c87f)
+
+running 2 tests
+test schemas_one_through_five_remain_parseable_and_historically_verifiable ... ok
+test schema_three_and_newer_paths_are_portable_metadata ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/xtask-110c3a176358657f)
+
+running 28 tests
+test tests::baseline_update_requires_a_reason_specific_changelog_entry ... ok
+test tests::cli_shape_ignores_copy_but_detects_flags_and_operands ... ok
+test tests::contract_diff_localizes_every_frozen_surface ... ok
+test tests::cli_shape_fingerprints_argument_and_option_value_enums ... ok
+test tests::docs_only_changes_are_outside_the_contract_snapshot ... ok
+test caller_evidence::tests::invalid_or_missing_caller_source_fails_closed ... ok
+test tests::duplicate_dispatch_finds_the_existing_plan_run ... ok
+test caller_evidence::tests::release_version_and_xtask_do_not_change_dependency_identity ... ok
+test caller_evidence::tests::feature_only_cli_changes_do_not_require_caller_evidence ... ok
+test caller_evidence::tests::defaults_dispatch_and_transitive_helpers_change_caller_identity ... ok
+test tests::maintainer_exit_codes_distinguish_gates_remote_and_integrity ... ok
+test tests::github_timestamp_parser_handles_fractional_utc_and_rejects_invalid_dates ... ok
+test tests::blocked_plan_cannot_be_changed_to_ready ... ok
+test tests::partner_gate_rejects_pii_shaped_unknown_fields ... ok
+test tests::soak_boundary_is_exact ... ok
+test tests::partner_gate_accepts_all_personas_and_rejects_blockers ... ok
+test tests::stabilization_release_gates_begin_at_configured_version ... ok
+test tests::plan_id_is_deterministic_and_authenticates_gate_results ... ok
+test tests::create_new_writer_refuses_overwrite ... ok
+test tests::plan_tampering_is_rejected ... ok
+test tests::immutable_digest_validation_rejects_tags_and_image_ids ... ok
+test tests::evaluator_source_identity_includes_version_patch ... ok
+test tests::evaluator_source_identity_includes_python_wheel_lock ... ok
+test tests::dispatch_fake_remote_uses_tokenized_arguments_and_no_unplanned_mutation ... ok
+test tests::cli_inventory_expands_analyzer_kinds_exactly_once_from_actual_help ... ok
+test tests::evaluator_source_identity_at_ref_uses_the_same_version_patch_inputs ... ok
+test tests::partner_report_rejects_missing_personas_duplicates_and_stale_commits ... ok
+test caller_evidence::tests::shared_caller_changes_require_fresh_reviewed_evidence_but_feature_changes_do_not ... ok
+
+test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.70s
+
+     Running unittests src/main.rs (target/debug/deps/xtask-8b5bf094161df223)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/release_publish.rs (target/debug/deps/release_publish-55f1663d029115f3)
+
+running 5 tests
+test checksum_conflict_fails_permanently ... ok
+test partial_publication_resumes_remaining_packages ... ok
+test exact_existing_versions_resume_without_upload ... ok
+test absent_versions_publish_in_dependency_order ... ok
+test concurrent_upload_failure_is_accepted_only_after_exact_requery ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.22s
+
+   Doc-tests rosalind
+
+running 1 test
+test src/lib.rs - (line 13) ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.51s
+
+   Doc-tests rosalind_build_info
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests rosalind_receipt
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests xtask
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

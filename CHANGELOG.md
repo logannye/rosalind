@@ -44,6 +44,19 @@ protected publication review, and change-based caller evidence requirements appl
 - Checked native writers propagate header, record and final flush failures;
   compressed annotation replay preserves its format and compares physical bytes.
 
+### Portable evidence datasets
+
+- Source-bound dataset descriptors and portable receipts validate metadata,
+  scientific settings, selection, ownership, and consumed artifact bytes.
+- Offline extract/panel QC and Python `open_dataset()` reuse stored evidence
+  without reopening alignments. Serial partial-overlap reuse computes only holes.
+- Bounded Parquet directories preserve unsigned integers and exact allele-quality
+  lists; executable Python/R/SQL examples retain explicit scientific semantics.
+- Native library readers enforce local budget checks; publication rechecks inputs
+  through finalization, including retargeted symlinks and selection-file changes.
+- Materialized Arrow/TSV queries retain byte replay, including relocated partition
+  directories. Parquet directory replay remains explicitly unsupported.
+
 ### Analyzer-platform foundation
 
 - Repositioned Rosalind around deterministic per-locus analysis contracts; the

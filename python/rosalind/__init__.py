@@ -4,6 +4,7 @@ from importlib.metadata import PackageNotFoundError, version
 
 from .features import FeatureRun, RunResult, collect_features, features, iter_features
 from .receipts import Receipt, inspect_receipt
+from .dataset import EvidenceDataset, ParquetExport, open_dataset
 from .evidence import EvidenceProcessError, EvidenceResult, EvidenceRun, iter_evidence, materialize_evidence, panel_qc
 
 try:
@@ -13,6 +14,9 @@ except PackageNotFoundError:
     __version__ = "0.5.0"
 
 __all__ = [
+    "EvidenceDataset",
+    "ParquetExport",
+    "open_dataset",
     "EvidenceProcessError",
     "EvidenceResult",
     "EvidenceRun",

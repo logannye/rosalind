@@ -136,6 +136,29 @@ Consumers own any retained Python memory. Exhaustion finalizes a streamed run;
 early cancellation is not a successful artifact. Materialize when a persisted,
 byte-verifiable output is required.
 
+## Query persisted evidence from other tools
+
+Runs with `--cache-dir` now publish a portable dataset receipt. Its path is recorded
+as `execution.evidence_dataset_manifest` in the analysis receipt. Copy that receipt's
+entire containing directory to reuse evidence without the original alignments:
+
+```sh
+rosalind dataset verify --dataset portable/evidence-dataset.manifest.json
+rosalind dataset extract --dataset portable/evidence-dataset.manifest.json \
+  --regions subset.bed --fields depths,alleles --format arrow-ipc -o subset.arrow
+rosalind dataset panel-qc --dataset portable/evidence-dataset.manifest.json \
+  --regions subset.bed -o panel.tsv
+rosalind dataset export --dataset portable/evidence-dataset.manifest.json \
+  --fields depths,alleles,allele-quality -o evidence_export
+```
+
+Stored fields must cover the request; missing positions and incompatible filters
+cause refusal. `analyze evidence --reuse-dataset ...` can fill missing positions
+from verified alignments using one worker. Python `open_dataset()` exposes bounded
+batches, materialization, panel QC, and Parquet export. See [portable evidence](docs/reusable-evidence.md)
+and the [Python/R/SQL examples](examples/persisted-evidence/README.md) for exact integer
+handling, resource limits, and replay support. These APIs remain development previews.
+
 ## Budget, reuse, and trust
 
 Use the actual evidence command with `--plan` for its admitted model:

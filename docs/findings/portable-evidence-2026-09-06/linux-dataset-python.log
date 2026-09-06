@@ -1,0 +1,10 @@
+test_iterator_lifecycle_empty_and_missing_evidence (test_dataset.PersistedDatasetTest.test_iterator_lifecycle_empty_and_missing_evidence) ... ok
+test_mutation_refuses_without_overwriting_previous_artifacts (test_dataset.PersistedDatasetTest.test_mutation_refuses_without_overwriting_previous_artifacts) ... ok
+test_parquet_parts_preserve_uint64_lists_and_are_deterministic (test_dataset.PersistedDatasetTest.test_parquet_parts_preserve_uint64_lists_and_are_deterministic) ... ok
+test_partial_reuse_computes_holes_and_keeps_scientific_identity (test_dataset.PersistedDatasetTest.test_partial_reuse_computes_holes_and_keeps_scientific_identity) ... ok
+test_portable_subset_matches_fresh_across_budgets_and_replays (test_dataset.PersistedDatasetTest.test_portable_subset_matches_fresh_across_budgets_and_replays) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 10.643s
+
+OK
