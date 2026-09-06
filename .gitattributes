@@ -1,0 +1,2 @@
+# Retained command output preserves its original bytes, including blank lines.
+docs/findings/representative-evidence-2026-09-06/*.log -whitespace

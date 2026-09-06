@@ -123,6 +123,10 @@ jobs:
           PYTHONPATH: python
           ROSALIND_BINARY: target/release/rosalind
         run: python3 -m unittest discover -s python/tests -p 'test_*.py'
+      - name: Evidence benchmark oracle and retained-result regressions
+        env:
+          ROSALIND_BENCH_BINARY: target/release/rosalind
+        run: python3 -m unittest discover -s benchmarks/evidence -p 'test_*.py'
 
   cli-e2e:
     runs-on: ubuntu-latest

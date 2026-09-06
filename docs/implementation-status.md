@@ -15,7 +15,7 @@ published by this follow-up work.
 | M0 stabilization | Implemented: exact-or-fail pileup, streaming merge, Arrow/resource corrections, replay and release infrastructure | Local regression/package/fuzz checks pass; platform/container/GIAB release evidence pending | No new release from this work | Not established |
 | M1 exact evidence | Implemented: indexed tiled engine, bounded FASTA/pack windows, semantics, CLI, Arrow/TSV, Python, tutorial | Independent field comparison, adversarial cases, budget/tile invariance and fresh local wheel checks pass | No | Not established |
 | M2 panel/SDK | Implemented: target summaries, fused output, declared SDK requirements, standalone crate, workflows | Oracle/fused-output tests, separate crate and both workflow examples pass locally | No | Not established |
-| M3 datasets | Implemented: verified cache/resume, bounded workers, streaming dataset comparison | Cache integrity/resume/input-mutation/1–8 worker tests and small resource curve pass; larger/external evidence pending | No | Not established |
+| M3 datasets | Implemented: verified cache/resume, bounded workers, streaming dataset comparison | Cache integrity/resume/input-mutation/1–8 worker tests and HG002 BAM/CRAM observation invariance pass; decoder model correction and external evidence pending | No | Not established |
 
 ## Current code and compatibility
 
@@ -81,7 +81,29 @@ These are source-candidate checks, not registry publication or independent adopt
 
 ## Validation results
 
-These checks apply to the locally edited tree, not a published candidate.
+### Representative workloads and user-validation kit
+
+[Retained HG002 findings](findings/representative-evidence-2026-09-06/README.md)
+cover 108 repeated oracle/native/dataset runs: a chromosome BAM and matched
+261,761-read BAM/CRAM windows, sparse sites and 10,000 panel positions. Every
+requested comparison passed; final source/binary/harness identities were unchanged
+and external RSS stayed below declared budgets. Eight CRAM decoder predictions
+were too small and remain explicitly recorded; a conservative decoder envelope
+correction is in progress. The workload is WGS, not a high-depth panel assay.
+
+Linux/amd64 BAM and CRAM each passed seven actual cgroup scenarios, including
+verified 128 MiB successes, typed refusal/resource failure, and native OOM with
+kernel/Docker evidence. These use the baseline source candidate in a VM on the
+same physical workstation. The study retains full outputs, caches, raw costs,
+package hashes and separate verification timings; it is not a whole-genome or
+equal-trust speed ranking. The [adoption kit](adoption-validation.md) is implemented
+and its researcher workflow passes locally. No non-author sessions or return
+usage have been recorded.
+
+### Foundation snapshot
+
+These historical foundation checks apply to their recorded source snapshot, not
+the latest test count or a published candidate.
 Full results and retained raw logs are in the
 [validation report](findings/evidence-engine-2026-09-05/README.md).
 
@@ -138,9 +160,9 @@ native release assets and registry installations retain their publication gates.
 
 The original local Docker daemon was unavailable during the foundational checks.
 A separate Linux x86_64 validation environment is now available and has exercised
-native dataset/R interoperability and variant I/O. New-engine representative
-benchmarks and real cgroup probes remain pending. Static harness validation is not a
-benchmark result.
+native dataset/R interoperability, variant I/O, and the baseline new-engine
+BAM/CRAM cgroup probes above. High-depth assays, additional CRAM layouts and
+independent-machine workloads remain unmeasured.
 
 The inspected repository has no `CARGO_REGISTRY_TOKEN`. The protected `rc` and
 `release` environments retain required review, but their custom deployment
