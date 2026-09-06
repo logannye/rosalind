@@ -96,6 +96,8 @@ pub struct ResourceHere {
     pub peak_rss_bytes: Option<u64>,
     /// The budget the original declared (MiB), if any.
     pub declared_budget_mb: Option<u64>,
+    /// The exact original byte budget, including budgets not divisible by MiB.
+    pub declared_budget_bytes: Option<u64>,
     /// Whether the re-run's peak fit the declared budget here.
     pub fit: Option<bool>,
 }
@@ -152,6 +154,12 @@ impl ReproReport {
                 .collect::<Vec<_>>()
                 .join(",")
         };
+        let messages = self
+            .lines
+            .iter()
+            .map(|line| format!("\"{}\"", json_escape(line)))
+            .collect::<Vec<_>>()
+            .join(",");
         let number = |value: Option<u64>| {
             value.map_or_else(|| "null".to_string(), |value| value.to_string())
         };
@@ -161,7 +169,7 @@ impl ReproReport {
             None => "null",
         };
         format!(
-            "{{\"schema\":1,\"verdict\":\"{}\",\"exit_code\":{},\"compared\":{},\"parent_claim\":\"{}\",\"parent_subcommand\":\"{}\",\"execution_binary\":\"{}\",\"code_identity_matches\":{},\"original_code\":{{{}}},\"reproducer_code\":{{{}}},\"resource_here\":{{\"peak_rss_bytes\":{},\"declared_budget_mb\":{},\"fit\":{}}},\"outputs\":[{}]}}",
+            "{{\"schema\":1,\"verdict\":\"{}\",\"exit_code\":{},\"compared\":{},\"parent_claim\":\"{}\",\"parent_subcommand\":\"{}\",\"execution_binary\":\"{}\",\"code_identity_matches\":{},\"original_code\":{{{}}},\"reproducer_code\":{{{}}},\"resource_here\":{{\"peak_rss_bytes\":{},\"declared_budget_mb\":{},\"declared_budget_bytes\":{},\"fit\":{}}},\"outputs\":[{}],\"messages\":[{messages}]}}",
             json_escape(&self.verdict_label),
             self.exit_code,
             self.compared,
@@ -173,6 +181,7 @@ impl ReproReport {
             encode_identity(&self.reproducer_code),
             number(self.resource_here.peak_rss_bytes),
             number(self.resource_here.declared_budget_mb),
+            number(self.resource_here.declared_budget_bytes),
             boolean(self.resource_here.fit),
             outputs
         )
@@ -300,6 +309,23 @@ fn output_is_byte_comparable(path: &str) -> bool {
 fn artifact_is_byte_comparable(manifest: &RunManifest, index: usize) -> bool {
     let path = &manifest.outputs[index].path;
     if output_is_byte_comparable(path) {
+        return true;
+    }
+    if manifest
+        .params
+        .get("evidence.artifact_semantics")
+        .map(String::as_str)
+        == Some("managed-evidence-artifact-v1")
+        && manifest.params.get("replay.kind").map(String::as_str) == Some("external-analyzer")
+        && manifest.params.get("run_status").map(String::as_str) == Some("completed")
+        && manifest
+            .params
+            .get(&format!("artifact.output.{index}.role"))
+            .map(String::as_str)
+            == Some("analyzer-output")
+    {
+        // Managed encoders promise physical replay. The supplied external binary
+        // remains explicitly required; no semantic fallback is allowed.
         return true;
     }
     manifest
@@ -982,13 +1008,15 @@ pub fn execute_reproduction(plan: ReproductionPlan) -> Result<ReproReport> {
         .as_ref()
         .and_then(|m| m.get_recorded("peak_rss_bytes"))
         .and_then(|v| v.parse().ok());
-    let fit = match (peak_here, declared_budget_mb) {
-        (Some(peak), Some(mb)) => Some(crate::core::MemoryBudget::from_mb(mb).admits(peak)),
+    let declared_budget_bytes = manifest.memory_budget_bytes().ok().flatten();
+    let fit = match (peak_here, declared_budget_bytes) {
+        (Some(peak), Some(bytes)) => Some(peak <= bytes),
         _ => None,
     };
     let resource_here = ResourceHere {
         peak_rss_bytes: peak_here,
         declared_budget_mb,
+        declared_budget_bytes,
         fit,
     };
 
@@ -1032,14 +1060,12 @@ pub fn execute_reproduction(plan: ReproductionPlan) -> Result<ReproReport> {
             ));
         }
     }
-    if let (Some(peak), Some(mb)) = (
+    if let (Some(peak), Some(bytes)) = (
         resource_here.peak_rss_bytes,
-        resource_here.declared_budget_mb,
+        resource_here.declared_budget_bytes,
     ) {
         lines.push(format!(
-            "  resource    : peak {} MiB vs declared {} MiB (here: this machine)",
-            peak / (1 << 20),
-            mb
+            "  resource    : peak {peak} bytes vs declared {bytes} bytes (here: this machine)"
         ));
     }
     lines.push(format!("  VERDICT     : {}", outcome.verdict.label()));
@@ -1119,6 +1145,38 @@ mod tests {
         FileHash {
             path: "x".into(),
             blake3: hash.into(),
+        }
+    }
+
+    #[test]
+    fn managed_external_artifact_replay_uses_physical_bytes_for_custom_formats() {
+        let mut manifest = RunManifest::new("run");
+        manifest.outputs.push(FileHash {
+            path: "result.custom".into(),
+            blake3: "a".repeat(64),
+        });
+        assert!(!artifact_is_byte_comparable(&manifest, 0));
+        for (key, value) in [
+            (
+                "evidence.artifact_semantics",
+                "managed-evidence-artifact-v1",
+            ),
+            ("replay.kind", "external-analyzer"),
+            ("run_status", "completed"),
+            ("artifact.output.0.role", "analyzer-output"),
+        ] {
+            manifest.params.insert(key.into(), value.into());
+        }
+        assert!(artifact_is_byte_comparable(&manifest, 0));
+        for key in [
+            "evidence.artifact_semantics",
+            "replay.kind",
+            "run_status",
+            "artifact.output.0.role",
+        ] {
+            let value = manifest.params.remove(key).unwrap();
+            assert!(!artifact_is_byte_comparable(&manifest, 0), "missing {key}");
+            manifest.params.insert(key.into(), value);
         }
     }
 

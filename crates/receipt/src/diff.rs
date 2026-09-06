@@ -105,6 +105,7 @@ fn execution_param(key: &str) -> bool {
                 | "max_read_len"
                 | "max_record_bytes"
                 | "memory_budget_mb"
+                | "memory_budget_bytes"
                 | "enforce"
                 | "require_os_limit"
                 | "cache_dir"

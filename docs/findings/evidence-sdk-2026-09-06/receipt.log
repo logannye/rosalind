@@ -1,0 +1,99 @@
+   Compiling rosalind-receipt v0.3.0 (/Users/logannye/rosalind/crates/receipt)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.23s
+     Running unittests src/lib.rs (target/debug/deps/rosalind_receipt-30e9338db2a9dae4)
+
+running 68 tests
+test badge::tests::badge_json_red_when_not_reproducible ... ok
+test badge::tests::badge_svg_is_well_formed ... ok
+test badge::tests::intact_without_certificate_is_blue_not_reproduced ... ok
+test badge::tests::badge_json_is_shields_endpoint_shaped ... ok
+test command::tests::argv_errors_when_an_input_cannot_be_located ... ok
+test command::tests::argv_recipe_preserves_spaces_without_shell_parsing ... ok
+test command::tests::malformed_argv_recipe_does_not_silently_fall_back ... ok
+test command::tests::record_into_writes_command_inputs_outputs_and_discrete_params ... ok
+test chain::tests::an_unresolved_index_input_is_broken ... ok
+test chain::tests::resolves_the_index_edge_and_marks_external_inputs ... ok
+test chain::tests::an_unresolved_external_input_does_not_break_the_chain ... ok
+test command::tests::argv_roundtrips_from_the_recorded_command ... ok
+test chain::tests::a_tampered_node_breaks_the_chain ... ok
+test diff::tests::code_identity_drift_is_its_own_bucket ... ok
+test diff::tests::exact_evidence_quality_filter_remains_a_scientific_cause ... ok
+test diff::tests::exact_evidence_resource_settings_are_execution_and_preserve_science ... ok
+test diff::tests::historical_capacity_and_unknown_receipt_formats_keep_existing_classification ... ok
+test diff::tests::input_change_is_a_cause_with_the_output_as_effect ... ok
+test diff::tests::exact_evidence_encoding_changes_do_not_imply_nondeterminism ... ok
+test diff::tests::identical_claims_with_only_a_measurement_diff_exit_zero ... ok
+test diff::tests::outputs_differ_with_identical_cause_flags_nondeterminism ... ok
+test repro::tests::certificate_keeps_both_build_identities ... ok
+test diff::tests::science_param_change_is_isolated_from_code_identity ... ok
+test tests::a_manifest_without_a_self_hash_returns_none ... ok
+test repro::tests::certificate_self_hashes_and_roundtrips ... ok
+test repro::tests::tamper_breaks_the_self_hash ... ok
+test tests::analyzer_prefixed_params_stay_in_the_claim ... ok
+test tests::blake3_is_deterministic_and_sensitive ... ok
+test tests::build_identity_keys_match_the_pairs_helper ... ok
+test tests::canonical_json_has_sorted_keys_and_is_exact ... ok
+test tests::canonical_json_is_order_independent ... ok
+test tests::check_expected_code_matches_mismatches_and_flags_dirty ... ok
+test tests::check_expected_code_rejects_a_degenerate_expected_sha ... ok
+test tests::claim_drops_paths_but_the_on_disk_form_keeps_them ... ok
+test tests::claim_excludes_but_full_form_includes_measurements ... ok
+test tests::claim_hash_still_tracks_content ... ok
+test tests::claim_hash_is_stable_across_machine_dependent_measurements ... ok
+test tests::claim_hash_is_stable_across_machine_dependent_paths ... ok
+test tests::editing_a_measurement_breaks_only_the_measurement_hash ... ok
+test tests::finalize_records_a_claim_marker_only_when_a_measurement_exists ... ok
+test tests::finalize_is_idempotent ... ok
+test tests::json_escapes_special_characters ... ok
+test tests::finalize_stamps_build_identity_into_the_claim ... ok
+test tests::parse_rejects_malformed ... ok
+test tests::finalize_relocates_measured_keys_out_of_the_claim ... ok
+test tests::finalize_stamps_schema_version_and_a_matching_self_hash ... ok
+test tests::parse_round_trips_canonical_json_including_escapes ... ok
+test tests::parser_rejects_a_duplicate_key ... ok
+test tests::pre_v2_receipt_with_measurements_in_params_still_verifies ... ok
+test tests::soundness_is_advisory_when_not_enforced ... ok
+test tests::soundness_fails_when_enforced_and_prediction_underbounds_realized ... ok
+test tests::soundness_ok_when_enforced_and_prediction_bounds_realized ... ok
+test tests::stripping_the_measurement_block_leaves_the_claim_asserting_one_exists ... ok
+test tests::soundness_skipped_when_no_prediction_recorded ... ok
+test tests::tampering_any_field_breaks_the_self_hash ... ok
+test tests::verify_manifest_str_reports_unparseable_for_non_manifest_json ... ok
+test tests::the_schema_gate_keeps_v2_verifying_and_makes_only_v3_path_independent ... ok
+test tests::v2_receipt_round_trips_through_the_parser ... ok
+test tests::verify_manifest_str_reports_unverifiable_without_a_self_hash ... ok
+test tests::verify_manifest_str_reports_tampered_when_a_claim_byte_is_flipped ... ok
+test tests::verify_manifest_str_reports_verified_for_a_finalized_receipt ... ok
+test tests::verify_receipt_passes_a_clean_receipt ... ok
+test tests::verify_receipt_reports_a_tampered_claim ... ok
+test tests::verify_manifest_str_reports_tampered_when_the_measurement_block_is_edited ... ok
+test trust::tests::intact_receipt_without_certificate_is_neutral_about_reproduction ... ok
+test trust::tests::wrong_parent_certificate_fails_independently ... ok
+test trust::tests::valid_linked_certificate_is_reproduced ... ok
+test tests::write_manifest_emits_sidecar_file ... ok
+
+test result: ok. 68 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests/exact_budget.rs (target/debug/deps/exact_budget-ca2edc9a3b6c4fc4)
+
+running 3 tests
+test exact_byte_boundary_is_shared_by_verifier_and_trust ... ok
+test legacy_mib_and_matching_dual_claims_remain_valid ... ok
+test conflicting_malformed_and_overflowing_budgets_fail ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/legacy_fixtures.rs (target/debug/deps/legacy_fixtures-17b91ca993112e3b)
+
+running 2 tests
+test schemas_one_through_five_remain_parseable_and_historically_verifiable ... ok
+test schema_three_and_newer_paths_are_portable_metadata ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests rosalind_receipt
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

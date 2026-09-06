@@ -3,6 +3,9 @@
 //! Note: this module is named `core`; inside the crate always reference it as
 //! `crate::core::…`. Reach the std `core` crate (rarely needed) as `::core::…`.
 
+/// Cooperative process-wide cancellation tokens and opt-in native signal handling.
+pub mod cancellation;
+
 pub mod budget;
 pub mod error;
 pub mod governor;

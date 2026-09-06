@@ -58,6 +58,10 @@ pub mod dataset_diff;
 pub mod doctor;
 /// Exact indexed read evidence and panel summaries with bounded batch execution.
 pub mod evidence;
+/// Offline contract checks for exact-evidence analyzer binaries.
+pub mod evidence_conformance;
+/// Standalone exact-evidence analyzer project generation.
+pub mod evidence_scaffold;
 /// Genomics primitives: the FM-index, persisted memory-mapped index, alignment, sort, eval.
 pub mod genomics;
 /// IO layer: spec-valid VCF writer + streaming FASTA/FASTQ/BAM readers.

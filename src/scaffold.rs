@@ -40,7 +40,7 @@ pub fn create_analyzer_project(name: &str, output: &Path) -> std::io::Result<Sca
         ("src/main.rs", replacements(MAIN_TEMPLATE)),
         ("tests/contract.rs", TEST_TEMPLATE.to_string()),
         ("scripts/contract-check.sh", replacements(CHECK_TEMPLATE)),
-        (".github/workflows/ci.yml", CI_TEMPLATE.to_string()),
+        (".github/workflows/ci.yml", replacements(CI_TEMPLATE)),
         ("README.md", replacements(README_TEMPLATE)),
     ];
     let mut created = Vec::new();

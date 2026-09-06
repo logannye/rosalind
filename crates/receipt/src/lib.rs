@@ -293,6 +293,34 @@ impl RunManifest {
         self.measurements.get(key).or_else(|| self.params.get(key))
     }
 
+    /// Read an exact byte budget, with historical MiB fallback. Both claims must
+    /// agree when present; malformed values and conversion overflow are errors.
+    pub fn memory_budget_bytes(&self) -> Result<Option<u64>, ManifestError> {
+        let parse = |key: &str| -> Result<Option<u64>, ManifestError> {
+            self.get_recorded(key)
+                .map(|value| {
+                    value.parse::<u64>().map_err(|_| {
+                        ManifestError(format!("malformed numeric field {key}: {value:?}"))
+                    })
+                })
+                .transpose()
+        };
+        let bytes = parse("memory_budget_bytes")?;
+        let mib = parse("memory_budget_mb")?
+            .map(|value| {
+                value
+                    .checked_mul(1 << 20)
+                    .ok_or_else(|| ManifestError("memory_budget_mb overflows a byte budget".into()))
+            })
+            .transpose()?;
+        if matches!((bytes, mib), (Some(a), Some(b)) if a != b) {
+            return Err(ManifestError(
+                "memory_budget_bytes disagrees with memory_budget_mb".into(),
+            ));
+        }
+        Ok(bytes.or(mib))
+    }
+
     /// Whether the (hash-protected) claim records that a measurement block exists.
     /// `verify` uses this to detect a measurement block stripped after the run — a
     /// claim that says `has_measurements` paired with a receipt that has none.
@@ -793,7 +821,13 @@ pub fn verify_receipt(text: &str, opts: &VerifyOpts) -> VerifyReport {
     };
     let recorded_peak = parse_num("peak_rss_bytes", &mut problems);
     let recorded_ws = parse_num("max_working_set_bytes", &mut problems);
-    let recorded_budget = parse_num("memory_budget_mb", &mut problems);
+    let recorded_budget = match manifest.memory_budget_bytes() {
+        Ok(budget) => budget,
+        Err(error) => {
+            problems.push(error.to_string());
+            None
+        }
+    };
 
     // Replay-recipe consistency. `command_template_tokens` prefers replay-schema-2
     // `command_argv` and falls back to the historical display command, so verify,
@@ -844,18 +878,29 @@ pub fn verify_receipt(text: &str, opts: &VerifyOpts) -> VerifyReport {
     }
 
     // Re-check the recorded realized peak against the budget (CLI overrides manifest).
-    let budget_mb = opts.budget_mb.or(recorded_budget);
-    match (budget_mb, recorded_peak) {
-        (Some(mb), Some(peak)) => {
-            if peak <= mb.saturating_mul(1024 * 1024) {
+    let override_budget = opts.budget_mb.and_then(|mb| match mb.checked_mul(1 << 20) {
+        Some(bytes) => Some(bytes),
+        None => {
+            problems.push("supplied MiB budget overflows a byte budget".into());
+            None
+        }
+    });
+    let budget_bytes = override_budget.or(recorded_budget);
+    match (budget_bytes, recorded_peak) {
+        (Some(budget), Some(peak)) => {
+            let description = if budget % (1 << 20) == 0 {
+                format!("{} MiB", budget >> 20)
+            } else {
+                format!("{budget} bytes")
+            };
+            if peak <= budget {
                 notes.push(format!(
-                    "peak {} MiB within budget {mb} MiB",
-                    peak / (1 << 20)
+                    "peak {} MiB within budget {description}",
+                    peak >> 20
                 ));
             } else {
                 problems.push(format!(
-                    "recorded peak {} MiB exceeded budget {mb} MiB",
-                    peak / (1 << 20)
+                    "recorded peak {peak} bytes exceeded budget {description}"
                 ));
             }
         }
@@ -901,25 +946,25 @@ pub fn verify_receipt(text: &str, opts: &VerifyOpts) -> VerifyReport {
         ),
     }
     // A recorded verdict must agree with the recorded peak vs the recorded budget.
-    if let (Some(verdict), Some(mb), Some(peak)) = (
+    if let (Some(verdict), Some(budget), Some(peak)) = (
         manifest
             .get_recorded("contract_verdict")
             .map(String::as_str),
         recorded_budget,
         recorded_peak,
     ) {
-        let actually_within = peak <= mb.saturating_mul(1024 * 1024);
+        let actually_within = peak <= budget;
         if verdict == "within" && !actually_within {
             problems.push(format!(
                 "internally inconsistent: contract_verdict='within' but recorded peak {} MiB \
-                 exceeds recorded budget {mb} MiB",
+                 exceeds recorded budget {budget} bytes",
                 peak / (1 << 20)
             ));
         }
         if verdict == "over" && actually_within {
             problems.push(format!(
                 "internally inconsistent: contract_verdict='over' but recorded peak {} MiB \
-                 is within recorded budget {mb} MiB",
+                 is within recorded budget {budget} bytes",
                 peak / (1 << 20)
             ));
         }

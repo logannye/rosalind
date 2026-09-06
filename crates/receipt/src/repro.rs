@@ -43,6 +43,23 @@ impl ReproReceipt {
         self.inner.finalize();
     }
 
+    /// Record the original exact byte budget and reseal the certificate.
+    /// This is a diagnostic about the parent, not a new execution limit.
+    pub fn set_declared_budget_bytes(&mut self, bytes: u64) {
+        self.inner
+            .params
+            .insert("declared_budget_bytes".into(), bytes.to_string());
+        if bytes % (1 << 20) == 0 {
+            self.inner
+                .params
+                .insert("declared_budget_mb".into(), (bytes >> 20).to_string());
+        } else {
+            self.inner.params.remove("declared_budget_mb");
+        }
+        self.inner.params.remove("manifest_blake3");
+        self.inner.finalize();
+    }
+
     /// Build (and seal) a certificate for one reproduction.
     ///
     /// `parent_claim` is the original receipt's `content_hash()`. `peak_rss_bytes` is the

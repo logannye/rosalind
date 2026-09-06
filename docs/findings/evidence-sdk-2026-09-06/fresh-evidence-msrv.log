@@ -1,0 +1,25 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+   Compiling rosalind-bio v0.5.0 (/Users/logannye/rosalind)
+   Compiling generated-evidence v0.1.0 (/private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-evidence-sdk-rgxfh5rv/generated-evidence)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.95s
+     Running unittests src/main.rs (target/debug/deps/generated_evidence-7488a61669144a2b)
+
+running 4 tests
+test tests::omitted_fields_are_not_zero_and_overflow_is_an_error ... ok
+test tests::checked_reducer_includes_zero_loci_and_multiple_requested_alts ... ok
+test tests::dataset_cannot_silently_change_stored_filters ... ok
+test tests::replay_preserves_exact_byte_budget_and_rejects_mismatched_fields ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/contract.rs (target/debug/deps/contract-871ab4b66de3222f)
+
+running 2 tests
+test conflicting_sources_are_rejected_before_creating_output ... ok
+test binary_supports_native_and_persisted_inputs ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.25s
+

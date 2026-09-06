@@ -98,6 +98,8 @@ pub struct TrustReport {
     pub enforcement_assurance: Option<String>,
     /// Recorded memory budget, when present and valid.
     pub budget_mb: Option<u64>,
+    /// Exact recorded byte budget, including non-MiB limits.
+    pub budget_bytes: Option<u64>,
 }
 
 impl TrustReport {
@@ -128,6 +130,7 @@ impl TrustReport {
             ),
             enforcement_assurance: None,
             budget_mb: None,
+            budget_bytes: None,
         }
     }
 
@@ -183,9 +186,11 @@ impl TrustReport {
             ),
         };
 
-        let budget_mb = manifest
-            .get_recorded("memory_budget_mb")
-            .and_then(|value| value.parse::<u64>().ok());
+        let budget = manifest.memory_budget_bytes();
+        let budget_bytes = budget.as_ref().ok().copied().flatten();
+        let budget_mb = budget_bytes
+            .filter(|bytes| bytes % (1 << 20) == 0)
+            .map(|bytes| bytes >> 20);
         let peak = manifest
             .get_recorded("peak_rss_bytes")
             .and_then(|value| value.parse::<u64>().ok());
@@ -198,31 +203,34 @@ impl TrustReport {
                     (manifest.params.get("enforce").map(String::as_str) == Some("true"))
                         .then(|| "declared-bound-cooperative".to_string())
                 });
-        let resource_contract = match (budget_mb, peak) {
-            (Some(budget), Some(realized)) if realized <= budget.saturating_mul(1024 * 1024) => {
+        let resource_contract = match (budget, peak) {
+            (Err(error), _) => {
+                TrustFacet::new("invalid-budget", TrustState::Failed, error.to_string())
+            }
+            (Ok(Some(budget)), Some(realized)) if realized <= budget => {
                 let assurance = enforcement_assurance.as_deref().unwrap_or("observed-only");
                 TrustFacet::new(
                     "within-budget",
                     TrustState::Satisfied,
                     format!(
-                        "The recorded peak fits the {budget} MiB budget; enforcement assurance is {assurance}."
+                        "The recorded peak fits the {budget} byte budget; enforcement assurance is {assurance}."
                     ),
                 )
             }
-            (Some(budget), Some(realized)) => TrustFacet::new(
+            (Ok(Some(budget)), Some(realized)) => TrustFacet::new(
                 "over-budget",
                 TrustState::Failed,
                 format!(
-                    "The recorded peak ({} MiB) exceeds the {budget} MiB budget.",
+                    "The recorded peak ({} MiB) exceeds the {budget} byte budget.",
                     realized / (1 << 20)
                 ),
             ),
-            (None, _) => TrustFacet::new(
+            (Ok(None), _) => TrustFacet::new(
                 "not-declared",
                 TrustState::NotApplicable,
                 "This run did not declare a memory budget; measurements may still be present.",
             ),
-            (Some(_), None) => TrustFacet::new(
+            (Ok(Some(_)), None) => TrustFacet::new(
                 "measurement-missing",
                 TrustState::Failed,
                 "A memory budget was declared, but no realized peak measurement is available.",
@@ -290,6 +298,7 @@ impl TrustReport {
             ),
             enforcement_assurance,
             budget_mb,
+            budget_bytes,
         }
     }
 
@@ -309,8 +318,11 @@ impl TrustReport {
             .budget_mb
             .map(|value| value.to_string())
             .unwrap_or_else(|| "null".to_string());
+        let bytes = self
+            .budget_bytes
+            .map_or_else(|| "null".to_string(), |value| value.to_string());
         format!(
-            "{{\"claim_id\":{claim},\"receipt_integrity\":{},\"artifact_completeness\":{},\"resource_contract\":{},\"reproduction_evidence\":{},\"signature\":{},\"enforcement_assurance\":{assurance},\"budget_mb\":{budget}}}",
+            "{{\"claim_id\":{claim},\"receipt_integrity\":{},\"artifact_completeness\":{},\"resource_contract\":{},\"reproduction_evidence\":{},\"signature\":{},\"enforcement_assurance\":{assurance},\"budget_mb\":{budget},\"budget_bytes\":{bytes}}}",
             self.receipt_integrity.to_json(),
             self.artifact_completeness.to_json(),
             self.resource_contract.to_json(),

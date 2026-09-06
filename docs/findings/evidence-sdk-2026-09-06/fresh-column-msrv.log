@@ -1,0 +1,200 @@
+    Updating crates.io index
+     Locking 202 packages to latest compatible versions
+      Adding blake3 v1.8.2 (available: v1.8.7)
+      Adding clap v4.5.51 (available: v4.5.61)
+      Adding clap_builder v4.5.51 (available: v4.5.61)
+      Adding clap_derive v4.5.49 (available: v4.5.61)
+      Adding hts-sys v2.2.0 (available: v2.2.1)
+      Adding idna_adapter v1.2.0 (available: v1.2.1)
+      Adding jobserver v0.1.34 (available: v0.1.35, requires Rust 1.85)
+      Adding serde v1.0.228 (available: v1.0.229)
+      Adding serde_core v1.0.228 (available: v1.0.229)
+      Adding serde_derive v1.0.228 (available: v1.0.229)
+      Adding serde_json v1.0.150 (available: v1.0.151)
+      Adding wasip2 v1.0.4+wasi-0.2.12 (requires Rust 1.87.0)
+      Adding wit-bindgen v0.57.1 (requires Rust 1.85.0)
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.24
+   Compiling libc v0.2.189
+   Compiling find-msvc-tools v0.1.12
+   Compiling shlex v2.0.1
+   Compiling cfg-if v1.0.4
+   Compiling autocfg v1.5.1
+   Compiling libm v0.2.16
+   Compiling pkg-config v0.3.34
+   Compiling stable_deref_trait v1.2.1
+   Compiling zerocopy v0.8.56
+   Compiling once_cell v1.21.4
+   Compiling litemap v0.7.5
+   Compiling writeable v0.5.5
+   Compiling icu_locid_transform_data v1.5.1
+   Compiling getrandom v0.3.4
+   Compiling icu_properties_data v1.5.1
+   Compiling memchr v2.8.3
+   Compiling version_check v0.9.5
+   Compiling vcpkg v0.2.15
+   Compiling arrayref v0.3.9
+   Compiling arrayvec v0.7.8
+   Compiling core-foundation-sys v0.8.7
+   Compiling constant_time_eq v0.3.1
+   Compiling num-traits v0.2.19
+   Compiling bytes v1.12.1
+   Compiling lexical-util v1.0.7
+   Compiling icu_normalizer_data v1.5.1
+   Compiling ahash v0.8.12
+   Compiling aho-corasick v1.1.5
+   Compiling iana-time-zone v0.1.65
+   Compiling smallvec v1.16.0
+   Compiling quick-error v1.2.3
+   Compiling arrow-schema v55.2.0
+   Compiling regex-syntax v0.8.11
+   Compiling semver v1.0.28
+   Compiling fs-utils v1.1.4
+   Compiling utf8_iter v1.0.4
+   Compiling rustc_version v0.4.1
+   Compiling glob v0.3.4
+   Compiling rustversion v1.0.23
+   Compiling write16 v1.0.0
+   Compiling heck v0.5.0
+   Compiling hashbrown v0.15.5
+   Compiling semver v0.1.20
+   Compiling utf16_iter v1.0.5
+   Compiling rustc_version v0.1.7
+   Compiling flatbuffers v25.12.19
+   Compiling lexical-write-integer v1.0.6
+   Compiling regex-automata v0.4.18
+   Compiling lexical-parse-integer v1.0.6
+   Compiling syn v1.0.109
+   Compiling serde_core v1.0.228
+   Compiling lazy_static v1.5.0
+   Compiling utf8parse v0.2.2
+   Compiling thiserror v1.0.69
+   Compiling anstyle-parse v0.2.7
+   Compiling lexical-parse-float v1.0.6
+   Compiling lexical-write-float v1.0.6
+   Compiling newtype_derive v0.1.6
+   Compiling tracing-core v0.1.36
+   Compiling radium v0.7.0
+   Compiling syn v2.0.119
+   Compiling syn v3.0.5
+   Compiling zmij v1.0.23
+   Compiling colorchoice v1.0.5
+   Compiling anstyle v1.0.14
+   Compiling anstyle-query v1.1.5
+   Compiling byteorder v1.5.0
+   Compiling crc32fast v1.5.1
+   Compiling percent-encoding v2.3.2
+   Compiling jobserver v0.1.34
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling cc v1.4.5
+   Compiling paste v1.0.15
+   Compiling bitflags v2.13.1
+   Compiling anstream v0.6.21
+   Compiling form_urlencoded v1.2.2
+   Compiling regex v1.13.1
+   Compiling num-integer v0.1.47
+   Compiling num-complex v0.4.6
+   Compiling num-bigint v0.4.8
+   Compiling displaydoc v0.2.7
+   Compiling num-iter v0.1.46
+   Compiling blake3 v1.8.2
+   Compiling cmake v0.1.58
+   Compiling lzma-sys v0.1.20
+   Compiling libz-sys v1.1.29
+   Compiling bzip2-sys v0.1.13+1.0.8
+   Compiling synstructure v0.13.2
+   Compiling num-rational v0.4.2
+   Compiling num v0.4.3
+   Compiling chrono v0.4.45
+   Compiling hts-sys v2.2.0
+   Compiling atoi v2.0.0
+   Compiling ordered-float v2.10.1
+   Compiling lexical-core v1.0.6
+   Compiling log v0.4.34
+   Compiling anyhow v1.0.104
+   Compiling integer-encoding v3.0.4
+   Compiling serde v1.0.228
+   Compiling clap_lex v0.7.7
+   Compiling strsim v0.11.1
+   Compiling tap v1.0.1
+   Compiling pin-project-lite v0.2.17
+   Compiling simd-adler32 v0.3.10
+   Compiling adler2 v2.0.1
+   Compiling serde_json v1.0.150
+   Compiling zerofrom-derive v0.1.7
+   Compiling yoke-derive v0.7.5
+   Compiling zerovec-derive v0.10.4
+   Compiling zerocopy-derive v0.8.56
+   Compiling icu_provider_macros v1.5.0
+   Compiling thiserror-impl v1.0.69
+   Compiling tracing-attributes v0.1.31
+   Compiling derive-new v0.6.0
+   Compiling strum_macros v0.26.4
+   Compiling base64 v0.22.1
+   Compiling ryu v1.0.23
+   Compiling miniz_oxide v0.9.1
+   Compiling clap_derive v4.5.49
+   Compiling serde_derive v1.0.228
+   Compiling zerofrom v0.1.8
+   Compiling clap_builder v4.5.51
+   Compiling derive-new v0.5.9
+   Compiling tracing v0.1.44
+   Compiling wyz v0.5.1
+   Compiling thrift v0.17.0
+   Compiling tracing-log v0.2.0
+   Compiling matchers v0.2.0
+   Compiling sharded-slab v0.1.7
+   Compiling thread_local v1.1.10
+   Compiling seq-macro v0.3.6
+   Compiling funty v2.0.0
+   Compiling rosalind-build-info v0.1.0 (/Users/logannye/rosalind/crates/build-info)
+   Compiling twox-hash v2.1.4
+   Compiling nu-ansi-term v0.50.3
+   Compiling itoa v1.0.18
+   Compiling custom_derive v0.1.7
+   Compiling ieee754 v0.2.6
+   Compiling rosalind-bio v0.5.0 (/Users/logannye/rosalind)
+   Compiling linear-map v1.2.0
+   Compiling generated-column v0.1.0 (/private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-evidence-sdk-rgxfh5rv/generated-column)
+   Compiling bitvec v1.1.1
+   Compiling rosalind-receipt v0.3.0 (/Users/logannye/rosalind/crates/receipt)
+   Compiling clap v4.5.51
+   Compiling flate2 v1.1.10
+   Compiling yoke v0.7.5
+   Compiling tracing-subscriber v0.3.23
+   Compiling bio-types v1.0.4
+   Compiling half v2.7.1
+   Compiling arrow-buffer v55.2.0
+   Compiling arrow-data v55.2.0
+   Compiling zerovec v0.10.4
+   Compiling arrow-array v55.2.0
+   Compiling arrow-select v55.2.0
+   Compiling arrow-ipc v55.2.0
+   Compiling tinystr v0.7.6
+   Compiling icu_collections v1.5.0
+   Compiling arrow-cast v55.2.0
+   Compiling icu_locid v1.5.0
+   Compiling icu_provider v1.5.0
+   Compiling icu_locid_transform v1.5.0
+   Compiling parquet v55.2.0
+   Compiling icu_properties v1.5.1
+   Compiling icu_normalizer v1.5.0
+   Compiling idna_adapter v1.2.0
+   Compiling idna v1.1.0
+   Compiling url v2.5.8
+   Compiling rust-htslib v0.44.1
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 18.92s
+     Running unittests src/main.rs (target/debug/deps/generated_column-d6a7bef81d13dffd)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/contract.rs (target/debug/deps/contract-f8d461349a5ccb94)
+
+running 1 test
+test receipt_claim_is_path_portable ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

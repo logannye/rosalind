@@ -42,7 +42,7 @@ allele oracles pass locally, as do annotation format/budget/worker and replay te
 The workspace suite passed 514 tests before the final focused validation hardening;
 those additional encoder checks and the 18-test Python 3.11 suite pass. Python 3.9
 also passes the existing suite and all five annotation tests. Clippy, Rust 1.83,
-and offline documentation-link checks pass. Platform CI remains pending.
+and offline documentation-link checks pass. PR #101 passed every platform gate and merged.
 
 ## Portable evidence follow-up
 
@@ -60,6 +60,21 @@ distinguish the frozen Linux snapshot and later focused error-reporting changes.
 These results do not establish registry publication or external adoption.
 
 See [reusable evidence](reusable-evidence.md) for supported paths and limitations.
+
+## Managed evidence analyzer follow-up
+
+The development tree adds an evidence artifact factory/runner, an opt-in evidence
+scaffold, and conformance over native and persisted sources. Custom reducers declare
+retained memory and implement their output; the runner owns canonical batches,
+resource admission, cancellation, atomic publication, receipts and relocated replay.
+Unknown analyzer bounds remain observation-only. Exact byte budgets are interpreted
+consistently by receipt verification and trust inspection; historical schemas remain
+supported. Focused lifecycle and cancellation tests and fresh generated Rust 1.83
+projects pass. All 19 external conformance checks, full workspace tests, Clippy/MSRV and both
+Python suites pass. Final packaged-install checks are in progress.
+[Retained SDK results](findings/evidence-sdk-2026-09-06/README.md) include the fresh
+wheel reproduction that caught a receipt-sealing bug and its focused correction.
+These are source-candidate checks, not registry publication or independent adoption.
 
 ## Validation results
 

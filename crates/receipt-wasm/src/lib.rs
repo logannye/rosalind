@@ -47,9 +47,11 @@ pub fn inspect_receipt(json: &str) -> String {
     let peak = manifest
         .get_recorded("peak_rss_bytes")
         .and_then(|v| v.parse::<u64>().ok());
-    let resource = match (budget, peak) {
-        (Some(mb), Some(bytes)) if bytes <= mb.saturating_mul(1 << 20) => "within",
-        (Some(_), Some(_)) => "over",
+    let budget_bytes = manifest.memory_budget_bytes();
+    let resource = match (&budget_bytes, peak) {
+        (Err(_), _) => "invalid",
+        (Ok(Some(limit)), Some(bytes)) if bytes <= *limit => "within",
+        (Ok(Some(_)), Some(_)) => "over",
         _ => "unknown",
     };
     let integrity = match check.verdict {
@@ -64,7 +66,7 @@ pub fn inspect_receipt(json: &str) -> String {
         CertificateEvidence::NotSupplied,
     );
     format!(
-        "{{\"ok\":true,\"integrity\":\"{}\",\"detail\":\"{}\",\"claim\":\"{}\",\"subcommand\":\"{}\",\"tool_version\":\"{}\",\"producer_name\":{},\"producer_version\":{},\"analyzer_id\":{},\"analyzer_version\":{},\"budget_mb\":{},\"peak_rss_bytes\":{},\"resource\":\"{}\",\"parent_claim\":{},\"reproduction_verdict\":{},\"inputs\":{},\"outputs\":{},\"input_files\":{},\"output_files\":{},\"parameters\":{},\"measurements\":{},\"trust\":{}}}",
+        "{{\"ok\":true,\"integrity\":\"{}\",\"detail\":\"{}\",\"claim\":\"{}\",\"subcommand\":\"{}\",\"tool_version\":\"{}\",\"producer_name\":{},\"producer_version\":{},\"analyzer_id\":{},\"analyzer_version\":{},\"budget_mb\":{},\"budget_bytes\":{},\"peak_rss_bytes\":{},\"resource\":\"{}\",\"parent_claim\":{},\"reproduction_verdict\":{},\"inputs\":{},\"outputs\":{},\"input_files\":{},\"output_files\":{},\"parameters\":{},\"measurements\":{},\"trust\":{}}}",
         integrity,
         json_escape(&check.detail),
         manifest.content_hash(),
@@ -75,6 +77,7 @@ pub fn inspect_receipt(json: &str) -> String {
         optional_param(&manifest, "analyzer.id"),
         optional_param(&manifest, "analyzer.version"),
         budget.map_or_else(|| "null".to_string(), |v| v.to_string()),
+        budget_bytes.ok().flatten().map_or_else(|| "null".to_string(), |v| v.to_string()),
         peak.map_or_else(|| "null".to_string(), |v| v.to_string()),
         resource,
         optional_param(&manifest, "parent_claim"),

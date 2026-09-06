@@ -1,0 +1,15 @@
+   Compiling rosalind-bio v0.5.0 (/Users/logannye/rosalind)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 3.09s
+     Running unittests src/lib.rs (target/debug/deps/rosalind-87373ea2f24a5c08)
+
+running 1 test
+
+running 1 test
+test core::cancellation::tests::delayed_old_signal_cannot_cancel_a_new_job_or_erase_its_cancellation ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 255 filtered out; finished in 0.00s
+
+test core::cancellation::tests::delayed_old_signal_cannot_cancel_a_new_job_or_erase_its_cancellation ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 255 filtered out; finished in 0.01s
+

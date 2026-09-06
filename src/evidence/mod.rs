@@ -4,6 +4,12 @@
 //! execution microtile; it never selects biological observations. Read counts
 //! intentionally count overlapping mates separately and do not collapse UMIs.
 
+mod artifact;
+pub use artifact::{
+    parse_artifact_query, run_evidence_artifact, ArtifactSelection, EvidenceArtifactError,
+    EvidenceArtifactFactory, EvidenceArtifactOutcome, EvidenceArtifactSource, EvidenceArtifactSpec,
+    DEFAULT_ARTIFACT_RECEIPT_BYTES, MAX_ARTIFACT_QUERY_BYTES,
+};
 mod batch;
 mod encoding;
 mod engine;

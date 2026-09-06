@@ -7,7 +7,7 @@ build = "build.rs"
 
 [dependencies]
 anyhow = "1"
-clap = { version = "4.5", features = ["derive"] }
+clap = { version = "=4.5.51", features = ["derive"] }
 rosalind-bio = { version = "=__ROSALIND_VERSION__", features = ["contract-testkit"] }
 
 [build-dependencies]

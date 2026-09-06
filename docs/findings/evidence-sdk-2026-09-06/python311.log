@@ -1,0 +1,14 @@
+.............[E::idx_find_and_load] Could not retrieve index file for '/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmp2iqksrop/counts-0.vcf.gz'
+[E::idx_find_and_load] Could not retrieve index file for '/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmp2iqksrop/counts-0.vcf.gz'
+[E::idx_find_and_load] Could not retrieve index file for '/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmp2iqksrop/counts-1.vcf.gz'
+[E::idx_find_and_load] Could not retrieve index file for '/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmp2iqksrop/counts-1.vcf.gz'
+[E::idx_find_and_load] Could not retrieve index file for '/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmp2iqksrop/counts-2.vcf.gz'
+[E::idx_find_and_load] Could not retrieve index file for '/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmp2iqksrop/counts-2.vcf.gz'
+.[E::idx_find_and_load] Could not retrieve index file for '/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmp9tt27lqm/empty.bcf'
+...[E::idx_find_and_load] Could not retrieve index file for '/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmpz3nurz8e/annotated-1.vcf.gz'
+[E::idx_find_and_load] Could not retrieve index file for '/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmpz3nurz8e/annotated-2.bcf'
+......
+----------------------------------------------------------------------
+Ran 23 tests in 15.063s
+
+OK

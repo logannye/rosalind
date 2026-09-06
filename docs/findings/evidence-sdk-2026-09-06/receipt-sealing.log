@@ -1,0 +1,9 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.09s
+     Running unittests src/lib.rs (target/debug/deps/rosalind-87373ea2f24a5c08)
+
+running 2 tests
+test evidence::artifact::tests::in_place_measurement_reseal_preserves_claim_hash_and_allocation ... ok
+test evidence::artifact::tests::resource_failure_during_publication_seals_partials ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 256 filtered out; finished in 0.06s
+
