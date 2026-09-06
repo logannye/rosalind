@@ -159,14 +159,39 @@ pub(super) fn execute_outputs(
         if let Some(p) = &reuse_plan {
             println!(
                 "{}",
-                serde_json::json!({"model":p.model_id,"reused_loci":p.reused_loci,"computed_loci":p.computed_loci,"metadata_bytes":p.metadata_bytes,"source_decoder_bytes":p.source_decoder_bytes,"merge_bytes":p.merge_bytes,"analyzer_bytes":p.analyzer_bytes,"native_bytes":p.native_bytes,"fields":p.output_fields.bits(),"source_fields":p.source_fields.bits(),"predicted_peak_rss_bytes":p.predicted_peak_rss_bytes,"science_blake3":science_digest})
+                serde_json::json!({"model":p.model_id,"reused_loci":p.reused_loci,"computed_loci":p.computed_loci,"metadata_bytes":p.metadata_bytes,"source_decoder_bytes":p.source_decoder_bytes,"merge_bytes":p.merge_bytes,"analyzer_bytes":p.analyzer_bytes,"native_bytes":p.native_bytes,"fields":p.output_fields.bits(),"source_fields":p.source_fields.bits(),"predicted_peak_rss_bytes":p.predicted_peak_rss_bytes,"science_blake3":science_digest,"native_decoder":plan.decoder_measurements()})
             );
             return Ok(());
         }
-        println!("{{\"model\":\"{}\",\"baseline_rss_bytes\":{},\"fixed_bytes\":{},\"bytes_per_locus\":{},\"microtile_bases\":{},\"canonical_tile_bases\":{},\"analyzer_bytes\":{},\"selected_loci\":{},\"fields\":{},\"schema\":{},\"predicted_peak_rss_bytes\":{},\"science_blake3\":\"{}\"}}",
-            plan.model_id, plan.baseline_rss_bytes, plan.fixed_bytes, plan.bytes_per_locus,
-            dataset_plan.as_ref().map_or(plan.microtile_bases, |plan| plan.microtile_bases), plan.canonical_tile_bases, plan.analyzer_bytes,
-            plan.selected_loci, fields.bits(), fields.schema_version(), predicted_peak, science_digest);
+        println!(
+            "{}",
+            serde_json::json!({
+                "model": plan.model_id,
+                "baseline_rss_bytes": plan.baseline_rss_bytes,
+                "fixed_bytes": plan.fixed_bytes,
+                "bytes_per_locus": plan.bytes_per_locus,
+                "microtile_bases": dataset_plan.as_ref().map_or(plan.microtile_bases, |plan| plan.microtile_bases),
+                "canonical_tile_bases": plan.canonical_tile_bases,
+                "analyzer_bytes": plan.analyzer_bytes,
+                "selected_loci": plan.selected_loci,
+                "fields": fields.bits(),
+                "schema": fields.schema_version(),
+                "predicted_peak_rss_bytes": predicted_peak,
+                "science_blake3": science_digest,
+                "decoder_bytes": plan.decoder_bytes,
+                "decoder_model": plan.decoder_model,
+                "decoder_details": plan.decoder_measurements(),
+                "parallel": dataset_plan.as_ref().map(|value| serde_json::json!({
+                    "partition_count": value.partition_count,
+                    "worker_count": value.worker_count,
+                    "baseline_rss_bytes": value.baseline_rss_bytes,
+                    "worker_bytes": value.worker_bytes,
+                    "reducer_bytes": value.reducer_bytes,
+                    "metadata_queue_bytes": value.metadata_queue_bytes,
+                    "predicted_peak_rss_bytes": value.predicted_peak_rss_bytes,
+                })),
+            })
+        );
         return Ok(());
     }
     let mut primary = command
@@ -671,11 +696,17 @@ pub(super) fn execute_outputs(
             );
         }
     }
+    manifest.measurements.extend(plan.decoder_measurements());
     for (key, value) in [
         ("baseline_rss_bytes", initial_rss),
         ("peak_rss_bytes", peak),
         ("predicted_peak_rss_bytes", predicted_peak),
         ("execution.record_visits", stats.record_visits),
+        (
+            "execution.max_returned_record_bytes",
+            stats.max_record_bytes,
+        ),
+        ("execution.max_returned_read_length", stats.max_read_length),
         (
             "execution.sample_filtered_record_visits",
             stats.sample_filtered_record_visits,

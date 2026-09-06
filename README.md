@@ -63,6 +63,8 @@ summaries, use `rosalind analyze panel-qc` with the same reference, alignment, a
 BED arguments. Add `--plan` to either analysis command to inspect resource planning.
 
 Inputs need BAM+BAI/CSI or CRAM+CRAI; CRAM requires an explicit local FASTA.
+The current CRAM path supports checked CRAM 3.0 layouts and validates the whole
+file once per run; see [supported layouts and costs](docs/SEMANTICS.md#cram-decoder-admission).
 References can be indexed FASTA, `.rref`, or compatible legacy `.idx` files.
 The default evidence profile requires MAPQ 20 and base quality 20, and excludes
 unmapped, secondary, supplementary, duplicate, and QC-failed reads. It counts
@@ -94,8 +96,8 @@ supported runs must preserve their evidence across admitted budgets, tile layout
 and worker counts. Caching is opt-in; reused inputs and partitions are content-verified.
 
 Memory planning and cooperative RSS checks are distinct from an OS-enforced cap.
-Native decoder allocations remain a limitation; the representative CRAM study
-identified a planning underestimate under correction. Use the
+Native validation can allocate before a cooperative check. CRAM planning now
+includes a checked container envelope and a complete record-validation pass. Use the
 [resource findings](docs/benchmarks-and-limitations.md) to assess measured behavior,
 not a universal hard-memory guarantee.
 

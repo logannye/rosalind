@@ -43,8 +43,13 @@ the native and container exit statuses, complete Docker inspection including
 `OOMKilled`, exact commands, stdout/stderr, input/binary/image identities, and
 every output/partial/receipt file's size and SHA256. Completed artifacts are
 independently verified using the native CLI and compared by their physical bytes.
-Capacity failures must have an integrity-checked receipt explicitly identifying
-the partial. First-party CLI failure receipts retain the requested receipt path;
+The BAM capacity case fails during analysis and must have an integrity-checked
+receipt explicitly identifying the partial. The CRAM envelope checks the same
+read-length limit during preflight, so that case instead requires the specific
+capacity error and no output or partial receipt. The report names these separate
+expected phases. Historical baseline reports retain their executed harness,
+which predates the CRAM preflight and therefore expected a runtime partial.
+First-party CLI failure receipts retain the requested receipt path;
 their failed status and partial output identity distinguish them from completed
 artifacts. An exit137 alone is insufficient evidence of kernel OOM.
 

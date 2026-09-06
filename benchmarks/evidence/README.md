@@ -96,13 +96,21 @@ Three reuse modes are separately measured:
 
 - `cold`: create a new application cache for this workload, case and repetition.
 - `resumed`: run native extraction again with that cache. Inputs are still hashed;
-  successful reuse must report zero alignment visits and zero computed partitions.
+  successful reuse must report zero **indexed extraction** visits and zero computed
+  partitions. The CRAM decoder model also performs a whole-file native validation
+  pass before trusting decoded record sizes, including records outside the selected
+  loci. This separate decoding work still occurs on native cache resume.
 - `persisted`: run serial `dataset extract` using the portable dataset manifest
   published by the cold run. This reads and verifies stored evidence without
   reopening or rehashing the original alignment/reference. Its receipt must
   report zero alignment visits and `original_sources_rehashed=false`.
 
 All three outputs must equal the independent oracle and the fresh native output.
+The harness surfaces `execution.decoder_model`/`execution.decoder_bytes` and all
+`execution.cram.*` measurements. Whole-file validation records, bases, and elapsed
+time are summarized separately from indexed extraction visits. Validation time is
+already included in native setup and whole-process timing; do not add it again.
+Absent counters in an older retained report are unknown, not evidence of zero work.
 “Cold” refers to Rosalind's application cache. The harness does not flush or make
 claims about the operating system's filesystem cache. It deterministically
 alternates independent case groups while keeping cold/resume/persisted order.

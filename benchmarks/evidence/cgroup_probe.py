@@ -108,6 +108,11 @@ def check_case(case, result):
             errors.append('partial receipt does not identify a failed run')
         if not result.get('partial_integrity'):
             errors.append('partial receipt integrity was not independently verified')
+    elif case['expected'] == 'capacity-preflight':
+        if code != 4 or oom or partial or partial_receipt:
+            errors.append('expected a preflight capacity failure before output creation')
+        if not result.get('capacity_preflight_reported'):
+            errors.append('CRAM preflight did not identify the declared read-length failure')
     elif case['expected'] == 'oom':
         if not oom or code in (None, 0):
             errors.append('kernel OOM was not established by memory.events or Docker OOMKilled')
@@ -141,6 +146,12 @@ def collect(root, case, inspect, timed_out):
     manifest = root / 'result.tsv.manifest.json'
     partial = root / 'result.tsv.partial'
     partial_manifest = root / 'result.tsv.manifest.json.partial'
+    error_path = root / 'analysis.stderr'
+    if error_path.is_file():
+        with error_path.open('rb') as stream:
+            error_text = stream.read(64 << 10).decode(errors='replace')
+    else:
+        error_text = ''
     result = {
         'case': case,
         'analysis_exit_code': number(root / 'analysis.exit_code'),
@@ -156,6 +167,9 @@ def collect(root, case, inspect, timed_out):
         'success_receipt': False,
         'partial_artifact': partial.is_file(),
         'partial_receipt': False,
+        'capacity_preflight_reported': (
+            'CRAM container mean read length exceeds declared max_read_len' in error_text
+            or ('whole-file CRAM read length ' in error_text and ' exceeds max_read_len ' in error_text)),
         'files': {str(p.relative_to(root)): {'bytes': p.stat().st_size, 'sha256': sha256(p)}
                   for p in sorted(root.rglob('*')) if p.is_file()},
     }
@@ -302,7 +316,8 @@ def main(argv=None):
             {'name': 'preflight-refusal', 'expected': 'refused', 'budget_mib': args.memory_mib,
              'extra': ['--max-record-bytes', str(args.memory_mib << 21)]},
             {'name': 'startup-budget-breach', 'expected': 'startup-breach', 'budget_mib': 1},
-            {'name': 'declared-capacity', 'expected': 'capacity', 'budget_mib': args.memory_mib, 'extra': ['--max-read-len', '1']},
+            {'name': 'declared-capacity', 'expected': 'capacity-preflight' if cram else 'capacity',
+             'budget_mib': args.memory_mib, 'extra': ['--max-read-len', '1']},
             {'name': 'allocation-oom-control', 'expected': 'oom', 'hard_mib': 32, 'control': True},
         ]
         if args.native_oom_mib:

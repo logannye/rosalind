@@ -155,6 +155,45 @@ capacities. New runs record `pileup.semantics=exact-or-fail-v1` and fail at capa
 instead of silently choosing a subset. Old receipts still verify at their original
 schema capability; replay of old behavior requires the matching producer.
 
+### CRAM decoder admission
+
+The `cram-container-envelope-v1` execution profile supports CRAM **3.0**,
+single-reference containers/slices, RAW or GZIP metadata, and RAW/GZIP/rANS4
+(order 0/1) data blocks. Multi-reference layouts, other format versions/codecs,
+and unsupported encoding metadata produce an explicit unsupported-request error.
+Use BAM when a CRAM layout is outside this preview profile. The local decoder
+FASTA must have an adjacent FAI and a matching dictionary; CRAI is required.
+
+Before opening a native decoder, a bounded pass checks container/block metadata,
+CRC and declared expansion sizes, supported encoding structures, reference spans,
+and index syntax/storage. Every CRAI entry must match the scanned slice inventory;
+missing, extra, or stale entries fail before indexed extraction. Explicit limits include
+8 MiB metadata, 64 MiB per block,
+256 MiB per container, one million records and 4,096 blocks per container. These
+are admission limits, not scientific filters. Refusing an unsupported envelope
+does not mean that a file is invalid in the broader CRAM specification.
+
+Next, a **complete sequential validation pass** checks every decoded record against
+the unchanged caller-supplied payload/read-length limits, including off-target
+records. It checks the process budget after native reads. Native code may allocate
+before that check; a detected breach is a runtime resource failure, not proof of
+prospective allocation control. The final indexed-decoder plan uses the verified
+whole-file maximum payload plus container, codec, reference, index and allocation
+coexistence reserves. The validation peak is included in the process baseline.
+Workers share the completed validation and input guards rather than each decoding
+the whole file again. Inputs must remain immutable throughout. `--plan` also runs
+the validation pass; a separate later CLI run validates again. Retain an open
+native session when an application needs to plan and execute without repeating setup.
+
+Plan output and receipts record `execution.decoder_model`, `execution.decoder_bytes`
+and `execution.cram.*` metadata and validation measurements. Validation records,
+elapsed time and maxima are execution diagnostics; they never enter per-locus
+biological counts or scientific identity. The whole-file pass adds setup cost even
+for sparse selections and cache resume. Zero indexed `execution.record_visits`
+does **not** mean zero CRAM validation decoding. Saved-dataset queries avoid opening
+the original CRAM altogether. Historical artifacts still verify; replay with
+earlier execution behavior requires their matching producer.
+
 ## Identity, replay, and reuse
 
 Scientific identity includes content, normalized selection, profile, fields, and

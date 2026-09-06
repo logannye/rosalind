@@ -266,7 +266,7 @@ def assess_gates(manifest, measurements):
             "effective_tiles": len(tiles) >= gates["min_effective_tiles"],
             "observed_work_changes": gates["min_effective_tiles"] < 2 or len(work) >= 2,
             "effective_workers": set(gates["workers"]) <= set(workers),
-            "resume_performs_no_alignment_extraction": all(
+            "resume_performs_no_indexed_extraction": all(
                 row.get("effective", {}).get("record_visits") == 0
                 and row.get("effective", {}).get("computed_partitions") == 0
                 and row.get("effective", {}).get("reused_partitions", 0) > 0
@@ -288,7 +288,9 @@ def summaries(measurements):
         summary = dict(zip(("workload", "kind", "case", "phase"), key))
         summary.update(requested_repeats=len(rows), completed_repeats=sum(row.get("valid", False) for row in rows))
         for metric in ("wall_seconds", "peak_rss_bytes", "output_bytes", "user_cpu_seconds",
-                       "system_cpu_seconds", "filesystem_input_operations", "filesystem_output_operations"):
+                       "system_cpu_seconds", "filesystem_input_operations", "filesystem_output_operations",
+                       "indexed_alignment_record_visits", "decoder_bytes", "cram_validation_records",
+                       "cram_validation_bases", "cram_validation_wall_seconds"):
             values = [row[metric] for row in rows if row.get("valid") and row.get(metric) is not None]
             if values:
                 summary[metric] = dict(median=statistics.median(values), minimum=min(values), maximum=max(values))
@@ -379,6 +381,20 @@ def measure_job(manifest, binary, root, job, workload, cases, row, measure):
                 claim = read_json(receipt, 32 << 20)
                 values = claim.get("measurements", {})
                 row["receipt_measurements"] = values
+                if "execution.decoder_model" in values:
+                    row["decoder_model"] = values["execution.decoder_model"]
+                if "execution.decoder_bytes" in values:
+                    row["decoder_bytes"] = unsigned(values["execution.decoder_bytes"], "decoder bytes")
+                cram = {key.removeprefix("execution.cram."): value for key, value in values.items()
+                        if key.startswith("execution.cram.")}
+                if cram:
+                    row["cram_decoder_measurements"] = cram
+                if "validated_records" in cram:
+                    row["cram_validation_records"] = unsigned(cram["validated_records"], "CRAM validation records")
+                if "validated_bases" in cram:
+                    row["cram_validation_bases"] = unsigned(cram["validated_bases"], "CRAM validation bases")
+                if "validation_wall_micros" in cram:
+                    row["cram_validation_wall_seconds"] = unsigned(cram["validation_wall_micros"], "CRAM validation time") / 1000000
                 row["producer"] = {key: value for key, value in claim.get("params", {}).items()
                                    if key.startswith(("producer.", "code_", "deps_", "target_", "rustc_"))}
                 if job["kind"] == "dataset":
@@ -394,6 +410,7 @@ def measure_job(manifest, binary, root, job, workload, cases, row, measure):
                         "computed_partitions": unsigned(values.get("execution.computed_partitions", 0), "computed partitions"),
                         "reused_partitions": unsigned(values.get("execution.reused_partitions", 0), "reused partitions"),
                     }
+                row["indexed_alignment_record_visits"] = row["effective"]["record_visits"]
                 if row["exit_code"] == 0:
                     validate_resources(row, claim, case)
             elif row["exit_code"] == 0:
@@ -448,6 +465,7 @@ def execute(manifest, binary, root, manifest_path, smoke=False, measure=run_meas
                       "Pysam times cover extraction and TSV encoding; it does not hash sources, seal receipts or verify outputs.",
                       "Native whole-process times include input hashing, extraction, encoding and artifact publication; verification is measured separately.",
                       "Native receipt phase timings combine analysis and encoding; no isolated kernel-only claim is made.",
+                      "Zero indexed extraction on resume does not imply zero alignment decoding: CRAM whole-file validation is reported separately when available.",
                       "Setup timings include hashing; they are not disjoint phases. Startup/final harness hashes are outside invocation timing.",
                       "Oracle arrays are bounded by tile width; native decoder/header/aux allocations are observed, with post-decode checks.",
                       "OS filesystem operation counters are retained as operations, not converted to physical byte traffic.",
