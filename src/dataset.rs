@@ -156,6 +156,7 @@ fn request_digest(engine: &EvidenceEngine) -> String {
     field(&crate::evidence::EvidenceFields::VERSION.to_le_bytes());
     field(&request.fields.bits().to_le_bytes());
     field(crate::evidence::EvidenceProfile::ID.as_bytes());
+    field(engine.sample_scope().canonical_json().as_bytes());
     let profile = &request.profile;
     field(&[
         profile.min_mapq,
@@ -750,6 +751,10 @@ fn add_stats(total: &mut EvidenceRunStats, part: &EvidenceRunStats) -> Result<()
         (
             &mut total.filtered_record_visits,
             part.filtered_record_visits,
+        ),
+        (
+            &mut total.sample_filtered_record_visits,
+            part.sample_filtered_record_visits,
         ),
         (&mut total.microtiles, part.microtiles),
     ] {

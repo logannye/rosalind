@@ -8,14 +8,20 @@ mod encoding;
 mod engine;
 mod panel;
 mod reference;
+mod sample;
 mod selection;
 
 pub use encoding::{
     read_evidence_batches, EvidenceArrowWriter, EvidenceTsvWriter, EVIDENCE_ARROW_BATCH_ROWS,
 };
 pub use engine::{EvidenceEngine, EvidencePlan, EvidenceRunStats, EvidenceWorkerFactory};
-pub use panel::{FusedAnalyzers, PanelQcAnalyzer, PanelSummary, PanelTarget};
+pub use panel::{
+    FusedAnalyzers, PanelQcAnalyzer, PanelSummary, PanelTarget, DEFAULT_MIN_CALLABLE_DEPTH,
+};
 pub use reference::EvidenceReference;
+pub use sample::{
+    EvidenceReadGroup, EvidenceSampleMode, EvidenceSampleScope, EvidenceSampleSelection,
+};
 pub use selection::{EvidenceSelection, SnvSite};
 
 use crate::core::ContigSet;
@@ -221,6 +227,8 @@ pub struct EvidenceRequest {
     pub cram_reference: Option<PathBuf>,
     /// Requested loci, normalized before execution.
     pub selection: EvidenceSelection,
+    /// Resolve or explicitly select sample membership from alignment RG/SM metadata.
+    pub sample_selection: EvidenceSampleSelection,
     /// Physical output fields; schema v1 requires the complete field set.
     pub fields: EvidenceFields,
     /// Scientific filtering rules, independent of the memory budget.
@@ -246,6 +254,7 @@ impl EvidenceRequest {
             reference: None,
             cram_reference: None,
             selection: EvidenceSelection::WholeGenome,
+            sample_selection: EvidenceSampleSelection::Auto,
             fields: EvidenceFields::ALL,
             profile: EvidenceProfile::default(),
             execution: EvidenceExecution::default(),

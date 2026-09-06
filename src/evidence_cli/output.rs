@@ -258,6 +258,10 @@ pub(super) fn execute_outputs(
     capture.opt("--max-record-bytes", command.options.max_record_bytes);
     capture.opt("--tile-bases", command.options.tile_bases);
     capture.opt("--workers", command.options.workers);
+    if let Some(sample) = &command.options.sample {
+        capture.opt("--sample", sample);
+    }
+    capture.flag_if(command.options.pool_samples, "--pool-samples");
     capture.opt(
         "--format",
         if command.options.format == FeatureFormat::ArrowIpc {
@@ -332,6 +336,10 @@ pub(super) fn execute_outputs(
         ("evidence.schema", EVIDENCE_SCHEMA_VERSION.to_string()),
         ("evidence.profile", EvidenceProfile::ID.to_string()),
         ("evidence.counting_unit", "read".to_string()),
+        (
+            "evidence.sample_scope",
+            engine.sample_scope().canonical_json(),
+        ),
         ("evidence.science_blake3", science_digest),
         (
             "analyzer.id",
@@ -432,6 +440,11 @@ pub(super) fn execute_outputs(
         ("peak_rss_bytes", peak),
         ("predicted_peak_rss_bytes", predicted_peak),
         ("execution.record_visits", stats.record_visits),
+        (
+            "execution.sample_filtered_record_visits",
+            stats.sample_filtered_record_visits,
+        ),
+        ("execution.sample_scope_bytes", plan.sample_scope_bytes),
         ("execution.microtiles", stats.microtiles),
         ("execution.emitted_loci", stats.emitted_loci),
         ("execution.analyzer_bytes", plan.analyzer_bytes),

@@ -5,6 +5,7 @@ use rust_htslib::bam::record::Cigar;
 use rust_htslib::bam::{self, Read};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 const DECODER_SLACK_BYTES: u64 = 8 << 20;
 
@@ -33,6 +34,8 @@ pub struct EvidencePlan {
     pub analyzer_bytes: u64,
     /// Conservative retained canonical selection and site annotation bytes.
     pub selection_bytes: u64,
+    /// Conservative retained sample scope, read-group header, and worker setup bytes.
+    pub sample_scope_bytes: u64,
 }
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 /// Aggregate execution measurements; fetch-level visits may include the same read in multiple windows.
@@ -43,6 +46,8 @@ pub struct EvidenceRunStats {
     pub record_visits: u64,
     /// Fetch-level records excluded by read-level filters; not unique reads.
     pub filtered_record_visits: u64,
+    /// Fetch-level records belonging to another declared sample, before locus filters.
+    pub sample_filtered_record_visits: u64,
     /// Number of indexed execution windows processed.
     pub microtiles: u64,
     /// Largest decoded BAM-record payload observed in bytes.
@@ -63,6 +68,7 @@ pub struct EvidenceEngine {
     tids: Vec<u32>,
     intervals: Vec<GenomicInterval>,
     sites: BTreeMap<(u32, u32), SnvSite>,
+    sample_scope: Arc<EvidenceSampleScope>,
     plan: EvidencePlan,
 }
 impl EvidenceEngine {
@@ -97,6 +103,13 @@ impl EvidenceEngine {
                 request.alignments.display()
             ))
         })?;
+        let sample_scope = Arc::new(EvidenceSampleScope::resolve(
+            reader.header(),
+            &request.sample_selection,
+        )?);
+        let sample_scope_bytes = sample_scope
+            .memory_bytes()
+            .saturating_add((reader.header().as_bytes().len() as u64).saturating_mul(2));
         let alignment_contigs = header_contigs(reader.header())?;
         let mut reference = match &request.reference {
             Some(path) => EvidenceReference::open_with_fai(path, request.reference_fai.as_deref())?,
@@ -182,6 +195,7 @@ impl EvidenceEngine {
             request.execution.analyzer_bytes,
             crate::util::rss::peak_rss_bytes(),
             selection_memory_bytes(&intervals, &sites),
+            sample_scope_bytes,
         )?;
         Ok(Self {
             request,
@@ -191,6 +205,7 @@ impl EvidenceEngine {
             tids,
             intervals,
             sites,
+            sample_scope,
             plan,
         })
     }
@@ -206,6 +221,10 @@ impl EvidenceEngine {
     pub fn request(&self) -> &EvidenceRequest {
         &self.request
     }
+    /// Resolved sample identity and assignment policy for every emitted row.
+    pub fn sample_scope(&self) -> &EvidenceSampleScope {
+        &self.sample_scope
+    }
     /// Make a worker factory that shares already-open reference storage. The
     /// caller must preserve input immutability for the lifetime of the run.
     pub fn worker_factory(&self) -> EvidenceWorkerFactory {
@@ -220,11 +239,13 @@ impl EvidenceEngine {
                 cram_reference: self.request.cram_reference.clone(),
                 cram_reference_fai: self.request.cram_reference_fai.clone(),
                 selection: EvidenceSelection::WholeGenome,
+                sample_selection: self.request.sample_selection.clone(),
                 fields: self.request.fields,
                 profile: self.request.profile.clone(),
                 execution: self.request.execution.clone(),
             },
             reference: self.reference.clone(),
+            sample_scope: self.sample_scope.clone(),
         }
     }
     /// Stable, explicit coordinate/annotation digest for scientific cache keys.
@@ -280,6 +301,7 @@ impl EvidenceEngine {
             self.plan.analyzer_bytes,
             self.plan.baseline_rss_bytes,
             selection_memory_bytes(&intervals, &sites),
+            self.plan.sample_scope_bytes,
         )?;
         self.request.selection = canonical_selection(&selection, &intervals, &sites);
         self.intervals = intervals;
@@ -324,6 +346,7 @@ impl EvidenceEngine {
             bytes,
             self.plan.baseline_rss_bytes,
             self.plan.selection_bytes,
+            self.plan.sample_scope_bytes,
         )?;
         Ok(&self.plan)
     }
@@ -410,6 +433,10 @@ impl EvidenceEngine {
                             "indexed fetch returned an invalid contig/coordinate".into(),
                         ));
                     }
+                    if !self.sample_scope.includes_record(&record)? {
+                        checked_add(&mut stats.sample_filtered_record_visits, 1)?;
+                        continue;
+                    }
                     let rejected = read_filter(&record, &self.request.profile);
                     if rejected.is_some() {
                         checked_add(&mut stats.filtered_record_visits, 1)?;
@@ -466,6 +493,7 @@ fn make_plan(
     analyzer_bytes: u64,
     baseline: u64,
     selection_bytes: u64,
+    sample_scope_bytes: u64,
 ) -> Result<EvidencePlan, EvidenceError> {
     // Capacity, site annotation and one-byte reference window included. One
     // reusable decoded BAM record and one CIGAR view each fit this envelope.
@@ -478,6 +506,7 @@ fn make_plan(
         )
         .and_then(|bytes| bytes.checked_add(analyzer_bytes))
         .and_then(|bytes| bytes.checked_add(selection_bytes))
+        .and_then(|bytes| bytes.checked_add(sample_scope_bytes))
         .ok_or(EvidenceError::CounterOverflow)?;
     let maximum = execution.max_microtile_bases.clamp(1, CANONICAL_TILE_BASES) as u64;
     let microtile = if let Some(budget) = execution.memory_budget_bytes {
@@ -495,7 +524,7 @@ fn make_plan(
         maximum
     };
     Ok(EvidencePlan {
-        model_id: "exact-summary-tiles-v1",
+        model_id: "exact-summary-tiles-v2",
         baseline_rss_bytes: baseline,
         fixed_bytes: fixed,
         bytes_per_locus,
@@ -507,6 +536,7 @@ fn make_plan(
         selected_loci,
         analyzer_bytes,
         selection_bytes,
+        sample_scope_bytes,
     })
 }
 
@@ -726,6 +756,7 @@ fn canonical_selection(
 pub struct EvidenceWorkerFactory {
     request: EvidenceRequest,
     reference: EvidenceReference,
+    sample_scope: Arc<EvidenceSampleScope>,
 }
 impl EvidenceWorkerFactory {
     /// Open a worker for one canonical selection without hashing the reference
@@ -748,6 +779,17 @@ impl EvidenceWorkerFactory {
             None => bam::IndexedReader::from_path(&request.alignments),
         }
         .map_err(|error| EvidenceError::InvalidInput(format!("open worker alignment: {error}")))?;
+        let sample_scope =
+            EvidenceSampleScope::resolve(reader.header(), &request.sample_selection)?;
+        if sample_scope != *self.sample_scope {
+            return Err(EvidenceError::InvalidInput(
+                "worker alignment sample metadata differs from the opened session".into(),
+            ));
+        }
+        let sample_scope_bytes = sample_scope
+            .memory_bytes()
+            .saturating_add((reader.header().as_bytes().len() as u64).saturating_mul(2));
+        drop(sample_scope);
         if alignment_is_cram(&request.alignments)? {
             let fasta = request
                 .cram_reference
@@ -778,6 +820,7 @@ impl EvidenceWorkerFactory {
             request.execution.analyzer_bytes,
             crate::util::rss::peak_rss_bytes(),
             0,
+            sample_scope_bytes,
         )?;
         let mut engine = EvidenceEngine {
             request,
@@ -787,6 +830,7 @@ impl EvidenceWorkerFactory {
             tids,
             intervals: Vec::new(),
             sites: BTreeMap::new(),
+            sample_scope: self.sample_scope.clone(),
             plan,
         };
         engine.set_selection(engine.request.selection.clone())?;
