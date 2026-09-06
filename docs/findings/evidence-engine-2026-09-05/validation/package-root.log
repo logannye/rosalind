@@ -1,0 +1,6 @@
+   Packaging rosalind-bio v0.4.0 (/Users/logannye/rosalind)
+    Updating crates.io index
+    Packaged 242 files, 1.9MiB (530.1KiB compressed)
+   Verifying rosalind-bio v0.4.0 (/Users/logannye/rosalind)
+   Compiling rosalind-bio v0.4.0 (/Users/logannye/rosalind/target/package/rosalind-bio-0.4.0)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.37s

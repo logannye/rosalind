@@ -24,14 +24,34 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      commit: ${{ steps.commit.outputs.sha }}
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.ref }}
+      - id: commit
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+  candidate:
+    needs: resolve
+    permissions:
+      contents: read
+    uses: ./.github/workflows/happy-candidate.yml
+    with:
+      candidate_sha: ${{ needs.resolve.outputs.commit }}
   build:
+    needs: [resolve, candidate]
     runs-on: ubuntu-latest
     environment: release
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ needs.resolve.outputs.commit }}
           fetch-depth: 0
       - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
         with:
@@ -43,9 +63,10 @@ jobs:
         env:
           CANDIDATE_REF: ${{ inputs.ref }}
           PLAN_ID: ${{ inputs.plan_id }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          cargo xtask giab image plan --ref "$CANDIDATE_REF" --output image-plan.json --json
-          test "$(python3 -c 'import json; print(json.load(open("image-plan.json"))["plan_id"])')" = "$PLAN_ID"
+          cargo xtask giab image plan --ref "$CANDIDATE_REF" --output "$RUNNER_TEMP/image-plan.json" --json
+          test "$(python3 -c 'import json,os; print(json.load(open(os.environ["RUNNER_TEMP"] + "/image-plan.json"))["plan_id"])')" = "$PLAN_ID"
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
@@ -55,7 +76,7 @@ jobs:
       - id: meta
         name: Derive content-addressed tag
         run: |
-          source_lock=$(python3 -c 'import json; print(json.load(open("image-plan.json"))["metadata"]["source_lock_blake3"])')
+          source_lock=$(python3 -c 'import json,os; print(json.load(open(os.environ["RUNNER_TEMP"] + "/image-plan.json"))["metadata"]["source_lock_blake3"])')
           echo "source_lock=$source_lock" >> "$GITHUB_OUTPUT"
           echo "tag=ghcr.io/logannye/rosalind-happy:0.3.15-$source_lock" >> "$GITHUB_OUTPUT"
       - id: build
@@ -76,6 +97,7 @@ jobs:
           docker run --rm --network none --platform linux/amd64 "$image" --version | grep -F '0.3.15'
           docker run --rm --network none --platform linux/amd64 \
             --entrypoint /opt/rtg-tools/rtg "$image" version | grep -F '3.12.1'
+          benchmarks/giab/happy/smoke.sh "$image" "$RUNNER_TEMP/published-evaluator-smoke"
       - uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0
         with:
           image: ${{ steps.meta.outputs.tag }}@${{ steps.build.outputs.digest }}
@@ -111,7 +133,8 @@ jobs:
           name: happy-image-evidence
           retention-days: 90
           path: |
-            image-plan.json
+            ${{ runner.temp }}/image-plan.json
+            ${{ runner.temp }}/published-evaluator-smoke/
             happy-image.spdx.json
             benchmarks/giab/happy/lock.json
       - uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676 # v7

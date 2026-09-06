@@ -4,6 +4,7 @@ from importlib.metadata import PackageNotFoundError, version
 
 from .features import FeatureRun, RunResult, collect_features, features, iter_features
 from .receipts import Receipt, inspect_receipt
+from .evidence import EvidenceProcessError, EvidenceResult, EvidenceRun, iter_evidence, materialize_evidence, panel_qc
 
 try:
     __version__ = version("rosalind-bio")
@@ -12,6 +13,12 @@ except PackageNotFoundError:
     __version__ = "0.4.0"
 
 __all__ = [
+    "EvidenceProcessError",
+    "EvidenceResult",
+    "EvidenceRun",
+    "iter_evidence",
+    "materialize_evidence",
+    "panel_qc",
     "FeatureRun",
     "Receipt",
     "RunResult",

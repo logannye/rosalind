@@ -1,0 +1,45 @@
+Processing /tmp/rosalind-roadmap-validation/wheels/rosalind_bio-0.4.0-py3-none-macosx_11_0_arm64.whl
+Collecting pyarrow>=15 (from rosalind-bio==0.4.0)
+  Downloading pyarrow-25.0.1-cp311-cp311-macosx_12_0_arm64.whl.metadata (3.0 kB)
+Downloading pyarrow-25.0.1-cp311-cp311-macosx_12_0_arm64.whl (35.9 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 35.9/35.9 MB 67.0 MB/s eta 0:00:00
+Installing collected packages: pyarrow, rosalind-bio
+Successfully installed pyarrow-25.0.1 rosalind-bio-0.4.0
+
+[notice] A new release of pip is available: 24.0 -> 26.2.1
+[notice] To update, run: python3.11 -m pip install --upgrade pip
+Collecting pysam==0.23.3
+  Downloading pysam-0.23.3-cp311-cp311-macosx_11_0_arm64.whl.metadata (1.7 kB)
+Downloading pysam-0.23.3-cp311-cp311-macosx_11_0_arm64.whl (8.4 MB)
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 8.4/8.4 MB 13.0 MB/s eta 0:00:00
+Installing collected packages: pysam
+Successfully installed pysam-0.23.3
+
+[notice] A new release of pip is available: 24.0 -> 26.2.1
+[notice] To update, run: python3.11 -m pip install --upgrade pip
+rosalind 0.4.0
+wrote reproducibility receipt: /var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmp.NYrnqLnjMb/sorted.bam.manifest.json
+built /var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmp.NYrnqLnjMb/reference.rref: 1 contigs, 4000 bases, source b104b2019ea7eb2ebaf1abfe93a01255d2beaaaf07cc46d6ca6d8923f9a3cd74
+wrote reproducibility receipt: features/features.manifest.json
+features: peak RSS 10 MiB; max pileup working set 71 KiB
+verify: no budget to check (none supplied or recorded)
+verify: evidence records process RSS; individual internal allocations are modeled, not measured
+verify: OK — 4 input(s), 1 output(s) match
+created analyzer project: /private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmp.NYrnqLnjMb/wheel-smoke-analyzer
+  Cargo.toml
+  build.rs
+  src/main.rs
+  tests/contract.rs
+  scripts/contract-check.sh
+  .github/workflows/ci.yml
+  README.md
+next: cd /private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmp.NYrnqLnjMb/wheel-smoke-analyzer && cargo test
+     Locking 181 packages to latest compatible versions
+      Adding blake3 v1.8.2 (available: v1.8.6)
+      Adding hts-sys v2.2.0 (available: v2.2.1)
+    Blocking waiting for file lock on artifact directory
+   Compiling wheel-smoke-analyzer v0.1.0 (/private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmp.NYrnqLnjMb/wheel-smoke-analyzer)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 8.03s
+installed rosalind 0.4.0: 3972 Arrow rows; receipt inspected
+installed version identity, evidence stream, materialization, offline replay and panel QC passed
+packaged scaffold built offline against candidate SDK and passed packaged conformance

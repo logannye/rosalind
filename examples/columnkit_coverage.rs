@@ -1,8 +1,7 @@
-//! ColumnKit cookbook: a custom per-locus analyzer that inherits the bounded
-//! memory contract for free. The only domain logic is `on_column` (~3 lines) —
-//! by running it through `run_bounded_whole_genome` it gets the SAME bounded
-//! per-contig whole-genome walk and the SAME working-set bound that `plan` /
-//! `variants --index --enforce` admit, with no contract code re-derived.
+//! Legacy ColumnKit cookbook: a custom per-locus coverage consumer.
+//! The low-level driver provides ordered capacity-limited columns and writes to a
+//! caller-owned sink. This example does not create a receipt or enforce a whole-
+//! process budget. Use the public contract runner/scaffold for that lifecycle.
 //!
 //! Run with: `cargo run --example columnkit_coverage`
 
@@ -16,8 +15,7 @@ use rosalind::genomics::{GenomeIndex, IndexReader, IndexWriter};
 use rosalind::{PileupColumn, PileupParams, SliceSource};
 
 /// Emit a per-locus coverage track (contig, 1-based pos, depth). This is the
-/// entire analyzer a builder writes — bounded memory, determinism, and a
-/// verifiable receipt come from the driver, not from here.
+/// per-column domain logic; orchestration and receipts are separate concerns.
 struct CoverageTrack;
 
 impl ColumnAnalyzer for CoverageTrack {
@@ -90,8 +88,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     out.flush()?;
 
     eprintln!(
-        "\n# inherited a bounded working set of {} bytes — coverage-bounded, \
-         independent of input size; this is the value `plan`/`--enforce` admit.",
+        "\n# reported pileup working set: {} bytes (not a whole-process RSS measurement)",
         ws.bytes
     );
 

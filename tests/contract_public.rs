@@ -309,3 +309,119 @@ fn required_os_limit_refuses_unavailable_or_broad_limits_before_output() {
     }
     std::fs::remove_dir_all(dir).ok();
 }
+
+#[test]
+fn exact_capacity_failure_preserves_partial_and_distinct_receipt_without_rss_budget() {
+    use rust_htslib::bam;
+    use rust_htslib::bam::Read;
+    let dir = unique_dir();
+    let (index, alignments) = fixture(&dir);
+    let reader = bam::Reader::from_path(&alignments).unwrap();
+    let header = bam::Header::from_template(reader.header());
+    drop(reader);
+    let mut writer = bam::Writer::from_path(&alignments, &header, bam::Format::Bam).unwrap();
+    for (name, sequence) in [
+        (b"short".as_slice(), b"AA".as_slice()),
+        (b"long".as_slice(), b"CCCCCCCC".as_slice()),
+    ] {
+        let mut record = bam::Record::new();
+        let cigar =
+            bam::record::CigarString(vec![bam::record::Cigar::Match(sequence.len() as u32)]);
+        record.set(name, Some(&cigar), sequence, &vec![40; sequence.len()]);
+        record.set_tid(0);
+        record.set_pos(0);
+        record.set_flags(0);
+        record.set_mapq(60);
+        writer.write(&record).unwrap();
+    }
+    drop(writer);
+    let output = dir.join("capacity.tsv");
+    let mut configured = spec(index, alignments, output.clone());
+    configured.max_depth = 1;
+    let Err(ContractRunError::Breached(outcome)) =
+        run_column_analysis(&mut DepthAnalyzer, configured)
+    else {
+        panic!("exact capacity must produce a typed breached outcome");
+    };
+    let capacity = outcome.capacity_exceeded.unwrap();
+    assert_eq!(
+        (
+            capacity.contig,
+            capacity.position,
+            capacity.capacity,
+            capacity.required
+        ),
+        (0, 0, 1, 2)
+    );
+    assert_eq!(
+        outcome.verdict,
+        ContractVerdict::Unset,
+        "capacity must not be reported as excess RSS"
+    );
+    assert!(!output.exists());
+    assert!(outcome.partial_output_path.as_ref().unwrap().is_file());
+    let receipt = rosalind::provenance::RunManifest::from_canonical_json(
+        &std::fs::read_to_string(outcome.manifest_path.unwrap()).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(receipt.params["pileup.semantics"], "exact-or-fail-v1");
+    assert_eq!(receipt.params["run_status"], "capacity-exceeded");
+    assert_eq!(receipt.params["failure.kind"], "capacity-exceeded");
+    assert_eq!(receipt.params["over_max_depth"], "0");
+    assert_eq!(receipt.self_hash_ok(), Some(true));
+    assert_eq!(
+        receipt.outputs[0].blake3,
+        rosalind::provenance::blake3_file(&outcome.partial_output_path.unwrap()).unwrap()
+    );
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn invalid_receipt_claim_does_not_publish_or_replace_output() {
+    struct InvalidClaim;
+    impl ColumnAnalyzer for InvalidClaim {
+        fn params(&self) -> std::collections::BTreeMap<String, String> {
+            std::collections::BTreeMap::from([("pileup.semantics".into(), "invalid".into())])
+        }
+        fn on_column(
+            &mut self,
+            _: &PileupColumn,
+            _: &str,
+            output: &mut dyn Write,
+        ) -> std::io::Result<()> {
+            writeln!(output, "would have been published")
+        }
+    }
+    let dir = unique_dir();
+    let (index, bam) = fixture(&dir);
+    let output = dir.join("keep.tsv");
+    std::fs::write(&output, b"previous valid artifact").unwrap();
+    let mut configured = spec(index, bam, output.clone());
+    configured.output_policy = OutputPolicy::ReplaceAtomic;
+    configured.analyzer = AnalyzerIdentity::new("invalid", "1").with_param_prefix("");
+    let result = run_column_analysis(&mut InvalidClaim, configured);
+    assert!(matches!(
+        result,
+        Err(ContractRunError::InvalidConfiguration(_))
+    ));
+    assert_eq!(std::fs::read(&output).unwrap(), b"previous valid artifact");
+    assert!(!PathBuf::from(format!("{}.manifest.json", output.display())).exists());
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn receipt_staging_failure_preserves_existing_output() {
+    let dir = unique_dir();
+    let (index, bam) = fixture(&dir);
+    let output = dir.join("keep.tsv");
+    std::fs::write(&output, b"previous valid artifact").unwrap();
+    let mut configured = spec(index, bam, output.clone());
+    configured.output_policy = OutputPolicy::ReplaceAtomic;
+    configured.manifest = Some(dir.join("missing-parent/receipt.json"));
+    assert!(matches!(
+        run_column_analysis(&mut DepthAnalyzer, configured),
+        Err(ContractRunError::Io(_))
+    ));
+    assert_eq!(std::fs::read(&output).unwrap(), b"previous valid artifact");
+    std::fs::remove_dir_all(dir).unwrap();
+}

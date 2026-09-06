@@ -383,7 +383,11 @@ fn build_reproduction_plan(
             "claimed measurement block is missing or unverifiable".to_string(),
         ));
     }
-    if manifest.params.get("run_status").map(String::as_str) == Some("breached") {
+    if manifest
+        .params
+        .get("run_status")
+        .is_some_and(|status| status != "completed")
+    {
         return Err(ReplaySafetyError::UnsafeRecipe(
             "breach receipts preserve partial evidence and are not executable success recipes"
                 .to_string(),
@@ -408,6 +412,22 @@ fn build_reproduction_plan(
     let tokens = crate::provenance::command_template_tokens(&manifest)
         .map_err(ReplaySafetyError::UnsafeRecipe)?;
     validate_recipe_tokens(&manifest, &tokens, binary.is_some())?;
+    let is_pileup_recipe = matches!(
+        tokens.first().map(String::as_str),
+        Some("features" | "variants")
+    ) || (tokens.first().map(String::as_str) == Some("analyze")
+        && !matches!(
+            tokens.get(1).map(String::as_str),
+            Some("evidence" | "panel-qc")
+        ));
+    if binary.is_none()
+        && is_pileup_recipe
+        && manifest.params.get("pileup.semantics").map(String::as_str) != Some("exact-or-fail-v1")
+    {
+        return Err(ReplaySafetyError::UnsafeRecipe(
+            "historical pileup receipt predates exact-or-fail semantics; pass --binary PATH to the historical producer explicitly, or rerun the analysis with the current producer".into(),
+        ));
+    }
 
     let producer_kind = producer_kind(&manifest);
     let execution_binary = match (producer_kind, binary) {
@@ -670,7 +690,7 @@ fn built_in_prefix_allowed(prefix: &[String]) -> bool {
     ) || (prefix.first().map(String::as_str) == Some("analyze")
         && matches!(
             prefix.get(1).map(String::as_str),
-            Some("features" | "coverage")
+            Some("features" | "coverage" | "evidence" | "panel-qc")
         ))
         || (prefix.first().map(String::as_str) == Some("reference")
             && matches!(prefix.get(1).map(String::as_str), Some("build" | "convert")))
@@ -1078,6 +1098,19 @@ mod tests {
         manifest.finalize();
         let tokens = crate::provenance::command_template_tokens(&manifest).unwrap();
         (manifest, tokens)
+    }
+
+    #[test]
+    fn historical_pileup_requires_explicit_historical_binary_before_input_lookup() {
+        let (manifest, _) = replayable_manifest();
+        let error =
+            build_reproduction_plan(manifest.clone(), Path::new("/nonexistent"), None).unwrap_err();
+        assert!(error.to_string().contains("historical pileup receipt"));
+        let executable = std::env::current_exe().unwrap();
+        let explicit =
+            build_reproduction_plan(manifest, Path::new("/nonexistent"), Some(&executable))
+                .unwrap_err();
+        assert!(!explicit.to_string().contains("historical pileup receipt"));
     }
 
     #[test]

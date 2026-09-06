@@ -1,0 +1,1 @@
+evidence: 4 loci; peak RSS 8 MiB; 160 record visits; receipt /private/tmp/rosalind-roadmap-validation/curve-final/rosalind-256-3.manifest.json

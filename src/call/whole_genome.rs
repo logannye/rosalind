@@ -246,11 +246,10 @@ mod tests {
     }
 
     #[test]
-    fn working_set_is_bounded_by_reference_and_capped_depth_not_read_count() {
-        // One small contig; pour in increasing numbers of reads at the SAME few
-        // positions with a depth cap. The returned working set must (a) count the
-        // reference, (b) stay bounded by reference + capped active, and (c) NOT
-        // grow with the number of input reads.
+    fn working_set_is_bounded_by_reference_and_local_pressure_not_read_count() {
+        // One small contig; extend the stream across nonoverlapping blocks at
+        // fixed pressure of eight reads. The exact working set includes the
+        // reference and retained observations, independent of total read count.
         let idx_path = tmp("bounded");
         let index =
             GenomeIndex::from_named_sequences(&[("chr1".to_string(), vec![b'A'; 2000])]).unwrap();
@@ -269,9 +268,9 @@ mod tests {
         let gp = GermlineParams::default();
 
         let run = |n: usize| -> u64 {
-            // n reads, each 100bp, all starting at pos 0 (depth would be n without
-            // the cap; capped at 8).
-            let reads: Vec<AlignedRead> = (0..n).map(|_| read_at(0, 0, &[b'C'; 100])).collect();
+            let reads: Vec<AlignedRead> = (0..n)
+                .map(|read| read_at(0, ((read / 8) * 100) as u32, &[b'C'; 100]))
+                .collect();
             call_germline_whole_genome(
                 SliceSource::new(reads),
                 &rv,
@@ -285,14 +284,14 @@ mod tests {
             .bytes
         };
 
-        let ws_small = run(20);
-        let ws_large = run(2000);
+        let ws_small = run(8);
+        let ws_large = run(160);
         // (a) reference is counted: bound exceeds the 2000-byte reference.
         assert!(
             ws_small > 2000,
             "working set must include the reference bytes"
         );
-        // (c) flat in read count: 100x more reads, same bounded working set.
+        // (c) Twenty times more input, same exact local pressure and working set.
         assert_eq!(
             ws_small, ws_large,
             "working set must not grow with the number of input reads"

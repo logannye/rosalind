@@ -40,6 +40,26 @@ jobs:
           test -s results/toy/merged.arrow
           test -s results/toy/merged.arrow.manifest.json
           test -s results/toy/verify.json
+      - name: Execute exact evidence and panel QC with full denominators
+        run: |
+          samtools faidx examples/data/illumina_toy/reference.fa
+          awk 'BEGIN {OFS="\t"} {print $1,0,$2,$1}' examples/data/illumina_toy/reference.fa.fai > "$RUNNER_TEMP/targets.bed"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path.cwd()
+          data = root / "examples/data/illumina_toy"
+          config = {"image": "local/rosalind@sha256:" + "a" * 64, "budget_mb": 256,
+                    "samples": {"exact": {"reference": str(root / "work/toy/reference.rref"),
+                                          "bam": str(data / "sorted.bam"), "index": str(data / "sorted.bam.bai"),
+                                          "targets": os.environ["RUNNER_TEMP"] + "/targets.bed"}}}
+          Path(os.environ["RUNNER_TEMP"], "evidence.json").write_text(json.dumps(config))
+          PY
+          snakemake --lint --snakefile integrations/snakemake/Evidence.smk --configfile "$RUNNER_TEMP/evidence.json"
+          snakemake --cores 1 --snakefile integrations/snakemake/Evidence.smk --configfile "$RUNNER_TEMP/evidence.json"
+          test -s results/exact/panel.tsv
+          test -s results/exact/positions.arrow
+          test -s results/exact/evidence-verify.json
 
   nextflow:
     runs-on: ubuntu-latest
@@ -78,3 +98,18 @@ jobs:
             --image local/rosalind@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
           awk -F '\t' 'NR > 1 && $5 != "COMPLETED" { exit 1 } END { if (NR != 8) exit 1 }' \
             "$RUNNER_TEMP/nextflow-trace.txt"
+      - name: Execute exact evidence and panel QC
+        run: |
+          samtools faidx examples/data/illumina_toy/reference.fa
+          awk 'BEGIN {OFS="\t"} {print $1,0,$2,$1}' examples/data/illumina_toy/reference.fa.fai > "$RUNNER_TEMP/nextflow-inputs/targets.bed"
+          PATH="$PWD/target/debug:$PATH" nextflow run integrations/nextflow/examples/evidence/main.nf \
+            -work-dir "$RUNNER_TEMP/nextflow-evidence-work" \
+            -c integrations/nextflow/examples/evidence/nextflow.test.config \
+            --reference "$RUNNER_TEMP/nextflow-inputs/reference.rref" \
+            --bam "$RUNNER_TEMP/nextflow-inputs/sample.bam" \
+            --index "$RUNNER_TEMP/nextflow-inputs/sample.bam.bai" \
+            --targets "$RUNNER_TEMP/nextflow-inputs/targets.bed" \
+            --outdir "$RUNNER_TEMP/nextflow-evidence-results"
+          test -s "$RUNNER_TEMP/nextflow-evidence-results/panel.tsv"
+          test -s "$RUNNER_TEMP/nextflow-evidence-results/positions.arrow"
+          test -s "$RUNNER_TEMP/nextflow-evidence-results/verify.json"

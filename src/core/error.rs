@@ -15,6 +15,19 @@ pub enum CoreError {
         /// Bytes the caller permitted.
         budget: u64,
     },
+    /// Exact pileup would require more simultaneous reads than its declared
+    /// capacity. No read is sampled or evicted to make the analysis fit.
+    #[error("pileup capacity exceeded at contig {contig}, zero-based position {position}: {required} active reads require capacity greater than --max-depth {capacity}; raise --max-depth and rerun")]
+    CapacityExceeded {
+        /// Contig identifier of the first overflowing locus.
+        contig: u32,
+        /// Zero-based position of the first overflowing locus.
+        position: u32,
+        /// Maximum number of active reads permitted.
+        capacity: u32,
+        /// Number of active reads required to retain all eligible evidence.
+        required: u64,
+    },
     /// An input record could not be interpreted.
     #[error("malformed record: {0}")]
     MalformedRecord(String),

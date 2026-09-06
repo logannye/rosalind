@@ -17,10 +17,10 @@ rosalind plan --reference-pack "$RESULTS/inputs/reference.rref" --budget-mb "$BU
 cp "$SOURCE_BAM" "$RESULTS/inputs/input.bam"
 BAM="$RESULTS/inputs/input.bam"
 
-if ! samtools quickcheck "$BAM" || ! samtools view -H "$BAM" | grep -q 'SO:coordinate'; then
-  samtools sort -o "$RESULTS/inputs/sorted.bam" "$BAM"
-  BAM="$RESULTS/inputs/sorted.bam"
-fi
+samtools quickcheck "$BAM"
+samtools sort -o "$RESULTS/inputs/sorted.bam" "$BAM"
+BAM="$RESULTS/inputs/sorted.bam"
+
 samtools faidx "$REFERENCE"
 samtools index "$BAM"
 
@@ -67,7 +67,12 @@ import hashlib, json, os
 from pathlib import Path
 import pyarrow.ipc as ipc
 root = Path(os.environ["RESULTS"])
-def digest(path): return hashlib.sha256(path.read_bytes()).hexdigest()
+def digest(path):
+    value = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            value.update(block)
+    return value.hexdigest()
 unsharded = root / "outputs/unsharded.arrow"
 repeated = root / "outputs/unsharded-repeat.arrow"
 merged = root / "outputs/merged.arrow"
@@ -77,14 +82,24 @@ with unsharded.open("rb") as stream:
 report = {
     "unsharded_sha256": digest(unsharded), "repeat_sha256": digest(repeated),
     "merged_sha256": digest(merged),
-    "repeat_byte_identical": unsharded.read_bytes() == repeated.read_bytes(),
-    "merge_byte_identical": unsharded.read_bytes() == merged.read_bytes(),
+    "repeat_byte_identical": digest(unsharded) == digest(repeated),
+    "merge_byte_identical": digest(unsharded) == digest(merged),
     "record_batch_rows": batches,
 }
 (root / "raw/arrow-checks.json").write_text(json.dumps(report, indent=2, sort_keys=True) + "\n")
 if not report["repeat_byte_identical"]: raise SystemExit("repeated Arrow output differs")
 if not report["merge_byte_identical"]: raise SystemExit("sharded Arrow merge differs from unsharded output")
 PY
+
+# Separate declaration-refusal evidence from matched-budget container trials.
+set +e
+rosalind features --reference-pack "$RESULTS/inputs/reference.rref" --alignments "$BAM" \
+  --memory-budget-mb 1 --enforce --output "$RESULTS/outputs/refused.tsv" \
+  > "$RESULTS/raw/refusal.stdout" 2> "$RESULTS/raw/refusal.stderr"
+refusal_code=$?
+set -e
+test "$refusal_code" -eq 3 && test ! -e "$RESULTS/outputs/refused.tsv"
+printf '{"declared_mb":1,"exit_code":%s,"output_created":false}\n' "$refusal_code" > "$RESULTS/raw/refusal.json"
 
 dpkg-query -W -f='${Package}\t${Version}\n' | sort > "$RESULTS/environment-packages.tsv"
 python3 -m pip freeze --all > "$RESULTS/environment-python.txt"

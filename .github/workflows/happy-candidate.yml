@@ -1,0 +1,45 @@
+name: Build and execute evaluator candidate
+
+on:
+  pull_request:
+    paths:
+      - benchmarks/giab/happy/**
+      - .github/workflows/happy-candidate.yml
+      - .github/workflows/happy-image.yml
+  workflow_call:
+    inputs:
+      candidate_sha:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  candidate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.candidate_sha || github.event.pull_request.head.sha || github.sha }}
+      - name: Build an unprivileged evaluator candidate
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha || github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -o pipefail
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          mkdir -p "$RUNNER_TEMP/evaluator-candidate"
+          docker build --platform linux/amd64 --progress plain --pull=false \
+            -t rosalind-happy:candidate benchmarks/giab/happy \
+            2>&1 | tee "$RUNNER_TEMP/evaluator-candidate/build.log"
+          docker image inspect rosalind-happy:candidate > "$RUNNER_TEMP/evaluator-candidate/local-image.json"
+      - name: Execute the offline vcfeval path
+        run: benchmarks/giab/happy/smoke.sh rosalind-happy:candidate "$RUNNER_TEMP/evaluator-candidate/smoke"
+      - name: Retain actual build and evaluator results
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: evaluator-candidate-${{ github.run_id }}
+          path: ${{ runner.temp }}/evaluator-candidate
+          if-no-files-found: warn

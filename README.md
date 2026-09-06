@@ -4,282 +4,208 @@
 [![crates.io](https://img.shields.io/crates/v/rosalind-bio?logo=rust&label=crates.io&color=orange)](https://crates.io/crates/rosalind-bio)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](#license)
 
-> **Build deterministic genomics analyses that fit the machine—and prove exactly what ran.**
+**Reusable genomic evidence, with explicit semantics and verifiable results.**
 
-Rosalind is a Rust SDK and CLI for turning coordinate-sorted short-read alignments
-into reproducible per-locus artifacts under a declared memory budget. It predicts
-resource needs before execution, can refuse or govern a run, publishes outputs
-transactionally, and records content-addressed evidence for offline verification,
-replay, and causal comparison.
+Rosalind is a Rust library, CLI, and Python interface for turning indexed
+short-read alignments into per-locus evidence and target QC. Researchers supply
+candidate SNVs or target intervals. Builders supply bounded reducers. The engine
+chooses an execution tile that fits the declared resources, counts every eligible
+observation, and preserves content identity for verification and replay.
 
-Rosalind is for genomics research software engineers, bioinformatics platform
-engineers, ML/data engineers building feature pipelines, and workflow engineers
-operating fixed-resource HPC or CI jobs. It is not a clinical diagnostic system,
-a turnkey interface for wet-lab users, a long-read platform, or a replacement for
-GATK, DeepVariant, Clair3, or bcftools. The built-in SNV caller is a reference
-workload used to test the platform contract, not the product's scientific moat.
+Its technical advantage is separating **scientific selection and reduction from
+resource scheduling**: less memory can mean smaller tiles and more indexed I/O,
+but cannot silently change a successful scientific result. Fixed output ordering,
+integer summaries, canonical Arrow batches, and verified cache partitions make
+the same evidence reusable across consumers.
 
-**Research use only. Not for diagnostic use.**
+**Development status:** exact evidence, panel QC, verified cache/resume, and dataset
+comparison are implemented and locally verified. The source package still has
+version 0.4.0; this development work is unpublished, with staged 0.5/0.6/0.7
+releases planned. The [retained validation report](docs/findings/evidence-engine-2026-09-05/README.md)
+records 467 passing Rust tests, eight Python tests on both Python 3.9 and 3.11,
+and fresh macOS arm64 wheel installs. See [implementation status](docs/implementation-status.md)
+for platform limits and [release gates](docs/ROADMAP.md) for publication and
+independent adoption requirements.
 
-## Why use it?
+Research use only. The evidence profile counts reads, not molecules; the built-in
+experimental SNV caller is not a production or clinical caller.
 
-Most genomics tools let a scheduler impose a memory limit. Rosalind makes the
-analysis itself participate in the decision and preserve evidence about it:
+## Try a small real-origin dataset
 
-- **Resource confidence:** a versioned model predicts peak memory, a declared
-  budget can refuse the run before destination creation, and cooperative or
-  cgroup-backed enforcement is recorded distinctly from observation-only runs.
-- **Reproducible artifacts:** deterministic ordering, create-new transactional
-  output, canonical receipts, content hashes, tokenized replay, and causal diff.
-- **Inherited infrastructure:** a custom `ColumnAnalyzer` receives the bounded
-  pileup walk, planning, refusal/breach semantics, output safety, receipts,
-  replay, and conformance checks without rebuilding them.
-- **Offline privacy:** receipt and artifact inspection runs locally. Rosalind has
-  no telemetry and does not upload genomic data.
-
-This is differentiated from workflow engines, which can request resources but do
-not know an analyzer's working set, and from mature callers, which optimize
-scientific accuracy and throughput rather than providing a reusable deterministic
-analysis contract. Rosalind complements both.
-
-## Five-minute analyzer quickstart
-
-The current source tree is the authoritative development surface. Until the
-`0.4.0` stabilization release is published, build it from source:
+Build the current source checkout to use these development APIs (Rust 1.83 or
+newer and a native C build toolchain).
 
 ```sh
 git clone https://github.com/logannye/rosalind.git
 cd rosalind
-cargo build --locked --release
-export PATH="$PWD/target/release:$PATH"
-
-rosalind new analyzer locus-qc --output /tmp/locus-qc
-cd /tmp/locus-qc
-cargo test
+cargo build --locked --bin rosalind
+export PATH="$PWD/target/debug:$PATH"
 ```
 
-The generated project is standalone: it implements `ColumnAnalyzer`, calls the
-public contract runner, includes contract tests, records its own producer identity,
-and can replay through an explicitly selected binary. Start with
-[`docs/analyzer-sdk.md`](docs/analyzer-sdk.md).
+Follow the [small NA18507 research tutorial](examples/research-filter/README.md)
+to download 118KB of content-locked upstream data, generate candidate SNVs with an
+independent tool, extract exact evidence, join a research screen, and verify/replay
+the artifact. The source provenance is documented; the example is not an accuracy
+benchmark.
 
-To exercise the complete built-in contract offline:
+With existing indexed alignments and an indexed FASTA:
 
 ```sh
-rosalind demo --output-dir /tmp/rosalind-demo
-rosalind verify --manifest /tmp/rosalind-demo/calls.vcf.manifest.json
-rosalind reproduce \
-  --manifest /tmp/rosalind-demo/calls.vcf.manifest.json \
-  --inputs /tmp/rosalind-demo
+rosalind analyze evidence \
+  --reference genome.fa --alignments sample.sorted.bam --sites candidates.vcf \
+  --memory-budget-mb 256 --format arrow-ipc --output evidence.arrow
+rosalind verify --manifest evidence.arrow.manifest.json
+rosalind reproduce --manifest evidence.arrow.manifest.json --inputs .
 ```
 
-File outputs are create-new and atomic by default. `--force` requests atomic
-replacement. A governed breach preserves only `<output>.partial` plus evidence;
-it never publishes the successful destination name.
+Use `--regions targets.bed` instead of `--sites` to emit every selected locus,
+including zero-depth positions. See [SEMANTICS.md](docs/SEMANTICS.md) for coordinate,
+flag, quality, depth, and denominator definitions before comparing another tool.
 
-## Resource contract
-
-Prepare a deterministic analysis reference and ask whether the run fits:
+## Panel QC and shared extraction
 
 ```sh
-rosalind reference build --fasta genome.fa --output genome.rref
-rosalind reference inspect --reference-pack genome.rref --json
-
-rosalind plan \
-  --reference-pack genome.rref \
-  --max-depth 1000 --max-read-len 250 \
-  --budget-mb 4096 --json
-
-rosalind analyze coverage \
-  --reference-pack genome.rref \
-  --alignments sample.sorted.bam \
-  --memory-budget-mb 4096 --enforce \
-  --output coverage.tsv
-
-rosalind verify --manifest coverage.tsv.manifest.json
+rosalind analyze panel-qc \
+  --reference genome.fa --alignments sample.sorted.bam --regions targets.bed \
+  --min-callable-depth 10 --memory-budget-mb 256 \
+  --position-output positions.arrow --output panel.tsv
 ```
 
-The `.rref` build uses bounded line buffering and two streaming FASTA passes;
-construction memory scales with contig metadata rather than total reference
-length. It stores contig metadata, packed sequence, ambiguity masks, normalized
-source identity, versioning, and internal integrity checks. Analyzers no longer
-need an FM-index.
+Each original BED target keeps its full denominator and uncovered positions;
+overlapping targets remain distinct. Optional position evidence comes from the
+same traversal. Reference-free coverage is available by omitting `--reference`
+for panel QC, except that a quality-qualified stored SAM sequence symbol `=`
+requires a reference to resolve its base. CRAM also needs a local decoding FASTA,
+supplied with `--cram-reference` when the analysis reference is omitted.
+Callability thresholds are configurable technical screens and have no intrinsic
+clinical interpretation.
 
-Legacy `.idx` inputs and receipts remain supported. Analysis commands accept
-`--index` with migration guidance, and conversion does not rebuild search data:
+## Build on the evidence
+
+The Rust `EvidenceRequest`/`EvidenceEngine`/`EvidenceAnalyzer` API accepts explicit
+field, reference, context, and memory requirements. Schema v1 emits complete rows;
+field requirements do not yet reduce physical row size. The
+[standalone consumer crate](examples/evidence-analyzer/) demonstrates a bounded
+integer reducer outside the workspace. The [SDK guide](docs/analyzer-sdk.md)
+distinguishes extraction from the artifact/receipt lifecycle.
+
+Python's mixed package is distribution `rosalind-bio`, import `rosalind`. A wheel
+bundles its matching CLI. Until published, build a local wheel as described in
+[python/README.md](python/README.md).
+
+```python
+from rosalind import iter_evidence, materialize_evidence
+
+with iter_evidence("genome.fa", "sample.sorted.bam", sites="candidates.vcf",
+                   memory_budget_mb=256) as run:
+    rows = 0
+    for batch in run:
+        rows += batch.num_rows  # at most 1,024 rows per native Arrow batch
+    result = run.result
+print(f"Extracted {rows} loci")
+
+artifact = materialize_evidence("genome.fa", "sample.sorted.bam", "python-evidence.arrow",
+                                sites="candidates.vcf", memory_budget_mb=256)
+```
+
+Consumers own any retained Python memory. Exhaustion finalizes a streamed run;
+early cancellation is not a successful artifact. Materialize when a persisted,
+byte-verifiable output is required.
+
+## Budget, reuse, and trust
+
+Use the actual evidence command with `--plan` for its admitted model:
 
 ```sh
-rosalind reference convert --index legacy.idx --output genome.rref
+rosalind analyze evidence --reference genome.fa --alignments sample.sorted.bam \
+  --sites candidates.vcf --memory-budget-mb 256 --format arrow-ipc --plan
+
+rosalind analyze evidence --reference genome.fa --alignments sample.sorted.bam \
+  --sites candidates.vcf --memory-budget-mb 256 --format arrow-ipc \
+  --cache-dir ./evidence-cache --resume --workers 2 --output evidence-cached.arrow
 ```
 
-The FM-index remains the correct artifact for search:
+Caching is opt-in. Later runs rehash inputs before verified partition reuse.
+Workers extract first-party partitions and reducers consume them in canonical
+order. Small budgets may increase repeated reads; there is no universal speedup
+claim. Prepared alignment indexes and reference creation remain separate setup.
+Keep alignment, reference, selection, and index files immutable for the whole run;
+the [input contract](docs/SEMANTICS.md) describes mutation detection and its limits.
 
-```sh
-rosalind index --reference genome.fa --output genome.idx
-rosalind locate --index genome.idx --pattern GATTACA
-```
+File outputs are create-new and atomic by default; `--force` permits replacement.
+Failed runs do not publish a successful destination. A cooperative memory model
+and sampled RSS are distinct from an OS cap; `--require-os-limit` checks an existing
+Linux cgroup-v2 limit. htslib decodes records before checking their declared
+envelope, so the software model is not a universal hard allocation guarantee.
 
-See [`CONTRACT.md`](CONTRACT.md) for the estimator, exit codes, enforcement
-assurances, and breach behavior.
+Receipts bind content, scientific settings, producer identity, and outcomes.
+Offline `verify`, `reproduce`, `diff`, and receipt inspection distinguish portable
+claims from machine-local measurements. Unsigned receipts are tamper-evident,
+not proof of authorship or biological validity. Historical schemas 1–5 still verify
+at their original capabilities. See [receipts and trust](docs/receipts-and-trust.md).
 
-## Receipts, replay, and trust
+## Compatibility and current limits
 
-Receipts protect portable claims separately from machine-local measurements.
-Modern paths are relocatable metadata; inputs and outputs are matched by content.
-Receipts are **tamper-evident, not proof of authorship**: an unsigned receipt can
-be resealed by someone who changes its contents.
-
-```sh
-rosalind receipt inspect --manifest coverage.tsv.manifest.json --json
-rosalind verify --manifest coverage.tsv.manifest.json
-rosalind reproduce --manifest coverage.tsv.manifest.json --inputs ./data
-rosalind diff --a old.manifest.json --b new.manifest.json --json
-rosalind chain verify --dir ./artifacts --json
-```
-
-Replay uses validated tokenized arguments, never a shell string. Historical
-receipt schemas 1–5 remain parseable at their original capability level. The
-loopback-only Receipt Studio and browser verifier inspect artifacts locally.
-See [`docs/receipts-and-trust.md`](docs/receipts-and-trust.md).
-
-## What is supported today
-
-This table describes the current development tree. Region/shard/merge, Arrow,
-Python wheels, and workflow integrations are unreleased v0.5 work until their
-release and evidence gates pass; no published 0.4 artifact is implied.
-
-| Surface | Current contract |
+| Surface | Current development contract |
 |---|---|
-| Input | Coordinate-sorted short-read BAM; contig names and lengths must match the reference |
-| Analysis reference | Preferred deterministic `.rref`; compatible legacy `.idx` |
-| SDK | Streaming, single-process `ColumnAnalyzer` over depth-capped pileup columns |
-| Built-in analyzers | Per-locus feature TSV/Arrow IPC and coverage track |
-| Selection | Whole genome without an index; indexed region/BED and deterministic reference-span shards with BAM+BAI |
-| Parallelism | External shard fan-out plus receipt-validated canonical first-party merge; no internal threads |
-| Resource modes | Observation-only, cooperative enforcement, optional existing Linux cgroup-v2 limit |
-| Outputs | Deterministic bytes within a Rosalind release; atomic create-new/replace |
-| Evidence | Canonical schema-5 receipt, verify, replay, reproduction certificate, diff, chain |
-| Caller | Diploid, single-sample, short-read SNVs; simulated evidence only; not a production caller |
-| Search | Separate `.idx` FM-index and exact `locate` |
+| Exact evidence input | Local indexed BAM+BAI/CSI or CRAM+CRAI; CRAM needs explicit local FASTA |
+| Reference | Uncompressed FASTA+FAI, `.rref`, compatible `.idx`; optional for panel coverage |
+| Evidence schema | Read-based exact SNV counts, allele strands, quality sums/histograms, stored-SEQ offset sums, filter counts |
+| Legacy analyzers | `features`, `analyze coverage`, `ColumnAnalyzer`, and scaffold remain; separate filter defaults |
+| Legacy capacity | New runs use `pileup.semantics=exact-or-fail-v1`; old semantic replay needs its producer |
+| Outputs | TSV, canonical Arrow; legacy first-party shard merge remains supported |
+| Platforms | Linux x86_64 and macOS arm64/x86_64 package workflows; publication/CI gates still apply |
+| Deferred | Indels, UMI/fragment consensus, methylation, long reads, production calling, Linux ARM wheels |
 
-Current limitations are explicit:
+Read-position summaries use offsets in the stored SEQ, adjusted for reverse
+orientation. They do not reconstruct sequencing cycles removed before alignment.
 
-- Execution is single-threaded; deterministic shards are the parallelism model.
-  Canonical merge is intentionally limited to first-party TSV, Arrow IPC, sites
-  VCF, and gVCF codecs.
-- Region/BED/shard execution requires a `.bai`; CSI and CRAM/CRAI are deferred.
-- Linux ARM, long reads, indels, configurable
-  ploidy, and production-caller validation are not currently supported.
-- A real HG002 GIAB baseline has not yet been established. The pinned workflow
-  exists, and its first result will be published even if poor.
-- Resource predictability is not a speed or accuracy claim.
-
-## Built-in workloads
-
-The two maintained analyzer examples share one bounded kernel:
+The legacy extension entry point remains:
 
 ```sh
-rosalind analyze coverage \
-  --reference-pack genome.rref --alignments sample.sorted.bam \
-  --output coverage.tsv
-
-rosalind features \
-  --reference-pack genome.rref --alignments sample.sorted.bam \
-  --format arrow-ipc --output features.arrow
+rosalind new analyzer locus-qc --output /tmp/locus-qc
 ```
 
-Sparse selections use samtools-style 1-based inclusive regions or BED's zero-based
-half-open coordinates. Shards own a complete, non-overlapping span of the ordered
-reference, independent of read content:
+Its contract runner adds output safety, receipt, and replay handling. Custom state
+needs its own conservative memory declaration; an unknown model is observable but
+cannot inherit a proven bound. Existing BAM region/shard work retains its original
+BAI-only constraints; CSI/CRAM support belongs to the new evidence path.
 
-```sh
-rosalind features --reference-pack genome.rref --alignments sample.sorted.bam \
-  --format arrow-ipc --shard-count 4 --shard-index 0 --output shard-0.arrow
+Analysis does not require a search index. `rosalind reference build --fasta
+genome.fa --output genome.rref` builds a reusable packed reference. The legacy
+FM-index and `locate` remain separate search facilities.
 
-rosalind merge \
-  --manifest shard-0.arrow.manifest.json \
-  --manifest shard-1.arrow.manifest.json \
-  --manifest shard-2.arrow.manifest.json \
-  --manifest shard-3.arrow.manifest.json \
-  --inputs . --output features.arrow
-```
+## Evidence and contribution
 
-The merge refuses missing, duplicate, overlapping, tampered, breached, or
-contract-incompatible parents. A complete Arrow shard merge is rebatched into
-canonical 65,536-row batches and is byte-identical to the unsharded stream.
+The [local validation report](docs/findings/evidence-engine-2026-09-05/README.md)
+retains raw test, package, workflow, and benchmark evidence. On the small NA18507
+example, all 34 evidence fields matched an independent pysam oracle exactly across
+three budgets and three repetitions; cache resume preserved output while avoiding
+partition extraction. These checks establish the tested behavior on this dataset.
+Larger-data efficiency, Linux/macOS Intel packages, container enforcement, and
+independent adoption still have separate gates.
 
-Variant calling remains available as a reference workload. The CLI reporting
-threshold defaults to 30 so it matches the published simulated configuration:
+The [exact-evidence curve](benchmarks/evidence/) compares a semantically matched
+streaming pysam oracle with three repeated declared-budget runs, retaining raw
+time/RSS/I/O, hashes, and verification cost. The [platform harness](benchmarks/platform/)
+covers legacy extraction and real cgroup probes when Docker is available.
+bcftools default mpileup differences are reported explicitly rather than treated
+as equivalence. A harness is not a published performance result.
 
-```sh
-rosalind variants \
-  --reference-pack genome.rref --alignments sample.sorted.bam \
-  --quality-threshold 30 --output calls.vcf
-```
+The [GIAB caller baseline](benchmarks/giab/) remains unestablished. Its scientific
+gate follows caller/shared-processing changes; evidence-engine correctness is
+tested by exact observation agreement and invariance. See
+[benchmarks and limitations](docs/benchmarks-and-limitations.md).
 
-Use `--quality-threshold 10` explicitly for the historical permissive behavior.
-Do not infer clinical validity or competitiveness from the bundled simulated test.
+Maintained [Nextflow](integrations/nextflow/) and [Snakemake](integrations/snakemake/)
+examples connect analysis to workflow verification. The [roadmap](docs/ROADMAP.md)
+tracks independent researcher/builder adoption separately from authored examples.
+Historical exploratory plans in `docs/superpowers/`, `docs/OPEN_PROBLEMS.md`, and
+`docs/GROWTH.md` are archives, not the current delivery sequence.
 
-## Evidence and benchmarks
-
-The claims harness re-derives contract properties on bundled data:
-
-```sh
-bash benchmarks/run.sh
-```
-
-It checks conservative prediction, honor-or-refuse behavior, repeat-run byte
-identity, replay/tamper detection, and deterministic packing. Measured findings
-live under [`docs/findings/`](docs/findings/); the opt-in GIAB workflow lives under
-[`benchmarks/giab/`](benchmarks/giab/). Claims without an executable evidence path
-are intentionally excluded from this README.
-
-The platform harness compares equivalent Rosalind, pysam, and bcftools extraction
-on the same input and derives its report from retained raw measurements. Published
-HG002 results remain pending; no result is inferred from the existence of the
-harness. See [`benchmarks/platform/`](benchmarks/platform/) and
-[`docs/benchmarks-and-limitations.md`](docs/benchmarks-and-limitations.md).
-
-The unreleased Python package is a Maturin mixed project: distribution
-`rosalind-bio`, import `rosalind`. `iter_features()` yields native PyArrow record
-batches without accumulating the genome; `collect_features()` is the explicit
-materialization path. Platform wheels and publishing remain release-gated.
-
-## Rust API
-
-The reference abstraction excludes search operations by design:
-
-```rust,no_run
-use rosalind::{ReferencePackReader, ReferenceProvider};
-
-fn inspect(path: &std::path::Path) -> anyhow::Result<()> {
-    let reference = ReferencePackReader::open(path)?;
-    println!("{} bases", reference.len());
-    for contig in reference.contigs().iter() {
-        println!("{}\t{}", contig.name, contig.length);
-    }
-    Ok(())
-}
-```
-
-The SDK front door re-exports `ColumnAnalyzer`, `PileupColumn`,
-`ContractRunSpec`, `run_column_analysis`, typed refusal/breach outcomes, and the
-contract testkit. API details are in [`docs/analyzer-sdk.md`](docs/analyzer-sdk.md)
-and the generated rustdoc.
-
-## Roadmap and contribution
-
-The delivery sequence, evidence gates, and non-goals are maintained in
-[`docs/ROADMAP.md`](docs/ROADMAP.md). The current architecture is
-[`ARCHITECTURE.md`](ARCHITECTURE.md), and the exact implemented/deferred split is
-[`docs/implementation-status.md`](docs/implementation-status.md). Historical implementation exploration under
-`docs/superpowers/`, `docs/OPEN_PROBLEMS.md`, and `docs/GROWTH.md` is non-primary archive material; external-memory search-index work
-does not return to the product roadmap without the documented user-evidence gate.
-
-Contributions should preserve determinism, bounded analysis state, receipt
-compatibility, and transactional output behavior. See
-[`CONTRIBUTING.md`](CONTRIBUTING.md), [`SECURITY.md`](SECURITY.md), and
-[`CITATION.cff`](CITATION.cff).
+Contributions preserve scientific invariance, receipt compatibility, and atomic
+publication. See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and
+[CITATION.cff](CITATION.cff).
 
 ## License
 

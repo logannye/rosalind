@@ -1,8 +1,16 @@
 name: Rosalind OCI image
 
 on:
-  release:
-    types: [published]
+  workflow_call:
+    inputs:
+      candidate_sha:
+        description: Exact candidate commit selected by the release gate
+        type: string
+        required: true
+      release_tag:
+        description: Immutable version or numbered RC tag
+        type: string
+        required: true
 
 permissions:
   contents: read
@@ -16,6 +24,18 @@ jobs:
     environment: release
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.candidate_sha }}
+      - name: Verify immutable candidate
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$CANDIDATE_SHA"
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[1-9][0-9]*)?$ ]]
+          python3 scripts/prepare-wheel-version.py --candidate-sha "$CANDIDATE_SHA" \
+            --version "${RELEASE_TAG#v}" --output "$RUNNER_TEMP/container-build.json"
       - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
@@ -29,15 +49,19 @@ jobs:
           file: containers/rosalind/Dockerfile
           platforms: linux/amd64
           push: true
-          tags: ghcr.io/${{ github.repository }}:${{ github.event.release.tag_name || github.sha }}
+          tags: ghcr.io/${{ github.repository }}:${{ inputs.release_tag }}
           provenance: mode=max
           sbom: true
       - name: Offline non-root smoke
+        env:
+          PACKAGE_VERSION: ${{ inputs.release_tag }}
         run: |
           image="ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}"
           docker pull "$image"
           test "$(docker run --rm --network none --entrypoint id "$image" -u)" = 10001
-          docker run --rm --network none "$image" --version
+          test "$(docker run --rm --network none "$image" --version)" = "rosalind ${PACKAGE_VERSION#v}"
+          docker run --rm --network none "$image" demo --output-dir /tmp/rosalind-demo --json > "$RUNNER_TEMP/container-demo.json"
+          python3 -c 'import json,os; assert json.load(open(os.environ["RUNNER_TEMP"] + "/container-demo.json"))["ok"]'
       - uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2
         with:
           subject-name: ghcr.io/${{ github.repository }}
@@ -46,12 +70,13 @@ jobs:
       - name: Emit immutable lock candidate
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
-          RELEASE: ${{ github.event.release.tag_name || github.sha }}
+          RELEASE: ${{ inputs.release_tag }}
         run: |
           python3 - <<'PY'
           import json, os
           lock = json.load(open("integrations/container-lock.json"))
           lock.update(digest=os.environ["DIGEST"], release=os.environ["RELEASE"], status="published")
+          lock["build"] = json.load(open(os.environ["RUNNER_TEMP"] + "/container-build.json"))
           open("container-lock.generated.json", "w").write(json.dumps(lock, indent=2, sort_keys=True) + "\n")
           PY
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

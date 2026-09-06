@@ -20,6 +20,14 @@ pub struct MmapReadOnly {
     len: usize,
 }
 
+// SAFETY: the mapping has no thread affinity, its address stays valid until
+// its unique owner is dropped, and all exposed access is read-only. Shared
+// owners (e.g. Arc) keep the mapping alive while concurrent readers use it.
+unsafe impl Send for MmapReadOnly {}
+// SAFETY: no method exposes mutation of the mapping; concurrent shared access
+// only creates immutable byte slices, and unmapping requires dropping ownership.
+unsafe impl Sync for MmapReadOnly {}
+
 impl MmapReadOnly {
     /// Memory-map the entire file as read-only.
     pub fn map(file: &File) -> io::Result<Self> {

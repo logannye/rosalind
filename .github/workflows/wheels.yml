@@ -3,8 +3,20 @@ name: Python wheels
 on:
   pull_request:
   workflow_dispatch:
-  release:
-    types: [published]
+  workflow_call:
+    inputs:
+      candidate_sha:
+        description: Exact candidate commit selected by the parent release gate
+        type: string
+        required: true
+      package_version:
+        description: Base Cargo version or unique numbered RC version
+        type: string
+        default: ''
+      destination:
+        description: none, testpypi, or pypi
+        type: string
+        default: none
 
 permissions:
   contents: read
@@ -27,79 +39,93 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.candidate_sha || github.event.pull_request.head.sha || github.sha }}
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
+        with:
+          toolchain: 1.95.0
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.11'
+      - name: Bind the wheel to its candidate and unique release version
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha || github.event.pull_request.head.sha || github.sha }}
+          PACKAGE_VERSION: ${{ inputs.package_version }}
+          DESTINATION: ${{ inputs.destination || 'none' }}
+        run: |
+          case "$DESTINATION" in none|testpypi|pypi) ;; *) exit 2 ;; esac
+          python scripts/prepare-wheel-version.py --candidate-sha "$CANDIDATE_SHA" --version "$PACKAGE_VERSION" --output "$RUNNER_TEMP/wheel-build.json"
       - uses: PyO3/maturin-action@e83996d129638aa358a18fbd1dfb82f0b0fb5d3b # v1
         with:
           target: ${{ matrix.target }}
           manylinux: ${{ matrix.manylinux }}
           command: build
+          maturin-version: '1.9.4'
           args: --release --locked --out dist
-      - name: Fresh wheel smoke
-        shell: bash
+      # Maturin's Linux compiler and Cargo cache live inside its container. The
+      # scaffold smoke compiles on the host and prepares its own Cargo lock/cache.
+      - name: Prepare Linux host SDK compiler dependencies
+        if: runner.os == 'Linux'
         run: |
-          python -m venv wheel-venv
-          wheel-venv/bin/pip install dist/*.whl
-          wheel-venv/bin/python -c 'import rosalind; print(rosalind.__version__)'
-          wheel-venv/bin/rosalind --version
-          mkdir -p wheel-smoke
-          wheel-venv/bin/rosalind sort \
-            --input examples/data/illumina_toy/alignments.bam \
-            --output wheel-smoke/sorted.bam
-          wheel-venv/bin/rosalind reference build \
-            --fasta examples/data/illumina_toy/reference.fa \
-            --output wheel-smoke/reference.rref
-          wheel-venv/bin/python - <<'PY'
-          import rosalind
-          run = rosalind.iter_features(
-              "wheel-smoke/reference.rref",
-              "wheel-smoke/sorted.bam",
-              workdir="wheel-smoke/python",
-          )
-          rows = sum(batch.num_rows for batch in run.batches())
-          assert rows > 0
-          assert run.result is not None and run.result.returncode == 0
-          receipt = rosalind.inspect_receipt(run.result.manifest_path)
-          assert receipt.params["feature.schema"] == "1"
-          PY
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential clang cmake pkg-config libbz2-dev liblzma-dev zlib1g-dev
+      - name: Fresh Python 3.11 wheel smoke
+        run: scripts/smoke-wheel.sh dist/*.whl
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.9'
+      - name: Fresh minimum-supported Python wheel smoke
+        run: scripts/smoke-wheel.sh dist/*.whl
+      - name: Record candidate provenance beside wheel
+        run: cp "$RUNNER_TEMP/wheel-build.json" 'dist/wheel-build-${{ matrix.target }}.json'
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: wheel-${{ matrix.target }}
-          path: dist/*.whl
+          path: dist/*
           if-no-files-found: error
 
-  publish-testpypi:
-    if: github.event_name == 'release' && github.event.release.prerelease
+  publish:
+    if: inputs.destination == 'testpypi' || inputs.destination == 'pypi'
     needs: build
     runs-on: ubuntu-latest
     environment: release
     permissions:
+      contents: read
       id-token: write
     steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.candidate_sha }}
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: wheel-*
-          path: dist
+          path: artifacts
           merge-multiple: true
+      - name: Verify candidate provenance before publishing only wheels
+        env:
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          PACKAGE_VERSION: ${{ inputs.package_version }}
+          DESTINATION: ${{ inputs.destination }}
+        run: |
+          python3 - <<'PY'
+          import json, os, pathlib
+          reports = list(pathlib.Path("artifacts").glob("wheel-build-*.json"))
+          assert len(reports) == 3
+          version = os.environ["PACKAGE_VERSION"]
+          assert bool("-rc." in version) == (os.environ["DESTINATION"] == "testpypi")
+          for path in reports:
+              report = json.loads(path.read_text())
+              assert report["source_commit"] == os.environ["CANDIDATE_SHA"]
+              assert report["rust_version"] == version
+          PY
+          mkdir dist
+          cp artifacts/*.whl dist/
+      - name: Verify exact bytes before an idempotent publication retry
+        env:
+          DESTINATION: ${{ inputs.destination }}
+        run: python3 scripts/verify-wheel-upload.py --index "$DESTINATION"
       - uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1
         with:
-          repository-url: https://test.pypi.org/legacy/
+          repository-url: ${{ inputs.destination == 'testpypi' && 'https://test.pypi.org/legacy/' || 'https://upload.pypi.org/legacy/' }}
           packages-dir: dist
-
-  publish-pypi:
-    if: github.event_name == 'release' && !github.event.release.prerelease
-    needs: build
-    runs-on: ubuntu-latest
-    environment: release
-    permissions:
-      id-token: write
-    steps:
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          pattern: wheel-*
-          path: dist
-          merge-multiple: true
-      - uses: pypa/gh-action-pypi-publish@cef221092ed1bacb1cc03d23a2d87d1d172e277b # release/v1
-        with:
-          packages-dir: dist
+          skip-existing: true

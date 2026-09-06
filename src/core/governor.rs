@@ -13,7 +13,7 @@
 //! one-line [`checkpoint`] call, not a threaded parameter.
 
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::Arc;
+use std::sync::mpsc;
 use std::thread::JoinHandle;
 use std::time::Duration;
 
@@ -66,7 +66,7 @@ impl std::error::Error for GovernorError {}
 /// thread and disarms the state.
 #[derive(Debug)]
 pub struct MemoryGovernor {
-    stop: Arc<AtomicBool>,
+    stop: mpsc::Sender<()>,
     handle: Option<JoinHandle<()>>,
 }
 
@@ -94,8 +94,7 @@ impl MemoryGovernor {
             TRIPPED.store(true, Ordering::Release);
         }
 
-        let stop = Arc::new(AtomicBool::new(false));
-        let stop_thread = Arc::clone(&stop);
+        let (stop, stop_thread) = mpsc::channel();
         let handle = std::thread::spawn(move || loop {
             let rss = rss_source();
             if rss > budget_bytes {
@@ -103,10 +102,11 @@ impl MemoryGovernor {
                 TRIPPED.store(true, Ordering::Release);
                 break;
             }
-            if stop_thread.load(Ordering::Acquire) {
+            // Wake immediately on shutdown rather than making every short run
+            // wait for the remainder of its polling interval.
+            if stop_thread.recv_timeout(poll) != Err(mpsc::RecvTimeoutError::Timeout) {
                 break;
             }
-            std::thread::sleep(poll);
         });
         Ok(Self {
             stop,
@@ -117,7 +117,7 @@ impl MemoryGovernor {
 
 impl Drop for MemoryGovernor {
     fn drop(&mut self) {
-        self.stop.store(true, Ordering::Release);
+        let _ = self.stop.send(());
         if let Some(h) = self.handle.take() {
             let _ = h.join();
         }

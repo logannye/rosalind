@@ -75,9 +75,10 @@ cargo xtask release plan --version 0.4.0 --rc-tag v0.4.0-rc.1 \
 cargo xtask release dispatch --plan release-plan.json --confirm PLAN_ID
 ```
 
-The stable workflow enforces the server-timestamped seven-day soak, an identical
-public-contract fingerprint, three anonymized partner personas, idempotent crates.io
-publication, and fresh-cache downstream installation before creating the stable tag.
+The stable workflow enforces an identical public-contract fingerprint, idempotent
+publication, and fresh-cache downstream installation before creating the stable
+tag. The server-timestamped seven-day soak and three partner personas begin at
+0.5.0; they do not block 0.4.0 stabilization.
 
 Publication can be rerun after interruption. Each package is recreated locally and
 the downloaded registry `.crate` must have identical SHA-256 bytes before it is
@@ -110,3 +111,44 @@ provide the crates.io token, approve protected environments, make the GHCR packa
 public, provide benchmark compute, wait the full server-timestamped seven days, and
 conduct three real partner engagements. The CLI reports those as blockers rather
 than silently weakening them.
+
+## Candidate publication and evaluator readiness
+
+RC/stable workflows invoke wheel and OCI publication explicitly with the exact
+candidate SHA; they do not depend on a downstream release event from GITHUB_TOKEN.
+Linux x86_64 and macOS arm64/x86_64 wheels run outside-checkout install checks on
+Python 3.11 and 3.9, including exact evidence, panel QC, and artifact verification.
+The installed binary version must equal the Python distribution version after RC
+normalization. Persisted evidence is replayed through that installed binary with
+local inputs. The packaged scaffold is generated, built offline against the
+candidate SDK source, and checked by the packaged conformance runner. This source
+patch is explicit pre-publication validation; fresh registry SDK installation is
+still checked separately after crate publication. Candidate build dependencies
+must already be present in Cargo's cache for the offline scaffold build.
+RC build checkouts derive `0.4.0-rc.N` native and `0.4.0rcN` Python versions with
+recorded source/manifest hashes; the tracked source version stays 0.4.0. Generated
+build reports live outside the source checkout before compilation.
+
+Caller evidence is change-based: the selected variants dispatch/defaults,
+transitive local helpers, watched caller/shared-input files, and dependency lock
+are compared to the tested source. A root package version bump or unrelated CLI
+addition alone does not require GIAB. Shared pileup/filter changes do. Missing,
+stale, dirty, or incomplete baseline evidence fails closed. An unchanged bootstrap
+caller remains explicitly experimental with no accuracy claim.
+
+`happy-candidate.yml` builds the evaluator without registry credentials and runs a
+synthetic identical-SNV case through the actual offline hap.py/vcfeval path. It
+runs on evaluator PRs and when a scheduled GIAB run lacks a published evaluator.
+The protected image workflow requires that candidate gate, then publishes and
+attests a digest and proposes its lock. A candidate build is not a GIAB result;
+HG002 execution still requires the reviewed published image and prepared data.
+Python 2.7 is required by pinned hap.py 0.3.15; compatible bx-python/six wheels are
+hash-locked rather than resolved from floating dependencies.
+
+Read-only prerequisite inspection on 2026-09-05 found no repository, rc, or release
+secrets: CARGO_REGISTRY_TOKEN is absent. Both protected environments have the owner
+as required reviewer, but custom deployment policies contain zero allowed
+branch/tag rules. Configure the intended release workflow refs before dispatch.
+PyPI/TestPyPI trusted publishers must also be configured for the reusable workflow
+and protected release environment; GitHub secret-name inspection cannot establish
+that external state. No secret values were read and no settings were changed.

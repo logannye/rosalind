@@ -1,3 +1,5 @@
+mod evidence_cli;
+
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
@@ -5,7 +7,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use anyhow::{anyhow, bail, Context, Result};
-use clap::{Args, Parser, Subcommand, ValueEnum};
+use clap::{Args, CommandFactory, FromArgMatches, Parser, Subcommand, ValueEnum};
 use rosalind::core::MemoryBudget;
 use rosalind::genomics::{
     compare_callsets, create_bam_writer, read_vcf_variants, render_plan_line,
@@ -37,7 +39,7 @@ struct SelectionArgs {
     /// One samtools-style 1-based inclusive interval (`chr:start-end`).
     #[arg(long, conflicts_with_all = ["regions", "shard_count", "shard_index"])]
     region: Option<String>,
-    /// BED intervals (zero-based half-open); requires a BAM `.bai`.
+    /// BED intervals (zero-based half-open); requires an alignment index.
     #[arg(long, conflicts_with_all = ["region", "shard_count", "shard_index"])]
     regions: Option<PathBuf>,
     /// Total deterministic reference-span shards.
@@ -145,7 +147,7 @@ enum Commands {
         /// With `--enforce` it is honored (exit 3 refuse / exit 4 breach). (`--index` path.)
         #[arg(long)]
         memory_budget_mb: Option<u64>,
-        /// Cap the active read set per position (unbiased min-hash downsampling);
+        /// Declare the active read capacity; exceeding it fails with partial output;
         /// the bound `plan`/`--enforce` rely on. `0` = uncapped.
         #[arg(long, default_value_t = 1000)]
         max_depth: u32,
@@ -199,7 +201,7 @@ enum Commands {
         /// Declared memory budget (MiB). With `--enforce` it is honored (exit 3/4).
         #[arg(long)]
         memory_budget_mb: Option<u64>,
-        /// Active-set depth cap (unbiased downsampling). `0` = uncapped.
+        /// Active-read capacity (exact-or-fail). `0` = uncapped.
         #[arg(long, default_value_t = 1000)]
         max_depth: u32,
         /// Max read length assumed by the `--enforce` estimate and enforced at ingest.
@@ -226,32 +228,32 @@ enum Commands {
         #[arg(long, value_enum, default_value_t = FeatureFormat::Tsv)]
         format: FeatureFormat,
     },
-    /// Run a registered per-locus analyzer over the bounded whole-genome walk, with a
-    /// verifiable receipt that records the analyzer's own params (under `analyzer.`).
+    /// Extract indexed exact evidence or panel QC, or run a legacy column analyzer,
+    /// with a verifiable receipt recording the analysis parameters.
     Analyze {
         /// Which analyzer to run.
         #[arg(value_enum)]
         kind: AnalyzerKind,
         /// Legacy persisted search index. Prefer `--reference-pack` for analysis.
-        #[arg(
-            long,
-            conflicts_with = "reference_pack",
-            required_unless_present = "reference_pack"
-        )]
+        #[arg(long, conflicts_with_all = ["reference_pack", "reference"])]
         index: Option<PathBuf>,
         /// Lightweight analysis reference built by `rosalind reference build`.
-        #[arg(long, required_unless_present = "index")]
+        #[arg(long, conflicts_with = "reference")]
         reference_pack: Option<PathBuf>,
-        /// Coordinate-sorted alignments (BAM).
+        /// Indexed local FASTA for exact evidence; also accepted: .rref or .idx.
+        #[arg(long)]
+        reference: Option<PathBuf>,
+        /// Coordinate-sorted alignments (BAM; CRAM for evidence/panel-qc).
         #[arg(long)]
         alignments: PathBuf,
         /// Minimum MAPQ required for a read to be considered.
-        #[arg(long, default_value_t = 0)]
-        mapq_threshold: u8,
-        /// Declared memory budget (MiB). With `--enforce` it is honored (exit 3/4).
+        #[arg(long)]
+        mapq_threshold: Option<u8>,
+        /// Memory budget (MiB). Evidence/panel QC enforce it automatically;
+        /// legacy analyzers require `--enforce` (refusal 3, runtime limit 4).
         #[arg(long)]
         memory_budget_mb: Option<u64>,
-        /// Active-set depth cap (unbiased downsampling). `0` = uncapped.
+        /// Active-read capacity (exact-or-fail). `0` = uncapped.
         #[arg(long, default_value_t = 1000)]
         max_depth: u32,
         /// Max read length assumed by the `--enforce` estimate and enforced at ingest.
@@ -274,6 +276,8 @@ enum Commands {
         manifest: Option<PathBuf>,
         #[command(flatten)]
         selection: SelectionArgs,
+        #[command(flatten)]
+        evidence: evidence_cli::EvidenceOptions,
     },
     /// Deterministically coordinate-sort a BAM file using bounded memory.
     Sort {
@@ -492,6 +496,9 @@ enum Commands {
         /// Declared memory budget (MiB) to check feasibility against.
         #[arg(long)]
         budget_mb: Option<u64>,
+        /// Include the canonical Arrow feature encoder's additional working set.
+        #[arg(long, value_enum, default_value_t = FeatureFormat::Tsv)]
+        format: FeatureFormat,
         /// Emit the predicted-peak breakdown as one-line JSON (for a scheduler/CI
         /// to read), instead of the human-readable table. `--index` only.
         #[arg(long)]
@@ -553,6 +560,9 @@ enum Commands {
         /// Emit a compact JSON summary instead of the human report.
         #[arg(long)]
         json: bool,
+        /// Create a streaming per-locus metric delta TSV from verified exact evidence.
+        #[arg(long)]
+        loci_output: Option<PathBuf>,
     },
     /// Re-derive a recorded result from its receipt and content-located inputs, and
     /// write a chainable reproduction certificate. The verdict is over output bytes
@@ -694,6 +704,8 @@ enum CallsFilter {
 enum AnalyzerKind {
     Features,
     Coverage,
+    Evidence,
+    PanelQc,
 }
 
 #[derive(Copy, Clone, Debug, ValueEnum, Eq, PartialEq)]
@@ -778,7 +790,58 @@ fn main() -> Result<()> {
         target_triple: env!("ROSALIND_TARGET").to_string(),
         deps_lock_blake3: env!("ROSALIND_DEPS_LOCK_BLAKE3").to_string(),
     });
-    let cli = Cli::parse();
+    let matches = Cli::command().get_matches();
+    if let Some(("analyze", args)) = matches.subcommand() {
+        let exact = matches!(
+            args.get_one::<AnalyzerKind>("kind"),
+            Some(AnalyzerKind::Evidence | AnalyzerKind::PanelQc)
+        );
+        let evidence_only = [
+            "reference",
+            "sites",
+            "base_quality_threshold",
+            "format",
+            "tile_bases",
+            "max_record_bytes",
+            "workers",
+            "cache_dir",
+            "resume",
+            "cram_reference",
+            "alignment_index",
+            "reference_fai",
+            "cram_reference_fai",
+            "min_callable_depth",
+            "position_output",
+            "plan",
+        ];
+        for name in evidence_only {
+            if !exact && args.value_source(name) == Some(clap::parser::ValueSource::CommandLine) {
+                clap::Error::raw(
+                    clap::error::ErrorKind::ArgumentConflict,
+                    format!(
+                        "--{} requires analyze evidence or analyze panel-qc",
+                        name.replace('_', "-")
+                    ),
+                )
+                .exit();
+            }
+        }
+        if exact && args.value_source("max_depth") == Some(clap::parser::ValueSource::CommandLine) {
+            clap::Error::raw(clap::error::ErrorKind::ArgumentConflict,
+                "--max-depth applies to legacy analyzers; exact evidence accumulates all eligible reads").exit();
+        }
+        if args.get_one::<AnalyzerKind>("kind") == Some(&AnalyzerKind::Evidence)
+            && args.value_source("min_callable_depth")
+                == Some(clap::parser::ValueSource::CommandLine)
+        {
+            clap::Error::raw(
+                clap::error::ErrorKind::ArgumentConflict,
+                "--min-callable-depth requires analyze panel-qc",
+            )
+            .exit();
+        }
+    }
+    let cli = Cli::from_arg_matches(&matches)?;
 
     match cli.command {
         Commands::Reference { action } => run_reference(action)?,
@@ -926,6 +989,7 @@ fn main() -> Result<()> {
             kind,
             index,
             reference_pack,
+            reference,
             alignments,
             mapq_threshold,
             memory_budget_mb,
@@ -937,53 +1001,78 @@ fn main() -> Result<()> {
             output,
             manifest,
             selection,
+            evidence,
         } => {
-            let label = match kind {
-                AnalyzerKind::Features => "analyze features",
-                AnalyzerKind::Coverage => "analyze coverage",
-            };
-            let analysis_reference = select_analysis_reference(index, reference_pack);
-            let selection = resolve_selection(&analysis_reference, &selection)?;
-            match kind {
-                AnalyzerKind::Features => {
-                    let mut a = rosalind::call::FeatureAnalyzer::default();
-                    run_bounded_analysis(
-                        label,
-                        "analyzer.",
-                        &mut a,
-                        analysis_reference,
-                        alignments,
-                        mapq_threshold,
-                        memory_budget_mb,
-                        max_depth,
-                        max_read_len,
-                        enforce,
-                        require_os_limit,
-                        force,
-                        output,
-                        manifest,
-                        selection,
-                    )?
+            if matches!(kind, AnalyzerKind::Evidence | AnalyzerKind::PanelQc) {
+                evidence_cli::run(evidence_cli::EvidenceCommand {
+                    panel: kind == AnalyzerKind::PanelQc,
+                    reference: reference.or(reference_pack).or(index),
+                    alignments,
+                    mapq_threshold,
+                    memory_budget_mb,
+                    max_read_len,
+                    enforce,
+                    require_os_limit,
+                    force,
+                    output,
+                    manifest,
+                    selection,
+                    options: evidence,
+                })?;
+            } else {
+                if reference.is_some() || (index.is_none() && reference_pack.is_none()) {
+                    bail!("legacy analyzers require --index or --reference-pack");
                 }
-                AnalyzerKind::Coverage => {
-                    let mut a = rosalind::call::CoverageTrack;
-                    run_bounded_analysis(
-                        label,
-                        "analyzer.",
-                        &mut a,
-                        analysis_reference,
-                        alignments,
-                        mapq_threshold,
-                        memory_budget_mb,
-                        max_depth,
-                        max_read_len,
-                        enforce,
-                        require_os_limit,
-                        force,
-                        output,
-                        manifest,
-                        selection,
-                    )?
+                evidence.reject_legacy_options()?;
+                let mapq_threshold = mapq_threshold.unwrap_or(0);
+                let label = match kind {
+                    AnalyzerKind::Features => "analyze features",
+                    AnalyzerKind::Coverage => "analyze coverage",
+                    AnalyzerKind::Evidence | AnalyzerKind::PanelQc => unreachable!(),
+                };
+                let analysis_reference = select_analysis_reference(index, reference_pack);
+                match kind {
+                    AnalyzerKind::Features => {
+                        let mut a = rosalind::call::FeatureAnalyzer::default();
+                        run_bounded_analysis(
+                            label,
+                            "analyzer.",
+                            &mut a,
+                            analysis_reference,
+                            alignments,
+                            mapq_threshold,
+                            memory_budget_mb,
+                            max_depth,
+                            max_read_len,
+                            enforce,
+                            require_os_limit,
+                            force,
+                            output,
+                            manifest,
+                            selection,
+                        )?
+                    }
+                    AnalyzerKind::Coverage => {
+                        let mut a = rosalind::call::CoverageTrack;
+                        run_bounded_analysis(
+                            label,
+                            "analyzer.",
+                            &mut a,
+                            analysis_reference,
+                            alignments,
+                            mapq_threshold,
+                            memory_budget_mb,
+                            max_depth,
+                            max_read_len,
+                            enforce,
+                            require_os_limit,
+                            force,
+                            output,
+                            manifest,
+                            selection,
+                        )?
+                    }
+                    AnalyzerKind::Evidence | AnalyzerKind::PanelQc => unreachable!(),
                 }
             }
         }
@@ -1103,6 +1192,7 @@ fn main() -> Result<()> {
             max_depth,
             max_read_len,
             budget_mb,
+            format,
             json,
             selection,
         } => run_plan(
@@ -1113,6 +1203,7 @@ fn main() -> Result<()> {
             budget_mb,
             json,
             selection,
+            format,
         )?,
         Commands::Pack {
             jobs,
@@ -1128,7 +1219,12 @@ fn main() -> Result<()> {
             expect_code,
             json,
         } => run_verify(manifest, budget_mb, expect_code, json)?,
-        Commands::Diff { a, b, json } => run_diff(a, b, json)?,
+        Commands::Diff {
+            a,
+            b,
+            json,
+            loci_output,
+        } => run_diff(a, b, json, loci_output)?,
         Commands::Reproduce {
             manifest,
             inputs,
@@ -1870,6 +1966,7 @@ fn run_sort(
 /// predicts the bounded whole-genome `variants` peak (largest contig + active set
 /// @ the declared cap, atop the measured process baseline). `--reference`
 /// predicts the index build peak (advisory; build is O(reference)).
+#[allow(clippy::too_many_arguments)] // Each argument maps to a distinct public planning option.
 fn run_plan(
     index: Option<PathBuf>,
     reference: Option<PathBuf>,
@@ -1878,6 +1975,7 @@ fn run_plan(
     budget_mb: Option<u64>,
     json: bool,
     selection_args: SelectionArgs,
+    format: FeatureFormat,
 ) -> Result<()> {
     use rosalind::call::plan::{predicted_peak_rss_bytes, render_variants_plan};
     use rosalind::genomics::{AnalysisReference, ReferenceProvider};
@@ -1891,9 +1989,22 @@ fn run_plan(
         // Measure the process baseline now (binary + libs + index mmap header);
         // the per-contig reference decode + active set are modeled on top.
         let baseline = peak_rss_bytes();
+        let encoder_bytes = if format == FeatureFormat::ArrowIpc {
+            rosalind::call::arrow::feature_arrow_memory_bytes(
+                loaded
+                    .contigs()
+                    .iter()
+                    .map(|c| c.name.len())
+                    .max()
+                    .unwrap_or(0),
+            )
+        } else {
+            0
+        };
         if json {
             // Machine-readable: the predicted-peak fields a scheduler/CI reads.
-            let predicted = predicted_peak_rss_bytes(largest, max_depth, max_read_len, baseline);
+            let predicted = predicted_peak_rss_bytes(largest, max_depth, max_read_len, baseline)
+                .saturating_add(encoder_bytes);
             let verdict = match budget_mb {
                 Some(mb) => {
                     if MemoryBudget::from_mb(mb).admits(predicted) {
@@ -1910,7 +2021,7 @@ fn run_plan(
             println!(
                 "{{\"index\":\"{}\",\"predicted_peak_rss_bytes\":{},\"baseline_rss_bytes\":{},\
                  \"largest_contig_len\":{},\"max_depth\":{},\"max_read_len\":{},\
-                 \"budget_mb\":{},\"verdict\":\"{}\"}}",
+                 \"budget_mb\":{},\"verdict\":\"{}\",\"encoder_additional_bytes\":{}}}",
                 index_path.display(),
                 predicted,
                 baseline,
@@ -1919,12 +2030,24 @@ fn run_plan(
                 max_read_len,
                 budget_field,
                 verdict,
+                encoder_bytes,
             );
         } else {
             print!(
                 "{}",
-                render_variants_plan(largest, max_depth, max_read_len, baseline, budget_mb)
+                render_variants_plan(
+                    largest,
+                    max_depth,
+                    max_read_len,
+                    baseline.saturating_add(encoder_bytes),
+                    budget_mb
+                )
             );
+            if encoder_bytes != 0 {
+                println!(
+                    "Arrow encoder additional working set: {encoder_bytes} bytes (included above)"
+                );
+            }
         }
     } else {
         if selection_requested(&selection_args) {
@@ -2311,7 +2434,7 @@ fn run_chain_verify(dir: PathBuf, json: bool) -> Result<()> {
 
 /// Localize how two receipts' claims differ (claim-level only; it does not re-derive or
 /// diff output bytes). Exit 0 = identical, 1 = differ, 2 = read/parse error.
-fn run_diff(a: PathBuf, b: PathBuf, json: bool) -> Result<()> {
+fn run_diff(a: PathBuf, b: PathBuf, json: bool, loci_output: Option<PathBuf>) -> Result<()> {
     use rosalind::provenance::{diff_receipts, RunManifest};
 
     let parse = |p: &PathBuf| -> RunManifest {
@@ -2332,6 +2455,22 @@ fn run_diff(a: PathBuf, b: PathBuf, json: bool) -> Result<()> {
     };
     let ma = parse(&a);
     let mb = parse(&b);
+    if let Some(output) = &loci_output {
+        match rosalind::dataset_diff::diff_evidence_datasets(&a, &b, output) {
+            Ok(summary) => eprintln!(
+                "locus deltas: {} changed, {} added, {} removed; {} metric changes written to {}",
+                summary.changed_loci,
+                summary.added_loci,
+                summary.removed_loci,
+                summary.metric_changes,
+                output.display()
+            ),
+            Err(error) => {
+                eprintln!("diff: {error}");
+                std::process::exit(error.exit_code());
+            }
+        }
+    }
     let report = diff_receipts(&ma, &mb);
 
     let short = |o: &Option<String>| -> String {
@@ -2365,6 +2504,14 @@ fn run_diff(a: PathBuf, b: PathBuf, json: bool) -> Result<()> {
         for c in &report.science_params {
             println!(
                 "CAUSE  — param  {}  {} → {}",
+                c.key,
+                short(&c.a),
+                short(&c.b)
+            );
+        }
+        for c in &report.execution_params {
+            println!(
+                "EXECUTION — setting {}  {} → {}",
                 c.key,
                 short(&c.a),
                 short(&c.b)
@@ -3260,6 +3407,9 @@ fn run_variants(
 
     if let Some(receipt_dest) = receipt_dest {
         let mut manifest = new_run_manifest("variants");
+        manifest
+            .params
+            .insert("pileup.semantics".into(), "exact-or-fail-v1".into());
         let mut cmd = CommandCapture::new("variants");
         cmd.input("--reference", &reference_path)?;
         cmd.input("--alignments", &alignments_path)?;
@@ -3320,7 +3470,7 @@ fn run_bounded_analysis(
     force: bool,
     output: Option<PathBuf>,
     manifest_out: Option<PathBuf>,
-    selection: rosalind::AnalysisSelection,
+    selection_args: SelectionArgs,
 ) -> Result<()> {
     use rosalind::contract::{
         AnalyzerIdentity, AnalyzerMemoryModel, ContractRunError, ContractRunSpec, ContractVerdict,
@@ -3378,16 +3528,12 @@ fn run_bounded_analysis(
             outcome.peak_rss_bytes / (1 << 20),
             outcome.max_working_set_bytes / 1024
         );
-        if outcome.skips.over_max_depth > 0 {
-            eprintln!(
-                "pileup: dropped {} reads at --max-depth {} (deep-site downsampling — \
-                 feature counts at those sites use a bounded unbiased sample)",
-                outcome.skips.over_max_depth, max_depth
-            );
-        }
     };
 
-    match rosalind::contract::run_column_analysis_selected(analyzer, spec, selection) {
+    match rosalind::contract::run_column_analysis_resolving(analyzer, spec, |reference| {
+        selection_from_provider(reference, &selection_args)
+            .map_err(|error| rosalind::core::CoreError::MalformedRecord(error.to_string()))
+    }) {
         Ok(outcome) => {
             render_outcome(&outcome);
             if enforce && outcome.verdict == ContractVerdict::Within {
@@ -3415,11 +3561,14 @@ fn run_bounded_analysis(
         }
         Err(ContractRunError::Breached(outcome)) => {
             render_outcome(&outcome);
-            eprintln!(
-                "contract: VIOLATED — realized peak {} MiB exceeded declared {} MiB (partial output + receipt written)",
-                outcome.peak_rss_bytes / (1 << 20),
-                memory_budget_mb.expect("breached run has a budget")
-            );
+            if let Some(failure) = &outcome.capacity_exceeded {
+                eprintln!("pileup capacity exceeded at contig {}, zero-based position {}: {} active reads exceed --max-depth {}; exact partial output and receipt preserved; raise --max-depth and rerun", failure.contig, failure.position, failure.required, failure.capacity);
+            } else {
+                eprintln!(
+                    "contract: VIOLATED — realized peak {} MiB (partial output + receipt written)",
+                    outcome.peak_rss_bytes / (1 << 20)
+                );
+            }
             std::process::exit(4);
         }
         Err(ContractRunError::OutputExists(path)) => {
@@ -3460,7 +3609,6 @@ fn run_features(
     selection_args: SelectionArgs,
     format: FeatureFormat,
 ) -> Result<()> {
-    let selection = resolve_selection(&analysis_reference, &selection_args)?;
     match format {
         FeatureFormat::Tsv => {
             let mut analyzer = rosalind::call::FeatureAnalyzer::default();
@@ -3479,7 +3627,7 @@ fn run_features(
                 force,
                 output,
                 manifest_out,
-                selection,
+                selection_args,
             )
         }
         FeatureFormat::ArrowIpc => {
@@ -3499,7 +3647,7 @@ fn run_features(
                 force,
                 output,
                 manifest_out,
-                selection,
+                selection_args,
             )
         }
     }
@@ -3596,7 +3744,7 @@ fn run_variants_index(
     gvcf: bool,
     selection_args: SelectionArgs,
 ) -> Result<()> {
-    use rosalind::util::atomic::{write_atomic, AtomicFile};
+    use rosalind::util::atomic::AtomicFile;
 
     let receipt_dest = manifest_out.clone().or_else(|| {
         output
@@ -3614,6 +3762,17 @@ fn run_variants_index(
         }
         if let Some(path) = &receipt_dest {
             require_safe_cli_destination(path, false, "VCF receipt");
+        }
+    }
+    if enforce && memory_budget_mb.is_none() {
+        bail!("--enforce requires --memory-budget-mb");
+    }
+    if enforce && max_depth == 0 {
+        bail!("--enforce requires --max-depth > 0");
+    }
+    if let (Some(artifact), Some(receipt)) = (&output, &receipt_dest) {
+        if artifact == receipt || sidecar_path(artifact, ".partial") == *receipt {
+            bail!("artifact, partial artifact, and receipt destinations must differ");
         }
     }
     let os_limit_bytes = if require_os_limit {
@@ -3650,6 +3809,37 @@ fn run_variants_index(
     use rosalind::pileup::PileupParams;
     use rosalind::provenance::CommandCapture;
 
+    let startup_baseline = peak_rss_bytes();
+    // Live RSS source for the governor: a test seam (ROSALIND_FORCE_LIVE_RSS_BYTES)
+    // standing in for live RSS, else the real getrusage high-water mark. Distinct
+    // from ROSALIND_FORCE_PEAK_RSS_BYTES, which overrides only the POST-run peak.
+    let live_rss = || {
+        std::env::var("ROSALIND_FORCE_LIVE_RSS_BYTES")
+            .ok()
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or_else(peak_rss_bytes)
+    };
+    let poll_ms = std::env::var("ROSALIND_GOVERNOR_POLL_MS")
+        .ok()
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(100);
+    // Under --enforce, the governor fails the run LOUD the moment live RSS crosses
+    // the budget (exit 4 with partial output + receipt). Held
+    // for the duration of the calling pass; dropped (thread stopped) at scope end.
+    let _governor_guard = if enforce {
+        let mb = memory_budget_mb.expect("--enforce requires --memory-budget-mb (checked above)");
+        Some(
+            MemoryGovernor::start(
+                MemoryBudget::from_mb(mb).bytes,
+                std::time::Duration::from_millis(poll_ms),
+                live_rss,
+            )
+            .map_err(|e| anyhow!("failed to start memory governor: {e}"))?,
+        )
+    } else {
+        None
+    };
+
     let loaded = AnalysisReference::open(&analysis_reference).with_context(|| {
         format!(
             "failed to open analysis reference {}",
@@ -3658,6 +3848,7 @@ fn run_variants_index(
     })?;
     let contigs = loaded.contigs();
     let selection = selection_from_provider(&loaded, &selection_args)?;
+    let baseline = peak_rss_bytes().max(startup_baseline);
 
     let pileup_params = PileupParams {
         min_mapq: mapq_threshold,
@@ -3710,7 +3901,6 @@ fn run_variants_index(
     // Under `--enforce` it also gates the run: refuse cleanly before any work,
     // with the cooperative assurance recorded in the receipt.
     let largest = selection.largest_reference_span(contigs);
-    let baseline = peak_rss_bytes();
     let predicted_peak =
         rosalind::call::plan::predicted_peak_rss_bytes(largest, max_depth, max_read_len, baseline);
     if enforce {
@@ -3739,36 +3929,6 @@ fn run_variants_index(
             std::process::exit(3);
         }
     }
-
-    // Live RSS source for the governor: a test seam (ROSALIND_FORCE_LIVE_RSS_BYTES)
-    // standing in for live RSS, else the real getrusage high-water mark. Distinct
-    // from ROSALIND_FORCE_PEAK_RSS_BYTES, which overrides only the POST-run peak.
-    let live_rss = || {
-        std::env::var("ROSALIND_FORCE_LIVE_RSS_BYTES")
-            .ok()
-            .and_then(|v| v.parse::<u64>().ok())
-            .unwrap_or_else(peak_rss_bytes)
-    };
-    let poll_ms = std::env::var("ROSALIND_GOVERNOR_POLL_MS")
-        .ok()
-        .and_then(|v| v.parse::<u64>().ok())
-        .unwrap_or(100);
-    // Under --enforce, the governor fails the run LOUD the moment live RSS crosses
-    // the budget (exit 4 with partial output + receipt). Held
-    // for the duration of the calling pass; dropped (thread stopped) at scope end.
-    let _governor_guard = if enforce {
-        let mb = memory_budget_mb.expect("--enforce requires --memory-budget-mb (checked above)");
-        Some(
-            MemoryGovernor::start(
-                MemoryBudget::from_mb(mb).bytes,
-                std::time::Duration::from_millis(poll_ms),
-                live_rss,
-            )
-            .map_err(|e| anyhow!("failed to start memory governor: {e}"))?,
-        )
-    } else {
-        None
-    };
 
     // Stream straight to the writer (header once, then one record per callable
     // locus in gVCF mode, or per variant otherwise) so no genome-wide row buffer
@@ -3870,21 +4030,59 @@ fn run_variants_index(
     // A governor trip is the one error we do NOT bail on: we still write the proof
     // receipt (verdict=over, governor=tripped) and exit 4 via the existing post-run
     // check. Any other error is a genuine failure.
-    let (max_ws, skips, breached, breach_peak) = match drive_result {
-        Ok((ws, sk)) => (ws, sk, false, 0u64),
+    let (max_ws, skips, mut breached, breach_peak, capacity_failure) = match drive_result {
+        Ok((ws, sk)) => (ws, sk, false, 0u64, None),
         Err(rosalind::core::CoreError::BudgetExceeded { needed, .. }) => (
             rosalind::core::WorkingSet { bytes: 0 },
             rosalind::pileup::SkipCounts::default(),
             true,
             needed,
+            None,
+        ),
+        Err(rosalind::core::CoreError::CapacityExceeded {
+            contig,
+            position,
+            capacity,
+            required,
+        }) => (
+            rosalind::core::WorkingSet { bytes: 0 },
+            rosalind::pileup::SkipCounts::default(),
+            false,
+            0,
+            Some(rosalind::contract::CapacityFailure {
+                contig,
+                position,
+                capacity,
+                required,
+            }),
         ),
         Err(e) => return Err(anyhow!("variant calling failed: {e}")),
+    };
+    // Hash under the same governor, before final measurements and publication.
+    let output_hash = atomic_output
+        .as_ref()
+        .map(|file| rosalind::provenance::blake3_file(file.temporary_path()))
+        .transpose()?;
+    let input_hashes = if receipt_dest.is_some() {
+        let mut hashes = vec![
+            rosalind::provenance::blake3_file(&analysis_reference)?,
+            rosalind::provenance::blake3_file(&alignments_path)?,
+        ];
+        if let Some(path) = selection
+            .intervals()
+            .and_then(|intervals| intervals.bed_origin())
+        {
+            hashes.push(rosalind::provenance::blake3_file(path)?);
+        }
+        hashes
+    } else {
+        Vec::new()
     };
     // Realized peak: the governor's tripping peak on a live breach, else the
     // post-run high-water (monotonic). Test-only seam: ROSALIND_FORCE_PEAK_RSS_BYTES
     // overrides ONLY this post-run realized peak (never the pre-run baseline at the
     // --enforce gate), so the exit-4 backstop can be exercised without allocating.
-    let peak_rss = if breached {
+    let mut peak_rss = if breached {
         breach_peak
     } else {
         std::env::var("ROSALIND_FORCE_PEAK_RSS_BYTES")
@@ -3893,26 +4091,29 @@ fn run_variants_index(
             .unwrap_or_else(peak_rss_bytes)
     };
 
+    if let Err(rosalind::core::CoreError::BudgetExceeded { needed, .. }) =
+        rosalind::core::governor::checkpoint()
+    {
+        breached = true;
+        peak_rss = peak_rss.max(needed);
+    }
+
     // Compute the contract verdict before writing the receipt (so it records it).
-    let verdict = match memory_budget_mb.map(|mb| MemoryBudget::from_mb(mb).admits(peak_rss)) {
+    let mut verdict = match memory_budget_mb.map(|mb| MemoryBudget::from_mb(mb).admits(peak_rss)) {
         None => "unset",
         Some(true) => "within",
         Some(false) => "over",
     };
-    let is_breach = breached || (enforce && verdict == "over");
-    let receipt_output = match (atomic_output, output.as_ref()) {
-        (Some(file), Some(path)) if is_breach => Some(
-            file.commit_as(&sidecar_path(path, ".partial"), force)
-                .with_context(|| "failed to preserve breached VCF as a partial artifact")?,
-        ),
-        (Some(file), Some(_)) => Some(
-            file.commit(force)
-                .with_context(|| "failed to commit transactional VCF output")?,
-        ),
-        _ => None,
-    };
+    let mut is_breach = capacity_failure.is_some() || breached || (enforce && verdict == "over");
+    let receipt_output = output.as_ref().map(|path| {
+        if is_breach {
+            sidecar_path(path, ".partial")
+        } else {
+            path.clone()
+        }
+    });
     // Distinguish a live-governed abort from a post-run-detected overrun in the receipt.
-    let governor_state = if breached {
+    let mut governor_state = if breached {
         "tripped"
     } else if enforce {
         "enforced"
@@ -3939,15 +4140,23 @@ fn run_variants_index(
         } else {
             "--reference-pack"
         };
-        cmd.input(reference_flag, &analysis_reference)?;
-        cmd.input("--alignments", &alignments_path)?;
+        cmd.input_hashed(
+            reference_flag,
+            &analysis_reference.display().to_string(),
+            &input_hashes[0],
+        );
+        cmd.input_hashed(
+            "--alignments",
+            &alignments_path.display().to_string(),
+            &input_hashes[1],
+        );
         match &selection {
             rosalind::AnalysisSelection::WholeGenome => {}
             rosalind::AnalysisSelection::Intervals(intervals) => {
                 if let Some(region) = intervals.region_origin() {
                     cmd.opt("--region", region);
                 } else if let Some(path) = intervals.bed_origin() {
-                    cmd.input("--regions", path)?;
+                    cmd.input_hashed("--regions", &path.display().to_string(), &input_hashes[2]);
                 }
             }
             rosalind::AnalysisSelection::Shard { count, index, .. } => {
@@ -3966,10 +4175,13 @@ fn run_variants_index(
         }
         cmd.flag_if(require_os_limit, "--require-os-limit");
         cmd.flag_if(force, "--force");
-        if let Some(path) = &receipt_output {
-            cmd.output("-o", path)?;
+        if let (Some(path), Some(hash)) = (&receipt_output, &output_hash) {
+            cmd.output_hashed("-o", &path.display().to_string(), hash);
         }
         cmd.record_into(&mut manifest);
+        manifest
+            .params
+            .insert("pileup.semantics".into(), "exact-or-fail-v1".into());
         manifest.params.insert(
             "artifact.input.0.role".to_string(),
             if loaded.is_legacy_index() {
@@ -4102,8 +4314,99 @@ fn run_variants_index(
         manifest
             .params
             .insert("contract_verdict".to_string(), verdict.to_string());
-        manifest.finalize();
-        write_atomic(&dest, manifest.to_canonical_json().as_bytes(), force)
+        if let Some(failure) = &capacity_failure {
+            manifest
+                .params
+                .insert("failure.kind".into(), "capacity-exceeded".into());
+            manifest
+                .params
+                .insert("failure.contig".into(), failure.contig.to_string());
+            manifest
+                .params
+                .insert("failure.position0".into(), failure.position.to_string());
+            manifest.params.insert(
+                "failure.capacity_reads".into(),
+                failure.capacity.to_string(),
+            );
+            manifest.params.insert(
+                "failure.required_reads".into(),
+                failure.required.to_string(),
+            );
+        }
+        let mut staged = AtomicFile::create(&dest)?;
+        for pass in 0..2 {
+            peak_rss = peak_rss.max(
+                std::env::var("ROSALIND_FORCE_PEAK_RSS_BYTES")
+                    .ok()
+                    .and_then(|value| value.parse::<u64>().ok())
+                    .unwrap_or_else(peak_rss_bytes),
+            );
+            if let Err(rosalind::core::CoreError::BudgetExceeded { needed, .. }) =
+                rosalind::core::governor::checkpoint()
+            {
+                breached = true;
+                peak_rss = peak_rss.max(needed);
+                governor_state = "tripped";
+            }
+            verdict = match memory_budget_mb.map(|mb| MemoryBudget::from_mb(mb).admits(peak_rss)) {
+                None => "unset",
+                Some(true) => "within",
+                Some(false) => "over",
+            };
+            is_breach = capacity_failure.is_some() || breached || (enforce && verdict == "over");
+            manifest
+                .params
+                .insert("peak_rss_bytes".into(), peak_rss.to_string());
+            manifest
+                .params
+                .insert("contract_verdict".into(), verdict.into());
+            manifest
+                .params
+                .insert("governor".into(), governor_state.into());
+            manifest.params.insert(
+                "rss_residual_bytes".into(),
+                peak_rss
+                    .saturating_sub(max_ws.bytes)
+                    .saturating_sub(baseline)
+                    .to_string(),
+            );
+            manifest.params.insert(
+                "run_status".into(),
+                if capacity_failure.is_some() {
+                    "capacity-exceeded"
+                } else if is_breach {
+                    "breached"
+                } else {
+                    "completed"
+                }
+                .into(),
+            );
+            if let (Some(entry), Some(path)) = (manifest.outputs.first_mut(), &output) {
+                entry.path = if is_breach {
+                    sidecar_path(path, ".partial")
+                } else {
+                    path.clone()
+                }
+                .display()
+                .to_string();
+                manifest.params.insert(
+                    "artifact.output.0.role".into(),
+                    if is_breach { "partial-calls" } else { "calls" }.into(),
+                );
+            }
+            manifest.finalize();
+            if pass != 0 {
+                use std::io::{Seek, SeekFrom};
+                staged.file_mut().set_len(0)?;
+                staged.file_mut().seek(SeekFrom::Start(0))?;
+            }
+            staged
+                .file_mut()
+                .write_all(manifest.to_canonical_json().as_bytes())?;
+            staged.file_mut().flush()?;
+        }
+        staged
+            .commit(force)
             .with_context(|| format!("failed to write manifest {}", dest.display()))?;
         eprintln!("wrote reproducibility receipt: {}", dest.display());
     } else {
@@ -4111,21 +4414,26 @@ fn run_variants_index(
             "no receipt written (stdout output) — pass --manifest <path> or -o <vcf> to persist one"
         );
     }
+    if let Some(file) = atomic_output {
+        if is_breach {
+            file.commit_as(
+                &sidecar_path(output.as_ref().expect("file output"), ".partial"),
+                force,
+            )?;
+        } else {
+            file.commit(force)?;
+        }
+    }
+    if let Some(failure) = capacity_failure {
+        eprintln!("pileup capacity exceeded at contig {}, zero-based position {}: {} active reads exceed --max-depth {}; exact partial output and receipt preserved; raise --max-depth and rerun", failure.contig, failure.position, failure.required, failure.capacity);
+        std::process::exit(4);
+    }
     // Memory receipt: the bounded contract, made visible + verifiable.
     eprintln!(
         "memory: peak RSS {} MiB; max pileup working set {} KiB",
         peak_rss / (1 << 20),
         max_ws.bytes / 1024
     );
-    // Surface depth-cap downsampling: the cap engaging changes calls at deep
-    // sites (an unbiased bounded sample), so it must never be silent.
-    if skips.over_max_depth > 0 {
-        eprintln!(
-            "pileup: dropped {} reads at --max-depth {} (deep-site downsampling — \
-             calls at those sites use a bounded unbiased sample)",
-            skips.over_max_depth, max_depth
-        );
-    }
     let other_skipped = skips.total() - skips.over_max_depth;
     if other_skipped > 0 {
         eprintln!(

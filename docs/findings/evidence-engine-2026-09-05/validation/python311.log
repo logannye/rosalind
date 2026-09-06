@@ -1,0 +1,13 @@
+test_early_close_terminates_the_native_child (test_api.FeatureRunLifecycleTest.test_early_close_terminates_the_native_child) ... ok
+test_rc_versions_match_without_accepting_other_candidates (test_api.FeatureRunLifecycleTest.test_rc_versions_match_without_accepting_other_candidates) ... ok
+test_successful_consumption_closes_reader_and_stdout_even_when_run_is_retained (test_api.FeatureRunLifecycleTest.test_successful_consumption_closes_reader_and_stdout_even_when_run_is_retained) ... ok
+test_exclusive_selection_is_checked_before_starting_native_code (test_evidence.EvidenceLifecycleTest.test_exclusive_selection_is_checked_before_starting_native_code) ... ok
+test_malformed_producer_cannot_deadlock_on_its_output_pipe (test_evidence.EvidenceLifecycleTest.test_malformed_producer_cannot_deadlock_on_its_output_pipe) ... ok
+test_native_errors_preserve_exit_code_and_diagnostics (test_evidence.EvidenceLifecycleTest.test_native_errors_preserve_exit_code_and_diagnostics) ... ok
+test_native_stream_is_lazy_bounded_and_finalizes (test_evidence.EvidenceLifecycleTest.test_native_stream_is_lazy_bounded_and_finalizes) ... ok
+test_partial_consumption_cancels_child_and_has_no_success_result (test_evidence.EvidenceLifecycleTest.test_partial_consumption_cancels_child_and_has_no_success_result) ... ok
+
+----------------------------------------------------------------------
+Ran 8 tests in 0.695s
+
+OK

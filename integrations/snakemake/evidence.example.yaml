@@ -1,0 +1,9 @@
+image: ghcr.io/logannye/rosalind@sha256:REPLACE_WITH_LOCKED_DIGEST
+budget_mb: 256
+scheduler_margin_mb: 64
+samples:
+  sample:
+    reference: data/reference.rref
+    bam: data/sample.bam
+    index: data/sample.bam.bai
+    targets: data/targets.bed

@@ -7,8 +7,8 @@
 //! `compare_callsets`. Deterministic (fixed-seed LCG, no `rand` dependency) so the
 //! numbers are stable and the gate is non-flaky. Two regimes: a clean baseline
 //! (40x / 0.5% error) and a low-coverage stress case (12x / 1.5% error). Also
-//! exercises the unbiased depth-cap fix: a deep het site is recovered under a
-//! depth cap below local depth.
+//! exercises exact evidence retention: a deep het site is recovered when the
+//! declared active-read capacity is sufficient.
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -183,8 +183,8 @@ fn run_accuracy(coverage: usize, error_rate: f64, cap: u32, seed: u64) -> Accura
             emit(&mut w, start, hap, &mut rng, &mut rid);
         }
         // 4b. Deep-het probe: ref reads starting upstream + alt reads starting AT
-        // the site, so the cap engages at a deep site (the unbiased reservoir must
-        // keep the at-variant alt reads — the old leftmost-arrival cap dropped them).
+        // the site. The exact engine must retain both sets; capacity is high
+        // enough for the complete evidence, including this deep probe.
         let up = deep_site.saturating_sub(READ_LEN - 10);
         for _ in 0..30 {
             emit(&mut w, up, &hap1, &mut rng, &mut rid);
@@ -303,12 +303,12 @@ fn log_report(label: &str, o: &AccuracyOutcome) {
 
 #[test]
 fn detection_accuracy_clean_baseline_40x() {
-    // Clean regime: 40x, 0.5% error, cap 50. Expect near-perfect PASS detection.
-    let o = run_accuracy(40, 0.005, 50, 0x9E37_79B9_7F4A_7C15);
+    // Clean regime: 40x, 0.5% error, capacity 1000. Expect near-perfect PASS detection.
+    let o = run_accuracy(40, 0.005, 1000, 0x9E37_79B9_7F4A_7C15);
     log_report("40x/0.5%", &o);
     assert!(
         o.deep_called,
-        "deep het site at {} must be recovered as a PASS call under the cap",
+        "deep het site at {} must be recovered as a PASS call with exact evidence",
         o.deep_site
     );
     // Measured PASS: precision=1.0000, recall=1.0000 (2026-06-02). Gate a margin below.
@@ -341,11 +341,11 @@ fn detection_accuracy_clean_baseline_40x() {
 
 #[test]
 fn detection_accuracy_low_coverage_stress_12x() {
-    // Harder regime: 12x, 1.5% error, cap 50 — fewer reads per site and more noise.
+    // Harder regime: 12x, 1.5% error, capacity 1000 — fewer reads per site and more noise.
     // Shows the harness produces graded, honest numbers and that the PASS filter
     // (min_qual 30, min_depth 8) controls the error-driven false positives that
     // flood the unfiltered (`all`) callset.
-    let o = run_accuracy(12, 0.015, 50, 0xD1B5_4A32_D192_ED03);
+    let o = run_accuracy(12, 0.015, 1000, 0xD1B5_4A32_D192_ED03);
     log_report("12x/1.5%", &o);
     // Calibrated to the measured PASS run (margin below — see the findings doc).
     let r = &o.report_pass;

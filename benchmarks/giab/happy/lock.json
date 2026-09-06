@@ -22,5 +22,13 @@
     "source_lock_blake3": null,
     "built_from_commit": null
   },
-  "evaluation_policy": "The built image must be selected as NAME@sha256:DIGEST; mutable tags are rejected. build.sh prints the generated digest for release provenance."
+  "evaluation_policy": "Published evaluation requires NAME@sha256:REGISTRY_MANIFEST_DIGEST and attestation. build.sh identifies its local config ID and executes a synthetic offline smoke; it does not produce a registry digest.",
+  "python_runtime": {
+    "version": "2.7",
+    "reason": "hap.py0.3.15 upstream requires Python2 syntax",
+    "requirements_file": "requirements-py27.txt",
+    "bx_python": "0.8.9",
+    "six": "1.16.0",
+    "wheel_platform": "cp27-cp27mu-manylinux1_x86_64"
+  }
 }

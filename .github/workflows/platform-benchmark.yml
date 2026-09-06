@@ -1,6 +1,10 @@
 name: Platform benchmark
 
 on:
+  pull_request:
+    paths:
+      - 'benchmarks/platform/**'
+      - '.github/workflows/platform-benchmark.yml'
   workflow_dispatch:
     inputs:
       dataset:

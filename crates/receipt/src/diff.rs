@@ -42,6 +42,9 @@ pub struct ReceiptDiff {
     pub outputs: Vec<OperandChange>,
     pub code_identity: Vec<FieldChange>,
     pub science_params: Vec<FieldChange>,
+    /// Resource scheduling and physical encoding differences for exact evidence.
+    /// Historical receipt semantics retain their original classification.
+    pub execution_params: Vec<FieldChange>,
     pub measurements: Vec<FieldChange>,
     /// `content_hash(a) == content_hash(b)` — the cross-machine claim addresses match.
     pub claims_identical: bool,
@@ -83,6 +86,41 @@ fn map_changes(
         .collect()
 }
 
+fn exact_evidence(receipt: &RunManifest) -> bool {
+    receipt.params.get("evidence.schema").map(String::as_str) == Some("1")
+        && receipt.params.get("evidence.sampling").map(String::as_str) == Some("none")
+}
+
+fn encoding_param(key: &str) -> bool {
+    matches!(key, "format" | "encoding")
+        || (key.starts_with("artifact.") && key.ends_with(".format"))
+}
+
+fn execution_param(key: &str) -> bool {
+    encoding_param(key)
+        || matches!(
+            key,
+            "tile_bases"
+                | "workers"
+                | "max_read_len"
+                | "max_record_bytes"
+                | "memory_budget_mb"
+                | "enforce"
+                | "require_os_limit"
+                | "cache_dir"
+                | "resume"
+                | "dataset.science_blake3"
+                | "dataset.producer_compatibility"
+                | "dataset.producer_compatibility_blake3"
+                | "dataset.producer_compatibility_version"
+        )
+        || key.starts_with("contract.")
+        || key.starts_with("execution.")
+        || key.starts_with("predicted")
+        || key.starts_with("os.")
+        || key.starts_with("dataset.producer")
+}
+
 /// Bucket the difference between two receipts' claims by causal role. Pure.
 pub fn diff_receipts(a: &RunManifest, b: &RunManifest) -> ReceiptDiff {
     let subcommand = if a.subcommand != b.subcommand {
@@ -90,13 +128,22 @@ pub fn diff_receipts(a: &RunManifest, b: &RunManifest) -> ReceiptDiff {
     } else {
         None
     };
+    let classify_execution = exact_evidence(a) && exact_evidence(b);
     ReceiptDiff {
         subcommand,
         inputs: operand_changes(a, b, "@in:"),
         outputs: operand_changes(a, b, "@out:"),
         code_identity: map_changes(&a.params, &b.params, |k| BUILD_IDENTITY_KEYS.contains(&k)),
         science_params: map_changes(&a.params, &b.params, |k| {
-            !BUILD_IDENTITY_KEYS.contains(&k) && !SKIP_PARAMS.contains(&k)
+            !(BUILD_IDENTITY_KEYS.contains(&k)
+                || SKIP_PARAMS.contains(&k)
+                || (classify_execution && execution_param(k)))
+        }),
+        execution_params: map_changes(&a.params, &b.params, |k| {
+            classify_execution
+                && execution_param(k)
+                && !BUILD_IDENTITY_KEYS.contains(&k)
+                && !SKIP_PARAMS.contains(&k)
         }),
         measurements: map_changes(&a.measurements, &b.measurements, |k| {
             k != "measurement_blake3"
@@ -115,7 +162,8 @@ impl ReceiptDiff {
         }
     }
 
-    /// Whether an upstream CAUSE differs (vs only the output effect / measurement noise).
+    /// Whether scientific inputs, parameters or code differ. Resource scheduling
+    /// and physical encoding are reported separately in `execution_params`.
     pub fn has_cause(&self) -> bool {
         self.subcommand.is_some()
             || !self.inputs.is_empty()
@@ -177,7 +225,33 @@ impl ReceiptDiff {
             } else {
                 format!("; effect: {} output(s)", self.outputs.len())
             };
-            return format!("claims DIFFER — cause: {}{}", causes.join(", "), effect);
+            let execution = if self.execution_params.is_empty() {
+                String::new()
+            } else {
+                format!(
+                    "; execution/encoding: {} setting(s)",
+                    self.execution_params.len()
+                )
+            };
+            return format!(
+                "claims DIFFER — cause: {}{}{}",
+                causes.join(", "),
+                execution,
+                effect
+            );
+        }
+        if !self.execution_params.is_empty() {
+            if self.outputs.is_empty() {
+                return "claims DIFFER — execution/encoding settings differ; recorded output bytes are identical".to_string();
+            }
+            if self
+                .execution_params
+                .iter()
+                .any(|change| encoding_param(&change.key))
+            {
+                return "claims DIFFER — physical encodings differ with identical scientific inputs/params/code; compare per-locus values".to_string();
+            }
+            return "claims DIFFER — execution settings differ; output bytes differ with identical scientific inputs/params/code → nondeterminism or corruption".to_string();
         }
         if !self.outputs.is_empty() {
             return "claims DIFFER — outputs differ with identical inputs/params/code → nondeterminism or corruption".to_string();
@@ -188,12 +262,13 @@ impl ReceiptDiff {
     /// A compact, dependency-free JSON summary for `--json`.
     pub fn to_json(&self) -> String {
         format!(
-            "{{\"claims_identical\":{},\"inputs\":{},\"outputs\":{},\"code_identity\":{},\"science_params\":{},\"measurements\":{},\"exit_code\":{}}}",
+            "{{\"claims_identical\":{},\"inputs\":{},\"outputs\":{},\"code_identity\":{},\"science_params\":{},\"execution_params\":{},\"measurements\":{},\"exit_code\":{}}}",
             self.claims_identical,
             self.inputs.len(),
             self.outputs.len(),
             self.code_identity.len(),
             self.science_params.len(),
+            self.execution_params.len(),
             self.measurements.len(),
             self.exit_code()
         )
@@ -336,7 +411,108 @@ mod tests {
         );
         assert_eq!(
             d.to_json(),
-            "{\"claims_identical\":true,\"inputs\":0,\"outputs\":0,\"code_identity\":0,\"science_params\":0,\"measurements\":1,\"exit_code\":0}"
+            "{\"claims_identical\":true,\"inputs\":0,\"outputs\":0,\"code_identity\":0,\"science_params\":0,\"execution_params\":0,\"measurements\":1,\"exit_code\":0}"
         );
+    }
+    fn exact(output: &str, extras: &[(&str, &str)]) -> RunManifest {
+        let mut params = vec![
+            ("evidence.schema", "1"),
+            ("evidence.sampling", "none"),
+            ("science.blake3", "SCIENCE"),
+            ("base_quality_threshold", "20"),
+        ];
+        params.extend_from_slice(extras);
+        mk(
+            "analyze evidence",
+            &format!("analyze evidence --alignments @in:BAM -o @out:{output}"),
+            &params,
+            &[],
+        )
+    }
+
+    #[test]
+    fn exact_evidence_resource_settings_are_execution_and_preserve_science() {
+        let a = exact(
+            "OUT",
+            &[
+                ("memory_budget_mb", "256"),
+                ("tile_bases", "128"),
+                ("workers", "1"),
+            ],
+        );
+        let b = exact(
+            "OUT",
+            &[
+                ("memory_budget_mb", "1024"),
+                ("tile_bases", "16384"),
+                ("workers", "8"),
+            ],
+        );
+        let diff = diff_receipts(&a, &b);
+        assert_eq!(diff.execution_params.len(), 3);
+        assert!(diff.science_params.is_empty());
+        assert!(!diff.has_cause());
+        assert!(diff.outputs.is_empty());
+        assert!(diff.verdict().contains("output bytes are identical"));
+        assert!(diff.to_json().contains("\"execution_params\":3"));
+    }
+
+    #[test]
+    fn exact_evidence_encoding_changes_do_not_imply_nondeterminism() {
+        let a = exact(
+            "TSV",
+            &[("format", "tsv"), ("artifact.output.0.format", "tsv")],
+        );
+        let b = exact(
+            "ARROW",
+            &[
+                ("format", "arrow-ipc"),
+                ("artifact.output.0.format", "arrow-ipc"),
+            ],
+        );
+        let diff = diff_receipts(&a, &b);
+        assert_eq!(diff.execution_params.len(), 2);
+        assert!(diff.science_params.is_empty());
+        assert_eq!(diff.outputs.len(), 1);
+        assert!(diff.verdict().contains("physical encodings differ"));
+        assert!(!diff.verdict().contains("nondeterminism"));
+        // Scheduling alone never excuses different exact bytes in one encoding.
+        let a = exact("ONE", &[("workers", "1")]);
+        let b = exact("TWO", &[("workers", "8")]);
+        assert!(diff_receipts(&a, &b).verdict().contains("nondeterminism"));
+    }
+
+    #[test]
+    fn exact_evidence_quality_filter_remains_a_scientific_cause() {
+        let a = exact("ONE", &[("tile_bases", "128")]);
+        let b = exact(
+            "TWO",
+            &[("tile_bases", "256"), ("base_quality_threshold", "31")],
+        );
+        let diff = diff_receipts(&a, &b);
+        assert_eq!(diff.execution_params.len(), 1);
+        assert_eq!(diff.science_params.len(), 1);
+        assert_eq!(diff.science_params[0].key, "base_quality_threshold");
+        assert!(diff.has_cause());
+        assert!(diff.verdict().contains("base_quality_threshold"));
+    }
+
+    #[test]
+    fn historical_capacity_and_unknown_receipt_formats_keep_existing_classification() {
+        let a = mk(
+            "features",
+            "features -o @out:ONE",
+            &[("max_depth", "1000"), ("format", "tsv")],
+            &[],
+        );
+        let b = mk(
+            "features",
+            "features -o @out:TWO",
+            &[("max_depth", "100"), ("format", "arrow-ipc")],
+            &[],
+        );
+        let diff = diff_receipts(&a, &b);
+        assert!(diff.execution_params.is_empty());
+        assert_eq!(diff.science_params.len(), 2);
     }
 }

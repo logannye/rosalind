@@ -1,0 +1,3 @@
+wrote reproducibility receipt: /tmp/rosalind-roadmap-validation/legacy-arrow-reproduction/256.arrow.manifest.json
+features: peak RSS 43 MiB; max pileup working set 71 KiB
+contract: OK — realized peak 43 MiB within declared 256 MiB

@@ -1,0 +1,7 @@
+[
+  "/Users/logannye/rosalind/target/release/rosalind",
+  "verify",
+  "--manifest",
+  "/private/tmp/rosalind-roadmap-validation/curve-final/rosalind-256-2.manifest.json",
+  "--json"
+]

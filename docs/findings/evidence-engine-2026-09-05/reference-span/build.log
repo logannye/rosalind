@@ -1,0 +1,5 @@
+Error: failed to build /var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-reference-span-xgq2arb3/reference.rref
+
+Caused by:
+    0: io error: FASTA line exceeds the 1048576-byte build buffer
+    1: FASTA line exceeds the 1048576-byte build buffer

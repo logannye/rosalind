@@ -26,6 +26,8 @@ concurrency:
 
 jobs:
   gates:
+    env:
+      GH_TOKEN: ${{ github.token }}
     runs-on: ubuntu-latest
     timeout-minutes: 120
     outputs:
@@ -60,6 +62,7 @@ jobs:
         with:
           tool: wasm-pack@0.14.0
       - name: Install pinned workflow linters
+        working-directory: ${{ runner.temp }}
         run: |
           curl -fsSLO https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
           echo '8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  actionlint_1.7.12_linux_amd64.tar.gz' | sha256sum --check
@@ -81,13 +84,13 @@ jobs:
             --version "$VERSION" \
             --number "$NUMBER" \
             --ref "$CANDIDATE_REF" \
-            --output recomputed-plan.json --json > recomputed-plan-report.json
-          actual=$(python3 -c 'import json; print(json.load(open("recomputed-plan.json"))["plan_id"])')
+            --output "$RUNNER_TEMP/recomputed-plan.json" --json > "$RUNNER_TEMP/recomputed-plan-report.json"
+          actual=$(python3 -c 'import json,os; print(json.load(open(os.environ["RUNNER_TEMP"] + "/recomputed-plan.json"))["plan_id"])')
           test "$actual" = "$PLAN_ID"
       - name: Freeze public contract
         env:
           CANDIDATE_REF: ${{ inputs.ref }}
-        run: cargo xtask contract snapshot --ref "$CANDIDATE_REF" --output contract-snapshot.json --json
+        run: cargo xtask contract snapshot --ref "$CANDIDATE_REF" --output "$RUNNER_TEMP/contract-snapshot.json" --json
       - name: Release gates
         run: |
           cargo fmt --all -- --check
@@ -101,6 +104,8 @@ jobs:
           git diff --exit-code -- web/verify/pkg crates/receipt-wasm/Cargo.lock
           cargo +1.83.0 test --manifest-path crates/receipt-wasm/Cargo.toml
           python3 -m unittest discover -s benchmarks/giab -p 'test_*.py'
+          python3 -m unittest discover -s scripts -p 'test_*.py'
+          python3 -m unittest discover -s benchmarks/platform -p 'test_*.py'
           scripts/verify-release-automation.py
           actionlint
           shellcheck scripts/release-publish.sh scripts/post-publish-smoke.sh \
@@ -120,8 +125,8 @@ jobs:
           name: rc-contract
           retention-days: 30
           path: |
-            contract-snapshot.json
-            recomputed-plan.json
+            ${{ runner.temp }}/contract-snapshot.json
+            ${{ runner.temp }}/recomputed-plan.json
 
   build:
     needs: gates
@@ -137,7 +142,7 @@ jobs:
           - target: aarch64-apple-darwin
             os: macos-14
           - target: x86_64-apple-darwin
-            os: macos-14
+            os: macos-15-intel
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -160,9 +165,13 @@ jobs:
         env:
           CC_x86_64_unknown_linux_musl: musl-gcc
           CXX_x86_64_unknown_linux_musl: g++
-        run: cargo build --release --locked --target '${{ matrix.target }}' --bin rosalind
+          CANDIDATE_SHA: ${{ needs.gates.outputs.commit }}
+          PACKAGE_VERSION: ${{ inputs.version }}-rc.${{ inputs.number }}
+        run: |
+          python3 scripts/prepare-wheel-version.py --candidate-sha "$CANDIDATE_SHA" \
+            --version "$PACKAGE_VERSION" --output "$RUNNER_TEMP/native-build.json"
+          cargo build --release --locked --target '${{ matrix.target }}' --bin rosalind
       - name: Smoke native binary
-        if: matrix.target != 'x86_64-apple-darwin'
         shell: bash
         run: |
           binary="target/${{ matrix.target }}/release/rosalind"
@@ -170,10 +179,11 @@ jobs:
           temp=$(mktemp -d)
           "$binary" demo --output-dir "$temp/demo" --json > "$temp/demo.json"
           python3 -c 'import json,sys; assert json.load(open(sys.argv[1]))["ok"]' "$temp/demo.json"
-      - name: Stage release bundle
-        run: scripts/stage-release.sh '${{ matrix.target }}'
+      - name: Stage release bundle and derivation provenance
+        run: |
+          scripts/stage-release.sh '${{ matrix.target }}'
+          cp "$RUNNER_TEMP/native-build.json" 'dist/rosalind-${{ matrix.target }}.build.json'
       - name: Install-smoke staged bundle
-        if: matrix.target != 'x86_64-apple-darwin'
         shell: bash
         run: |
           install_root=$(mktemp -d)
@@ -190,9 +200,33 @@ jobs:
             dist/rosalind-${{ matrix.target }}.tar.gz
             dist/rosalind-${{ matrix.target }}.tar.gz.sha256
             dist/rosalind-${{ matrix.target }}.spdx.json
+            dist/rosalind-${{ matrix.target }}.build.json
+
+  publish-wheels:
+    needs: [gates, build]
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/wheels.yml
+    with:
+      candidate_sha: ${{ needs.gates.outputs.commit }}
+      package_version: ${{ inputs.version }}-rc.${{ inputs.number }}
+      destination: testpypi
+
+  publish-container:
+    needs: [gates, build]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    uses: ./.github/workflows/container.yml
+    with:
+      candidate_sha: ${{ needs.gates.outputs.commit }}
+      release_tag: v${{ inputs.version }}-rc.${{ inputs.number }}
 
   publish-prerelease:
-    needs: [gates, build]
+    needs: [gates, build, publish-wheels, publish-container]
     runs-on: ubuntu-latest
     environment: rc
     permissions:

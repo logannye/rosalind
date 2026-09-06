@@ -63,6 +63,8 @@ jobs:
           python3 -m unittest discover -s benchmarks/giab -p 'test_*.py'
       - name: Build examples
         run: cargo build --examples
+      - name: Build the independent evidence analyzer crate
+        run: cargo test --locked --manifest-path examples/evidence-analyzer/Cargo.toml
       - name: Build docs
         run: cargo doc --workspace --no-deps
       - name: Compile receipt parser fuzz targets
@@ -109,13 +111,18 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install Python feature dependencies
-        run: pip install numpy pyarrow
+        run: pip install numpy pyarrow pysam==0.23.3
       - name: Build the rosalind binary
         run: cargo build --release --bin rosalind
       - name: Exercise the Python boundary (bit-reproducible feature substrate)
         # Builds a toy reference pack + BAM, extracts native Arrow twice, and
         # proves the streams are byte-identical with matching BLAKE3 receipts.
         run: python3 examples/reproducible_features_demo.py target/release/rosalind
+      - name: Evidence iterator lifecycle and cancellation tests
+        env:
+          PYTHONPATH: python
+          ROSALIND_BINARY: target/release/rosalind
+        run: python3 -m unittest discover -s python/tests -p 'test_*.py'
 
   cli-e2e:
     runs-on: ubuntu-latest
@@ -415,6 +422,8 @@ jobs:
           validate(json.load(open("maintainer-report.json")), json.load(open("release/schemas/maintainer-report-v1.schema.json")))
           validate(json.load(open("partner-packet/feedback.json")), json.load(open("release/schemas/design-partner-v1.schema.json")))
           PY
+          python3 -m unittest discover -s scripts -p 'test_*.py'
+          python3 -m unittest discover -s benchmarks/platform -p 'test_*.py'
           scripts/verify-release-automation.py
           actionlint
           shellcheck scripts/release-publish.sh scripts/post-publish-smoke.sh \

@@ -1,0 +1,1 @@
+contract: REFUSE — declared 32 MiB, predicted peak ~73 MiB (largest contig 0 MiB + active @ max-depth 1000 / max-read-len 250 atop a 12 MiB baseline). Raise --memory-budget-mb, lower --max-depth, or drop --enforce.

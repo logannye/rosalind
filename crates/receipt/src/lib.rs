@@ -893,6 +893,9 @@ pub fn verify_receipt(text: &str, opts: &VerifyOpts) -> VerifyReport {
             pred / (1 << 20),
             real / (1 << 20)
         )),
+        _ if manifest.params.contains_key("evidence.schema") => notes.push(
+            "evidence records process RSS; individual internal allocations are modeled, not measured".to_string(),
+        ),
         _ => notes.push(
             "no predicted_working_set_bytes to re-check (a pre-soundness-check receipt)".to_string(),
         ),

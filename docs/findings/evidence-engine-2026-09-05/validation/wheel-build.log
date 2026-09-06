@@ -1,0 +1,9 @@
+📦 Including license file `LICENSE-APACHE`
+📦 Including license file `LICENSE-MIT`
+🍹 Building a mixed python/rust project
+🔗 Found bin bindings
+📡 Using build options bindings from pyproject.toml
+💻 Using `MACOSX_DEPLOYMENT_TARGET=11.0` for aarch64-apple-darwin by default
+   Compiling rosalind-bio v0.4.0 (/Users/logannye/rosalind)
+    Finished `release` profile [optimized] target(s) in 22.78s
+📦 Built wheel to /tmp/rosalind-roadmap-validation/wheels/rosalind_bio-0.4.0-py3-none-macosx_11_0_arm64.whl
