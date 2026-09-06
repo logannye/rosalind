@@ -6,6 +6,7 @@ REFERENCE="${1:-$ROOT/examples/data/illumina_toy/reference.fa}"
 BAM="${2:-$ROOT/examples/data/illumina_toy/alignments.bam}"
 RESULTS="${3:-$HERE/results}"
 IMAGE="${ROSALIND_PLATFORM_IMAGE:-rosalind-platform:local}"
+CONTAINER_USER="$(id -u):$(id -g)"
 
 # Evidence directories are create-new: reruns cannot erase a prior measurement.
 if [ -e "$RESULTS" ]; then echo "results already exist: $RESULTS" >&2; exit 2; fi
@@ -14,7 +15,8 @@ RESULTS="$(cd "$RESULTS" && pwd)"
 docker build --platform linux/amd64 --progress plain -f "$HERE/Dockerfile" -t "$IMAGE" "$ROOT" \
   2>&1 | tee "$RESULTS/build.log"
 docker image inspect "$IMAGE" > "$RESULTS/image.json"
-docker run --rm --network none --platform linux/amd64 \
+# Retained artifacts must stay writable by the host when it adds probe results.
+docker run --rm --network none --platform linux/amd64 --user "$CONTAINER_USER" \
   -v "$REFERENCE:/data/reference.fa:ro" -v "$BAM:/data/input.bam:ro" -v "$RESULTS:/results" \
   "$IMAGE" 2>&1 | tee "$RESULTS/benchmark.log"
 
@@ -26,7 +28,8 @@ for budget in ${ROSALIND_PROBE_BUDGETS_MB:-48 128 512}; do
     probe="$RESULTS/memory-probes/$budget/$implementation"
     mkdir -p "$probe"
     set +e
-    docker run --rm --network none --platform linux/amd64 --memory "${budget}m" --memory-swap "${budget}m" \
+    docker run --rm --network none --platform linux/amd64 --user "$CONTAINER_USER" \
+      --memory "${budget}m" --memory-swap "${budget}m" \
       -v "$RESULTS/inputs:/data:ro" -v "$probe:/outputs" \
       --entrypoint /opt/rosalind-platform/memory_probe.sh \
       "$IMAGE" "$implementation" "$budget" > "$probe/stdout" 2> "$probe/stderr"

@@ -67,6 +67,10 @@ for the new semantics, encoders, or scheduling changes.
 - [Workflow integration CI](https://github.com/logannye/rosalind/actions/runs/34010203990)
   passed Nextflow and Snakemake execution on Linux. These checks are performed by
   repository automation, not independent external users.
+- [Evaluator candidate CI](https://github.com/logannye/rosalind/actions/runs/34010511992)
+  built the pinned Linux image and completed an offline hap.py/vcfeval comparison
+  of one synthetic SNV. This verifies evaluator setup and execution; the image
+  remains unpublished and does not establish the GIAB caller baseline.
 
 ## External prerequisites and unmeasured claims
 

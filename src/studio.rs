@@ -4,12 +4,15 @@ use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::process::Command;
+use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 
 const INDEX_HTML: &str = include_str!("../web/verify/index.html");
 const STUDIO_JS: &[u8] = include_bytes!("../web/verify/pkg/rosalind_verify.js");
 const STUDIO_WASM: &[u8] = include_bytes!("../web/verify/pkg/rosalind_verify_bg.wasm");
+const MAX_REQUEST_HEADER_BYTES: usize = 8192;
+const REQUEST_HEADER_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Local Studio launch configuration.
 #[derive(Debug, Clone)]
@@ -83,17 +86,79 @@ fn inject_preloads(template: &str, paths: &[PathBuf]) -> Result<String> {
 }
 
 fn respond(stream: &mut TcpStream, html: &[u8]) -> std::io::Result<()> {
-    let mut request = [0_u8; 8192];
-    let read = stream.read(&mut request)?;
-    let line = String::from_utf8_lossy(&request[..read]);
-    let path = line
-        .lines()
-        .next()
-        .and_then(|line| line.split_whitespace().nth(1))
-        .unwrap_or("/")
-        .split('?')
-        .next()
-        .unwrap_or("/");
+    let started = Instant::now();
+    let mut request = [0_u8; MAX_REQUEST_HEADER_BYTES];
+    let length = read_request_headers(&mut request, |buffer| {
+        // Bound the whole header exchange, including clients that trickle a
+        // byte at a time. A fresh full timeout per read would not do that.
+        let remaining = REQUEST_HEADER_TIMEOUT
+            .checked_sub(started.elapsed())
+            .filter(|remaining| !remaining.is_zero())
+            .ok_or_else(|| {
+                std::io::Error::new(std::io::ErrorKind::TimedOut, "request header timed out")
+            })?;
+        stream.set_read_timeout(Some(remaining))?;
+        stream.read(buffer)
+    })?;
+    stream.set_write_timeout(Some(REQUEST_HEADER_TIMEOUT))?;
+    respond_to_request(stream, &request[..length], html)
+}
+
+/// Assemble headers within the caller's fixed buffer. TCP read boundaries do
+/// not delimit requests, even when a client makes a single formatted write.
+fn read_request_headers(
+    request: &mut [u8],
+    mut read: impl FnMut(&mut [u8]) -> std::io::Result<usize>,
+) -> std::io::Result<usize> {
+    let mut used: usize = 0;
+    loop {
+        if used == request.len() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidData,
+                "request header exceeds 8192 bytes",
+            ));
+        }
+        let count = match read(&mut request[used..]) {
+            Err(error) if error.kind() == std::io::ErrorKind::Interrupted => continue,
+            result => result?,
+        };
+        if count == 0 {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::UnexpectedEof,
+                "connection closed before complete request headers",
+            ));
+        }
+        let search_start = used.saturating_sub(3);
+        used += count;
+        if let Some(end) = request[search_start..used]
+            .windows(4)
+            .position(|bytes| bytes == b"\r\n\r\n")
+        {
+            return Ok(search_start + end + 4);
+        }
+    }
+}
+
+fn respond_to_request(stream: &mut impl Write, request: &[u8], html: &[u8]) -> std::io::Result<()> {
+    let malformed = || {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "malformed HTTP request line",
+        )
+    };
+    let line_end = request
+        .windows(2)
+        .position(|bytes| bytes == b"\r\n")
+        .ok_or_else(malformed)?;
+    let line = std::str::from_utf8(&request[..line_end]).map_err(|_| malformed())?;
+    let mut parts = line.split_ascii_whitespace();
+    let _method = parts.next().ok_or_else(malformed)?;
+    let target = parts.next().ok_or_else(malformed)?;
+    let version = parts.next().ok_or_else(malformed)?;
+    if parts.next().is_some() || !matches!(version, "HTTP/1.0" | "HTTP/1.1") {
+        return Err(malformed());
+    }
+    let path = target.split('?').next().ok_or_else(malformed)?;
     let (status, content_type, body): (&str, &str, &[u8]) = match path {
         "/" | "/index.html" => ("200 OK", "text/html; charset=utf-8", html),
         "/pkg/rosalind_verify.js" => ("200 OK", "text/javascript; charset=utf-8", STUDIO_JS),
@@ -146,6 +211,67 @@ fn json_for_script(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn one_byte_reads_assemble_the_complete_javascript_request() {
+        let request = b"GET /pkg/rosalind_verify.js?cache=0 HTTP/1.1\r\nHost: localhost\r\n\r\n";
+        let mut remaining = request.as_slice();
+        let mut assembled = [0_u8; MAX_REQUEST_HEADER_BYTES];
+        let length =
+            read_request_headers(&mut assembled, |buffer| remaining.read(&mut buffer[..1]))
+                .unwrap();
+        assert_eq!(&assembled[..length], request);
+        assert!(remaining.is_empty());
+
+        let mut response = Vec::new();
+        respond_to_request(&mut response, &assembled[..length], b"HTML fallback").unwrap();
+        let split = response
+            .windows(4)
+            .position(|bytes| bytes == b"\r\n\r\n")
+            .unwrap();
+        let headers = std::str::from_utf8(&response[..split]).unwrap();
+        assert!(headers.starts_with("HTTP/1.1 200 OK\r\n"));
+        assert!(headers.contains("Content-Type: text/javascript; charset=utf-8"));
+        assert!(headers.contains(&format!("Content-Length: {}\r\n", STUDIO_JS.len())));
+        assert_eq!(&response[split + 4..], STUDIO_JS);
+    }
+
+    #[test]
+    fn incomplete_and_oversized_headers_are_rejected_with_bounded_reads() {
+        let mut assembled = [0_u8; MAX_REQUEST_HEADER_BYTES];
+        let mut incomplete = b"GET /pkg/rosalind_verify.js HTTP/1.1\r\n".as_slice();
+        let error =
+            read_request_headers(&mut assembled, |buffer| incomplete.read(buffer)).unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::UnexpectedEof);
+
+        let mut bytes_read = 0;
+        let error = read_request_headers(&mut assembled, |buffer| {
+            buffer.fill(b'x');
+            bytes_read += buffer.len();
+            Ok(buffer.len())
+        })
+        .unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+        assert_eq!(bytes_read, MAX_REQUEST_HEADER_BYTES);
+
+        let mut response = Vec::new();
+        let error =
+            respond_to_request(&mut response, b"GET \r\n\r\n", b"HTML fallback").unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+        assert!(response.is_empty());
+    }
+
+    #[test]
+    fn complete_headers_at_the_capacity_boundary_are_accepted() {
+        let mut input = [b'x'; MAX_REQUEST_HEADER_BYTES];
+        input[MAX_REQUEST_HEADER_BYTES - 4..].copy_from_slice(b"\r\n\r\n");
+        let mut remaining = input.as_slice();
+        let mut assembled = [0_u8; MAX_REQUEST_HEADER_BYTES];
+        assert_eq!(
+            read_request_headers(&mut assembled, |buffer| remaining.read(buffer)).unwrap(),
+            MAX_REQUEST_HEADER_BYTES
+        );
+    }
 
     #[test]
     fn preload_json_cannot_close_its_script_element() {
