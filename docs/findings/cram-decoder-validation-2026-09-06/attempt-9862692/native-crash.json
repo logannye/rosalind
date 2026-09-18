@@ -1,0 +1,724 @@
+{
+  "exception": {
+    "codes": "0x0000000000000001, 0x003a030000340408",
+    "rawCodes": [
+      1,
+      16328847187510280
+    ],
+    "type": "EXC_BAD_ACCESS",
+    "signal": "SIGSEGV",
+    "subtype": "KERN_INVALID_ADDRESS at 0x003a030000340408"
+  },
+  "termination": {
+    "flags": 0,
+    "code": 11,
+    "namespace": "SIGNAL",
+    "indicator": "Segmentation fault: 11",
+    "byProc": "exc handler",
+    "byPid": 73099
+  },
+  "faultingThread": 3,
+  "asi": null,
+  "translated": false,
+  "cpuType": "ARM-64",
+  "threads": [
+    {
+      "index": 0,
+      "triggered": false,
+      "name": "main",
+      "queue": "com.apple.main-thread",
+      "frames": [
+        {
+          "symbol": "__ulock_wait",
+          "symbolLocation": 8,
+          "imageOffset": 10980,
+          "imageIndex": 1,
+          "image_name": "libsystem_kernel.dylib",
+          "image_path": "/usr/lib/system/libsystem_kernel.dylib"
+        },
+        {
+          "symbol": "_pthread_join",
+          "symbolLocation": 608,
+          "imageOffset": 37036,
+          "imageIndex": 2,
+          "image_name": "libsystem_pthread.dylib",
+          "image_path": "/usr/lib/system/libsystem_pthread.dylib"
+        },
+        {
+          "imageOffset": 6006304,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 4025572,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 4637732,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 5505260,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 5480364,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 5525236,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 5472460,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 7094148,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 5171732,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 5171220,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6072592,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 5734536,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "symbol": "start",
+          "symbolLocation": 7184,
+          "imageOffset": 36180,
+          "imageIndex": 3,
+          "image_name": "dyld",
+          "image_path": "/usr/lib/dyld"
+        }
+      ]
+    },
+    {
+      "index": 1,
+      "triggered": false,
+      "name": null,
+      "queue": null,
+      "frames": [
+        {
+          "symbol": "semaphore_timedwait_trap",
+          "symbolLocation": 8,
+          "imageOffset": 3016,
+          "imageIndex": 1,
+          "image_name": "libsystem_kernel.dylib",
+          "image_path": "/usr/lib/system/libsystem_kernel.dylib"
+        },
+        {
+          "symbol": "_dispatch_sema4_timedwait",
+          "symbolLocation": 64,
+          "imageOffset": 224396,
+          "imageIndex": 5,
+          "image_name": "libdispatch.dylib",
+          "image_path": "/usr/lib/system/libdispatch.dylib"
+        },
+        {
+          "symbol": "_dispatch_semaphore_wait_slow",
+          "symbolLocation": 76,
+          "imageOffset": 16136,
+          "imageIndex": 5,
+          "image_name": "libdispatch.dylib",
+          "image_path": "/usr/lib/system/libdispatch.dylib"
+        },
+        {
+          "imageOffset": 6037268,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 5173932,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 5172496,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 5171644,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 5191280,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6109660,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "symbol": "_pthread_start",
+          "symbolLocation": 136,
+          "imageOffset": 27656,
+          "imageIndex": 2,
+          "image_name": "libsystem_pthread.dylib",
+          "image_path": "/usr/lib/system/libsystem_pthread.dylib"
+        },
+        {
+          "symbol": "thread_start",
+          "symbolLocation": 8,
+          "imageOffset": 7080,
+          "imageIndex": 2,
+          "image_name": "libsystem_pthread.dylib",
+          "image_path": "/usr/lib/system/libsystem_pthread.dylib"
+        }
+      ]
+    },
+    {
+      "index": 2,
+      "triggered": false,
+      "name": null,
+      "queue": null,
+      "frames": [
+        {
+          "symbol": "__fcntl",
+          "symbolLocation": 8,
+          "imageOffset": 6320,
+          "imageIndex": 1,
+          "image_name": "libsystem_kernel.dylib",
+          "image_path": "/usr/lib/system/libsystem_kernel.dylib"
+        },
+        {
+          "symbol": "fcntl",
+          "symbolLocation": 88,
+          "imageOffset": 5980,
+          "imageIndex": 1,
+          "image_name": "libsystem_kernel.dylib",
+          "image_path": "/usr/lib/system/libsystem_kernel.dylib"
+        },
+        {
+          "imageOffset": 6018740,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 4649888,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 4001180,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 4035560,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6109660,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "symbol": "_pthread_start",
+          "symbolLocation": 136,
+          "imageOffset": 27656,
+          "imageIndex": 2,
+          "image_name": "libsystem_pthread.dylib",
+          "image_path": "/usr/lib/system/libsystem_pthread.dylib"
+        },
+        {
+          "symbol": "thread_start",
+          "symbolLocation": 8,
+          "imageOffset": 7080,
+          "imageIndex": 2,
+          "image_name": "libsystem_pthread.dylib",
+          "image_path": "/usr/lib/system/libsystem_pthread.dylib"
+        }
+      ]
+    },
+    {
+      "index": 3,
+      "triggered": true,
+      "name": null,
+      "queue": null,
+      "frames": [
+        {
+          "imageOffset": 6541412,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6541344,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6230700,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 4245020,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 4057652,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 4644696,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 4001180,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 4035560,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6109660,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "symbol": "_pthread_start",
+          "symbolLocation": 136,
+          "imageOffset": 27656,
+          "imageIndex": 2,
+          "image_name": "libsystem_pthread.dylib",
+          "image_path": "/usr/lib/system/libsystem_pthread.dylib"
+        },
+        {
+          "symbol": "thread_start",
+          "symbolLocation": 8,
+          "imageOffset": 7080,
+          "imageIndex": 2,
+          "image_name": "libsystem_pthread.dylib",
+          "image_path": "/usr/lib/system/libsystem_pthread.dylib"
+        }
+      ]
+    },
+    {
+      "index": 4,
+      "triggered": false,
+      "name": null,
+      "queue": null,
+      "frames": [
+        {
+          "imageOffset": 6773780,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6803504,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6548032,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6550688,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6466784,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6473392,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6490036,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6491348,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6311244,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6292472,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6248204,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 4798584,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 4649592,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 4001180,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 4035560,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6109660,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "symbol": "_pthread_start",
+          "symbolLocation": 136,
+          "imageOffset": 27656,
+          "imageIndex": 2,
+          "image_name": "libsystem_pthread.dylib",
+          "image_path": "/usr/lib/system/libsystem_pthread.dylib"
+        },
+        {
+          "symbol": "thread_start",
+          "symbolLocation": 8,
+          "imageOffset": 7080,
+          "imageIndex": 2,
+          "image_name": "libsystem_pthread.dylib",
+          "image_path": "/usr/lib/system/libsystem_pthread.dylib"
+        }
+      ]
+    },
+    {
+      "index": 5,
+      "triggered": false,
+      "name": null,
+      "queue": null,
+      "frames": [
+        {
+          "symbol": "_xzm_reclaim_mark_used",
+          "symbolLocation": 0,
+          "imageOffset": 81216,
+          "imageIndex": 6,
+          "image_name": "libsystem_malloc.dylib",
+          "image_path": "/usr/lib/system/libsystem_malloc.dylib"
+        },
+        {
+          "symbol": "_xzm_segment_group_span_mark_used",
+          "symbolLocation": 120,
+          "imageOffset": 92984,
+          "imageIndex": 6,
+          "image_name": "libsystem_malloc.dylib",
+          "image_path": "/usr/lib/system/libsystem_malloc.dylib"
+        },
+        {
+          "symbol": "_xzm_segment_group_segment_span_free_coalesce",
+          "symbolLocation": 228,
+          "imageOffset": 86664,
+          "imageIndex": 6,
+          "image_name": "libsystem_malloc.dylib",
+          "image_path": "/usr/lib/system/libsystem_malloc.dylib"
+        },
+        {
+          "symbol": "xzm_segment_group_free_chunk",
+          "symbolLocation": 576,
+          "imageOffset": 85116,
+          "imageIndex": 6,
+          "image_name": "libsystem_malloc.dylib",
+          "image_path": "/usr/lib/system/libsystem_malloc.dylib"
+        },
+        {
+          "imageOffset": 6566904,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6491096,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6491348,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6311244,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6292472,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6248204,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 4798584,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 4649592,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 4001180,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 4035560,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6109660,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "symbol": "_pthread_start",
+          "symbolLocation": 136,
+          "imageOffset": 27656,
+          "imageIndex": 2,
+          "image_name": "libsystem_pthread.dylib",
+          "image_path": "/usr/lib/system/libsystem_pthread.dylib"
+        },
+        {
+          "symbol": "thread_start",
+          "symbolLocation": 8,
+          "imageOffset": 7080,
+          "imageIndex": 2,
+          "image_name": "libsystem_pthread.dylib",
+          "image_path": "/usr/lib/system/libsystem_pthread.dylib"
+        }
+      ]
+    },
+    {
+      "index": 6,
+      "triggered": false,
+      "name": null,
+      "queue": null,
+      "frames": [
+        {
+          "imageOffset": 6773776,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6803504,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6548032,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6550688,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6466784,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6473392,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6490036,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6491348,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6311244,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6292472,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6248204,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 4798584,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 4649592,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 4001180,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 4035560,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "imageOffset": 6109660,
+          "imageIndex": 0,
+          "image_name": "rosalind",
+          "image_path": "/private/tmp/*/rosalind"
+        },
+        {
+          "symbol": "_pthread_start",
+          "symbolLocation": 136,
+          "imageOffset": 27656,
+          "imageIndex": 2,
+          "image_name": "libsystem_pthread.dylib",
+          "image_path": "/usr/lib/system/libsystem_pthread.dylib"
+        },
+        {
+          "symbol": "thread_start",
+          "symbolLocation": 8,
+          "imageOffset": 7080,
+          "imageIndex": 2,
+          "image_name": "libsystem_pthread.dylib",
+          "image_path": "/usr/lib/system/libsystem_pthread.dylib"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,123 @@
+{
+  "copied_from": "/Users/logannye/rosalind/docs/findings/cram-decoder-validation-2026-09-06/attempt-9862692",
+  "original_source_commit": "9862692685ee865aa8678b185d60a45380c51ac0",
+  "copied_at_utc": "2026-09-18",
+  "status": "retained-failed-attempt-unchanged",
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 2845,
+      "sha256": "f33670c33ed5227b53cf1292d22a2604713768e9298e8acb6fe28b5a124994c5"
+    },
+    {
+      "path": "audit.json",
+      "bytes": 152808,
+      "sha256": "f4b737c54d4dfa54064f0a028d9909305381760ec3829d4f36ab2e959cdf7de2"
+    },
+    {
+      "path": "baseline-comparison.json",
+      "bytes": 461,
+      "sha256": "8ad20aef4a06254a6035456e31ad3f7136fbd5127d376e0bf76c8830b1374849"
+    },
+    {
+      "path": "candidate-identities.json",
+      "bytes": 1040,
+      "sha256": "34c8a102303ceb79d98fa7f0c62250f2191a07250fa25f590bffae25b1a65c15"
+    },
+    {
+      "path": "cgroup-bam-raw.tar.xz",
+      "bytes": 38040,
+      "sha256": "227b9254f624075fae7ee448119de58f947a2922c49c7807a60181f3615a7713"
+    },
+    {
+      "path": "cgroup-bam.json",
+      "bytes": 35325,
+      "sha256": "4e4c5f080a21e811f81caaca4f789a71e7f5973d16a898eacff108246e037543"
+    },
+    {
+      "path": "cgroup-cram-raw.tar.xz",
+      "bytes": 38088,
+      "sha256": "58e32917e083a779b8de7602c6b93a1677a4b93d37ae9ddabe5a3075307e9000"
+    },
+    {
+      "path": "cgroup-cram.json",
+      "bytes": 35831,
+      "sha256": "193f25fa720ea75fe165903f9667329cb8ca732c329bf1f4975e4a93c97bba50"
+    },
+    {
+      "path": "clippy.log",
+      "bytes": 132,
+      "sha256": "2ab4849e78e0083f5e7270701fad3e47115803852c80c48d284bda93864638da"
+    },
+    {
+      "path": "installed-harness-tests.log",
+      "bytes": 6940,
+      "sha256": "3acf37045f98c90fcef23dfcf3055d6da7cfd5147610bb3187af46ad10f7625d"
+    },
+    {
+      "path": "linux-build-tests.log",
+      "bytes": 4856,
+      "sha256": "66ca6c107b87a6186938da8a6d6aaac7c363a544df14bccbfb0b51d47930bcad"
+    },
+    {
+      "path": "linux-platform.txt",
+      "bytes": 360,
+      "sha256": "b3cb49b8abfc7e10727e7da189bc0b773c90b7a80dfa3fea8a44e3c558b56c9a"
+    },
+    {
+      "path": "linux-validation.json",
+      "bytes": 3128,
+      "sha256": "e3964ec6928226a85c8a2bac9a5a3b705f4c45650d7208afa981012f7214e363"
+    },
+    {
+      "path": "matrix-raw.tar.xz",
+      "bytes": 1463736,
+      "sha256": "de88162c288c175ee77c2abaf442cd2782a8cd92b8ba50618c4e29a2465d3fbf"
+    },
+    {
+      "path": "msrv.log",
+      "bytes": 363,
+      "sha256": "2e27be704634afbf405bff4352552707896fd6bd7c01f322aedb413f1ed04ff2"
+    },
+    {
+      "path": "native-crash.json",
+      "bytes": 20396,
+      "sha256": "bb7a793748fe50388cc2dd70ba2d20e411329588474aab70381e64d1ceee45a7"
+    },
+    {
+      "path": "package-smoke-raw.tar.xz",
+      "bytes": 473008,
+      "sha256": "71b1119e3f957774aa37ffad5fac24c7831191a535453196e10cbd0d4fa7bdee"
+    },
+    {
+      "path": "package-smoke.json",
+      "bytes": 5668,
+      "sha256": "8a5427107406dad588338fbc09357512e8c70b3f89325220e3f1c9730488126e"
+    },
+    {
+      "path": "report.json",
+      "bytes": 811970,
+      "sha256": "2f57037c045246bca1a711053c88c4cd6de521e88337dd2bc1428d76b614791d"
+    },
+    {
+      "path": "validation-dependencies.log",
+      "bytes": 2487,
+      "sha256": "459242d190359579156c44eed852d316200a3ed0af071d594dc352e22c9e1a7c"
+    },
+    {
+      "path": "wheel-build.log",
+      "bytes": 505,
+      "sha256": "1d7a0e95a6cd16c2827c96b113f8fdf7ddd6b3764172d12e592e125285a73841"
+    },
+    {
+      "path": "wheel-install.log",
+      "bytes": 334,
+      "sha256": "3c9a974cd61259db2a064a15b2e0018d97078cf6b5c83ae961cb2b68e4dcc15a"
+    },
+    {
+      "path": "workspace-verified.log",
+      "bytes": 59044,
+      "sha256": "fddf1875a4ded376f3bf6a7ef206f90200bcba4fb65ba15b436c9aa9de14c0b6"
+    }
+  ]
+}

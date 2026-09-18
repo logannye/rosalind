@@ -1,0 +1,176 @@
+{
+  "schema": 1,
+  "files": [
+    {
+      "path": "README.md",
+      "bytes": 7314,
+      "sha256": "fe4932c516e7a488c9e37d6abce624bbd1a6096ae4ac4bdc20c95f464ea6dff0"
+    },
+    {
+      "path": "audit.json",
+      "bytes": 155646,
+      "sha256": "96aad5aec209bcd250961d8ecbea9dc25a0c358c76db0e56255b3139d7964e73"
+    },
+    {
+      "path": "audit.log",
+      "bytes": 61,
+      "sha256": "b451cb034a991b2ba9568f8d70f306e16261085c773b04dfea53e07834f3595c"
+    },
+    {
+      "path": "baseline-comparison.json",
+      "bytes": 540,
+      "sha256": "3fd4414f15b9144daad82e28ad34b2b625e81eabb36a7bf29ec13318a4efe205"
+    },
+    {
+      "path": "candidate-identities.json",
+      "bytes": 3132,
+      "sha256": "110f4012f423c5bb5b9f789f6f85ac4e2f1e37664c37eabf697ddcf4c4f0a512"
+    },
+    {
+      "path": "cgroup-bam-raw.tar.xz",
+      "bytes": 38204,
+      "sha256": "363395b94bae4fe28371ae8806e2d592ac04c1513a3da30ad27803adf46dacac"
+    },
+    {
+      "path": "cgroup-bam.json",
+      "bytes": 35588,
+      "sha256": "beaedfd5a8f9b5d75243b97c80829df9e76914dce48f3c95bb38bc9920a70c26"
+    },
+    {
+      "path": "cgroup-bam.log",
+      "bytes": 111,
+      "sha256": "28ac950a2fbb2806af2534c4b2fefdf56ad1c4a5f83d79743bfb5d89bda335a5"
+    },
+    {
+      "path": "cgroup-cram-raw.tar.xz",
+      "bytes": 38232,
+      "sha256": "8032927cfd9e66a2c740349203ad41b9547a2daff3f40f46aa97262613187c3b"
+    },
+    {
+      "path": "cgroup-cram.json",
+      "bytes": 36048,
+      "sha256": "8ed5fd39729a64e1eded8ba289f2a91a1a26c2c17fe08e9f1d5ae6b3638a61ef"
+    },
+    {
+      "path": "cgroup-cram.log",
+      "bytes": 112,
+      "sha256": "4623a45bd7965320aa5305662e70b4284f56515871477a1efc4a7e6da5b7d491"
+    },
+    {
+      "path": "cli-inventory.json",
+      "bytes": 1079,
+      "sha256": "43d69de28f29d995df634c6f6347732c45834431eeca27b2d2aa357235b0fd56"
+    },
+    {
+      "path": "lifetime-before.log",
+      "bytes": 7116,
+      "sha256": "a9bdfc83b902ebe79ca431ef19734b0f1de53704fde0f7dc1cfdd6d051ee0488"
+    },
+    {
+      "path": "linux-build.log",
+      "bytes": 246,
+      "sha256": "834381ce9315c16ec844712ed8c29a29dcc4859c8cc980b83188c3b93110bc36"
+    },
+    {
+      "path": "linux-dependencies.log",
+      "bytes": 9169,
+      "sha256": "051c48001023b8858208eb4e1f55e26f6aadea6407cf5c259535858f541f6fbd"
+    },
+    {
+      "path": "linux-platform.txt",
+      "bytes": 386,
+      "sha256": "c02e230b8ac74f3f2e0c2ef9c36c655db2562efe05d6f4800f55308d9d45957e"
+    },
+    {
+      "path": "linux-tests.log",
+      "bytes": 4756,
+      "sha256": "a2dacdd2a8db0b537192a2d76a207f1198dae0bee03ce77467654c0dd3db4a26"
+    },
+    {
+      "path": "matrix-raw.tar.xz",
+      "bytes": 1461108,
+      "sha256": "13a56da1d4281c24dfba1833d41336ec623c470e86a87aabe69feb34d91db464"
+    },
+    {
+      "path": "matrix.log",
+      "bytes": 4926,
+      "sha256": "11c3fd31d1520f390627cb4ef87ad91f2600e4d82ebfd5bd1ece0b16e3361e5b"
+    },
+    {
+      "path": "msrv.log",
+      "bytes": 6325,
+      "sha256": "ecfa40c8ffa73da95b91ab12af20ab8cf37a7f4f50d4902cc6639729227763fe"
+    },
+    {
+      "path": "onboarding.log",
+      "bytes": 41136,
+      "sha256": "b0efb9a98707b74efcfcb5cda18163c4cdfec7fab7a0f970638af90a3870ba68"
+    },
+    {
+      "path": "preparation.json",
+      "bytes": 2850,
+      "sha256": "21660a4df3eb6b42d5e54829e7f8f5a43d20b43cd616dba483e63db5c2b1809a"
+    },
+    {
+      "path": "prepare_representative.py",
+      "bytes": 15006,
+      "sha256": "3c93d72fe0e7cb7b63546e1f21cd1423ec44010eee74532641a81ffe4f11f6d5"
+    },
+    {
+      "path": "python311.log",
+      "bytes": 5288,
+      "sha256": "0a2516462ea7d05a6c3d4c8a66503a0dff438eb85d7e7afc3ebd1f64d3a0cdfc"
+    },
+    {
+      "path": "python39.log",
+      "bytes": 3866,
+      "sha256": "5dce4a6b17fdd9e7f69c45da1c89193fc650ab059e164dae0528cc7e864c5e0e"
+    },
+    {
+      "path": "release-doctor-colima.json",
+      "bytes": 3991,
+      "sha256": "782d84dd4cf3925dd3e5910dca6b38087dee93acbf97eb1d861e99c2a855ac6f"
+    },
+    {
+      "path": "release-doctor.json",
+      "bytes": 4205,
+      "sha256": "9485cb7442c33a7bc2ed41cd639156a252b0c96752c90d380dcd406c32a9cd76"
+    },
+    {
+      "path": "release-prerequisites.json",
+      "bytes": 779,
+      "sha256": "f6894ca270936bd94bab221c9474c4e3eb9a742dfeb0099a4850d72e44973da3"
+    },
+    {
+      "path": "report.json",
+      "bytes": 844566,
+      "sha256": "c986d566b6732b15a3b6865c3566c1962fd72d8362d65808aaef9134529d62c8"
+    },
+    {
+      "path": "source-9b8e12f.tar.gz",
+      "bytes": 3632518,
+      "sha256": "e235d52d339fc8a4a802ea6d976ef1c1be4d32a3f0f7bf8e645187d1d4e3e58d"
+    },
+    {
+      "path": "source-lock.tsv",
+      "bytes": 2948,
+      "sha256": "409aa2d18e98b8c5405c1c35e4f46b7871607b27b20585093e81fe443a4c91a6"
+    },
+    {
+      "path": "wheel-build.log",
+      "bytes": 610,
+      "sha256": "b09b5aef038b0d57c73b76628ee671eb75afbdfaae40af1a56c2f7957a11c983"
+    },
+    {
+      "path": "workloads.json",
+      "bytes": 10026,
+      "sha256": "a0d287b263721b0c59b2d1521b24163bb47c9e59b6fd74235709da4af66ff7a7"
+    },
+    {
+      "path": "workspace.log",
+      "bytes": 61319,
+      "sha256": "8c8fe7b83ba1814d3224dc7135f8123a8588fbecaddfcc5c372e0d59731d838c"
+    }
+  ],
+  "note": "Hashes cover retained files except this self-describing inventory. Raw archives contain all result files; original alignment/reference inputs and executable artifacts are referenced by identities."
+}

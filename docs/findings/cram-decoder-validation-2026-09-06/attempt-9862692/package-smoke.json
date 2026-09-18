@@ -1,0 +1,147 @@
+{
+  "schema": 1,
+  "source_commit": "9862692685ee865aa8678b185d60a45380c51ac0",
+  "wheel": {
+    "path": "/tmp/rosalind-cram-wheels/rosalind_bio-0.5.0-py3-none-macosx_11_0_arm64.whl",
+    "sha256": "a11c76f07a5c4493a11027fd3aa8577257866e810e6b1c66bf8b159e5f924916"
+  },
+  "python_tests": {
+    "3.9.6": {
+      "passed": 23,
+      "failed": 0,
+      "identity": {
+        "python": "3.9.6 (default, Oct 17 2025, 17:15:53) \n[Clang 17.0.0 (clang-1700.4.4.1)]",
+        "python_executable": "/private/tmp/rosalind-cram-package-smoke/py39/bin/python",
+        "prefix": "/private/tmp/rosalind-cram-package-smoke/py39",
+        "imported_module": "/private/tmp/rosalind-cram-package-smoke/py39/lib/python3.9/site-packages/rosalind/__init__.py",
+        "packages": {
+          "rosalind-bio": "0.5.0",
+          "pyarrow": "21.0.0",
+          "pysam": "0.23.3"
+        },
+        "native_version": "rosalind 0.5.0",
+        "binary": "/private/tmp/rosalind-cram-package-smoke/py39/bin/rosalind",
+        "binary_sha256": "2fb3a6c888f0390c4def84ef566e881203aed9cb232e06baa8ee4aa121f36f08",
+        "platform": "macOS-26.2-arm64-arm-64bit"
+      }
+    },
+    "3.11.15": {
+      "passed": 23,
+      "failed": 0,
+      "identity": {
+        "python": "3.11.15 (main, Mar 25 2026, 02:58:47) [Clang 22.1.1 ]",
+        "python_executable": "/tmp/rosalind-cram-package-smoke/py311/bin/python",
+        "prefix": "/private/tmp/rosalind-cram-package-smoke/py311",
+        "imported_module": "/private/tmp/rosalind-cram-package-smoke/py311/lib/python3.11/site-packages/rosalind/__init__.py",
+        "packages": {
+          "rosalind-bio": "0.5.0",
+          "pyarrow": "25.0.1",
+          "pysam": "0.23.3"
+        },
+        "native_version": "rosalind 0.5.0",
+        "binary": "/tmp/rosalind-cram-package-smoke/py311/bin/rosalind",
+        "binary_sha256": "2fb3a6c888f0390c4def84ef566e881203aed9cb232e06baa8ee4aa121f36f08",
+        "platform": "macOS-26.2-arm64-arm-64bit"
+      }
+    }
+  },
+  "researcher": {
+    "status": "passed",
+    "candidate_rows": 4,
+    "bam_cram_byte_equality": true,
+    "bam_verify_and_physical_replay": true,
+    "cram_verify_and_physical_replay": true,
+    "panel_plus_position_output_verify": true
+  },
+  "sdk_onboarding": {
+    "status": "pending",
+    "reason": "Heavy scaffold compilation deliberately held until same-host benchmark timing completes."
+  },
+  "scope": "Maintainer validation of a local wheel; no public registry or independent-user adoption claim. Lightweight tests overlapped a development-host timing matrix; no smoke timing is used as a performance result.",
+  "artifacts": {
+    "identity-py39.json": {
+      "sha256": "8ec9776ab7898b9471f65091491545c2f525b61dd5a72e9f761227d37d90ec63",
+      "bytes": 696
+    },
+    "identity-py311.json": {
+      "sha256": "58f30f9dbdc2a2ba8f662de85a81886e2d1f2ea487049399b2cf0fd4c9e1007d",
+      "bytes": 664
+    },
+    "install-py39.log": {
+      "sha256": "895742f92d47bb3e30bab0f8e8b49d6532ab2c3221a362fd8a747c84bd39da82",
+      "bytes": 695
+    },
+    "install-py311.log": {
+      "sha256": "18c7a586b4a061da1c59dac6435ffe728066bf332b3f6bc30c26d2bdfd87a287",
+      "bytes": 724
+    },
+    "python39-tests.log": {
+      "sha256": "b81a6a314b5f82b18b0415862a700c0aebf7e0f7fc6d99e6e20ccc70232f406c",
+      "bytes": 3866
+    },
+    "python311-tests.log": {
+      "sha256": "85f5f424e45f1a7afc50b6eda844ef9cdcf4baecd7d3b3c36b6d85efdd29c585",
+      "bytes": 5288
+    },
+    "researcher-prepare.log": {
+      "sha256": "ed4774d8d003d57833d638792dece7fd827525dae23ad621566d76c666cb9df0",
+      "bytes": 97
+    },
+    "researcher-smoke.log": {
+      "sha256": "c2019b3f74b33fab32f8a18c4144caa0fa97c3c898f107bf7273f89060658429",
+      "bytes": 5061
+    },
+    "researcher-commands.json": {
+      "sha256": "5cc15b934d6d9e4114ffd603e5a46392e028e54b7e141fea8076c6cf763429a4",
+      "bytes": 2932
+    },
+    "researcher_smoke.py": {
+      "sha256": "3c41a195f69c9af6b6659bde65b4964b19dc76cb598f03e66fa6158dedad0746",
+      "bytes": 2858
+    },
+    "identity.py": {
+      "sha256": "2c1226f361382687fcc9ff4f47294c0add5f0877b95f23b6951a1360137fff75",
+      "bytes": 793
+    },
+    "researcher/preparation.json": {
+      "sha256": "32bea874a6786fc2a18198af2df845eb8c4144eb8b9b5b3fa58ee6978e46329e",
+      "bytes": 2788
+    },
+    "researcher/evidence.tsv": {
+      "sha256": "9d20c6691ac68e075b300247522dd21d1db46e7d61fb4576fd732af523528ec9",
+      "bytes": 1076
+    },
+    "researcher/evidence.tsv.manifest.json": {
+      "sha256": "255e1b6bcf50e0be3fe8776ab6dcc569eab8ce1c2d1ead5f81d1d3dd0f23aca8",
+      "bytes": 5319
+    },
+    "researcher/cram.evidence.tsv": {
+      "sha256": "9d20c6691ac68e075b300247522dd21d1db46e7d61fb4576fd732af523528ec9",
+      "bytes": 1076
+    },
+    "researcher/cram.evidence.tsv.manifest.json": {
+      "sha256": "c7bcfed6160ce8ec7bb0df91316c5292ce677543ca6d0b086af19062274d6285",
+      "bytes": 6594
+    },
+    "researcher/evidence.replay.json": {
+      "sha256": "442024b6d752a0ac2c289c54fde26754c8e8950604945449ed039384c9041c91",
+      "bytes": 1516
+    },
+    "researcher/cram.evidence.replay.json": {
+      "sha256": "a90b51904744979a25915dd12458068f14428464486a66055845e897612d9c79",
+      "bytes": 1518
+    },
+    "researcher/panel.tsv": {
+      "sha256": "b8881fba6d2a2cacce0d86c3528104f789b1ac751af835517e49c86d117c037d",
+      "bytes": 509
+    },
+    "researcher/panel.tsv.manifest.json": {
+      "sha256": "5b7ece0695e176c00b455bb655c4b13a80e23d9d1b140c47a3d10ee64e858816",
+      "bytes": 5590
+    },
+    "researcher/research-review.tsv": {
+      "sha256": "0c29659c825f67a6fb8d529c2c430f6b055fd6033f5b0cf4a9eb52ba5bb9d09f",
+      "bytes": 209
+    }
+  }
+}

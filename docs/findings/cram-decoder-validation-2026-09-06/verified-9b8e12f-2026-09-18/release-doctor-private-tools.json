@@ -1,0 +1,127 @@
+{
+  "schema": 1,
+  "command": "doctor",
+  "status": "blocked",
+  "commit": "c824bc6f48014a6705ed6adeb83287138d1c86ac",
+  "version": null,
+  "checks": [
+    {
+      "id": "docker.daemon",
+      "ok": true,
+      "detail": "28.4.0"
+    },
+    {
+      "id": "github.environment.rc",
+      "ok": true,
+      "detail": "configured"
+    },
+    {
+      "id": "github.environment.rc.deployment_refs",
+      "ok": false,
+      "detail": "custom deployment policy has no allowed branch/tag refs; configure the intended workflow dispatch ref"
+    },
+    {
+      "id": "github.environment.rc.reviewers",
+      "ok": true,
+      "detail": "required reviewer configured"
+    },
+    {
+      "id": "github.environment.release",
+      "ok": true,
+      "detail": "configured"
+    },
+    {
+      "id": "github.environment.release.deployment_refs",
+      "ok": false,
+      "detail": "custom deployment policy has no allowed branch/tag refs; configure the intended workflow dispatch ref"
+    },
+    {
+      "id": "github.environment.release.reviewers",
+      "ok": true,
+      "detail": "required reviewer configured"
+    },
+    {
+      "id": "github.secret.CARGO_REGISTRY_TOKEN",
+      "ok": false,
+      "detail": "missing; configure with `gh secret set CARGO_REGISTRY_TOKEN --repo logannye/rosalind`"
+    },
+    {
+      "id": "repository.origin",
+      "ok": true,
+      "detail": "https://github.com/logannye/rosalind.git"
+    },
+    {
+      "id": "tool.actionlint",
+      "ok": true,
+      "detail": "1.7.12\ninstalled by downloading from release page\nbuilt with go1.26.1 compiler for darwin/arm64"
+    },
+    {
+      "id": "tool.cargo",
+      "ok": true,
+      "detail": "cargo 1.95.0 (f2d3ce0bd 2026-03-21)"
+    },
+    {
+      "id": "tool.cargo-public-api",
+      "ok": true,
+      "detail": "cargo-public-api 0.50.1"
+    },
+    {
+      "id": "tool.docker",
+      "ok": true,
+      "detail": "Docker version 28.4.0, build d8eb465f86"
+    },
+    {
+      "id": "tool.gh",
+      "ok": true,
+      "detail": "gh version 2.87.0 (2026-02-18)\nhttps://github.com/cli/cli/releases/tag/v2.87.0"
+    },
+    {
+      "id": "tool.git",
+      "ok": true,
+      "detail": "git version 2.50.1 (Apple Git-155)"
+    },
+    {
+      "id": "tool.public-api-toolchain",
+      "ok": true,
+      "detail": "rustc 1.97.0-nightly (a5c825cd8 2026-04-14)"
+    },
+    {
+      "id": "tool.release-toolchain",
+      "ok": true,
+      "detail": "rustc 1.95.0 (59807616e 2026-04-14)"
+    },
+    {
+      "id": "tool.shellcheck",
+      "ok": true,
+      "detail": "ShellCheck - shell script analysis tool\nversion: 0.10.0\nlicense: GNU General Public License, version 3\nwebsite: https://www.shellcheck.net"
+    },
+    {
+      "id": "tool.wasm-pack",
+      "ok": true,
+      "detail": "wasm-pack 0.14.0"
+    }
+  ],
+  "blockers": [
+    "github.environment.rc.deployment_refs: custom deployment policy has no allowed branch/tag refs; configure the intended workflow dispatch ref",
+    "github.environment.release.deployment_refs: custom deployment policy has no allowed branch/tag refs; configure the intended workflow dispatch ref",
+    "github.secret.CARGO_REGISTRY_TOKEN: missing; configure with `gh secret set CARGO_REGISTRY_TOKEN --repo logannye/rosalind`"
+  ],
+  "actions": [
+    "configure CARGO_REGISTRY_TOKEN without exposing its value",
+    "configure protected rc and release environments",
+    "install missing pinned maintainer tools"
+  ],
+  "contract_fingerprint": null,
+  "plan_id": "6328cc435dc5c417d87544d09721876ef8ee0fdc96eccbbe5478d33ece94a400",
+  "metadata": {
+    "actionlint_version": "1.7.12",
+    "cargo_public_api_version": "0.50.1",
+    "foundation_test_baseline": "336",
+    "jsonschema_version": "4.23.0",
+    "msrv": "1.83.0",
+    "public_api_toolchain": "nightly-2026-04-15",
+    "release_toolchain": "1.95.0",
+    "shellcheck_version": "0.10.0",
+    "wasm_pack_version": "0.14.0"
+  }
+}

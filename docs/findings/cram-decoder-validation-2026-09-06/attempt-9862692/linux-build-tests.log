@@ -1,0 +1,75 @@
+   Compiling rosalind-build-info v0.1.0 (/work/crates/build-info)
+   Compiling rosalind-receipt v0.3.0 (/work/crates/receipt)
+   Compiling rosalind-bio v0.5.0 (/work)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 14.20s
+   Compiling rosalind-bio v0.5.0 (/work)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 11.74s
+     Running tests/evidence_cram_envelope.rs (target/debug/deps/evidence_cram_envelope-1aecca8778e86e51)
+
+running 4 tests
+[W::cram_get_ref] [W::cram_get_ref] [W::cram_get_ref] [W::cram_get_ref] Failed to populate reference for id 0Failed to populate reference for id 0Failed to populate reference for id 0Failed to populate reference for id 0
+[W::cram_write_SAM_hdr] No M5 tags present and could not find reference
+[W::cram_write_SAM_hdr] Enabling embed_ref=2 option
+[W::cram_write_SAM_hdr] NOTE: the CRAM file will be bigger than using an external reference
+
+[W::cram_write_SAM_hdr] No M5 tags present and could not find reference
+[W::cram_write_SAM_hdr] Enabling embed_ref=2 option
+[W::cram_write_SAM_hdr] NOTE: the CRAM file will be bigger than using an external reference
+
+[W::cram_write_SAM_hdr] No M5 tags present and could not find reference
+[W::cram_write_SAM_hdr] Enabling embed_ref=2 option
+[W::cram_write_SAM_hdr] NOTE: the CRAM file will be bigger than using an external reference
+
+[W::cram_write_SAM_hdr] No M5 tags present and could not find reference
+[W::cram_write_SAM_hdr] Enabling embed_ref=2 option
+[W::cram_write_SAM_hdr] NOTE: the CRAM file will be bigger than using an external reference
+test omitted_index_slice_is_rejected_instead_of_becoming_false_zero_evidence ... ok
+test off_target_payload_is_checked_before_successful_indexed_analysis ... ok
+test worker_cannot_tighten_limits_below_validated_records_or_ignore_index_mutation ... ok
+test whole_file_maxima_are_measured_once_and_scientific_bytes_match_bam ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s
+
+     Running tests/evidence_engine.rs (target/debug/deps/evidence_engine-3a1e5fa74e0c5a56)
+
+running 20 tests
+test analyzer_capabilities_and_unknown_budget_bounds_are_validated_before_callbacks ... ok
+test coverage_without_reference_and_tiny_budget_refusal_are_explicit ... ok
+test csi_and_relocated_fai_index_inputs_work_without_adjacent_sidecars ... ok
+[W::cram_get_ref] Failed to populate reference for id 0
+[W::cram_write_SAM_hdr] No M5 tags present and could not find reference
+[W::cram_write_SAM_hdr] Enabling embed_ref=2 option
+[W::cram_write_SAM_hdr] NOTE: the CRAM file will be bigger than using an external reference
+test equal_position_read_order_does_not_change_exact_integer_summaries ... ok
+test arrow_reader_rejects_oversized_frames_before_decoder_allocation ... ok
+test cram_uses_explicit_local_fasta_and_matches_bam_evidence ... ok
+test arrow_bytes_are_canonical_and_reader_roundtrips_all_fields ... ok
+test file_backed_pack_and_legacy_reference_windows_match_fasta_across_word_and_contig_boundaries ... ok
+test independent_hand_calculated_cigar_and_filter_oracle ... ok
+test malformed_cigar_and_declared_read_envelope_fail_instead_of_truncating ... ok
+test overlapping_panel_targets_keep_full_length_denominators_and_fuse ... ok
+test per_allele_quality_distinguishes_equal_pooled_quality_distributions ... ok
+test repeated_planning_preserves_admitted_baseline_and_charges_new_selection ... ok
+test sam_reference_equality_bases_resolve_with_reference_and_refuse_without_it ... ok
+test selection_identity_is_independent_of_input_interval_order_and_duplicates ... ok
+test snv_sites_validate_reference_and_merge_duplicate_alternates ... ok
+test worker_factory_shares_open_reference_without_reopening_its_path ... ok
+test exact_depth_exceeds_old_cap_and_tile_width_does_not_change_rows ... ok
+test full_evidence_egress_matches_frozen_schema_one_bytes ... ok
+test every_projection_preserves_present_values_and_roundtrips_empty_metadata ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.74s
+
+   Compiling rosalind-bio v0.5.0 (/work)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.77s
+     Running unittests src/lib.rs (target/debug/deps/rosalind-ea2096ccf42559b8)
+
+running 5 tests
+test evidence::cram::tests::forged_huffman_counts_and_recursive_codec_metadata_fail_before_native_allocation ... ok
+test evidence::cram::tests::repeated_decoder_bound_uses_global_verified_maxima_and_checked_arithmetic ... ok
+test evidence::cram::tests::fai_and_crai_refuse_unbounded_lines_and_bad_declared_coordinates ... ok
+test evidence::cram::tests::header_padding_and_all_container_blocks_are_reserved ... ok
+test evidence::cram::tests::gzip_expansion_rans_internal_lengths_and_crc_are_checked ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 259 filtered out; finished in 0.05s
+

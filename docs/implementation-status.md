@@ -10,7 +10,7 @@ source, workload and platform they actually tested.
 |---|---|---|
 | Public stable | [v0.1.0, June 2](https://github.com/logannye/rosalind/releases/tag/v0.1.0) | Historical legacy feature/caller commands; not the current evidence/dataset SDK tutorials |
 | Current development | Package version **0.5.0** | Exact-evidence, dataset and SDK research previews, built from an identified source checkout |
-| Feature-bearing RC | Not published at this review | The earlier waiting RC workflow is not a downloadable prerelease and does not start a soak |
+| Feature-bearing RC | Not published at this review | The older unpublished RC workflow was canceled as superseded; no soak has started |
 | Cohort APIs | Planned next-minor previews; not implemented | Follow milestone C; do not expect `cohort` commands in 0.5 |
 
 No 0.4 release was published. Native/wheel build artifacts, author-run examples
@@ -64,8 +64,17 @@ independent adoption is established for the current evidence platform.**
   underestimates; that does not make the failed candidate release-ready.
 - **Native lifetime correction, source 9b8e12f:** destroys the native CRAM index
   before its borrowed file handle; preserves the public engine's Send contract.
-  Focused parallel/error-path lifetime tests pass. A fresh packaged matrix and
-  Linux probe report are required before closing the validation gate in R01.
+  The [verified report](https://github.com/logannye/rosalind/blob/main/docs/findings/cram-decoder-validation-2026-09-06/verified-9b8e12f-2026-09-18/README.md)
+  records all 108 packaged representative runs passing with no baseline output
+  differences or prediction underestimates, 14 real Linux cgroup cases, and
+  installed Python 3.9/3.11 plus analyzer onboarding checks. The new regression
+  reproduces the old SIGSEGV as a negative control. The failed attempt remains
+  separately retained. Merge/publication gates remain distinct from these results.
+- **Onboarding and cohort preparation:** the
+  [September 18 report](https://github.com/logannye/rosalind/blob/main/docs/findings/roadmap-foundation-2026-09-18/README.md)
+  records executable researcher/reuse/builder checks and a small independently
+  specified multi-sample fixture. The [cohort contract](https://github.com/logannye/rosalind/blob/main/docs/cohort-contract.md) is a
+  proposal; no cohort commands or independent partner usage are claimed.
 
 Findings are linked remotely so onboarding bundles do not accidentally include
 large raw benchmark archives. Retained raw failures must not be overwritten by

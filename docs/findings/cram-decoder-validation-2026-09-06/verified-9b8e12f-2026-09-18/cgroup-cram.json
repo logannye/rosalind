@@ -1,0 +1,1049 @@
+{
+  "cases": [
+    {
+      "analysis_exit_code": 0,
+      "analysis_exit_source": "controller",
+      "assurance": "declared-bound-cooperative",
+      "capacity_preflight_reported": false,
+      "case": {
+        "argv": [
+          "/inputs/rosalind",
+          "analyze",
+          "evidence",
+          "--reference",
+          "/inputs/reference.fa",
+          "--alignments",
+          "/inputs/alignments.cram",
+          "--alignment-index",
+          "/inputs/alignment.index",
+          "--sites",
+          "/inputs/selection.vcf",
+          "--fields",
+          "all",
+          "--format",
+          "tsv",
+          "--output",
+          "/output/result.tsv",
+          "--manifest",
+          "/output/result.tsv.manifest.json",
+          "--enforce",
+          "--sample",
+          "HG002",
+          "--memory-budget-mb",
+          "128"
+        ],
+        "budget_mib": 128,
+        "expected": "completed",
+        "hard_limit_bytes": 134217728,
+        "name": "admitted-cooperative"
+      },
+      "claim_hash": "73ad5af08832bff7915ab35d9e90c570ddf7a2aea12be668ecd5d4b77f050435",
+      "container_exit_code": 0,
+      "docker_oom_killed": false,
+      "errors": [],
+      "events_after": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "events_before": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "files": {
+        "analysis.exit_code": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "analysis.stderr": {
+          "bytes": 101,
+          "sha256": "d053227250bec7b446cd415ad5838ffae3049db6f94ee2627672540f5714a8cd"
+        },
+        "analysis.stdout": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "docker-inspect.json": {
+          "bytes": 12162,
+          "sha256": "05eb6ac31504f90c53b90cac17d02b54cfe23c6b96a97189ff1ef02c1805441d"
+        },
+        "memory.events.after": {
+          "bytes": 53,
+          "sha256": "28fe05a1d7b8467a03fb54454f7b6a130fab752864d0454f5f6c4a4b6ce307f2"
+        },
+        "memory.events.before": {
+          "bytes": 53,
+          "sha256": "28fe05a1d7b8467a03fb54454f7b6a130fab752864d0454f5f6c4a4b6ce307f2"
+        },
+        "memory.max.after": {
+          "bytes": 10,
+          "sha256": "60cd686f3d326b92aff7ba442a3634615e3908f64a629542251992253004ecdd"
+        },
+        "memory.max.before": {
+          "bytes": 10,
+          "sha256": "60cd686f3d326b92aff7ba442a3634615e3908f64a629542251992253004ecdd"
+        },
+        "memory.peak.after": {
+          "bytes": 9,
+          "sha256": "540e0f5263316f33ad88f20ab97c75c45e39babc2ea75cb6c7612da3ac15ca2f"
+        },
+        "memory.peak.before": {
+          "bytes": 8,
+          "sha256": "d142fe7e5a694f59a41b19ee819e9e39e3cc21a803ec12c853211319672f62ba"
+        },
+        "memory.swap.max.after": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "memory.swap.max.before": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "result.tsv": {
+          "bytes": 109589,
+          "sha256": "f84b6c05e3ffb26b4ef187a2e9383135a84fb84382b3f5a8a0e3a17f3055f30b"
+        },
+        "result.tsv.manifest.json": {
+          "bytes": 6553,
+          "sha256": "3d0db1c0987bc5bc0b0290253f2b59fe63ab94610956d0971beae46b23ccd336"
+        },
+        "result.tsv.manifest.json.verify.exit_code": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "result.tsv.manifest.json.verify.json": {
+          "bytes": 1285,
+          "sha256": "2d1bb9f513eb1595165d7dea44749e30672625fc38d935e89a88937ade5cd684"
+        },
+        "result.tsv.manifest.json.verify.stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "integrity": true,
+      "measurements": {
+        "baseline_rss_bytes": "17702912",
+        "contract_verdict": "within",
+        "execution.analysis_encoding_ms": "2566",
+        "execution.analyzer_bytes": "16384",
+        "execution.bytes_per_locus": "3128",
+        "execution.cram.base_reservation_bases": "1510000",
+        "execution.cram.block_cap_bytes": "67108864",
+        "execution.cram.blocks_cap": "4096",
+        "execution.cram.codec_depth_cap": "16",
+        "execution.cram.container_cap_bytes": "268435456",
+        "execution.cram.containers": "27",
+        "execution.cram.declared_bases": "39485841",
+        "execution.cram.declared_records": "261761",
+        "execution.cram.header_bytes": "33672",
+        "execution.cram.index_bytes": "427556",
+        "execution.cram.max_compressed_bytes": "190036",
+        "execution.cram.max_compression_header_bytes": "464",
+        "execution.cram.max_container_bases": "1510000",
+        "execution.cram.max_container_blocks": "33",
+        "execution.cram.max_container_records": "10000",
+        "execution.cram.max_container_slices": "2",
+        "execution.cram.max_uncompressed_bytes": "2283269",
+        "execution.cram.metadata_cap_bytes": "8388608",
+        "execution.cram.profile": "3.0;coordinate;single-reference;RAW,GZIP,rANS4;checked-metadata-v1",
+        "execution.cram.records_cap": "1000000",
+        "execution.cram.reference_bytes": "81322",
+        "execution.cram.slices_cap": "1024",
+        "execution.cram.validated_bases": "39485841",
+        "execution.cram.validated_max_read_length": "151",
+        "execution.cram.validated_max_record_bytes": "576",
+        "execution.cram.validated_records": "261761",
+        "execution.cram.validation_peak_rss_bytes": "37720064",
+        "execution.cram.validation_wall_micros": "2302737",
+        "execution.decoder_bytes": "46755520",
+        "execution.decoder_model": "cram-container-envelope-v1",
+        "execution.elapsed_ms": "9016",
+        "execution.emitted_loci": "1000",
+        "execution.finalization_ms": "19",
+        "execution.hashing_ms": "3861",
+        "execution.max_returned_read_length": "151",
+        "execution.max_returned_record_bytes": "576",
+        "execution.microtile_bases": "15368",
+        "execution.microtiles": "85",
+        "execution.record_visits": "243196",
+        "execution.sample_filtered_record_visits": "0",
+        "execution.sample_scope_bytes": "62402",
+        "execution.setup_ms": "6431",
+        "measurement_blake3": "874228868e4f166176b0c145b0f703b7cc05e85d99547d1daafe024c64d7dbbf",
+        "peak_rss_bytes": "43487232",
+        "predicted_peak_rss_bytes": "134216194"
+      },
+      "memory_max_bytes": 134217728,
+      "memory_peak_bytes": 30347264,
+      "partial_artifact": false,
+      "partial_receipt": false,
+      "passed": true,
+      "producer": {
+        "code_dirty": "false",
+        "code_git_sha": "9b8e12f3b6e802d2103c5ebeb5ff89a08c8d85ce",
+        "deps_lock_blake3": "ce245e0ef0d0076f1e27dcb5ca2a8d0f952ae5db7bec9d469382caf1b0f4457e",
+        "producer.binary": "rosalind",
+        "producer.name": "rosalind",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.95.0 (59807616e 2026-04-14)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "receipt_path": "result.tsv.manifest.json",
+      "receipt_status": "completed",
+      "success_artifact": true,
+      "success_receipt": true,
+      "swap_max_bytes": 0,
+      "timed_out": false,
+      "verified": true,
+      "wall_seconds": 13.798597708984744
+    },
+    {
+      "analysis_exit_code": 0,
+      "analysis_exit_source": "controller",
+      "assurance": "cgroup-v2",
+      "capacity_preflight_reported": false,
+      "case": {
+        "argv": [
+          "/inputs/rosalind",
+          "analyze",
+          "evidence",
+          "--reference",
+          "/inputs/reference.fa",
+          "--alignments",
+          "/inputs/alignments.cram",
+          "--alignment-index",
+          "/inputs/alignment.index",
+          "--sites",
+          "/inputs/selection.vcf",
+          "--fields",
+          "all",
+          "--format",
+          "tsv",
+          "--output",
+          "/output/result.tsv",
+          "--manifest",
+          "/output/result.tsv.manifest.json",
+          "--enforce",
+          "--sample",
+          "HG002",
+          "--memory-budget-mb",
+          "128",
+          "--require-os-limit"
+        ],
+        "budget_mib": 128,
+        "expected": "completed",
+        "hard_limit_bytes": 134217728,
+        "name": "admitted-os-limit",
+        "require_os_limit": true
+      },
+      "claim_hash": "acc82c45aefcdfa97383f222e43be58946a4fda995cdbd18a74900e52b31e333",
+      "container_exit_code": 0,
+      "docker_oom_killed": false,
+      "errors": [],
+      "events_after": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "events_before": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "files": {
+        "analysis.exit_code": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "analysis.stderr": {
+          "bytes": 101,
+          "sha256": "d053227250bec7b446cd415ad5838ffae3049db6f94ee2627672540f5714a8cd"
+        },
+        "analysis.stdout": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "docker-inspect.json": {
+          "bytes": 12231,
+          "sha256": "3c9f8ee08af2e534bff6610a58e2b62227c65fd32e4f91528350e93f87360957"
+        },
+        "memory.events.after": {
+          "bytes": 53,
+          "sha256": "28fe05a1d7b8467a03fb54454f7b6a130fab752864d0454f5f6c4a4b6ce307f2"
+        },
+        "memory.events.before": {
+          "bytes": 53,
+          "sha256": "28fe05a1d7b8467a03fb54454f7b6a130fab752864d0454f5f6c4a4b6ce307f2"
+        },
+        "memory.max.after": {
+          "bytes": 10,
+          "sha256": "60cd686f3d326b92aff7ba442a3634615e3908f64a629542251992253004ecdd"
+        },
+        "memory.max.before": {
+          "bytes": 10,
+          "sha256": "60cd686f3d326b92aff7ba442a3634615e3908f64a629542251992253004ecdd"
+        },
+        "memory.peak.after": {
+          "bytes": 9,
+          "sha256": "9dc2846185e96672909e6c81d74b615ef45ad6f340542d00bb22d28af10f6dea"
+        },
+        "memory.peak.before": {
+          "bytes": 8,
+          "sha256": "1d03958ccc09f322936ac891c7521f1cacd43e9f70dcabe273b904e3edc511aa"
+        },
+        "memory.swap.max.after": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "memory.swap.max.before": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "result.tsv": {
+          "bytes": 109589,
+          "sha256": "f84b6c05e3ffb26b4ef187a2e9383135a84fb84382b3f5a8a0e3a17f3055f30b"
+        },
+        "result.tsv.manifest.json": {
+          "bytes": 6640,
+          "sha256": "710327e3ae6e0b97b6f8ace636c8ce0a4ca31118e4a19831d4a78d4d13d3af94"
+        },
+        "result.tsv.manifest.json.verify.exit_code": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "result.tsv.manifest.json.verify.json": {
+          "bytes": 1251,
+          "sha256": "8ebe328e8ebc0bd0c4e33bcff778857f2175c74e427396458535302de3741ba1"
+        },
+        "result.tsv.manifest.json.verify.stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "integrity": true,
+      "measurements": {
+        "baseline_rss_bytes": "17580032",
+        "contract_verdict": "within",
+        "execution.analysis_encoding_ms": "2799",
+        "execution.analyzer_bytes": "16384",
+        "execution.bytes_per_locus": "3128",
+        "execution.cram.base_reservation_bases": "1510000",
+        "execution.cram.block_cap_bytes": "67108864",
+        "execution.cram.blocks_cap": "4096",
+        "execution.cram.codec_depth_cap": "16",
+        "execution.cram.container_cap_bytes": "268435456",
+        "execution.cram.containers": "27",
+        "execution.cram.declared_bases": "39485841",
+        "execution.cram.declared_records": "261761",
+        "execution.cram.header_bytes": "33672",
+        "execution.cram.index_bytes": "427556",
+        "execution.cram.max_compressed_bytes": "190036",
+        "execution.cram.max_compression_header_bytes": "464",
+        "execution.cram.max_container_bases": "1510000",
+        "execution.cram.max_container_blocks": "33",
+        "execution.cram.max_container_records": "10000",
+        "execution.cram.max_container_slices": "2",
+        "execution.cram.max_uncompressed_bytes": "2283269",
+        "execution.cram.metadata_cap_bytes": "8388608",
+        "execution.cram.profile": "3.0;coordinate;single-reference;RAW,GZIP,rANS4;checked-metadata-v1",
+        "execution.cram.records_cap": "1000000",
+        "execution.cram.reference_bytes": "81322",
+        "execution.cram.slices_cap": "1024",
+        "execution.cram.validated_bases": "39485841",
+        "execution.cram.validated_max_read_length": "151",
+        "execution.cram.validated_max_record_bytes": "576",
+        "execution.cram.validated_records": "261761",
+        "execution.cram.validation_peak_rss_bytes": "37523456",
+        "execution.cram.validation_wall_micros": "2863736",
+        "execution.decoder_bytes": "46755520",
+        "execution.decoder_model": "cram-container-envelope-v1",
+        "execution.elapsed_ms": "10904",
+        "execution.emitted_loci": "1000",
+        "execution.finalization_ms": "8",
+        "execution.hashing_ms": "4936",
+        "execution.max_returned_read_length": "151",
+        "execution.max_returned_record_bytes": "576",
+        "execution.microtile_bases": "15473",
+        "execution.microtiles": "85",
+        "execution.record_visits": "243196",
+        "execution.sample_filtered_record_visits": "0",
+        "execution.sample_scope_bytes": "62402",
+        "execution.setup_ms": "8097",
+        "measurement_blake3": "739c7e97c0b8bc82abf0165a0bcafeb234bc268b9b53c950cb3838b1f9da4ee8",
+        "peak_rss_bytes": "43028480",
+        "predicted_peak_rss_bytes": "134216954"
+      },
+      "memory_max_bytes": 134217728,
+      "memory_peak_bytes": 28864512,
+      "partial_artifact": false,
+      "partial_receipt": false,
+      "passed": true,
+      "producer": {
+        "code_dirty": "false",
+        "code_git_sha": "9b8e12f3b6e802d2103c5ebeb5ff89a08c8d85ce",
+        "deps_lock_blake3": "ce245e0ef0d0076f1e27dcb5ca2a8d0f952ae5db7bec9d469382caf1b0f4457e",
+        "producer.binary": "rosalind",
+        "producer.name": "rosalind",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.95.0 (59807616e 2026-04-14)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "receipt_path": "result.tsv.manifest.json",
+      "receipt_status": "completed",
+      "success_artifact": true,
+      "success_receipt": true,
+      "swap_max_bytes": 0,
+      "timed_out": false,
+      "verified": true,
+      "wall_seconds": 15.580652083037421
+    },
+    {
+      "analysis_exit_code": 3,
+      "analysis_exit_source": "controller",
+      "capacity_preflight_reported": false,
+      "case": {
+        "argv": [
+          "/inputs/rosalind",
+          "analyze",
+          "evidence",
+          "--reference",
+          "/inputs/reference.fa",
+          "--alignments",
+          "/inputs/alignments.cram",
+          "--alignment-index",
+          "/inputs/alignment.index",
+          "--sites",
+          "/inputs/selection.vcf",
+          "--fields",
+          "all",
+          "--format",
+          "tsv",
+          "--output",
+          "/output/result.tsv",
+          "--manifest",
+          "/output/result.tsv.manifest.json",
+          "--enforce",
+          "--sample",
+          "HG002",
+          "--memory-budget-mb",
+          "128",
+          "--max-record-bytes",
+          "268435456"
+        ],
+        "budget_mib": 128,
+        "expected": "refused",
+        "extra": [
+          "--max-record-bytes",
+          "268435456"
+        ],
+        "hard_limit_bytes": 134217728,
+        "name": "preflight-refusal"
+      },
+      "container_exit_code": 3,
+      "docker_oom_killed": false,
+      "errors": [],
+      "events_after": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "events_before": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "files": {
+        "analysis.exit_code": {
+          "bytes": 2,
+          "sha256": "1121cfccd5913f0a63fec40a6ffd44ea64f9dc135c66634ba001d10bcf4302a2"
+        },
+        "analysis.stderr": {
+          "bytes": 81,
+          "sha256": "af23d41b67828ff06617ba4ebb6e17ee3cbf8c4e816ea66e595124f6ad3b07b9"
+        },
+        "analysis.stdout": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "docker-inspect.json": {
+          "bytes": 12285,
+          "sha256": "5f662b8b059533181cf6c0249a5e5753a8c502196604f54b763eb601463797c8"
+        },
+        "memory.events.after": {
+          "bytes": 53,
+          "sha256": "28fe05a1d7b8467a03fb54454f7b6a130fab752864d0454f5f6c4a4b6ce307f2"
+        },
+        "memory.events.before": {
+          "bytes": 53,
+          "sha256": "28fe05a1d7b8467a03fb54454f7b6a130fab752864d0454f5f6c4a4b6ce307f2"
+        },
+        "memory.max.after": {
+          "bytes": 10,
+          "sha256": "60cd686f3d326b92aff7ba442a3634615e3908f64a629542251992253004ecdd"
+        },
+        "memory.max.before": {
+          "bytes": 10,
+          "sha256": "60cd686f3d326b92aff7ba442a3634615e3908f64a629542251992253004ecdd"
+        },
+        "memory.peak.after": {
+          "bytes": 9,
+          "sha256": "7971c0e437e1f6c59fafa50f8c58b5a233967c14661d150f017b4e3e41ce61a0"
+        },
+        "memory.peak.before": {
+          "bytes": 8,
+          "sha256": "03d58f5f913a285a088810be6852f4d7e1b8d26f53ad8a36437362e4ab3e1d85"
+        },
+        "memory.swap.max.after": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "memory.swap.max.before": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      },
+      "memory_max_bytes": 134217728,
+      "memory_peak_bytes": 13078528,
+      "partial_artifact": false,
+      "partial_receipt": false,
+      "passed": true,
+      "success_artifact": false,
+      "success_receipt": false,
+      "swap_max_bytes": 0,
+      "timed_out": false,
+      "wall_seconds": 4.544478917028755
+    },
+    {
+      "analysis_exit_code": 4,
+      "analysis_exit_source": "controller",
+      "capacity_preflight_reported": false,
+      "case": {
+        "argv": [
+          "/inputs/rosalind",
+          "analyze",
+          "evidence",
+          "--reference",
+          "/inputs/reference.fa",
+          "--alignments",
+          "/inputs/alignments.cram",
+          "--alignment-index",
+          "/inputs/alignment.index",
+          "--sites",
+          "/inputs/selection.vcf",
+          "--fields",
+          "all",
+          "--format",
+          "tsv",
+          "--output",
+          "/output/result.tsv",
+          "--manifest",
+          "/output/result.tsv.manifest.json",
+          "--enforce",
+          "--sample",
+          "HG002",
+          "--memory-budget-mb",
+          "1"
+        ],
+        "budget_mib": 1,
+        "expected": "startup-breach",
+        "hard_limit_bytes": 134217728,
+        "name": "startup-budget-breach"
+      },
+      "container_exit_code": 4,
+      "docker_oom_killed": false,
+      "errors": [],
+      "events_after": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "events_before": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "files": {
+        "analysis.exit_code": {
+          "bytes": 2,
+          "sha256": "7de1555df0c2700329e815b93b32c571c3ea54dc967b89e81ab73b9972b72d1d"
+        },
+        "analysis.stderr": {
+          "bytes": 74,
+          "sha256": "3ec968c644f3e790918231cebec13935e93fefb146a5884b365bcb23e0afe9d6"
+        },
+        "analysis.stdout": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "docker-inspect.json": {
+          "bytes": 12159,
+          "sha256": "9518725199fa655978c1eb7f6656a23db1abfd8ebe62a5086cbf9c261ef32f4a"
+        },
+        "memory.events.after": {
+          "bytes": 53,
+          "sha256": "28fe05a1d7b8467a03fb54454f7b6a130fab752864d0454f5f6c4a4b6ce307f2"
+        },
+        "memory.events.before": {
+          "bytes": 53,
+          "sha256": "28fe05a1d7b8467a03fb54454f7b6a130fab752864d0454f5f6c4a4b6ce307f2"
+        },
+        "memory.max.after": {
+          "bytes": 10,
+          "sha256": "60cd686f3d326b92aff7ba442a3634615e3908f64a629542251992253004ecdd"
+        },
+        "memory.max.before": {
+          "bytes": 10,
+          "sha256": "60cd686f3d326b92aff7ba442a3634615e3908f64a629542251992253004ecdd"
+        },
+        "memory.peak.after": {
+          "bytes": 9,
+          "sha256": "b2f595a06cceaf5800a979c5e78272e9b03ac64bc77db386921da4c4551499e6"
+        },
+        "memory.peak.before": {
+          "bytes": 8,
+          "sha256": "890891d6c2d5253ae855785975eb926c6c6d12c1a05731ce8478590bf82ae16d"
+        },
+        "memory.swap.max.after": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "memory.swap.max.before": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      },
+      "memory_max_bytes": 134217728,
+      "memory_peak_bytes": 10694656,
+      "partial_artifact": false,
+      "partial_receipt": false,
+      "passed": true,
+      "success_artifact": false,
+      "success_receipt": false,
+      "swap_max_bytes": 0,
+      "timed_out": false,
+      "wall_seconds": 0.28073620900977403
+    },
+    {
+      "analysis_exit_code": 4,
+      "analysis_exit_source": "controller",
+      "capacity_preflight_reported": true,
+      "case": {
+        "argv": [
+          "/inputs/rosalind",
+          "analyze",
+          "evidence",
+          "--reference",
+          "/inputs/reference.fa",
+          "--alignments",
+          "/inputs/alignments.cram",
+          "--alignment-index",
+          "/inputs/alignment.index",
+          "--sites",
+          "/inputs/selection.vcf",
+          "--fields",
+          "all",
+          "--format",
+          "tsv",
+          "--output",
+          "/output/result.tsv",
+          "--manifest",
+          "/output/result.tsv.manifest.json",
+          "--enforce",
+          "--sample",
+          "HG002",
+          "--memory-budget-mb",
+          "128",
+          "--max-read-len",
+          "1"
+        ],
+        "budget_mib": 128,
+        "expected": "capacity-preflight",
+        "extra": [
+          "--max-read-len",
+          "1"
+        ],
+        "hard_limit_bytes": 134217728,
+        "name": "declared-capacity"
+      },
+      "container_exit_code": 4,
+      "docker_oom_killed": false,
+      "errors": [],
+      "events_after": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "events_before": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "files": {
+        "analysis.exit_code": {
+          "bytes": 2,
+          "sha256": "7de1555df0c2700329e815b93b32c571c3ea54dc967b89e81ab73b9972b72d1d"
+        },
+        "analysis.stderr": {
+          "bytes": 105,
+          "sha256": "e4808c9aa407291c4efd55476506397980bc018311c0f086d9b1b78f99c3fb3f"
+        },
+        "analysis.stdout": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "docker-inspect.json": {
+          "bytes": 12261,
+          "sha256": "20b7cf90a466414bd2e696253e116d5706c95a726a82a55413de784274d3b087"
+        },
+        "memory.events.after": {
+          "bytes": 53,
+          "sha256": "28fe05a1d7b8467a03fb54454f7b6a130fab752864d0454f5f6c4a4b6ce307f2"
+        },
+        "memory.events.before": {
+          "bytes": 53,
+          "sha256": "28fe05a1d7b8467a03fb54454f7b6a130fab752864d0454f5f6c4a4b6ce307f2"
+        },
+        "memory.max.after": {
+          "bytes": 10,
+          "sha256": "60cd686f3d326b92aff7ba442a3634615e3908f64a629542251992253004ecdd"
+        },
+        "memory.max.before": {
+          "bytes": 10,
+          "sha256": "60cd686f3d326b92aff7ba442a3634615e3908f64a629542251992253004ecdd"
+        },
+        "memory.peak.after": {
+          "bytes": 9,
+          "sha256": "bb3dd115459612b89bd9a91f73ecf38e99cfba7a75f43b6db5cc21dcf63ef3aa"
+        },
+        "memory.peak.before": {
+          "bytes": 8,
+          "sha256": "9932fb550f97b440ed5bcae38c7de3221269c3c48eb718cdcf30cfc25ed91d57"
+        },
+        "memory.swap.max.after": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "memory.swap.max.before": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      },
+      "memory_max_bytes": 134217728,
+      "memory_peak_bytes": 12857344,
+      "partial_artifact": false,
+      "partial_receipt": false,
+      "passed": true,
+      "success_artifact": false,
+      "success_receipt": false,
+      "swap_max_bytes": 0,
+      "timed_out": false,
+      "wall_seconds": 4.316802749992348
+    },
+    {
+      "analysis_exit_code": 137,
+      "analysis_exit_source": "controller",
+      "capacity_preflight_reported": false,
+      "case": {
+        "argv": [
+          "awk",
+          "BEGIN { s=sprintf(\"%1024s\", \"\"); for(i=0;i<262144;i++) a[i]=s i; print length(a) }"
+        ],
+        "control": true,
+        "expected": "oom",
+        "hard_limit_bytes": 33554432,
+        "hard_mib": 32,
+        "name": "allocation-oom-control"
+      },
+      "container_exit_code": 137,
+      "docker_oom_killed": true,
+      "errors": [],
+      "events_after": {
+        "high": 0,
+        "low": 0,
+        "max": 762,
+        "oom": 1,
+        "oom_group_kill": 0,
+        "oom_kill": 1
+      },
+      "events_before": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "files": {
+        "analysis.exit_code": {
+          "bytes": 4,
+          "sha256": "e3b9c2844b5a5c2677b3a2279db2ec8487491dd9a23d6b22fac153391b3bb63c"
+        },
+        "analysis.stderr": {
+          "bytes": 7,
+          "sha256": "0089bb674406997eb0e6850cf01c46d23d8689610788516cebf2a31b9276d691"
+        },
+        "analysis.stdout": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "docker-inspect.json": {
+          "bytes": 10953,
+          "sha256": "1848c8bec311feb6c0797dbb5bc8e4fa03220dd211481ec21395666927a91df8"
+        },
+        "memory.events.after": {
+          "bytes": 55,
+          "sha256": "fd1564bc89173d50985f0e544cbdb74c26dc78849525952e592e3a1f77bd8e1f"
+        },
+        "memory.events.before": {
+          "bytes": 53,
+          "sha256": "28fe05a1d7b8467a03fb54454f7b6a130fab752864d0454f5f6c4a4b6ce307f2"
+        },
+        "memory.max.after": {
+          "bytes": 9,
+          "sha256": "58a256fb0325d6a3a3c006fc9f2a504ae85cefeeb8f7cf622948f5833df0ac49"
+        },
+        "memory.max.before": {
+          "bytes": 9,
+          "sha256": "58a256fb0325d6a3a3c006fc9f2a504ae85cefeeb8f7cf622948f5833df0ac49"
+        },
+        "memory.peak.after": {
+          "bytes": 9,
+          "sha256": "58a256fb0325d6a3a3c006fc9f2a504ae85cefeeb8f7cf622948f5833df0ac49"
+        },
+        "memory.peak.before": {
+          "bytes": 8,
+          "sha256": "643f6453d1e2811f76c4b3bb396bb72301c6a5c067d1b9b3fd6578c7ea7a4230"
+        },
+        "memory.swap.max.after": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "memory.swap.max.before": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      },
+      "memory_max_bytes": 33554432,
+      "memory_peak_bytes": 33554432,
+      "partial_artifact": false,
+      "partial_receipt": false,
+      "passed": true,
+      "success_artifact": false,
+      "success_receipt": false,
+      "swap_max_bytes": 0,
+      "timed_out": false,
+      "wall_seconds": 0.30121087504085153
+    },
+    {
+      "analysis_exit_code": 137,
+      "analysis_exit_source": "controller",
+      "capacity_preflight_reported": false,
+      "case": {
+        "argv": [
+          "/inputs/rosalind",
+          "analyze",
+          "evidence",
+          "--reference",
+          "/inputs/reference.fa",
+          "--alignments",
+          "/inputs/alignments.cram",
+          "--alignment-index",
+          "/inputs/alignment.index",
+          "--sites",
+          "/inputs/selection.vcf",
+          "--fields",
+          "all",
+          "--format",
+          "tsv",
+          "--output",
+          "/output/result.tsv",
+          "--manifest",
+          "/output/result.tsv.manifest.json",
+          "--enforce",
+          "--sample",
+          "HG002",
+          "--memory-budget-mb",
+          "128"
+        ],
+        "budget_mib": 128,
+        "expected": "oom",
+        "hard_limit_bytes": 8388608,
+        "hard_mib": 8,
+        "name": "native-kernel-oom"
+      },
+      "container_exit_code": 137,
+      "docker_oom_killed": true,
+      "errors": [],
+      "events_after": {
+        "high": 0,
+        "low": 0,
+        "max": 1067175,
+        "oom": 1,
+        "oom_group_kill": 0,
+        "oom_kill": 1
+      },
+      "events_before": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "files": {
+        "analysis.exit_code": {
+          "bytes": 4,
+          "sha256": "e3b9c2844b5a5c2677b3a2279db2ec8487491dd9a23d6b22fac153391b3bb63c"
+        },
+        "analysis.stderr": {
+          "bytes": 7,
+          "sha256": "0089bb674406997eb0e6850cf01c46d23d8689610788516cebf2a31b9276d691"
+        },
+        "analysis.stdout": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "docker-inspect.json": {
+          "bytes": 12156,
+          "sha256": "3d39baf1debb3ec83978d532bd0e6617ba07954d0f25e714d9b4f7cda25eb740"
+        },
+        "memory.events.after": {
+          "bytes": 59,
+          "sha256": "8b9acf9f0b6243975a064914eb2c353779ea481720a64741d529954b01584dc2"
+        },
+        "memory.events.before": {
+          "bytes": 53,
+          "sha256": "28fe05a1d7b8467a03fb54454f7b6a130fab752864d0454f5f6c4a4b6ce307f2"
+        },
+        "memory.max.after": {
+          "bytes": 8,
+          "sha256": "22ee405617f143f8b43cdb9268b81b558e106454ba7a8b8c1354e9574481ba1e"
+        },
+        "memory.max.before": {
+          "bytes": 8,
+          "sha256": "22ee405617f143f8b43cdb9268b81b558e106454ba7a8b8c1354e9574481ba1e"
+        },
+        "memory.peak.after": {
+          "bytes": 8,
+          "sha256": "22ee405617f143f8b43cdb9268b81b558e106454ba7a8b8c1354e9574481ba1e"
+        },
+        "memory.peak.before": {
+          "bytes": 8,
+          "sha256": "41107c7ed7a709dbe783e4da2ae94540f6ab82504423a3b48a6805e717ca8e9a"
+        },
+        "memory.swap.max.after": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "memory.swap.max.before": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      },
+      "memory_max_bytes": 8388608,
+      "memory_peak_bytes": 8388608,
+      "partial_artifact": false,
+      "partial_receipt": false,
+      "passed": true,
+      "success_artifact": false,
+      "success_receipt": false,
+      "swap_max_bytes": 0,
+      "timed_out": false,
+      "wall_seconds": 63.589157874986995
+    }
+  ],
+  "completed_output_equality": true,
+  "docker_context": "colima-rosalind-ci",
+  "docker_daemon": {
+    "architecture": "aarch64",
+    "cgroup_version": "2",
+    "cpus": 4,
+    "kernel": "6.8.0-64-generic",
+    "memory_bytes": 4094926848,
+    "os": "Ubuntu 24.04.2 LTS"
+  },
+  "harness_sha256": "32112344e33b2ef6996e9dc6cdb2843c5395f3ec5536fe133a606d63b8701b46",
+  "image": {
+    "Architecture": "amd64",
+    "Id": "sha256:4c2fd73ef19c5ef9d54bee03b06b2839a392604fbfcd578ed948b71b37c1d7fb",
+    "Os": "linux",
+    "RepoDigests": [
+      "rust@sha256:6258907abe69656e41cd992e0b705cdcfabcbbe3db374f92ed2d47121282d4a1"
+    ],
+    "execution_reference": "rust@sha256:6258907abe69656e41cd992e0b705cdcfabcbbe3db374f92ed2d47121282d4a1"
+  },
+  "kind": "rosalind-cgroup-evidence-probe",
+  "limitations": [
+    "The allocation OOM control is not a Rosalind workload.",
+    "Kernel SIGKILL cannot run cooperative cleanup or guarantee a partial receipt.",
+    "Docker cgroup memory charges include page cache and the small controller process; they are not process RSS.",
+    "This is a failure-contract probe, not a performance benchmark."
+  ],
+  "schema": 1,
+  "source_hashes": {
+    "/Users/logannye/.cache/rosalind-validation/2026-09-18/linux-results/rosalind-linux-amd64": {
+      "bytes": 182881672,
+      "sha256": "3fbcc157ce15fddfaf973bd7173dd0dfa7a97e788b7a939e72c9928c42a3acc5"
+    },
+    "/Users/logannye/.cache/rosalind-validation/2026-09-18/prepared/reference.fa": {
+      "bytes": 3144230986,
+      "sha256": "9cce8b926416dd96b152deea85188495b75f7ac8d634cc723a017067be8702b7"
+    },
+    "/Users/logannye/.cache/rosalind-validation/2026-09-18/prepared/reference.fa.fai": {
+      "bytes": 7804,
+      "sha256": "502a1b8fb73ccd53285c28a0f12df90c818b4fe3de1e862ef47c593ef1a0a4b4"
+    },
+    "/Users/logannye/.cache/rosalind-validation/2026-09-18/prepared/window-sparse.vcf": {
+      "bytes": 27096,
+      "sha256": "7adb16613eadd5e1f645dc1316a19030fb9ea22f950ef064dcfa847ec973df68"
+    },
+    "/Users/logannye/.cache/rosalind-validation/2026-09-18/prepared/window.cram": {
+      "bytes": 4666273,
+      "sha256": "9237372371810df490f14d2b84cb3bec1b33f12e98c1eeeca690a73431eed905"
+    },
+    "/Users/logannye/.cache/rosalind-validation/2026-09-18/prepared/window.cram.crai": {
+      "bytes": 472,
+      "sha256": "1fbd988872198ad738b28b6562e9bdcf1e06d081f4aeb63cfd2ed4314dd81d8b"
+    }
+  },
+  "staged_source_sha256": {
+    "/inputs/alignment.index": "1fbd988872198ad738b28b6562e9bdcf1e06d081f4aeb63cfd2ed4314dd81d8b",
+    "/inputs/alignments.cram": "9237372371810df490f14d2b84cb3bec1b33f12e98c1eeeca690a73431eed905",
+    "/inputs/reference.fa": "9cce8b926416dd96b152deea85188495b75f7ac8d634cc723a017067be8702b7",
+    "/inputs/reference.fa.fai": "502a1b8fb73ccd53285c28a0f12df90c818b4fe3de1e862ef47c593ef1a0a4b4",
+    "/inputs/rosalind": "3fbcc157ce15fddfaf973bd7173dd0dfa7a97e788b7a939e72c9928c42a3acc5",
+    "/inputs/selection.vcf": "7adb16613eadd5e1f645dc1316a19030fb9ea22f950ef064dcfa847ec973df68"
+  },
+  "status": "passed"
+}

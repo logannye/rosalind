@@ -51,6 +51,16 @@ onboarding-harness changes are identified by the commit containing this report.
 
 ## Outstanding gates
 
+Additional retained checks bind the updated harness to the clean installed
+`9b8e12f` wheel/runtime: [workflow log](packaged-research-workflows.log) and
+[identities and command record](packaged-research-workflows.metadata.json).
+Both scientific workflows and the primary README example pass; an independent
+pysam check confirms candidate counts and full target denominators. The
+[cohort fixture check](cohort-fixture-validation.json) separately records the
+authored synthetic oracle, strict refusal, saved-only and missing-locus reuse
+checks. It establishes no cohort runtime. See the
+[fixture guide](../../../examples/cohort-reanalysis/README.md).
+
 The supported Linux/macOS CI matrix must validate the final changed package
 smoke. The public stable release remains v0.1.0. A source build or passing local
 wheel does not satisfy R04/R06 publication.

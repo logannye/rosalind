@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "source_commit": "9862692685ee865aa8678b185d60a45380c51ac0",
+  "artifacts": [
+    {
+      "role": "wheel",
+      "path": "/tmp/rosalind-cram-wheels/rosalind_bio-0.5.0-py3-none-macosx_11_0_arm64.whl",
+      "bytes": 3287726,
+      "sha256": "a11c76f07a5c4493a11027fd3aa8577257866e810e6b1c66bf8b159e5f924916"
+    },
+    {
+      "role": "installed-cli",
+      "path": "/tmp/rosalind-cram-validation-py311/bin/rosalind",
+      "bytes": 8338160,
+      "sha256": "2fb3a6c888f0390c4def84ef566e881203aed9cb232e06baa8ee4aa121f36f08"
+    },
+    {
+      "role": "linux-source-archive",
+      "path": "/tmp/rosalind-cram-9862692-source.tar.gz",
+      "bytes": 3630315,
+      "sha256": "c6655cdb11db614c402c44d5c27422a52ff1b9c5e5551ad48f11954b1895fe11"
+    },
+    {
+      "role": "workload-manifest",
+      "path": "/tmp/rosalind-hg002-prepared/workloads.json",
+      "bytes": 10794,
+      "sha256": "6dc5cc1b60213fda93a1da2bcafb5dfff85a7195fb5cf10eaa65fe9ff03a8c82"
+    }
+  ],
+  "publication": "local-candidate-not-public-release"
+}

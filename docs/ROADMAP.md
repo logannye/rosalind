@@ -35,6 +35,8 @@ The 30-day return target measures adoption; it is not an additional first-stable
 
   Remaining gate: Merge the implementation and link final acceptance evidence.
 
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)
+
 - [ ] **[G02](https://github.com/logannye/rosalind/issues/107) — Reconcile contract, architecture, determinism and contributor guides**
 
   Status: **implemented**. Owner: engineering. Dependencies: G01.
@@ -42,6 +44,8 @@ The 30-day return target measures adoption; it is not an additional first-stable
   Done when: Describe exact-or-fail legacy behavior, evidence tiles, CSI/CRAM, canonical workers, datasets, SDK and cooperative/OS limits consistently with SEMANTICS.
 
   Remaining gate: Merge the implementation and link final acceptance evidence.
+
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)
 
 - [ ] **[G03](https://github.com/logannye/rosalind/issues/108) — Provide researcher and builder README entry paths**
 
@@ -51,6 +55,8 @@ The 30-day return target measures adoption; it is not an additional first-stable
 
   Remaining gate: Merge the implementation and link final acceptance evidence.
 
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)
+
 - [ ] **[G04](https://github.com/logannye/rosalind/issues/109) — Align landing page and GitHub metadata**
 
   Status: **implemented**. Owner: engineering. Dependencies: G01, G03.
@@ -58,6 +64,8 @@ The 30-day return target measures adoption; it is not an additional first-stable
   Done when: Landing root, repository About and README agree; preserve /verify/ and static Pages; advertise only available installation routes.
 
   Remaining gate: Merge the implementation and link final acceptance evidence.
+
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)
 
 - [x] **[G05](https://github.com/logannye/rosalind/issues/110) — Reconcile legacy issues**
 
@@ -75,6 +83,8 @@ The 30-day return target measures adoption; it is not an additional first-stable
 
   Remaining gate: Merge the implementation and link final acceptance evidence.
 
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)
+
 - [ ] **[G07](https://github.com/logannye/rosalind/issues/112) — Separate historical exploration from current commitments**
 
   Status: **implemented**. Owner: engineering. Dependencies: G01.
@@ -82,6 +92,8 @@ The 30-day return target measures adoption; it is not an additional first-stable
   Done when: Retain archive banners, remove archives from onboarding, explain actual time/memory scheduling without square-root-memory product claims.
 
   Remaining gate: Merge the implementation and link final acceptance evidence.
+
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)
 
 ## D — Executable documentation
 
@@ -93,6 +105,8 @@ The 30-day return target measures adoption; it is not an additional first-stable
 
   Remaining gate: Merge the implementation and link final acceptance evidence.
 
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)
+
 - [ ] **[D02](https://github.com/logannye/rosalind/issues/114) — Deliver researcher candidate-evidence quickstart**
 
   Status: **implemented**. Owner: engineering. Dependencies: D01.
@@ -100,6 +114,8 @@ The 30-day return target measures adoption; it is not an additional first-stable
   Done when: Pinned NA18507 four candidates: prepare, extract, annotate, interpret, verify and replay outside checkout; illustrative screens are not confidence.
 
   Remaining gate: Merge the implementation and link final acceptance evidence.
+
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)
 
 - [ ] **[D03](https://github.com/logannye/rosalind/issues/115) — Deliver saved-evidence reuse tutorial**
 
@@ -109,6 +125,8 @@ The 30-day return target measures adoption; it is not an additional first-stable
 
   Remaining gate: Merge the implementation and link final acceptance evidence.
 
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)
+
 - [ ] **[D04](https://github.com/logannye/rosalind/issues/116) — Lead builders through managed evidence SDK**
 
   Status: **implemented**. Owner: engineering. Dependencies: D01, G02.
@@ -116,6 +134,8 @@ The 30-day return target measures adoption; it is not an additional first-stable
   Done when: Scaffold evidence API, modify useful statistic, declare fields/memory/params, scientific test and conformance, native/saved inputs and explicit-binary replay; retain legacy route.
 
   Remaining gate: Maintainer-authored customization passed scientific and conformance checks; independent developer completion remains unobserved.
+
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)
 
 - [ ] **[D05](https://github.com/logannye/rosalind/issues/117) — Explain concepts and actionable troubleshooting**
 
@@ -125,6 +145,8 @@ The 30-day return target measures adoption; it is not an additional first-stable
 
   Remaining gate: Merge the implementation and link final acceptance evidence.
 
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)
+
 - [ ] **[D06](https://github.com/logannye/rosalind/issues/118) — Clarify workflows and legacy Action**
 
   Status: **implemented**. Owner: engineering. Dependencies: D01.
@@ -132,6 +154,8 @@ The 30-day return target measures adoption; it is not an additional first-stable
   Done when: Lead exact-evidence Nextflow/Snakemake; scheduler requests differ from OS caps; label Action legacy while preserving defaults; use pinned CLI for new evidence.
 
   Remaining gate: Merge the implementation and link final acceptance evidence.
+
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)
 
 - [ ] **[D07](https://github.com/logannye/rosalind/issues/119) — Exercise documentation in onboarding/package smoke**
 
@@ -141,6 +165,8 @@ The 30-day return target measures adoption; it is not an additional first-stable
 
   Remaining gate: Primary workflows pass locally; the final changed package smoke must pass across the supported CI matrix.
 
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)
+
 ## R — Current evidence-engine release
 
 - [ ] **[R01](https://github.com/logannye/rosalind/issues/120) — Complete representative validation and CRAM correctness**
@@ -149,9 +175,9 @@ The 30-day return target measures adoption; it is not an additional first-stable
 
   Done when: Merge #104/#105, retain original/failed evidence; fix stale-index, decoder accounting and native lifetime defects; corrected packaged matrix and actual Linux cgroup probes pass.
 
-  Remaining gate: Complete fresh packaged matrix/cgroup validation and corrected candidate CI before merging #105.
+  Remaining gate: Fresh packaged108-run matrix and14 real Linux cgroup scenarios pass with zero output differences/plan underestimates; final corrected candidate CI and #105 merge remain.
 
-  Evidence: [Merged baseline #104](https://github.com/logannye/rosalind/pull/104) · [Corrected CRAM candidate #105](https://github.com/logannye/rosalind/pull/105)
+  Evidence: [Merged baseline #104](https://github.com/logannye/rosalind/pull/104) · [Corrected CRAM candidate #105](https://github.com/logannye/rosalind/pull/105) · [Frozen 9b8e12f validation report](https://github.com/logannye/rosalind/blob/codex/roadmap-foundation/docs/findings/cram-decoder-validation-2026-09-06/verified-9b8e12f-2026-09-18/README.md)
 
 - [ ] **[R02](https://github.com/logannye/rosalind/issues/121) — Complete protected publication configuration**
 
@@ -169,13 +195,17 @@ The 30-day return target measures adoption; it is not an additional first-stable
 
   Remaining gate: Merge the implementation and link final acceptance evidence.
 
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)
+
 - [ ] **[R04](https://github.com/logannye/rosalind/issues/123) — Publish fresh immutable evidence-engine RC**
 
   Status: **planned**. Owner: maintainer. Dependencies: R01, R02, R03, D07.
 
   Done when: Next unused 0.5 RC, one source across binaries/wheels/OCI/docs/reports, actual prerelease published and outside-checkout onboarding; candidate SDK patches explicit.
 
-  Remaining gate: R01/R03 final candidate and maintainer-owned R02 publisher/environment configuration; no new prerelease is published yet.
+  Remaining gate: Older unpublished rc.1 workflow canceled; no 0.5 tags/prereleases exist. Prepare a fresh immutable RC after R01/R03 and maintainer-owned R02 setup. Use rc.2 to distinguish it from the abandoned attempt, rechecking tags/index filenames before dispatch.
+
+  Evidence: [Superseded older RC attempt](https://github.com/logannye/rosalind/actions/runs/34047733765)
 
 - [ ] **[R05](https://github.com/logannye/rosalind/issues/124) — Complete stable soak and persona gates**
 
@@ -225,11 +255,13 @@ The 30-day return target measures adoption; it is not an additional first-stable
 
 - [ ] **[C01](https://github.com/logannye/rosalind/issues/129) — Define cohort contract and independent fixtures**
 
-  Status: **in-progress**. Owner: engineering. Dependencies: R06, U02.
+  Status: **implemented**. Owner: engineering. Dependencies: R06, U02.
 
   Done when: Unique asserted member IDs, optional group/subject/timepoint metadata, one analysis sample; named-sample summaries, exact missingness and independently checked public fixtures.
 
-  Remaining gate: Preparing proposed contract and synthetic oracle fixtures; partner scientific review and stable-release dependency remain open.
+  Remaining gate: Proposed contract and synthetic fixture pass current primitive checks. Partner scientific review, final schema/admission limits and stable-release dependency remain open; no cohort API is implemented.
+
+  Evidence: [Proposed contract and independently specified fixture](https://github.com/logannye/rosalind/pull/143)
 
 - [ ] **[C02](https://github.com/logannye/rosalind/issues/130) — Compose immutable cohort snapshots**
 

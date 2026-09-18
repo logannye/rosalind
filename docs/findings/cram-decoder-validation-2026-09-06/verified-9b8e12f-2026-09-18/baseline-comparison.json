@@ -1,0 +1,11 @@
+{
+  "source_commit": "9b8e12f3b6e802d2103c5ebeb5ff89a08c8d85ce",
+  "status": "passed",
+  "requested": 108,
+  "completed": 108,
+  "outputs_differing_from_original_baseline": [],
+  "limitations": [
+    "Public locked BAM/reference downloads and non-CRAM prepared operands match original hashes. Locally re-encoded CRAM/CRAI hashes differ because reference locations changed; all scientific output comparisons use the retained original baseline.",
+    "Timing overlaps other local validation and is not an isolated performance ranking."
+  ]
+}

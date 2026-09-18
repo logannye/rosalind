@@ -27,6 +27,17 @@ python3 -m venv /tmp/rosalind-python
 ```
 
 Run Python outside the repository to verify the installed package is being used.
+With the environment created above:
+
+```sh
+cd /tmp
+/tmp/rosalind-python/bin/python -c 'import rosalind; print(rosalind.__version__); print(rosalind.__file__)'
+/tmp/rosalind-python/bin/rosalind --version
+/tmp/rosalind-python/bin/rosalind analyze evidence --help
+```
+
+The module path should be inside that environment's `site-packages`; compare the
+printed Python and native versions before following a tutorial.
 RC versions are normalized between native `0.5.0-rc.N` and Python `0.5.0rcN`;
 different RC numbers and stable versions do not count as a match.
 

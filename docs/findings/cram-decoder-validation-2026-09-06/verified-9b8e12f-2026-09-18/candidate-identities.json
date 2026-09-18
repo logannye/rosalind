@@ -1,0 +1,57 @@
+{
+  "schema": 1,
+  "recorded_at": "2026-09-18T16:45:51.953657+00:00",
+  "source_commit": "9b8e12f3b6e802d2103c5ebeb5ff89a08c8d85ce",
+  "source_clean": true,
+  "source_archive": {
+    "path": "/Users/logannye/Documents/Rosalind/docs/findings/cram-decoder-validation-2026-09-06/verified-9b8e12f-2026-09-18/source-9b8e12f.tar.gz",
+    "bytes": 3632518,
+    "sha256": "e235d52d339fc8a4a802ea6d976ef1c1be4d32a3f0f7bf8e645187d1d4e3e58d"
+  },
+  "candidate_wheel": {
+    "path": "/tmp/rosalind-validation-20260918-results/candidate-wheels/rosalind_bio-0.5.0-py3-none-macosx_11_0_arm64.whl",
+    "bytes": 3287731,
+    "sha256": "831148614233ac932487f5064784da801cca78d514f85f3fe3d3355ac3a30d63"
+  },
+  "installed_macos_binary": {
+    "path": "/private/tmp/rosalind-validation-20260918-py311/bin/rosalind",
+    "bytes": 8338000,
+    "sha256": "7a07689d345abd97ae227908af984ec0dc4038604667cd4d92383177bf609193"
+  },
+  "linux_debug_binary": {
+    "path": "/Users/logannye/.cache/rosalind-validation/2026-09-18/linux-results/rosalind-linux-amd64",
+    "bytes": 182881672,
+    "sha256": "3fbcc157ce15fddfaf973bd7173dd0dfa7a97e788b7a939e72c9928c42a3acc5"
+  },
+  "workload_manifest": {
+    "path": "/Users/logannye/.cache/rosalind-validation/2026-09-18/prepared/workloads.json",
+    "bytes": 10026,
+    "sha256": "a0d287b263721b0c59b2d1521b24163bb47c9e59b6fd74235709da4af66ff7a7"
+  },
+  "exact_candidate_checks": {
+    "matrix_requested": 108,
+    "matrix_completed": 108,
+    "matrix_baseline_output_differences": 0,
+    "post_run_audit": "passed",
+    "prediction_underestimates": 0,
+    "linux_tests": 31,
+    "cgroup_scenarios": 14,
+    "python_3_9_tests": 23,
+    "python_3_11_tests": 23,
+    "packaged_onboarding": "passed"
+  },
+  "supplementary_checks": {
+    "workspace.log": "Full workspace tests passed in shared checkout before final Send compile assertion; includes release-inventory edits. Not an exact clean9b8e12f run.",
+    "msrv.log": "Rust1.83 workspace/all-target check passed in shared checkout before final Send compile assertion; includes release-inventory edits.",
+    "cli-inventory.json": "Exhaustive native help walk matched49 policy entries, including datasets and column/evidence analyzer API variants; policy committed separately as48c63f3.",
+    "release-doctor.json": "Read-only doctor from shared checkout with default desktop-linux context (daemon unavailable).",
+    "release-doctor-colima.json": "Read-only doctor with explicit existing colima-rosalind-ci context (daemon healthy). No settings or credentials changed."
+  },
+  "limitations": [
+    "Locally built macOS wheel and Linux debug executable; not published release artifacts.",
+    "Linux ran in existing local Colima VM using amd64 execution on aarch64 hardware; not independent physical hardware.",
+    "Matrix timings overlap other validation; no isolated performance ranking.",
+    "Public-input lock and non-CRAM prepared inputs match historical baseline; CRAM/CRAI were locally re-encoded and have new path-derived identities.",
+    "No non-author adoption sessions, 30-day retention, high-depth cohort or clinical validity are established."
+  ]
+}
