@@ -1,0 +1,38 @@
+2026-09-18T19:09:57.6182471Z #17 19.35 error: failed to run custom build command for `libz-sys v1.1.23`
+2026-09-18T19:09:57.6185510Z #17 19.35 
+2026-09-18T19:09:57.6186302Z #17 19.35 Caused by:
+2026-09-18T19:09:57.7693438Z #17 19.35   process didn't exit successfully: `/src/target/release/build/libz-sys-1f59bf5dc5184a09/build-script-build` (exit status: 101)
+2026-09-18T19:09:57.7695037Z #17 19.35   --- stdout
+2026-09-18T19:09:57.7696262Z #17 19.35   cargo:rerun-if-env-changed=LIBZ_SYS_STATIC
+2026-09-18T19:09:57.7697384Z #17 19.35   cargo:rerun-if-changed=build.rs
+2026-09-18T19:09:57.7698460Z #17 19.35   cargo:rerun-if-changed=zng/cmake.rs
+2026-09-18T19:09:57.7699412Z #17 19.35   cargo:rerun-if-changed=zng/cc.rs
+2026-09-18T19:09:57.7700608Z #17 19.35   CMAKE_TOOLCHAIN_FILE_x86_64-unknown-linux-gnu = None
+2026-09-18T19:09:57.7701811Z #17 19.35   CMAKE_TOOLCHAIN_FILE_x86_64_unknown_linux_gnu = None
+2026-09-18T19:09:57.7702640Z #17 19.35   HOST_CMAKE_TOOLCHAIN_FILE = None
+2026-09-18T19:09:57.7703317Z #17 19.35   CMAKE_TOOLCHAIN_FILE = None
+2026-09-18T19:09:57.7704066Z #17 19.35   CMAKE_GENERATOR_x86_64-unknown-linux-gnu = None
+2026-09-18T19:09:57.7704938Z #17 19.35   CMAKE_GENERATOR_x86_64_unknown_linux_gnu = None
+2026-09-18T19:09:57.7705600Z #17 19.35   HOST_CMAKE_GENERATOR = None
+2026-09-18T19:09:57.7705996Z #17 19.35   CMAKE_GENERATOR = None
+2026-09-18T19:09:57.7706445Z #17 19.35   CMAKE_PREFIX_PATH_x86_64-unknown-linux-gnu = None
+2026-09-18T19:09:57.7706992Z #17 19.35   CMAKE_PREFIX_PATH_x86_64_unknown_linux_gnu = None
+2026-09-18T19:09:57.7707474Z #17 19.35   HOST_CMAKE_PREFIX_PATH = None
+2026-09-18T19:09:57.7707901Z #17 19.35   CMAKE_PREFIX_PATH = None
+2026-09-18T19:09:57.7708313Z #17 19.35   CMAKE_x86_64-unknown-linux-gnu = None
+2026-09-18T19:09:57.7708773Z #17 19.35   CMAKE_x86_64_unknown_linux_gnu = None
+2026-09-18T19:09:57.7709195Z #17 19.35   HOST_CMAKE = None
+2026-09-18T19:09:57.7709532Z #17 19.35   CMAKE = None
+2026-09-18T19:09:57.7713028Z #17 19.35   running: cd "/src/target/release/build/libz-sys-63a22e15341b57ee/out/build" && CMAKE_PREFIX_PATH="" LC_ALL="C" "cmake" "/usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/libz-sys-1.1.23/src/zlib-ng" "-DBUILD_SHARED_LIBS=OFF" "-DZLIB_COMPAT=ON" "-DZLIB_ENABLE_TESTS=OFF" "-DWITH_GZFILEOP=ON" "-DCMAKE_INSTALL_LIBDIR=lib" "-DCMAKE_INSTALL_PREFIX=/src/target/release/build/libz-sys-63a22e15341b57ee/out" "-DCMAKE_C_FLAGS= -ffunction-sections -fdata-sections -fPIC -m64" "-DCMAKE_C_COMPILER=/usr/bin/cc" "-DCMAKE_CXX_FLAGS= -ffunction-sections -fdata-sections -fPIC -m64" "-DCMAKE_CXX_COMPILER=/usr/bin/c++" "-DCMAKE_ASM_FLAGS= -ffunction-sections -fdata-sections -fPIC -m64" "-DCMAKE_ASM_COMPILER=/usr/bin/cc" "-DCMAKE_BUILD_TYPE=Release"
+2026-09-18T19:09:57.7716289Z #17 19.35 
+2026-09-18T19:09:57.7716501Z #17 19.35   --- stderr
+2026-09-18T19:09:57.7716731Z #17 19.35 
+2026-09-18T19:09:57.7717338Z #17 19.35   thread 'main' (1108) panicked at /usr/local/cargo/registry/src/index.crates.io-1949cf8c6b5b557f/cmake-0.1.54/src/lib.rs:1119:5:
+2026-09-18T19:09:57.7718020Z #17 19.35 
+2026-09-18T19:09:57.7718362Z #17 19.35   failed to execute command: No such file or directory (os error 2)
+2026-09-18T19:09:57.7718806Z #17 19.35   is `cmake` not installed?
+2026-09-18T19:09:57.7719096Z #17 19.35 
+2026-09-18T19:09:57.7719356Z #17 19.35   build script failed, must exit now
+2026-09-18T19:09:57.7719983Z #17 19.35   note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+2026-09-18T19:09:57.7720524Z #17 19.35 warning: build failed, waiting for other jobs to finish...
+2026-09-18T19:10:02.4411813Z #17 ERROR: process "/bin/sh -c cargo build --release --locked --bin rosalind && strip target/release/rosalind" did not complete successfully: exit code: 101
