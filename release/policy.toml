@@ -30,7 +30,7 @@ required_secrets = ["CARGO_REGISTRY_TOKEN"]
 partner_personas = ["analyzer-builder", "workflow-hpc", "constrained-offline"]
 publish_order = ["rosalind-build-info", "rosalind-receipt", "rosalind-bio"]
 
-package_versions = { rosalind-build-info = "0.1.0", rosalind-receipt = "0.3.0", rosalind-bio = "0.5.0" }
+package_versions = { rosalind-build-info = "0.1.0", rosalind-receipt = "0.3.0", rosalind-bio = "0.6.0" }
 
 cli_help = [
   "",
@@ -48,6 +48,13 @@ cli_help = [
   "dataset extract",
   "dataset panel-qc",
   "dataset export",
+  "cohort",
+  "cohort create",
+  "cohort inspect",
+  "cohort verify",
+  "cohort extract",
+  "cohort summarize",
+  "cohort extend",
   "sort",
   "somatic",
   "eval-somatic",

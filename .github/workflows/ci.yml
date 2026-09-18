@@ -84,7 +84,9 @@ jobs:
           grep -q '^assets/scaffold/Cargo.toml.template$' package-files.txt
 
   python:
-    runs-on: ubuntu-latest
+    # glibc2.35 baseline remains compatible with the digest-pinned Bookworm
+    # runtime used by the saved-only cohort cgroup probe below.
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Cache cargo artifacts
@@ -94,9 +96,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('Cargo.lock') }}
+          key: ${{ runner.os }}-ubuntu22.04-cohort-cargo-${{ hashFiles('Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-cargo-
+            ${{ runner.os }}-ubuntu22.04-cohort-cargo-
       - name: Cache pip
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
@@ -127,6 +129,33 @@ jobs:
         env:
           ROSALIND_BENCH_BINARY: target/release/rosalind
         run: python3 -m unittest discover -s benchmarks/evidence -p 'test_*.py'
+      - name: Cohort probe classification regressions
+        run: python3 -m unittest discover -s benchmarks/cohort -p 'test_*.py'
+      - name: Prepare authored cohort inputs
+        run: |
+          python3 scripts/onboarding.py stage . "$RUNNER_TEMP/cohort-guides"
+          python3 "$RUNNER_TEMP/cohort-guides/examples/cohort-reanalysis/prepare.py" "$RUNNER_TEMP/cohort-preview"
+      - name: Exercise candidate reanalysis, extension and relocated replay
+        env:
+          PYTHONPATH: python
+        run: |
+          python3 "$RUNNER_TEMP/cohort-guides/examples/cohort-reanalysis/run_cohort.py" "$RUNNER_TEMP/cohort-preview" \
+            --binary "$PWD/target/release/rosalind" --budget-mb 512
+      - name: Verify saved-only cohort reports under a real Linux cgroup
+        run: |
+          python3 benchmarks/cohort/cgroup_probe.py \
+            --binary "$PWD/target/release/rosalind" \
+            --demo-report "$RUNNER_TEMP/cohort-preview/cohort-validation/report.json" \
+            --output "$RUNNER_TEMP/cohort-cgroup" --docker-context default
+      - name: Retain cohort demonstration and cgroup evidence, including failures
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: cohort-preview-evidence-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/cohort-preview
+            ${{ runner.temp }}/cohort-cgroup
+          if-no-files-found: warn
 
   cli-e2e:
     runs-on: ubuntu-latest

@@ -1,0 +1,17 @@
+{
+  "binary": "<LOCAL>/target/debug/rosalind",
+  "binary_sha256": "fe793874971bc6e2bd0bc7a9861eb967eaeb3ed421c3a1ea1026cc906baeef48",
+  "inspect": "inspected",
+  "new_result_producer": "626002845ef483126c367df69862009221346379",
+  "old_snapshot_producer": "f3d29c16607d6cab1beadd95b076afd1a73dfd89",
+  "plan": "ready",
+  "python_summary_bytes_match_prior_cli": true,
+  "retention": {
+    "original_report_sha256": "8775d37ef8e621b611f85b484782134bb8cae9e4847b9b40e396491bcda42fcd",
+    "path_redaction": "Machine-local path prefixes replaced; commands, outcomes, hashes, and measurements otherwise preserved."
+  },
+  "snapshot_id": "566a11af414c3f99013a3c3baf5dddf0568c9213cec9f7b9df065620b1b17bd0",
+  "snapshot_receipt_preserved_sha256": "a169576fc51e6b85a83f42220ab87bc9068e5304f3bfcce6b5a582dc07527e37",
+  "status": "passed",
+  "verify": "verified"
+}

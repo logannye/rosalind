@@ -4116,11 +4116,14 @@ mod tests {
                 repository.path(),
                 &policy,
                 reference,
-                "0.5.0",
+                &policy.package_versions["rosalind-bio"],
             );
             assert_eq!(plan.status, "ready", "{:?}", plan.blockers);
             plan.command = "rc.plan".into();
-            plan.metadata.insert("tag".into(), "v0.5.0-rc.2".into());
+            plan.metadata.insert(
+                "tag".into(),
+                format!("v{}-rc.2", policy.package_versions["rosalind-bio"]),
+            );
             plan.seal();
             plan
         };

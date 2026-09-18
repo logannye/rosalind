@@ -9,9 +9,9 @@ source, workload and platform they actually tested.
 | Channel | Availability | Appropriate use |
 |---|---|---|
 | Public stable | [v0.1.0, June 2](https://github.com/logannye/rosalind/releases/tag/v0.1.0) | Historical legacy feature/caller commands; not the current evidence/dataset SDK tutorials |
-| Current development | Package version **0.5.0** | Exact-evidence, dataset and SDK research previews, built from an identified source checkout |
+| Release development on `main` | Package version **0.5.0** | Exact-evidence, dataset and SDK research previews, built from an identified source checkout |
 | Feature-bearing RC | Not published at this review | The older unpublished RC workflow was canceled as superseded; no soak has started |
-| Cohort APIs | Planned next-minor previews; not implemented | Follow milestone C; do not expect `cohort` commands in 0.5 |
+| Cohort development branch | Unpublished **0.6.0** preview in [PR #145](https://github.com/logannye/rosalind/pull/145) | CLI/Python snapshots, candidate queries, summaries and explicit extension; not included in 0.5 |
 
 No 0.4 release was published. Native/wheel build artifacts, author-run examples
 and green CI are not registry publication or independent adoption. Follow the
@@ -38,7 +38,7 @@ independent adoption is established for the current evidence platform.**
 | GitHub Action | Existing legacy variants/features/coverage integration | Does not expose the new evidence or dataset command family; defaults preserved | Historical Action available | Current adoption not established |
 | Receipts, verification and replay | Historical verification plus additive evidence recipes | Schema 1–5 compatibility, tamper/artifact checks, relocated replay. Unsigned receipts do not authenticate an author or prove biology | Historical receipts in v0.1.0; new recipes source-only | Not established for new recipes |
 | Legacy features, pileup and experimental caller | Available; new legacy runs exact-or-fail | Capacity/Arrow/merge regressions; historical downsampling replay needs its original producer. GIAB caller baseline is unestablished | v0.1.0 contains historical behavior, not all current corrections | Not established here |
-| Local cohort snapshots and cross-sample reanalysis | Planned | Separate compatibility, missingness and independent oracle required | Unavailable | Not established |
+| Local cohort snapshots and cross-sample reanalysis | Source preview on the separate 0.6 branch | Immutable import/relocation; independent synthetic counts; strict/partial/zero/low-depth distinctions; explicit extension; bounded Arrow/TSV and relocated replay. See [preview guide](cohort-cli-preview.md) and [PR #145](https://github.com/logannye/rosalind/pull/145). Representative cohort performance remains unestablished | Not published; absent from 0.5 | Not established |
 
 ## Validation records and their identities
 

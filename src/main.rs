@@ -53,6 +53,11 @@ struct SelectionArgs {
 
 #[derive(Subcommand, Debug)]
 enum Commands {
+    /// Preview: immutable local cohorts and saved candidate-SNV reanalysis.
+    Cohort {
+        #[command(subcommand)]
+        action: rosalind::cohort_cli::CohortAction,
+    },
     /// Inspect, verify, query, and export portable evidence without alignments.
     Dataset {
         #[command(subcommand)]
@@ -865,6 +870,7 @@ fn main() -> Result<()> {
     let cli = Cli::from_arg_matches(&matches)?;
 
     match cli.command {
+        Commands::Cohort { action } => rosalind::cohort_cli::run(action)?,
         Commands::Dataset { action } => dataset_cli::run(action)?,
         Commands::Reference { action } => run_reference(action)?,
         Commands::Merge {

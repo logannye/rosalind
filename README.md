@@ -18,12 +18,13 @@ Indexed BAM/CRAM + reference + candidate sites or target regions
     → portable dataset → another analysis without reopening the alignments
 ```
 
-**Availability:** the workflows below are in the **0.5.0 source preview**. The latest
+**Availability:** the single-sample workflows below are in the **0.5.0 source preview** on `main`. The latest
 public stable release is **v0.1.0**, which predates this evidence engine. Start with
 [installation](docs/installation.md); current examples require a source build.
 [Implementation status](docs/implementation-status.md) distinguishes implemented,
-validated, published, and independently used capabilities. Cohort APIs are
-[planned](docs/ROADMAP.md), not currently available.
+validated, published, and independently used capabilities. This separate
+`codex/cohort-preview` branch adds an **unpublished 0.6.0 cohort preview**;
+see the [cohort guide](docs/cohort-cli-preview.md). It is not part of the 0.5 release.
 
 ## Choose your starting point
 
@@ -39,6 +40,7 @@ prepares four supplied candidate SNVs from 118 KB of pinned public inputs.
 |---|---|---|
 | Candidate-review report | Researchers revisiting supplied SNVs; developers building review tools | Exact allele and strand counts, quality summaries, and optional record-preserving VCF/BCF annotation |
 | Reusable panel analysis | Workflow maintainers and developers answering new questions over the same target regions | Saved evidence for another candidate list, panel QC, bounded Python batches, or a custom Rust reducer |
+| Cohort candidate reanalysis (0.6 preview branch) | Researchers and builders revisiting candidate lists across archived samples | Immutable local snapshots, explicit missingness, exact sample summaries, and requested missing-locus extension |
 
 The useful boundary is **save evidence once, then reuse the measured loci and fields**.
 A later query can select different stored positions or SNV alleles and compute
