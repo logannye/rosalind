@@ -1110,6 +1110,29 @@ fn discover_cli_contract<R: Runner>(
                 pending.push(format!("analyze {kind}"));
             }
         }
+        // Both SDKs are public release entrypoints. Probe each declared mode
+        // only at its parent, so new modes cannot escape the frozen inventory.
+        if matches!(
+            command_path.as_str(),
+            "new analyzer" | "conformance analyzer"
+        ) {
+            let values = cli_possible_values(&help);
+            let apis = values
+                .get("option:--api <API>")
+                .filter(|apis| !apis.is_empty())
+                .ok_or_else(|| {
+                    format!("{command_path} help does not declare --api possible values")
+                })?;
+            for api in apis {
+                if !api
+                    .bytes()
+                    .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_'))
+                {
+                    return Err(format!("unsupported analyzer API in CLI help: {api}"));
+                }
+                pending.push(format!("{command_path} --api {api}"));
+            }
+        }
         contracts.insert(command_path, canonical_cli_shape(&help));
     }
     Ok(contracts)
@@ -4381,6 +4404,51 @@ mod tests {
                 .unwrap_err()
                 .contains("does not declare <KIND>")
         );
+    }
+
+    #[test]
+    fn cli_inventory_covers_dataset_leaves_and_both_analyzer_apis() {
+        struct HelpRunner;
+        impl Runner for HelpRunner {
+            fn run(
+                &self,
+                _cwd: &Path,
+                _program: &str,
+                arguments: &[OsString],
+            ) -> io::Result<Output> {
+                assert_eq!(arguments.last(), Some(&OsString::from("--help")));
+                let path = arguments[..arguments.len() - 1]
+                    .iter()
+                    .map(|value| value.to_string_lossy())
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                let help = match path.as_str() {
+                    "" => "Usage: rosalind <COMMAND>\n\nCommands:\n  dataset  Query evidence\n  new  Scaffold\n  conformance  Check analyzers\n",
+                    "dataset" => "Usage: rosalind dataset <COMMAND>\n\nCommands:\n  inspect  Inspect\n  verify  Verify\n  extract  Extract\n  panel-qc  Panel\n  export  Export\n",
+                    "new" | "conformance" => "Usage: rosalind parent <COMMAND>\n\nCommands:\n  analyzer  Analyzer\n",
+                    "new analyzer" | "conformance analyzer"
+                    | "new analyzer --api column" | "new analyzer --api evidence"
+                    | "conformance analyzer --api column" | "conformance analyzer --api evidence" =>
+                        "Usage: rosalind parent analyzer [OPTIONS]\n\nOptions:\n      --api <API>  API [possible values: column, evidence]\n",
+                    "dataset inspect" | "dataset verify" | "dataset extract" | "dataset panel-qc" | "dataset export" =>
+                        "Usage: rosalind dataset leaf [OPTIONS]\n\nOptions:\n      --dataset <DATASET>  Dataset\n",
+                    _ => return Err(io::Error::other(format!("unexpected recursive probe: {path}"))),
+                };
+                Command::new("printf").arg("%s").arg(help).output()
+            }
+        }
+        let contract =
+            discover_cli_contract(&HelpRunner, Path::new("."), Path::new("rosalind")).unwrap();
+        let policy: Policy = toml::from_str(include_str!("../../release/policy.toml")).unwrap();
+        for entry in contract.keys() {
+            assert!(
+                policy.cli_help.contains(entry),
+                "unfrozen public entrypoint: {entry}"
+            );
+        }
+        assert_eq!(contract.len(), 15);
+        assert!(contract["conformance analyzer --api evidence"]
+            .contains("values:option:--api <API>=column,evidence"));
     }
 
     #[test]
