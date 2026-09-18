@@ -521,6 +521,85 @@ fn snapshot_schema_and_metadata_are_canonical_bounded_and_versioned() {
 }
 
 #[test]
+fn snapshots_preserve_older_producer_provenance_but_still_require_exact_lineage() {
+    use crate::provenance::RunManifest;
+
+    let fixture = Fixture::new(FixtureOptions::default());
+    let root = Root::new();
+    let snapshot = create_snapshot(
+        &root.0,
+        &[fixture.member("A")],
+        None,
+        CohortLimits::default(),
+    )
+    .unwrap();
+    let directory = root.0.join("snapshots").join(&snapshot.id);
+    let descriptor_bytes = fs::read(directory.join(SNAPSHOT_FILE)).unwrap();
+    let receipt_path = directory.join(SNAPSHOT_RECEIPT);
+    let mut receipt =
+        RunManifest::from_canonical_json(&fs::read_to_string(&receipt_path).unwrap()).unwrap();
+    receipt.tool_version = "0.6.0-historical-preview".into();
+    for (key, value) in [
+        ("code_git_sha", "0123456789012345678901234567890123456789"),
+        ("code_dirty", "false"),
+        ("rustc_version", "a different compiler"),
+        ("target_triple", "a different supported target"),
+        ("deps_lock_blake3", "a different dependency lock"),
+    ] {
+        receipt.params.insert(key.into(), value.into());
+    }
+    fs::write(&receipt_path, receipt.to_canonical_json()).unwrap();
+    assert!(open_snapshot(&root.0, &snapshot.id, CohortLimits::default()).is_err());
+    // Independently reseal the historical producer's changed claim. Calling
+    // finalize() here would replace that provenance with this test binary's.
+    receipt
+        .params
+        .insert("manifest_blake3".into(), receipt.content_hash());
+    assert_eq!(receipt.self_hash_ok(), Some(true));
+    let historical_bytes = receipt.to_canonical_json();
+    fs::write(&receipt_path, &historical_bytes).unwrap();
+    let reopened = verify_snapshot(&root.0, &snapshot.id, CohortLimits::default()).unwrap();
+    assert_eq!(reopened.id, snapshot.id);
+    assert_eq!(reopened.descriptor, snapshot.descriptor);
+    assert_eq!(
+        fs::read(directory.join(SNAPSHOT_FILE)).unwrap(),
+        descriptor_bytes
+    );
+    assert_eq!(fs::read_to_string(&receipt_path).unwrap(), historical_bytes);
+
+    for wrong in ["version", "snapshot", "status", "input", "output"] {
+        let mut invalid = RunManifest::from_canonical_json(&historical_bytes).unwrap();
+        match wrong {
+            "version" => {
+                invalid
+                    .params
+                    .insert("cohort.snapshot_version".into(), "2".into());
+            }
+            "snapshot" => {
+                invalid
+                    .params
+                    .insert("cohort.snapshot_blake3".into(), "b".repeat(64));
+            }
+            "status" => {
+                invalid.params.insert("run_status".into(), "failed".into());
+            }
+            "input" => invalid.inputs[0].blake3 = "b".repeat(64),
+            "output" => invalid.outputs[0].blake3 = "b".repeat(64),
+            _ => unreachable!(),
+        }
+        invalid
+            .params
+            .insert("manifest_blake3".into(), invalid.content_hash());
+        assert_eq!(invalid.self_hash_ok(), Some(true));
+        fs::write(&receipt_path, invalid.to_canonical_json()).unwrap();
+        assert!(
+            open_snapshot(&root.0, &snapshot.id, CohortLimits::default()).is_err(),
+            "{wrong}"
+        );
+    }
+}
+
+#[test]
 fn concurrent_identical_imports_publish_one_snapshot_without_replacement() {
     let fixture = Fixture::new(FixtureOptions::default());
     let root = Root::new();

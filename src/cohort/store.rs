@@ -768,8 +768,15 @@ fn read_snapshot(root: &Path, id: &str, limits: &CohortLimits) -> Result<Snapsho
     let expected = snapshot_receipt(&descriptor, id);
     if receipt.self_hash_ok() != Some(true)
         || receipt.measurement_hash_ok() == Some(false)
+        || (receipt.claims_measurements() && receipt.measurement_hash_ok() != Some(true))
         || receipt.subcommand != expected.subcommand
-        || receipt.params != expected.params
+        // Producer/toolchain provenance belongs to the recorded producer, not
+        // the reader's build. Only the versioned cohort lineage must agree with
+        // this immutable descriptor; the receipt self-hash binds the
+        // original claim without rewriting it for the current executable.
+        || ["cohort.snapshot_version", "cohort.snapshot_blake3", "run_status"]
+            .iter()
+            .any(|key| receipt.params.get(*key) != expected.params.get(*key))
         || inventory_map(&receipt.inputs)? != inventory_map(&expected.inputs)?
         || inventory_map(&receipt.outputs)? != inventory_map(&expected.outputs)?
     {
