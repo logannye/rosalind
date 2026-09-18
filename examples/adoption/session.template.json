@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "record_kind": "template",
+  "task": null,
+  "participant": {
+    "anonymous_id": null,
+    "anonymous_team_id": null,
+    "is_non_author": null,
+    "consent_to_publish": false,
+    "partner_feedback_id": null
+  },
+  "software": {
+    "tested_commit": null,
+    "version": null,
+    "installation_origin": null,
+    "package_sha256": null,
+    "native_sha256": null,
+    "analyzer_sha256": null,
+    "candidate_source_patches": null
+  },
+  "environment": {
+    "os": null,
+    "architecture": null,
+    "executor": null,
+    "workflow_tool_version": null,
+    "storage_class": null,
+    "network_available": null
+  },
+  "input_shape": {
+    "origin": null,
+    "format": null,
+    "alignment_bytes": null,
+    "alignment_records": null,
+    "contigs": null,
+    "selected_loci": null,
+    "target_count": null,
+    "read_length_summary": null,
+    "depth_summary": null,
+    "sample_scope": null
+  },
+  "effort": {
+    "install_elapsed_seconds": null,
+    "install_active_person_minutes": null,
+    "install_waiting_seconds": null,
+    "fixture_preparation_seconds": null,
+    "first_verified_result_elapsed_seconds": null,
+    "integration_active_person_minutes": null,
+    "maintainer_assistance_person_minutes": null,
+    "changed_integration_lines": null,
+    "line_count_method": null
+  },
+  "attempts": [],
+  "reuse_assessment": {
+    "basis": null,
+    "same_question_and_semantics": null,
+    "initial_materialization_seconds": null,
+    "dataset_storage_bytes": null,
+    "matched_repetitions": null,
+    "baseline_total_seconds": null,
+    "reuse_total_seconds_including_setup_and_verification": null,
+    "avoided_full_extractions": null,
+    "alignment_record_visits_avoided": null,
+    "removed_orchestration_steps": [],
+    "notes": null
+  },
+  "assessment": {
+    "state": "not-started",
+    "fixture_completed": null,
+    "real_task_completed": null,
+    "verification_passed": null,
+    "blockers": [],
+    "summary": null,
+    "completed_on": null
+  },
+  "followup_30_days": {
+    "status": "not-scheduled",
+    "scheduled_on": null,
+    "observed_on": null,
+    "days_since_completion": null,
+    "returned_to_real_work": null,
+    "useful_task_summary": null,
+    "repeat_task_count": null,
+    "receipt_claim_blake3": null
+  }
+}

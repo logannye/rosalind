@@ -1,0 +1,28 @@
+Prepared 4 independently generated candidate SNVs in /var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-adoption-kit-udmqlvwo/inputs
+evidence: 4 loci; peak RSS 16 MiB; 1988 record visits; receipt /var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-adoption-kit-udmqlvwo/inputs/evidence.tsv.manifest.json
+verify: peak 16 MiB within budget 128 MiB
+verify: evidence records process RSS; individual internal allocations are modeled, not measured
+verify: OK — 5 input(s), 1 output(s) match
+  claim       : 0104d96358 (re-derived)
+  code        : git 3dfe6dffe4 — matches
+  inputs      : 5 file(s) located by content hash
+  output      : output[0]  OK byte-identical (blake3 9bf5038c8e)
+  resource    : peak 16957440 bytes vs declared 134217728 bytes (here: this machine)
+  VERDICT     : REPRODUCED
+  -> wrote reproduction certificate: /var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-adoption-kit-udmqlvwo/inputs/evidence.tsv.manifest.json.repro.json (chains to 0104d96358)
+evidence: 3159 loci; peak RSS 19 MiB; 3307 record visits; receipt /var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-adoption-kit-udmqlvwo/inputs/panel.arrow.manifest.json
+{"dataset_namespace":"99217b698fcefb6104a52b2982c26df63c7f963630c9f6013789e7691c902448","original_sources_rehashed":false,"status":"verified","verified_loci":3159,"verified_partition_files":4}
+verify: peak 17 MiB within budget 128 MiB
+verify: evidence records process RSS; individual internal allocations are modeled, not measured
+verify: OK — 7 input(s), 1 output(s) match
+verify: peak 17 MiB within budget 128 MiB
+verify: evidence records process RSS; individual internal allocations are modeled, not measured
+verify: OK — 7 input(s), 1 output(s) match
+PASS maintainer documentation smoke; no independent participant or return claim
+workdir /var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-adoption-kit-udmqlvwo/inputs
+contig	pos	ref	alt	callable_depth	alt_reads	alt_forward	alt_reverse	research_screen
+seq1	548	C	A	36	17	4	13	review
+seq1	1294	A	G	34	16	6	10	review
+seq2	505	A	G	44	22	8	14	review
+seq2	1344	A	C	27	12	3	9	review
+

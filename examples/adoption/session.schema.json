@@ -1,0 +1,1032 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Supplemental anonymized Rosalind adoption session v1",
+  "description": "Private measurement record; not a release partner feedback record. Null means unobserved. Free text requires privacy review.",
+  "type": "object",
+  "required": [
+    "schema",
+    "record_kind",
+    "task",
+    "participant",
+    "software",
+    "environment",
+    "input_shape",
+    "effort",
+    "attempts",
+    "reuse_assessment",
+    "assessment",
+    "followup_30_days"
+  ],
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "record_kind": {
+      "enum": [
+        "template",
+        "session"
+      ]
+    },
+    "task": {
+      "enum": [
+        null,
+        "researcher-candidate-evidence",
+        "builder-external-analyzer",
+        "workflow-integration"
+      ]
+    },
+    "participant": {
+      "type": "object",
+      "required": [
+        "anonymous_id",
+        "anonymous_team_id",
+        "is_non_author",
+        "consent_to_publish",
+        "partner_feedback_id"
+      ],
+      "properties": {
+        "anonymous_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "maxLength": 80
+        },
+        "anonymous_team_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "maxLength": 80
+        },
+        "is_non_author": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "consent_to_publish": {
+          "type": "boolean"
+        },
+        "partner_feedback_id": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "maxLength": 80
+        }
+      },
+      "additionalProperties": false
+    },
+    "software": {
+      "type": "object",
+      "required": [
+        "tested_commit",
+        "version",
+        "installation_origin",
+        "package_sha256",
+        "native_sha256",
+        "analyzer_sha256",
+        "candidate_source_patches"
+      ],
+      "properties": {
+        "tested_commit": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 80
+        },
+        "installation_origin": {
+          "enum": [
+            null,
+            "published-registry",
+            "candidate-wheel",
+            "offline-bundle",
+            "source-checkout"
+          ]
+        },
+        "package_sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "native_sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "analyzer_sha256": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "candidate_source_patches": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "environment": {
+      "type": "object",
+      "required": [
+        "os",
+        "architecture",
+        "executor",
+        "workflow_tool_version",
+        "storage_class",
+        "network_available"
+      ],
+      "properties": {
+        "os": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2000
+        },
+        "architecture": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2000
+        },
+        "executor": {
+          "enum": [
+            null,
+            "local",
+            "container",
+            "slurm",
+            "other"
+          ]
+        },
+        "workflow_tool_version": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2000
+        },
+        "storage_class": {
+          "enum": [
+            null,
+            "local-ssd",
+            "network-filesystem",
+            "object-storage",
+            "other",
+            "unknown"
+          ]
+        },
+        "network_available": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "input_shape": {
+      "type": "object",
+      "required": [
+        "origin",
+        "format",
+        "alignment_bytes",
+        "alignment_records",
+        "contigs",
+        "selected_loci",
+        "target_count",
+        "read_length_summary",
+        "depth_summary",
+        "sample_scope"
+      ],
+      "properties": {
+        "origin": {
+          "enum": [
+            null,
+            "onboarding-fixture",
+            "synthetic-probe",
+            "participant-permitted-data"
+          ]
+        },
+        "format": {
+          "enum": [
+            null,
+            "bam",
+            "cram",
+            "persisted-evidence"
+          ]
+        },
+        "alignment_bytes": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "alignment_records": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "contigs": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "selected_loci": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "target_count": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "read_length_summary": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2000
+        },
+        "depth_summary": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2000
+        },
+        "sample_scope": {
+          "enum": [
+            null,
+            "named",
+            "unknown",
+            "pooled"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "effort": {
+      "type": "object",
+      "required": [
+        "install_elapsed_seconds",
+        "install_active_person_minutes",
+        "install_waiting_seconds",
+        "fixture_preparation_seconds",
+        "first_verified_result_elapsed_seconds",
+        "integration_active_person_minutes",
+        "maintainer_assistance_person_minutes",
+        "changed_integration_lines",
+        "line_count_method"
+      ],
+      "properties": {
+        "install_elapsed_seconds": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "install_active_person_minutes": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "install_waiting_seconds": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "fixture_preparation_seconds": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "first_verified_result_elapsed_seconds": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "integration_active_person_minutes": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "maintainer_assistance_person_minutes": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "changed_integration_lines": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "line_count_method": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2000
+        }
+      },
+      "additionalProperties": false
+    },
+    "attempts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "label",
+          "role",
+          "tool",
+          "cache_state",
+          "filesystem_cache",
+          "elapsed_seconds",
+          "exit_code",
+          "declared_budget_bytes",
+          "scheduler_request_bytes",
+          "verified_os_limit_bytes",
+          "native_peak_rss_bytes",
+          "external_peak_rss_bytes",
+          "rss_source",
+          "receipt_claim_blake3",
+          "output_blake3",
+          "alignment_record_visits",
+          "reused_loci",
+          "computed_loci",
+          "reused_partitions",
+          "computed_partitions",
+          "verification_passed",
+          "notes"
+        ],
+        "properties": {
+          "label": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9-]*$",
+            "maxLength": 80
+          },
+          "role": {
+            "enum": [
+              "initial",
+              "repeat",
+              "reuse",
+              "baseline",
+              "verification"
+            ]
+          },
+          "tool": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "cache_state": {
+            "enum": [
+              "fresh-dataset",
+              "existing-dataset",
+              "resumed",
+              "unknown"
+            ]
+          },
+          "filesystem_cache": {
+            "enum": [
+              "cold-observed",
+              "warm-observed",
+              "unknown"
+            ]
+          },
+          "elapsed_seconds": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "exit_code": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "declared_budget_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "scheduler_request_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "verified_os_limit_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "native_peak_rss_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "external_peak_rss_bytes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "rss_source": {
+            "enum": [
+              null,
+              "receipt",
+              "external-tool",
+              "both",
+              "unavailable"
+            ]
+          },
+          "receipt_claim_blake3": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "output_blake3": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "alignment_record_visits": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "reused_loci": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "computed_loci": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "reused_partitions": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "computed_partitions": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          },
+          "verification_passed": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "reuse_assessment": {
+      "type": "object",
+      "required": [
+        "basis",
+        "same_question_and_semantics",
+        "initial_materialization_seconds",
+        "dataset_storage_bytes",
+        "matched_repetitions",
+        "baseline_total_seconds",
+        "reuse_total_seconds_including_setup_and_verification",
+        "avoided_full_extractions",
+        "alignment_record_visits_avoided",
+        "removed_orchestration_steps",
+        "notes"
+      ],
+      "properties": {
+        "basis": {
+          "enum": [
+            null,
+            "measured-matched-comparison",
+            "participant-estimate",
+            "not-measured"
+          ]
+        },
+        "same_question_and_semantics": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "initial_materialization_seconds": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "dataset_storage_bytes": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "matched_repetitions": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "baseline_total_seconds": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "reuse_total_seconds_including_setup_and_verification": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "avoided_full_extractions": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "alignment_record_visits_avoided": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "removed_orchestration_steps": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "notes": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2000
+        }
+      },
+      "additionalProperties": false
+    },
+    "assessment": {
+      "type": "object",
+      "required": [
+        "state",
+        "fixture_completed",
+        "real_task_completed",
+        "verification_passed",
+        "blockers",
+        "summary",
+        "completed_on"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "not-started",
+            "in-progress",
+            "completed",
+            "blocked"
+          ]
+        },
+        "fixture_completed": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "real_task_completed": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "verification_passed": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "blockers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "summary": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2000
+        },
+        "completed_on": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        }
+      },
+      "additionalProperties": false
+    },
+    "followup_30_days": {
+      "type": "object",
+      "required": [
+        "status",
+        "scheduled_on",
+        "observed_on",
+        "days_since_completion",
+        "returned_to_real_work",
+        "useful_task_summary",
+        "repeat_task_count",
+        "receipt_claim_blake3"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "not-scheduled",
+            "scheduled",
+            "observed",
+            "unreachable"
+          ]
+        },
+        "scheduled_on": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        },
+        "observed_on": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        },
+        "days_since_completion": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "returned_to_real_work": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "useful_task_summary": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 2000
+        },
+        "repeat_task_count": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "receipt_claim_blake3": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "record_kind": {
+            "const": "template"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "task": {
+            "type": "null"
+          },
+          "participant": {
+            "properties": {
+              "anonymous_id": {
+                "type": "null"
+              },
+              "anonymous_team_id": {
+                "type": "null"
+              },
+              "is_non_author": {
+                "type": "null"
+              },
+              "consent_to_publish": {
+                "const": false
+              },
+              "partner_feedback_id": {
+                "type": "null"
+              }
+            }
+          },
+          "attempts": {
+            "maxItems": 0
+          },
+          "assessment": {
+            "properties": {
+              "state": {
+                "const": "not-started"
+              },
+              "fixture_completed": {
+                "type": "null"
+              },
+              "real_task_completed": {
+                "type": "null"
+              },
+              "verification_passed": {
+                "type": "null"
+              },
+              "completed_on": {
+                "type": "null"
+              }
+            }
+          },
+          "followup_30_days": {
+            "properties": {
+              "status": {
+                "const": "not-scheduled"
+              },
+              "returned_to_real_work": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "assessment": {
+            "properties": {
+              "state": {
+                "const": "completed"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "record_kind": {
+            "const": "session"
+          },
+          "task": {
+            "type": "string"
+          },
+          "participant": {
+            "properties": {
+              "anonymous_id": {
+                "type": "string"
+              },
+              "is_non_author": {
+                "type": "boolean"
+              }
+            }
+          },
+          "software": {
+            "properties": {
+              "tested_commit": {
+                "type": "string"
+              }
+            }
+          },
+          "assessment": {
+            "properties": {
+              "real_task_completed": {
+                "type": "boolean"
+              },
+              "completed_on": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "followup_30_days": {
+            "properties": {
+              "returned_to_real_work": {
+                "const": true
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "assessment": {
+            "properties": {
+              "state": {
+                "const": "completed"
+              },
+              "real_task_completed": {
+                "const": true
+              },
+              "completed_on": {
+                "type": "string"
+              }
+            }
+          },
+          "participant": {
+            "properties": {
+              "anonymous_team_id": {
+                "type": "string"
+              }
+            }
+          },
+          "followup_30_days": {
+            "properties": {
+              "status": {
+                "const": "observed"
+              },
+              "observed_on": {
+                "type": "string"
+              },
+              "days_since_completion": {
+                "type": "integer",
+                "minimum": 30
+              },
+              "useful_task_summary": {
+                "type": "string",
+                "minLength": 1
+              },
+              "repeat_task_count": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "followup_30_days": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "not-scheduled",
+                  "scheduled",
+                  "unreachable"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "followup_30_days": {
+            "properties": {
+              "returned_to_real_work": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "followup_30_days": {
+            "properties": {
+              "status": {
+                "const": "observed"
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "followup_30_days": {
+            "properties": {
+              "observed_on": {
+                "type": "string"
+              },
+              "days_since_completion": {
+                "type": "integer",
+                "minimum": 30
+              },
+              "returned_to_real_work": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

@@ -13,7 +13,7 @@ artifact verification remain requirements throughout.
 | 4 | VCF.gz/BCF selection, record-preserving annotation, optional per-allele quality/position sums | Implemented; all 128 masks, legacy byte goldens, independent allele sums, record/genotype preservation and three-budget/worker replay pass locally; 514-test workspace suite plus focused follow-up checks and Python 3.9/3.11 pass locally; all platform PR gates passed and PR #101 merged |
 | 5 | Verified subset/superset dataset reuse, persisted analysis, bounded Parquet and Python/R/SQL adapters | Implemented; full workspace/Clippy/MSRV and Python3.9/3.11 pass; Linux native/R and DuckDB checks pass; fresh wheel installs, dataset queries/export and onboarding pass. All 15 platform PR gates passed; PR #102 merged |
 | 6 | Evidence-native artifact runner, scaffold, and conformance | Implemented; full workspace, Clippy/MSRV, 19 external conformance checks, focused lifecycle/cancellation tests and fresh Rust 1.83 projects pass; fresh wheel/onboarding including all 19 checks pass; Linux focused checks and all 19 external conformance checks pass; platform PR gates pending |
-| 7 | Representative BAM/CRAM resource measurements and independent user validation | Pending; external users have not been recruited |
+| 7 | Representative BAM/CRAM resource measurements and independent user validation | Baseline verified: 108 HG002 runs with oracle/equality/budget checks and 14 Linux cgroup scenarios. Eight CRAM planning underestimates retained; conservative decoder correction in progress. Task kit implemented; high-depth assay and non-author/30-day evidence remain pending |
 
 ## Acceptance
 
@@ -69,6 +69,12 @@ candidate commit, and use top-level protected OIDC upload jobs. GIAB preparation
 validates its indexed reference and input hashes; evaluator source version pinning
 is regression-tested. The full evaluator container requires its CI smoke run.
 These local results are not public release or independent-user evidence.
+
+The immutable [RC build](https://github.com/logannye/rosalind/actions/runs/34047733765)
+at `ce6c489` passed its gates, three native platform builds/installations, and
+three wheel builds/installations. Container and wheel publication await the
+protected `release` environment; no approval or credential requirement was waived.
+This candidate predates deliveries 3–7 and must not be described as including them.
 
 ## Physical projection evidence
 

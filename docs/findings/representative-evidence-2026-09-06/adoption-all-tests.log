@@ -1,0 +1,23 @@
+test_form_and_schema_match_without_extending_release_partner_fields (scripts.test_adoption_kit.AdoptionKitTests.test_form_and_schema_match_without_extending_release_partner_fields) ... ok
+test_kit_links_and_shell_blocks_are_valid (scripts.test_adoption_kit.AdoptionKitTests.test_kit_links_and_shell_blocks_are_valid) ... ok
+test_template_has_no_participant_results_or_return_claim (scripts.test_adoption_kit.AdoptionKitTests.test_template_has_no_participant_results_or_return_claim) ... ok
+test_candidate_source_version_must_match_packaged_cli (scripts.test_onboarding.OnboardingTests.test_candidate_source_version_must_match_packaged_cli) ... ok
+test_checker_ignores_commands_remote_links_and_anchors_but_rejects_escape (scripts.test_onboarding.OnboardingTests.test_checker_ignores_commands_remote_links_and_anchors_but_rejects_escape) ... ok
+test_documented_sdk_commands_create_the_binary_consumed_by_conformance (scripts.test_onboarding.OnboardingTests.test_documented_sdk_commands_create_the_binary_consumed_by_conformance) ... offline onboarding links: 6 reachable guides
+onboarding executable: /private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmp2183xj5x/bin/rosalind; version=0.5.0; sha256=c69e9d36ece1521e78a605a4a7f8695812d3d96200ce19c44984d9d98f512675
+SDK origin: registry-only exact version 0.5.0
+legacy-scaffold conformance: {"passed": true}
+evidence-scaffold conformance: {"passed": true}
+packaged onboarding snippets and conformance passed outside the checkout
+ok
+test_maintained_python_snippet_has_defined_row_consumer (scripts.test_onboarding.OnboardingTests.test_maintained_python_snippet_has_defined_row_consumer) ... ok
+test_python_launcher_preserves_the_installed_virtual_environment (scripts.test_onboarding.OnboardingTests.test_python_launcher_preserves_the_installed_virtual_environment) ... ok
+test_real_bundle_contains_documented_code_assets_and_registry_example_manifest (scripts.test_onboarding.OnboardingTests.test_real_bundle_contains_documented_code_assets_and_registry_example_manifest) ... ok
+test_staged_guides_keep_transitive_local_links_after_source_is_removed (scripts.test_onboarding.OnboardingTests.test_staged_guides_keep_transitive_local_links_after_source_is_removed) ... ok
+test_staging_does_not_copy_unlinked_files_or_recurse_into_source_root (scripts.test_onboarding.OnboardingTests.test_staging_does_not_copy_unlinked_files_or_recurse_into_source_root) ... ok
+test_staging_rejects_private_paths_and_ancestor_of_destination (scripts.test_onboarding.OnboardingTests.test_staging_rejects_private_paths_and_ancestor_of_destination) ... ok
+
+----------------------------------------------------------------------
+Ran 12 tests in 0.606s
+
+OK

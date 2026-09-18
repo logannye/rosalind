@@ -37,6 +37,14 @@ Actual Node/WebAssembly checks cover exact byte boundaries, contradictory claims
 and historical MiB fallback. Generated WASM SHA256:
 `beb699f879f36f1fbc46893e9b41bd1b5d9163b22ae2e7ee3c08098dfd192de1`.
 
+Subsequent PR #103 CI exposed a checkout-path dependency in Cargo's metadata
+namespace: same-path rebuilds matched, but a different checkout changed the bytes.
+Commit `9db09f7` gives the standalone verifier a stable package/version namespace
+and adds an alternate-checkout regression. Both paths now produce SHA256
+`56bfc6734c15e539cb52c8b5ac34f9d07cbdcdf575dc34eefbbfb65982cfeb73`;
+the actual WASM boundary/legacy checks and GitHub verifier gate pass. The earlier
+same-path result above is preserved with its narrower scope.
+
 ## Corrected SDK checks
 
 The runner now patches a fixed-width decimal peak and the measurement digest in

@@ -1,0 +1,3060 @@
+{
+  "schema": 1,
+  "kind": "representative-post-run-audit",
+  "status": "passed",
+  "report": "/private/tmp/rosalind-hg002-curve/report.json",
+  "issues": [],
+  "identities": [
+    {
+      "role": "source:alignments",
+      "path": "/private/tmp/rosalind-hg002-resource-inputs/HG002.novaseq.pcr-free.35x.dedup.grch38_no_alt.chr20.bam",
+      "expected_sha256": "34ac157739e1feeb590f6eb7e11046ccc2aa3277fd55a3ce0942e774d931ed81",
+      "sha256": "34ac157739e1feeb590f6eb7e11046ccc2aa3277fd55a3ce0942e774d931ed81",
+      "bytes": 1093938924,
+      "matches_startup": true
+    },
+    {
+      "role": "source:alignment_index",
+      "path": "/private/tmp/rosalind-hg002-resource-inputs/HG002.novaseq.pcr-free.35x.dedup.grch38_no_alt.chr20.bam.bai",
+      "expected_sha256": "245dcdcc474b1971eeb36fc9a8af37b76ac8b4c7ce06a7bdee64e0c42bd93f34",
+      "sha256": "245dcdcc474b1971eeb36fc9a8af37b76ac8b4c7ce06a7bdee64e0c42bd93f34",
+      "bytes": 196136,
+      "matches_startup": true
+    },
+    {
+      "role": "source:reference",
+      "path": "/private/tmp/rosalind-hg002-prepared/reference.fa",
+      "expected_sha256": "9cce8b926416dd96b152deea85188495b75f7ac8d634cc723a017067be8702b7",
+      "sha256": "9cce8b926416dd96b152deea85188495b75f7ac8d634cc723a017067be8702b7",
+      "bytes": 3144230986,
+      "matches_startup": true
+    },
+    {
+      "role": "source:reference_fai",
+      "path": "/private/tmp/rosalind-hg002-prepared/reference.fa.fai",
+      "expected_sha256": "502a1b8fb73ccd53285c28a0f12df90c818b4fe3de1e862ef47c593ef1a0a4b4",
+      "sha256": "502a1b8fb73ccd53285c28a0f12df90c818b4fe3de1e862ef47c593ef1a0a4b4",
+      "bytes": 7804,
+      "matches_startup": true
+    },
+    {
+      "role": "source:selection",
+      "path": "/private/tmp/rosalind-hg002-prepared/chromosome-sparse.vcf",
+      "expected_sha256": "9384e021f40b47482cc95b462f9d345d1dc7feaa10051ff479806d035956a982",
+      "sha256": "9384e021f40b47482cc95b462f9d345d1dc7feaa10051ff479806d035956a982",
+      "bytes": 26895,
+      "matches_startup": true
+    },
+    {
+      "role": "source:alignments",
+      "path": "/private/tmp/rosalind-hg002-prepared/window.bam",
+      "expected_sha256": "ad296f4b51b7139ffe9997b223480da2aad0fe06aef6ed8837dc012a9d297df3",
+      "sha256": "ad296f4b51b7139ffe9997b223480da2aad0fe06aef6ed8837dc012a9d297df3",
+      "bytes": 13748278,
+      "matches_startup": true
+    },
+    {
+      "role": "source:alignment_index",
+      "path": "/private/tmp/rosalind-hg002-prepared/window.bam.bai",
+      "expected_sha256": "4d3e4fbb4af01fd6186e9d83725602df5224d4e191dfd6c4dde103c7bd500f18",
+      "sha256": "4d3e4fbb4af01fd6186e9d83725602df5224d4e191dfd6c4dde103c7bd500f18",
+      "bytes": 9560,
+      "matches_startup": true
+    },
+    {
+      "role": "source:reference",
+      "path": "/private/tmp/rosalind-hg002-prepared/reference.fa",
+      "expected_sha256": "9cce8b926416dd96b152deea85188495b75f7ac8d634cc723a017067be8702b7",
+      "sha256": "9cce8b926416dd96b152deea85188495b75f7ac8d634cc723a017067be8702b7",
+      "bytes": 3144230986,
+      "matches_startup": true
+    },
+    {
+      "role": "source:reference_fai",
+      "path": "/private/tmp/rosalind-hg002-prepared/reference.fa.fai",
+      "expected_sha256": "502a1b8fb73ccd53285c28a0f12df90c818b4fe3de1e862ef47c593ef1a0a4b4",
+      "sha256": "502a1b8fb73ccd53285c28a0f12df90c818b4fe3de1e862ef47c593ef1a0a4b4",
+      "bytes": 7804,
+      "matches_startup": true
+    },
+    {
+      "role": "source:selection",
+      "path": "/private/tmp/rosalind-hg002-prepared/window-sparse.vcf",
+      "expected_sha256": "7adb16613eadd5e1f645dc1316a19030fb9ea22f950ef064dcfa847ec973df68",
+      "sha256": "7adb16613eadd5e1f645dc1316a19030fb9ea22f950ef064dcfa847ec973df68",
+      "bytes": 27096,
+      "matches_startup": true
+    },
+    {
+      "role": "source:alignments",
+      "path": "/private/tmp/rosalind-hg002-prepared/window.cram",
+      "expected_sha256": "2377a60c14eb064ffbc5d0f97e6264015fd131464fdd95fc5f494d12fa8d726f",
+      "sha256": "2377a60c14eb064ffbc5d0f97e6264015fd131464fdd95fc5f494d12fa8d726f",
+      "bytes": 4666195,
+      "matches_startup": true
+    },
+    {
+      "role": "source:alignment_index",
+      "path": "/private/tmp/rosalind-hg002-prepared/window.cram.crai",
+      "expected_sha256": "b77439008efacf22a531c0c088faf65deaf0c1099eab0fc0fb07e3ed58ea3c0d",
+      "sha256": "b77439008efacf22a531c0c088faf65deaf0c1099eab0fc0fb07e3ed58ea3c0d",
+      "bytes": 472,
+      "matches_startup": true
+    },
+    {
+      "role": "source:reference",
+      "path": "/private/tmp/rosalind-hg002-prepared/reference.fa",
+      "expected_sha256": "9cce8b926416dd96b152deea85188495b75f7ac8d634cc723a017067be8702b7",
+      "sha256": "9cce8b926416dd96b152deea85188495b75f7ac8d634cc723a017067be8702b7",
+      "bytes": 3144230986,
+      "matches_startup": true
+    },
+    {
+      "role": "source:reference_fai",
+      "path": "/private/tmp/rosalind-hg002-prepared/reference.fa.fai",
+      "expected_sha256": "502a1b8fb73ccd53285c28a0f12df90c818b4fe3de1e862ef47c593ef1a0a4b4",
+      "sha256": "502a1b8fb73ccd53285c28a0f12df90c818b4fe3de1e862ef47c593ef1a0a4b4",
+      "bytes": 7804,
+      "matches_startup": true
+    },
+    {
+      "role": "source:selection",
+      "path": "/private/tmp/rosalind-hg002-prepared/window-sparse.vcf",
+      "expected_sha256": "7adb16613eadd5e1f645dc1316a19030fb9ea22f950ef064dcfa847ec973df68",
+      "sha256": "7adb16613eadd5e1f645dc1316a19030fb9ea22f950ef064dcfa847ec973df68",
+      "bytes": 27096,
+      "matches_startup": true
+    },
+    {
+      "role": "source:alignments",
+      "path": "/private/tmp/rosalind-hg002-prepared/window.bam",
+      "expected_sha256": "ad296f4b51b7139ffe9997b223480da2aad0fe06aef6ed8837dc012a9d297df3",
+      "sha256": "ad296f4b51b7139ffe9997b223480da2aad0fe06aef6ed8837dc012a9d297df3",
+      "bytes": 13748278,
+      "matches_startup": true
+    },
+    {
+      "role": "source:alignment_index",
+      "path": "/private/tmp/rosalind-hg002-prepared/window.bam.bai",
+      "expected_sha256": "4d3e4fbb4af01fd6186e9d83725602df5224d4e191dfd6c4dde103c7bd500f18",
+      "sha256": "4d3e4fbb4af01fd6186e9d83725602df5224d4e191dfd6c4dde103c7bd500f18",
+      "bytes": 9560,
+      "matches_startup": true
+    },
+    {
+      "role": "source:reference",
+      "path": "/private/tmp/rosalind-hg002-prepared/reference.fa",
+      "expected_sha256": "9cce8b926416dd96b152deea85188495b75f7ac8d634cc723a017067be8702b7",
+      "sha256": "9cce8b926416dd96b152deea85188495b75f7ac8d634cc723a017067be8702b7",
+      "bytes": 3144230986,
+      "matches_startup": true
+    },
+    {
+      "role": "source:reference_fai",
+      "path": "/private/tmp/rosalind-hg002-prepared/reference.fa.fai",
+      "expected_sha256": "502a1b8fb73ccd53285c28a0f12df90c818b4fe3de1e862ef47c593ef1a0a4b4",
+      "sha256": "502a1b8fb73ccd53285c28a0f12df90c818b4fe3de1e862ef47c593ef1a0a4b4",
+      "bytes": 7804,
+      "matches_startup": true
+    },
+    {
+      "role": "source:selection",
+      "path": "/private/tmp/rosalind-hg002-prepared/panel.bed",
+      "expected_sha256": "eefeb0bef289c6508ca554afd3c9cd573eb83f681a9228eac9dd0860cd73d389",
+      "sha256": "eefeb0bef289c6508ca554afd3c9cd573eb83f681a9228eac9dd0860cd73d389",
+      "bytes": 551,
+      "matches_startup": true
+    },
+    {
+      "role": "source:alignments",
+      "path": "/private/tmp/rosalind-hg002-prepared/window.cram",
+      "expected_sha256": "2377a60c14eb064ffbc5d0f97e6264015fd131464fdd95fc5f494d12fa8d726f",
+      "sha256": "2377a60c14eb064ffbc5d0f97e6264015fd131464fdd95fc5f494d12fa8d726f",
+      "bytes": 4666195,
+      "matches_startup": true
+    },
+    {
+      "role": "source:alignment_index",
+      "path": "/private/tmp/rosalind-hg002-prepared/window.cram.crai",
+      "expected_sha256": "b77439008efacf22a531c0c088faf65deaf0c1099eab0fc0fb07e3ed58ea3c0d",
+      "sha256": "b77439008efacf22a531c0c088faf65deaf0c1099eab0fc0fb07e3ed58ea3c0d",
+      "bytes": 472,
+      "matches_startup": true
+    },
+    {
+      "role": "source:reference",
+      "path": "/private/tmp/rosalind-hg002-prepared/reference.fa",
+      "expected_sha256": "9cce8b926416dd96b152deea85188495b75f7ac8d634cc723a017067be8702b7",
+      "sha256": "9cce8b926416dd96b152deea85188495b75f7ac8d634cc723a017067be8702b7",
+      "bytes": 3144230986,
+      "matches_startup": true
+    },
+    {
+      "role": "source:reference_fai",
+      "path": "/private/tmp/rosalind-hg002-prepared/reference.fa.fai",
+      "expected_sha256": "502a1b8fb73ccd53285c28a0f12df90c818b4fe3de1e862ef47c593ef1a0a4b4",
+      "sha256": "502a1b8fb73ccd53285c28a0f12df90c818b4fe3de1e862ef47c593ef1a0a4b4",
+      "bytes": 7804,
+      "matches_startup": true
+    },
+    {
+      "role": "source:selection",
+      "path": "/private/tmp/rosalind-hg002-prepared/panel.bed",
+      "expected_sha256": "eefeb0bef289c6508ca554afd3c9cd573eb83f681a9228eac9dd0860cd73d389",
+      "sha256": "eefeb0bef289c6508ca554afd3c9cd573eb83f681a9228eac9dd0860cd73d389",
+      "bytes": 551,
+      "matches_startup": true
+    },
+    {
+      "role": "manifest",
+      "path": "/tmp/rosalind-hg002-prepared/workloads.json",
+      "expected_sha256": "6dc5cc1b60213fda93a1da2bcafb5dfff85a7195fb5cf10eaa65fe9ff03a8c82",
+      "sha256": "6dc5cc1b60213fda93a1da2bcafb5dfff85a7195fb5cf10eaa65fe9ff03a8c82",
+      "bytes": 10794,
+      "matches_startup": true
+    },
+    {
+      "role": "binary",
+      "path": "/private/tmp/rosalind-adoption-py311/bin/rosalind",
+      "expected_sha256": "a284df54a5d5da4f0053b4520d5402f7005c34b40df3e347ee8d73d91271baba",
+      "sha256": "a284df54a5d5da4f0053b4520d5402f7005c34b40df3e347ee8d73d91271baba",
+      "bytes": 8255200,
+      "matches_startup": true
+    },
+    {
+      "role": "harness:representative.py",
+      "path": "/Users/logannye/rosalind/benchmarks/evidence/representative.py",
+      "expected_sha256": "c0ce38007dc31ed35ffa94684881025be04753639567756df1ff46547441a58e",
+      "sha256": "c0ce38007dc31ed35ffa94684881025be04753639567756df1ff46547441a58e",
+      "bytes": 24576,
+      "matches_startup": true
+    },
+    {
+      "role": "harness:streaming_pysam.py",
+      "path": "/Users/logannye/rosalind/benchmarks/evidence/streaming_pysam.py",
+      "expected_sha256": "62d1ba4c46d419e39d6f97b5f5d431d26dfee867b7d8a798346147cd45c5bda3",
+      "sha256": "62d1ba4c46d419e39d6f97b5f5d431d26dfee867b7d8a798346147cd45c5bda3",
+      "bytes": 13307,
+      "matches_startup": true
+    },
+    {
+      "role": "harness:run.py",
+      "path": "/Users/logannye/rosalind/benchmarks/evidence/run.py",
+      "expected_sha256": "c7a95d8901e127e1b23e11c6b1d7d09d67286f0af9f5c3058c8db9ef65016a37",
+      "sha256": "c7a95d8901e127e1b23e11c6b1d7d09d67286f0af9f5c3058c8db9ef65016a37",
+      "bytes": 8284,
+      "matches_startup": true
+    }
+  ],
+  "measurements": [
+    {
+      "label": "window-cram-regions-oracle-r1",
+      "kind": "oracle",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000
+    },
+    {
+      "label": "window-cram-sites-m128-t4096-r1",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 134217728,
+      "receipt_budget_bytes": 134217728,
+      "observed_peak_rss_bytes": 31981568,
+      "receipt_peak_rss_bytes": 31883264,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 34247142
+    },
+    {
+      "label": "chromosome-bam-sparse-oracle-r1",
+      "kind": "oracle",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 999
+    },
+    {
+      "label": "window-cram-sites-m96-t128-r1",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 100663296,
+      "receipt_budget_bytes": 100663296,
+      "observed_peak_rss_bytes": 38158336,
+      "receipt_peak_rss_bytes": 38060032,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 21851622
+    },
+    {
+      "label": "window-bam-regions-oracle-r1",
+      "kind": "oracle",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000
+    },
+    {
+      "label": "window-cram-regions-m96-t128-r1",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 100663296,
+      "receipt_budget_bytes": 100663296,
+      "observed_peak_rss_bytes": 22528000,
+      "receipt_peak_rss_bytes": 22413312,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 21588486
+    },
+    {
+      "label": "window-cram-regions-m256-t16384-r1",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 268435456,
+      "receipt_budget_bytes": 268435456,
+      "observed_peak_rss_bytes": 23855104,
+      "receipt_peak_rss_bytes": 23707648,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 72404486
+    },
+    {
+      "label": "chromosome-bam-sparse-m128-t4096-r1",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 999,
+      "declared_budget_bytes": 134217728,
+      "receipt_budget_bytes": 134217728,
+      "observed_peak_rss_bytes": 10829824,
+      "receipt_peak_rss_bytes": 10731520,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 34081080
+    },
+    {
+      "label": "window-bam-sites-workers2-r1",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 536870912,
+      "receipt_budget_bytes": 536870912,
+      "observed_peak_rss_bytes": 13926400,
+      "receipt_peak_rss_bytes": 13877248,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 153231072
+    },
+    {
+      "label": "window-bam-regions-m128-t4096-r1",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 134217728,
+      "receipt_budget_bytes": 134217728,
+      "observed_peak_rss_bytes": 11190272,
+      "receipt_peak_rss_bytes": 11042816,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 33359472
+    },
+    {
+      "label": "chromosome-bam-sparse-m96-t128-r1",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 999,
+      "declared_budget_bytes": 100663296,
+      "receipt_budget_bytes": 100663296,
+      "observed_peak_rss_bytes": 11026432,
+      "receipt_peak_rss_bytes": 10895360,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 21751096
+    },
+    {
+      "label": "window-cram-sites-m256-t16384-r1",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 268435456,
+      "receipt_budget_bytes": 268435456,
+      "observed_peak_rss_bytes": 23412736,
+      "receipt_peak_rss_bytes": 23298048,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 72700390
+    },
+    {
+      "label": "window-cram-regions-workers2-r1",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 536870912,
+      "receipt_budget_bytes": 536870912,
+      "observed_peak_rss_bytes": 44449792,
+      "receipt_peak_rss_bytes": 44400640,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 152882732
+    },
+    {
+      "label": "window-bam-sites-oracle-r1",
+      "kind": "oracle",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000
+    },
+    {
+      "label": "window-bam-regions-m96-t128-r1",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 100663296,
+      "receipt_budget_bytes": 100663296,
+      "observed_peak_rss_bytes": 10207232,
+      "receipt_peak_rss_bytes": 10076160,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 21013104
+    },
+    {
+      "label": "window-cram-regions-m128-t4096-r1",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 134217728,
+      "receipt_budget_bytes": 134217728,
+      "observed_peak_rss_bytes": 23887872,
+      "receipt_peak_rss_bytes": 23740416,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 33967622
+    },
+    {
+      "label": "window-bam-sites-workers8-cache-r1-cold",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 17907712,
+      "receipt_peak_rss_bytes": 17858560,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 867082588
+    },
+    {
+      "label": "window-bam-sites-workers8-cache-r1-resumed",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 12402688,
+      "receipt_peak_rss_bytes": 12337152,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 867131740
+    },
+    {
+      "label": "window-bam-sites-workers8-cache-r1-persisted",
+      "kind": "dataset",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 13942784,
+      "receipt_peak_rss_bytes": 13795328,
+      "receipt_contract_verdict": null,
+      "budget_breach": false
+    },
+    {
+      "label": "window-bam-regions-m256-t16384-r1",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 268435456,
+      "receipt_budget_bytes": 268435456,
+      "observed_peak_rss_bytes": 11223040,
+      "receipt_peak_rss_bytes": 11075584,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 71829104
+    },
+    {
+      "label": "window-cram-regions-workers8-cache-r1-cold",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 128221184,
+      "receipt_peak_rss_bytes": 128221184,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 861538364
+    },
+    {
+      "label": "window-cram-regions-workers8-cache-r1-resumed",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 14450688,
+      "receipt_peak_rss_bytes": 14336000,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 861554748
+    },
+    {
+      "label": "window-cram-regions-workers8-cache-r1-persisted",
+      "kind": "dataset",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 15040512,
+      "receipt_peak_rss_bytes": 14860288,
+      "receipt_contract_verdict": null,
+      "budget_breach": false
+    },
+    {
+      "label": "window-bam-regions-workers2-r1",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 536870912,
+      "receipt_budget_bytes": 536870912,
+      "observed_peak_rss_bytes": 20217856,
+      "receipt_peak_rss_bytes": 20168704,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 152190720
+    },
+    {
+      "label": "window-cram-sites-workers8-cache-r1-cold",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 124747776,
+      "receipt_peak_rss_bytes": 124747776,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 868865052
+    },
+    {
+      "label": "window-cram-sites-workers8-cache-r1-resumed",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 12861440,
+      "receipt_peak_rss_bytes": 12763136,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 868733980
+    },
+    {
+      "label": "window-cram-sites-workers8-cache-r1-persisted",
+      "kind": "dataset",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 14057472,
+      "receipt_peak_rss_bytes": 13910016,
+      "receipt_contract_verdict": null,
+      "budget_breach": false
+    },
+    {
+      "label": "window-bam-sites-m128-t4096-r1",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 134217728,
+      "receipt_budget_bytes": 134217728,
+      "observed_peak_rss_bytes": 10354688,
+      "receipt_peak_rss_bytes": 10207232,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 33638992
+    },
+    {
+      "label": "window-bam-sites-m256-t16384-r1",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 268435456,
+      "receipt_budget_bytes": 268435456,
+      "observed_peak_rss_bytes": 10387456,
+      "receipt_peak_rss_bytes": 10289152,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 72125008
+    },
+    {
+      "label": "window-cram-sites-oracle-r1",
+      "kind": "oracle",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000
+    },
+    {
+      "label": "window-cram-sites-workers2-r1",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 536870912,
+      "receipt_budget_bytes": 536870912,
+      "observed_peak_rss_bytes": 57556992,
+      "receipt_peak_rss_bytes": 57507840,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 153857548
+    },
+    {
+      "label": "window-bam-regions-workers8-cache-r1-cold",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 51527680,
+      "receipt_peak_rss_bytes": 51462144,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 859788668
+    },
+    {
+      "label": "window-bam-regions-workers8-cache-r1-resumed",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 13893632,
+      "receipt_peak_rss_bytes": 13795328,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 859723132
+    },
+    {
+      "label": "window-bam-regions-workers8-cache-r1-persisted",
+      "kind": "dataset",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 15056896,
+      "receipt_peak_rss_bytes": 14893056,
+      "receipt_contract_verdict": null,
+      "budget_breach": false
+    },
+    {
+      "label": "chromosome-bam-sparse-m256-t16384-r1",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 999,
+      "declared_budget_bytes": 268435456,
+      "receipt_budget_bytes": 268435456,
+      "observed_peak_rss_bytes": 10944512,
+      "receipt_peak_rss_bytes": 10813440,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 72599864
+    },
+    {
+      "label": "window-bam-sites-m96-t128-r1",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 100663296,
+      "receipt_budget_bytes": 100663296,
+      "observed_peak_rss_bytes": 10665984,
+      "receipt_peak_rss_bytes": 10485760,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 21374544
+    },
+    {
+      "label": "window-cram-regions-m96-t128-r2",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 100663296,
+      "receipt_budget_bytes": 100663296,
+      "observed_peak_rss_bytes": 35897344,
+      "receipt_peak_rss_bytes": 35782656,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 21621254
+    },
+    {
+      "label": "chromosome-bam-sparse-m128-t4096-r2",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 999,
+      "declared_budget_bytes": 134217728,
+      "receipt_budget_bytes": 134217728,
+      "observed_peak_rss_bytes": 11157504,
+      "receipt_peak_rss_bytes": 11026432,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 34261304
+    },
+    {
+      "label": "window-bam-regions-workers2-r2",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 536870912,
+      "receipt_budget_bytes": 536870912,
+      "observed_peak_rss_bytes": 20299776,
+      "receipt_peak_rss_bytes": 20234240,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 152239872
+    },
+    {
+      "label": "window-bam-regions-m96-t128-r2",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 100663296,
+      "receipt_budget_bytes": 100663296,
+      "observed_peak_rss_bytes": 10190848,
+      "receipt_peak_rss_bytes": 10027008,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 21078640
+    },
+    {
+      "label": "window-cram-sites-workers8-cache-r2-cold",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 122224640,
+      "receipt_peak_rss_bytes": 122175488,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 868766748
+    },
+    {
+      "label": "window-cram-sites-workers8-cache-r2-resumed",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 12910592,
+      "receipt_peak_rss_bytes": 12812288,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 868848668
+    },
+    {
+      "label": "window-cram-sites-workers8-cache-r2-persisted",
+      "kind": "dataset",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 14204928,
+      "receipt_peak_rss_bytes": 14041088,
+      "receipt_contract_verdict": null,
+      "budget_breach": false
+    },
+    {
+      "label": "window-bam-sites-m256-t16384-r2",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 268435456,
+      "receipt_budget_bytes": 268435456,
+      "observed_peak_rss_bytes": 10420224,
+      "receipt_peak_rss_bytes": 10289152,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 72059472
+    },
+    {
+      "label": "chromosome-bam-sparse-oracle-r2",
+      "kind": "oracle",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 999
+    },
+    {
+      "label": "window-cram-sites-oracle-r2",
+      "kind": "oracle",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000
+    },
+    {
+      "label": "window-bam-regions-m256-t16384-r2",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 268435456,
+      "receipt_budget_bytes": 268435456,
+      "observed_peak_rss_bytes": 11239424,
+      "receipt_peak_rss_bytes": 11108352,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 71796336
+    },
+    {
+      "label": "window-cram-sites-workers2-r2",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 536870912,
+      "receipt_budget_bytes": 536870912,
+      "observed_peak_rss_bytes": 61784064,
+      "receipt_peak_rss_bytes": 61734912,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 153873932
+    },
+    {
+      "label": "window-cram-sites-m256-t16384-r2",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 268435456,
+      "receipt_budget_bytes": 268435456,
+      "observed_peak_rss_bytes": 34045952,
+      "receipt_peak_rss_bytes": 33931264,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 72765926
+    },
+    {
+      "label": "window-bam-sites-m96-t128-r2",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 100663296,
+      "receipt_budget_bytes": 100663296,
+      "observed_peak_rss_bytes": 10436608,
+      "receipt_peak_rss_bytes": 10321920,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 21177936
+    },
+    {
+      "label": "window-cram-regions-workers8-cache-r2-cold",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 145031168,
+      "receipt_peak_rss_bytes": 145031168,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 861472828
+    },
+    {
+      "label": "window-cram-regions-workers8-cache-r2-resumed",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 14336000,
+      "receipt_peak_rss_bytes": 14221312,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 861440060
+    },
+    {
+      "label": "window-cram-regions-workers8-cache-r2-persisted",
+      "kind": "dataset",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 15106048,
+      "receipt_peak_rss_bytes": 14942208,
+      "receipt_contract_verdict": null,
+      "budget_breach": false
+    },
+    {
+      "label": "window-bam-regions-m128-t4096-r2",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 134217728,
+      "receipt_budget_bytes": 134217728,
+      "observed_peak_rss_bytes": 11239424,
+      "receipt_peak_rss_bytes": 11108352,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 33375856
+    },
+    {
+      "label": "window-cram-regions-workers2-r2",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 536870912,
+      "receipt_budget_bytes": 536870912,
+      "observed_peak_rss_bytes": 45170688,
+      "receipt_peak_rss_bytes": 45121536,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 152866348
+    },
+    {
+      "label": "window-bam-sites-workers2-r2",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 536870912,
+      "receipt_budget_bytes": 536870912,
+      "observed_peak_rss_bytes": 13746176,
+      "receipt_peak_rss_bytes": 13680640,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 153181920
+    },
+    {
+      "label": "window-bam-sites-oracle-r2",
+      "kind": "oracle",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000
+    },
+    {
+      "label": "window-bam-sites-workers8-cache-r2-cold",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 19480576,
+      "receipt_peak_rss_bytes": 19431424,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 867131740
+    },
+    {
+      "label": "window-bam-sites-workers8-cache-r2-resumed",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 12697600,
+      "receipt_peak_rss_bytes": 12648448,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 867148124
+    },
+    {
+      "label": "window-bam-sites-workers8-cache-r2-persisted",
+      "kind": "dataset",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 13975552,
+      "receipt_peak_rss_bytes": 13828096,
+      "receipt_contract_verdict": null,
+      "budget_breach": false
+    },
+    {
+      "label": "window-cram-regions-oracle-r2",
+      "kind": "oracle",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000
+    },
+    {
+      "label": "window-cram-sites-m96-t128-r2",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 100663296,
+      "receipt_budget_bytes": 100663296,
+      "observed_peak_rss_bytes": 36667392,
+      "receipt_peak_rss_bytes": 36552704,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 21786086
+    },
+    {
+      "label": "window-cram-sites-m128-t4096-r2",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 134217728,
+      "receipt_budget_bytes": 134217728,
+      "observed_peak_rss_bytes": 36880384,
+      "receipt_peak_rss_bytes": 36749312,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 34443750
+    },
+    {
+      "label": "window-bam-sites-m128-t4096-r2",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 134217728,
+      "receipt_budget_bytes": 134217728,
+      "observed_peak_rss_bytes": 10354688,
+      "receipt_peak_rss_bytes": 10223616,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 33688144
+    },
+    {
+      "label": "window-cram-regions-m128-t4096-r2",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 134217728,
+      "receipt_budget_bytes": 134217728,
+      "observed_peak_rss_bytes": 24068096,
+      "receipt_peak_rss_bytes": 23937024,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 34049542
+    },
+    {
+      "label": "chromosome-bam-sparse-m256-t16384-r2",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 999,
+      "declared_budget_bytes": 268435456,
+      "receipt_budget_bytes": 268435456,
+      "observed_peak_rss_bytes": 10928128,
+      "receipt_peak_rss_bytes": 10797056,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 72616248
+    },
+    {
+      "label": "window-bam-regions-oracle-r2",
+      "kind": "oracle",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000
+    },
+    {
+      "label": "window-cram-regions-m256-t16384-r2",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 268435456,
+      "receipt_budget_bytes": 268435456,
+      "observed_peak_rss_bytes": 23822336,
+      "receipt_peak_rss_bytes": 23707648,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 72486406
+    },
+    {
+      "label": "chromosome-bam-sparse-m96-t128-r2",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 999,
+      "declared_budget_bytes": 100663296,
+      "receipt_budget_bytes": 100663296,
+      "observed_peak_rss_bytes": 11075584,
+      "receipt_peak_rss_bytes": 10895360,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 21751096
+    },
+    {
+      "label": "window-bam-regions-workers8-cache-r2-cold",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 59867136,
+      "receipt_peak_rss_bytes": 59801600,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 859739516
+    },
+    {
+      "label": "window-bam-regions-workers8-cache-r2-resumed",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 13910016,
+      "receipt_peak_rss_bytes": 13811712,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 859739516
+    },
+    {
+      "label": "window-bam-regions-workers8-cache-r2-persisted",
+      "kind": "dataset",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 15073280,
+      "receipt_peak_rss_bytes": 14925824,
+      "receipt_contract_verdict": null,
+      "budget_breach": false
+    },
+    {
+      "label": "window-bam-regions-oracle-r3",
+      "kind": "oracle",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000
+    },
+    {
+      "label": "window-bam-regions-m256-t16384-r3",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 268435456,
+      "receipt_budget_bytes": 268435456,
+      "observed_peak_rss_bytes": 11354112,
+      "receipt_peak_rss_bytes": 11190272,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 71878256
+    },
+    {
+      "label": "window-bam-regions-m128-t4096-r3",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 134217728,
+      "receipt_budget_bytes": 134217728,
+      "observed_peak_rss_bytes": 11239424,
+      "receipt_peak_rss_bytes": 11075584,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 33359472
+    },
+    {
+      "label": "window-cram-regions-workers8-cache-r3-cold",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 139952128,
+      "receipt_peak_rss_bytes": 139952128,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 861505596
+    },
+    {
+      "label": "window-cram-regions-workers8-cache-r3-resumed",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 17383424,
+      "receipt_peak_rss_bytes": 17252352,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 861390908
+    },
+    {
+      "label": "window-cram-regions-workers8-cache-r3-persisted",
+      "kind": "dataset",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 18169856,
+      "receipt_peak_rss_bytes": 18038784,
+      "receipt_contract_verdict": null,
+      "budget_breach": false
+    },
+    {
+      "label": "window-cram-sites-m96-t128-r3",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 100663296,
+      "receipt_budget_bytes": 100663296,
+      "observed_peak_rss_bytes": 41926656,
+      "receipt_peak_rss_bytes": 41811968,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 21966310
+    },
+    {
+      "label": "window-cram-regions-oracle-r3",
+      "kind": "oracle",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000
+    },
+    {
+      "label": "window-cram-sites-m128-t4096-r3",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 134217728,
+      "receipt_budget_bytes": 134217728,
+      "observed_peak_rss_bytes": 36700160,
+      "receipt_peak_rss_bytes": 36585472,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 34329062
+    },
+    {
+      "label": "window-cram-sites-workers2-r3",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 536870912,
+      "receipt_budget_bytes": 536870912,
+      "observed_peak_rss_bytes": 59523072,
+      "receipt_peak_rss_bytes": 59473920,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 153841164
+    },
+    {
+      "label": "window-bam-sites-workers8-cache-r3-cold",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 18251776,
+      "receipt_peak_rss_bytes": 18202624,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 867131740
+    },
+    {
+      "label": "window-bam-sites-workers8-cache-r3-resumed",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 12271616,
+      "receipt_peak_rss_bytes": 12222464,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 867098972
+    },
+    {
+      "label": "window-bam-sites-workers8-cache-r3-persisted",
+      "kind": "dataset",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 13959168,
+      "receipt_peak_rss_bytes": 13811712,
+      "receipt_contract_verdict": null,
+      "budget_breach": false
+    },
+    {
+      "label": "window-bam-sites-m256-t16384-r3",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 268435456,
+      "receipt_budget_bytes": 268435456,
+      "observed_peak_rss_bytes": 10567680,
+      "receipt_peak_rss_bytes": 10420224,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 72157776
+    },
+    {
+      "label": "window-bam-regions-m96-t128-r3",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 100663296,
+      "receipt_budget_bytes": 100663296,
+      "observed_peak_rss_bytes": 10092544,
+      "receipt_peak_rss_bytes": 9912320,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 20963952
+    },
+    {
+      "label": "chromosome-bam-sparse-m128-t4096-r3",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 999,
+      "declared_budget_bytes": 134217728,
+      "receipt_budget_bytes": 134217728,
+      "observed_peak_rss_bytes": 11010048,
+      "receipt_peak_rss_bytes": 10911744,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 34212152
+    },
+    {
+      "label": "window-cram-sites-workers8-cache-r3-cold",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 126615552,
+      "receipt_peak_rss_bytes": 126615552,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 868766748
+    },
+    {
+      "label": "window-cram-sites-workers8-cache-r3-resumed",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 12943360,
+      "receipt_peak_rss_bytes": 12845056,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 868799516
+    },
+    {
+      "label": "window-cram-sites-workers8-cache-r3-persisted",
+      "kind": "dataset",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 13975552,
+      "receipt_peak_rss_bytes": 13828096,
+      "receipt_contract_verdict": null,
+      "budget_breach": false
+    },
+    {
+      "label": "chromosome-bam-sparse-m96-t128-r3",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 999,
+      "declared_budget_bytes": 100663296,
+      "receipt_budget_bytes": 100663296,
+      "observed_peak_rss_bytes": 11010048,
+      "receipt_peak_rss_bytes": 10862592,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 21816632
+    },
+    {
+      "label": "window-bam-sites-m128-t4096-r3",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 134217728,
+      "receipt_budget_bytes": 134217728,
+      "observed_peak_rss_bytes": 10534912,
+      "receipt_peak_rss_bytes": 10403840,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 33688144
+    },
+    {
+      "label": "window-cram-sites-m256-t16384-r3",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 268435456,
+      "receipt_budget_bytes": 268435456,
+      "observed_peak_rss_bytes": 32555008,
+      "receipt_peak_rss_bytes": 32423936,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 72700390
+    },
+    {
+      "label": "chromosome-bam-sparse-oracle-r3",
+      "kind": "oracle",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 999
+    },
+    {
+      "label": "window-bam-sites-m96-t128-r3",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 100663296,
+      "receipt_budget_bytes": 100663296,
+      "observed_peak_rss_bytes": 10518528,
+      "receipt_peak_rss_bytes": 10354688,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 21276240
+    },
+    {
+      "label": "window-cram-sites-oracle-r3",
+      "kind": "oracle",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000
+    },
+    {
+      "label": "chromosome-bam-sparse-m256-t16384-r3",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 999,
+      "declared_budget_bytes": 268435456,
+      "receipt_budget_bytes": 268435456,
+      "observed_peak_rss_bytes": 10928128,
+      "receipt_peak_rss_bytes": 10797056,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 72599864
+    },
+    {
+      "label": "window-bam-regions-workers2-r3",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 536870912,
+      "receipt_budget_bytes": 536870912,
+      "observed_peak_rss_bytes": 20103168,
+      "receipt_peak_rss_bytes": 20054016,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 152125184
+    },
+    {
+      "label": "window-cram-regions-workers2-r3",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 536870912,
+      "receipt_budget_bytes": 536870912,
+      "observed_peak_rss_bytes": 48529408,
+      "receipt_peak_rss_bytes": 48480256,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 152882732
+    },
+    {
+      "label": "window-bam-sites-workers2-r3",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000,
+      "declared_budget_bytes": 536870912,
+      "receipt_budget_bytes": 536870912,
+      "observed_peak_rss_bytes": 13697024,
+      "receipt_peak_rss_bytes": 13647872,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 153198304
+    },
+    {
+      "label": "window-bam-sites-oracle-r3",
+      "kind": "oracle",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 1000
+    },
+    {
+      "label": "window-cram-regions-m128-t4096-r3",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 134217728,
+      "receipt_budget_bytes": 134217728,
+      "observed_peak_rss_bytes": 23937024,
+      "receipt_peak_rss_bytes": 23822336,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 34147846
+    },
+    {
+      "label": "window-cram-regions-m256-t16384-r3",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 268435456,
+      "receipt_budget_bytes": 268435456,
+      "observed_peak_rss_bytes": 23805952,
+      "receipt_peak_rss_bytes": 23674880,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 72388102
+    },
+    {
+      "label": "window-bam-regions-workers8-cache-r3-cold",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 56803328,
+      "receipt_peak_rss_bytes": 56754176,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 859723132
+    },
+    {
+      "label": "window-bam-regions-workers8-cache-r3-resumed",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 13828096,
+      "receipt_peak_rss_bytes": 13762560,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 859723132
+    },
+    {
+      "label": "window-bam-regions-workers8-cache-r3-persisted",
+      "kind": "dataset",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 1073741824,
+      "receipt_budget_bytes": 1073741824,
+      "observed_peak_rss_bytes": 15024128,
+      "receipt_peak_rss_bytes": 14843904,
+      "receipt_contract_verdict": null,
+      "budget_breach": false
+    },
+    {
+      "label": "window-cram-regions-m96-t128-r3",
+      "kind": "rosalind",
+      "status": "completed",
+      "issues": [],
+      "observed_loci": 10000,
+      "declared_budget_bytes": 100663296,
+      "receipt_budget_bytes": 100663296,
+      "observed_peak_rss_bytes": 22331392,
+      "receipt_peak_rss_bytes": 22216704,
+      "receipt_contract_verdict": "within",
+      "budget_breach": false,
+      "predicted_peak_rss_bytes": 21539334
+    }
+  ],
+  "prediction_underestimates": [
+    {
+      "label": "window-cram-sites-m96-t128-r1",
+      "predicted_bytes": 21851622,
+      "observed_bytes": 38158336,
+      "receipt_bytes": 38060032,
+      "budget_bytes": 100663296,
+      "budget_breach": false
+    },
+    {
+      "label": "window-cram-regions-m96-t128-r1",
+      "predicted_bytes": 21588486,
+      "observed_bytes": 22528000,
+      "receipt_bytes": 22413312,
+      "budget_bytes": 100663296,
+      "budget_breach": false
+    },
+    {
+      "label": "window-cram-regions-m96-t128-r2",
+      "predicted_bytes": 21621254,
+      "observed_bytes": 35897344,
+      "receipt_bytes": 35782656,
+      "budget_bytes": 100663296,
+      "budget_breach": false
+    },
+    {
+      "label": "window-cram-sites-m96-t128-r2",
+      "predicted_bytes": 21786086,
+      "observed_bytes": 36667392,
+      "receipt_bytes": 36552704,
+      "budget_bytes": 100663296,
+      "budget_breach": false
+    },
+    {
+      "label": "window-cram-sites-m128-t4096-r2",
+      "predicted_bytes": 34443750,
+      "observed_bytes": 36880384,
+      "receipt_bytes": 36749312,
+      "budget_bytes": 134217728,
+      "budget_breach": false
+    },
+    {
+      "label": "window-cram-sites-m96-t128-r3",
+      "predicted_bytes": 21966310,
+      "observed_bytes": 41926656,
+      "receipt_bytes": 41811968,
+      "budget_bytes": 100663296,
+      "budget_breach": false
+    },
+    {
+      "label": "window-cram-sites-m128-t4096-r3",
+      "predicted_bytes": 34329062,
+      "observed_bytes": 36700160,
+      "receipt_bytes": 36585472,
+      "budget_bytes": 134217728,
+      "budget_breach": false
+    },
+    {
+      "label": "window-cram-regions-m96-t128-r3",
+      "predicted_bytes": 21539334,
+      "observed_bytes": 22331392,
+      "receipt_bytes": 22216704,
+      "budget_bytes": 100663296,
+      "budget_breach": false
+    }
+  ],
+  "execution": [
+    {
+      "workload": "chromosome-bam-sparse",
+      "observations": [
+        {
+          "label": "chromosome-bam-sparse-m128-t4096-r1",
+          "phase": "fresh",
+          "case": "m128-t4096",
+          "repeat": 1,
+          "loci": 999,
+          "admitted_tile_bases": 4096,
+          "admitted_workers": 1,
+          "actual_microtiles": 999,
+          "alignment_record_visits": 45397
+        },
+        {
+          "label": "chromosome-bam-sparse-m96-t128-r1",
+          "phase": "fresh",
+          "case": "m96-t128",
+          "repeat": 1,
+          "loci": 999,
+          "admitted_tile_bases": 128,
+          "admitted_workers": 1,
+          "actual_microtiles": 999,
+          "alignment_record_visits": 45397
+        },
+        {
+          "label": "chromosome-bam-sparse-m256-t16384-r1",
+          "phase": "fresh",
+          "case": "m256-t16384",
+          "repeat": 1,
+          "loci": 999,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 1,
+          "actual_microtiles": 998,
+          "alignment_record_visits": 58283
+        },
+        {
+          "label": "chromosome-bam-sparse-m128-t4096-r2",
+          "phase": "fresh",
+          "case": "m128-t4096",
+          "repeat": 2,
+          "loci": 999,
+          "admitted_tile_bases": 4096,
+          "admitted_workers": 1,
+          "actual_microtiles": 999,
+          "alignment_record_visits": 45397
+        },
+        {
+          "label": "chromosome-bam-sparse-m256-t16384-r2",
+          "phase": "fresh",
+          "case": "m256-t16384",
+          "repeat": 2,
+          "loci": 999,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 1,
+          "actual_microtiles": 998,
+          "alignment_record_visits": 58283
+        },
+        {
+          "label": "chromosome-bam-sparse-m96-t128-r2",
+          "phase": "fresh",
+          "case": "m96-t128",
+          "repeat": 2,
+          "loci": 999,
+          "admitted_tile_bases": 128,
+          "admitted_workers": 1,
+          "actual_microtiles": 999,
+          "alignment_record_visits": 45397
+        },
+        {
+          "label": "chromosome-bam-sparse-m128-t4096-r3",
+          "phase": "fresh",
+          "case": "m128-t4096",
+          "repeat": 3,
+          "loci": 999,
+          "admitted_tile_bases": 4096,
+          "admitted_workers": 1,
+          "actual_microtiles": 999,
+          "alignment_record_visits": 45397
+        },
+        {
+          "label": "chromosome-bam-sparse-m96-t128-r3",
+          "phase": "fresh",
+          "case": "m96-t128",
+          "repeat": 3,
+          "loci": 999,
+          "admitted_tile_bases": 128,
+          "admitted_workers": 1,
+          "actual_microtiles": 999,
+          "alignment_record_visits": 45397
+        },
+        {
+          "label": "chromosome-bam-sparse-m256-t16384-r3",
+          "phase": "fresh",
+          "case": "m256-t16384",
+          "repeat": 3,
+          "loci": 999,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 1,
+          "actual_microtiles": 998,
+          "alignment_record_visits": 58283
+        }
+      ],
+      "distinct_observed_work_signatures": 2,
+      "observed_execution_changed": true,
+      "denominator_consistent": true
+    },
+    {
+      "workload": "window-bam-regions",
+      "observations": [
+        {
+          "label": "window-bam-regions-m128-t4096-r1",
+          "phase": "fresh",
+          "case": "m128-t4096",
+          "repeat": 1,
+          "loci": 10000,
+          "admitted_tile_bases": 4096,
+          "admitted_workers": 1,
+          "actual_microtiles": 20,
+          "alignment_record_visits": 3417
+        },
+        {
+          "label": "window-bam-regions-m96-t128-r1",
+          "phase": "fresh",
+          "case": "m96-t128",
+          "repeat": 1,
+          "loci": 10000,
+          "admitted_tile_bases": 128,
+          "admitted_workers": 1,
+          "actual_microtiles": 80,
+          "alignment_record_visits": 5769
+        },
+        {
+          "label": "window-bam-regions-m256-t16384-r1",
+          "phase": "fresh",
+          "case": "m256-t16384",
+          "repeat": 1,
+          "loci": 10000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 1,
+          "actual_microtiles": 20,
+          "alignment_record_visits": 3417
+        },
+        {
+          "label": "window-bam-regions-workers2-r1",
+          "phase": "fresh",
+          "case": "workers2",
+          "repeat": 1,
+          "loci": 10000,
+          "admitted_tile_bases": 4096,
+          "admitted_workers": 2,
+          "actual_microtiles": 20,
+          "alignment_record_visits": 3417
+        },
+        {
+          "label": "window-bam-regions-workers8-cache-r1-cold",
+          "phase": "cold",
+          "case": "workers8-cache",
+          "repeat": 1,
+          "loci": 10000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 8,
+          "actual_microtiles": 20,
+          "alignment_record_visits": 3417
+        },
+        {
+          "label": "window-bam-regions-workers8-cache-r1-resumed",
+          "phase": "resumed",
+          "case": "workers8-cache",
+          "repeat": 1,
+          "loci": 10000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 8,
+          "actual_microtiles": 0,
+          "alignment_record_visits": 0
+        },
+        {
+          "label": "window-bam-regions-workers2-r2",
+          "phase": "fresh",
+          "case": "workers2",
+          "repeat": 2,
+          "loci": 10000,
+          "admitted_tile_bases": 4096,
+          "admitted_workers": 2,
+          "actual_microtiles": 20,
+          "alignment_record_visits": 3417
+        },
+        {
+          "label": "window-bam-regions-m96-t128-r2",
+          "phase": "fresh",
+          "case": "m96-t128",
+          "repeat": 2,
+          "loci": 10000,
+          "admitted_tile_bases": 128,
+          "admitted_workers": 1,
+          "actual_microtiles": 80,
+          "alignment_record_visits": 5769
+        },
+        {
+          "label": "window-bam-regions-m256-t16384-r2",
+          "phase": "fresh",
+          "case": "m256-t16384",
+          "repeat": 2,
+          "loci": 10000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 1,
+          "actual_microtiles": 20,
+          "alignment_record_visits": 3417
+        },
+        {
+          "label": "window-bam-regions-m128-t4096-r2",
+          "phase": "fresh",
+          "case": "m128-t4096",
+          "repeat": 2,
+          "loci": 10000,
+          "admitted_tile_bases": 4096,
+          "admitted_workers": 1,
+          "actual_microtiles": 20,
+          "alignment_record_visits": 3417
+        },
+        {
+          "label": "window-bam-regions-workers8-cache-r2-cold",
+          "phase": "cold",
+          "case": "workers8-cache",
+          "repeat": 2,
+          "loci": 10000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 8,
+          "actual_microtiles": 20,
+          "alignment_record_visits": 3417
+        },
+        {
+          "label": "window-bam-regions-workers8-cache-r2-resumed",
+          "phase": "resumed",
+          "case": "workers8-cache",
+          "repeat": 2,
+          "loci": 10000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 8,
+          "actual_microtiles": 0,
+          "alignment_record_visits": 0
+        },
+        {
+          "label": "window-bam-regions-m256-t16384-r3",
+          "phase": "fresh",
+          "case": "m256-t16384",
+          "repeat": 3,
+          "loci": 10000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 1,
+          "actual_microtiles": 20,
+          "alignment_record_visits": 3417
+        },
+        {
+          "label": "window-bam-regions-m128-t4096-r3",
+          "phase": "fresh",
+          "case": "m128-t4096",
+          "repeat": 3,
+          "loci": 10000,
+          "admitted_tile_bases": 4096,
+          "admitted_workers": 1,
+          "actual_microtiles": 20,
+          "alignment_record_visits": 3417
+        },
+        {
+          "label": "window-bam-regions-m96-t128-r3",
+          "phase": "fresh",
+          "case": "m96-t128",
+          "repeat": 3,
+          "loci": 10000,
+          "admitted_tile_bases": 128,
+          "admitted_workers": 1,
+          "actual_microtiles": 80,
+          "alignment_record_visits": 5769
+        },
+        {
+          "label": "window-bam-regions-workers2-r3",
+          "phase": "fresh",
+          "case": "workers2",
+          "repeat": 3,
+          "loci": 10000,
+          "admitted_tile_bases": 4096,
+          "admitted_workers": 2,
+          "actual_microtiles": 20,
+          "alignment_record_visits": 3417
+        },
+        {
+          "label": "window-bam-regions-workers8-cache-r3-cold",
+          "phase": "cold",
+          "case": "workers8-cache",
+          "repeat": 3,
+          "loci": 10000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 8,
+          "actual_microtiles": 20,
+          "alignment_record_visits": 3417
+        },
+        {
+          "label": "window-bam-regions-workers8-cache-r3-resumed",
+          "phase": "resumed",
+          "case": "workers8-cache",
+          "repeat": 3,
+          "loci": 10000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 8,
+          "actual_microtiles": 0,
+          "alignment_record_visits": 0
+        }
+      ],
+      "distinct_observed_work_signatures": 2,
+      "observed_execution_changed": true,
+      "denominator_consistent": true
+    },
+    {
+      "workload": "window-bam-sites",
+      "observations": [
+        {
+          "label": "window-bam-sites-workers2-r1",
+          "phase": "fresh",
+          "case": "workers2",
+          "repeat": 1,
+          "loci": 1000,
+          "admitted_tile_bases": 4096,
+          "admitted_workers": 2,
+          "actual_microtiles": 245,
+          "alignment_record_visits": 207924
+        },
+        {
+          "label": "window-bam-sites-workers8-cache-r1-cold",
+          "phase": "cold",
+          "case": "workers8-cache",
+          "repeat": 1,
+          "loci": 1000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 8,
+          "actual_microtiles": 62,
+          "alignment_record_visits": 248188
+        },
+        {
+          "label": "window-bam-sites-workers8-cache-r1-resumed",
+          "phase": "resumed",
+          "case": "workers8-cache",
+          "repeat": 1,
+          "loci": 1000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 8,
+          "actual_microtiles": 0,
+          "alignment_record_visits": 0
+        },
+        {
+          "label": "window-bam-sites-m128-t4096-r1",
+          "phase": "fresh",
+          "case": "m128-t4096",
+          "repeat": 1,
+          "loci": 1000,
+          "admitted_tile_bases": 4096,
+          "admitted_workers": 1,
+          "actual_microtiles": 245,
+          "alignment_record_visits": 207924
+        },
+        {
+          "label": "window-bam-sites-m256-t16384-r1",
+          "phase": "fresh",
+          "case": "m256-t16384",
+          "repeat": 1,
+          "loci": 1000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 1,
+          "actual_microtiles": 62,
+          "alignment_record_visits": 248188
+        },
+        {
+          "label": "window-bam-sites-m96-t128-r1",
+          "phase": "fresh",
+          "case": "m96-t128",
+          "repeat": 1,
+          "loci": 1000,
+          "admitted_tile_bases": 128,
+          "admitted_workers": 1,
+          "actual_microtiles": 1000,
+          "alignment_record_visits": 39233
+        },
+        {
+          "label": "window-bam-sites-m256-t16384-r2",
+          "phase": "fresh",
+          "case": "m256-t16384",
+          "repeat": 2,
+          "loci": 1000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 1,
+          "actual_microtiles": 62,
+          "alignment_record_visits": 248188
+        },
+        {
+          "label": "window-bam-sites-m96-t128-r2",
+          "phase": "fresh",
+          "case": "m96-t128",
+          "repeat": 2,
+          "loci": 1000,
+          "admitted_tile_bases": 128,
+          "admitted_workers": 1,
+          "actual_microtiles": 1000,
+          "alignment_record_visits": 39233
+        },
+        {
+          "label": "window-bam-sites-workers2-r2",
+          "phase": "fresh",
+          "case": "workers2",
+          "repeat": 2,
+          "loci": 1000,
+          "admitted_tile_bases": 4096,
+          "admitted_workers": 2,
+          "actual_microtiles": 245,
+          "alignment_record_visits": 207924
+        },
+        {
+          "label": "window-bam-sites-workers8-cache-r2-cold",
+          "phase": "cold",
+          "case": "workers8-cache",
+          "repeat": 2,
+          "loci": 1000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 8,
+          "actual_microtiles": 62,
+          "alignment_record_visits": 248188
+        },
+        {
+          "label": "window-bam-sites-workers8-cache-r2-resumed",
+          "phase": "resumed",
+          "case": "workers8-cache",
+          "repeat": 2,
+          "loci": 1000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 8,
+          "actual_microtiles": 0,
+          "alignment_record_visits": 0
+        },
+        {
+          "label": "window-bam-sites-m128-t4096-r2",
+          "phase": "fresh",
+          "case": "m128-t4096",
+          "repeat": 2,
+          "loci": 1000,
+          "admitted_tile_bases": 4096,
+          "admitted_workers": 1,
+          "actual_microtiles": 245,
+          "alignment_record_visits": 207924
+        },
+        {
+          "label": "window-bam-sites-workers8-cache-r3-cold",
+          "phase": "cold",
+          "case": "workers8-cache",
+          "repeat": 3,
+          "loci": 1000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 8,
+          "actual_microtiles": 62,
+          "alignment_record_visits": 248188
+        },
+        {
+          "label": "window-bam-sites-workers8-cache-r3-resumed",
+          "phase": "resumed",
+          "case": "workers8-cache",
+          "repeat": 3,
+          "loci": 1000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 8,
+          "actual_microtiles": 0,
+          "alignment_record_visits": 0
+        },
+        {
+          "label": "window-bam-sites-m256-t16384-r3",
+          "phase": "fresh",
+          "case": "m256-t16384",
+          "repeat": 3,
+          "loci": 1000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 1,
+          "actual_microtiles": 62,
+          "alignment_record_visits": 248188
+        },
+        {
+          "label": "window-bam-sites-m128-t4096-r3",
+          "phase": "fresh",
+          "case": "m128-t4096",
+          "repeat": 3,
+          "loci": 1000,
+          "admitted_tile_bases": 4096,
+          "admitted_workers": 1,
+          "actual_microtiles": 245,
+          "alignment_record_visits": 207924
+        },
+        {
+          "label": "window-bam-sites-m96-t128-r3",
+          "phase": "fresh",
+          "case": "m96-t128",
+          "repeat": 3,
+          "loci": 1000,
+          "admitted_tile_bases": 128,
+          "admitted_workers": 1,
+          "actual_microtiles": 1000,
+          "alignment_record_visits": 39233
+        },
+        {
+          "label": "window-bam-sites-workers2-r3",
+          "phase": "fresh",
+          "case": "workers2",
+          "repeat": 3,
+          "loci": 1000,
+          "admitted_tile_bases": 4096,
+          "admitted_workers": 2,
+          "actual_microtiles": 245,
+          "alignment_record_visits": 207924
+        }
+      ],
+      "distinct_observed_work_signatures": 3,
+      "observed_execution_changed": true,
+      "denominator_consistent": true
+    },
+    {
+      "workload": "window-cram-regions",
+      "observations": [
+        {
+          "label": "window-cram-regions-m96-t128-r1",
+          "phase": "fresh",
+          "case": "m96-t128",
+          "repeat": 1,
+          "loci": 10000,
+          "admitted_tile_bases": 128,
+          "admitted_workers": 1,
+          "actual_microtiles": 80,
+          "alignment_record_visits": 5769
+        },
+        {
+          "label": "window-cram-regions-m256-t16384-r1",
+          "phase": "fresh",
+          "case": "m256-t16384",
+          "repeat": 1,
+          "loci": 10000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 1,
+          "actual_microtiles": 20,
+          "alignment_record_visits": 3417
+        },
+        {
+          "label": "window-cram-regions-workers2-r1",
+          "phase": "fresh",
+          "case": "workers2",
+          "repeat": 1,
+          "loci": 10000,
+          "admitted_tile_bases": 4096,
+          "admitted_workers": 2,
+          "actual_microtiles": 20,
+          "alignment_record_visits": 3417
+        },
+        {
+          "label": "window-cram-regions-m128-t4096-r1",
+          "phase": "fresh",
+          "case": "m128-t4096",
+          "repeat": 1,
+          "loci": 10000,
+          "admitted_tile_bases": 4096,
+          "admitted_workers": 1,
+          "actual_microtiles": 20,
+          "alignment_record_visits": 3417
+        },
+        {
+          "label": "window-cram-regions-workers8-cache-r1-cold",
+          "phase": "cold",
+          "case": "workers8-cache",
+          "repeat": 1,
+          "loci": 10000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 8,
+          "actual_microtiles": 20,
+          "alignment_record_visits": 3417
+        },
+        {
+          "label": "window-cram-regions-workers8-cache-r1-resumed",
+          "phase": "resumed",
+          "case": "workers8-cache",
+          "repeat": 1,
+          "loci": 10000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 8,
+          "actual_microtiles": 0,
+          "alignment_record_visits": 0
+        },
+        {
+          "label": "window-cram-regions-m96-t128-r2",
+          "phase": "fresh",
+          "case": "m96-t128",
+          "repeat": 2,
+          "loci": 10000,
+          "admitted_tile_bases": 128,
+          "admitted_workers": 1,
+          "actual_microtiles": 80,
+          "alignment_record_visits": 5769
+        },
+        {
+          "label": "window-cram-regions-workers8-cache-r2-cold",
+          "phase": "cold",
+          "case": "workers8-cache",
+          "repeat": 2,
+          "loci": 10000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 8,
+          "actual_microtiles": 20,
+          "alignment_record_visits": 3417
+        },
+        {
+          "label": "window-cram-regions-workers8-cache-r2-resumed",
+          "phase": "resumed",
+          "case": "workers8-cache",
+          "repeat": 2,
+          "loci": 10000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 8,
+          "actual_microtiles": 0,
+          "alignment_record_visits": 0
+        },
+        {
+          "label": "window-cram-regions-workers2-r2",
+          "phase": "fresh",
+          "case": "workers2",
+          "repeat": 2,
+          "loci": 10000,
+          "admitted_tile_bases": 4096,
+          "admitted_workers": 2,
+          "actual_microtiles": 20,
+          "alignment_record_visits": 3417
+        },
+        {
+          "label": "window-cram-regions-m128-t4096-r2",
+          "phase": "fresh",
+          "case": "m128-t4096",
+          "repeat": 2,
+          "loci": 10000,
+          "admitted_tile_bases": 4096,
+          "admitted_workers": 1,
+          "actual_microtiles": 20,
+          "alignment_record_visits": 3417
+        },
+        {
+          "label": "window-cram-regions-m256-t16384-r2",
+          "phase": "fresh",
+          "case": "m256-t16384",
+          "repeat": 2,
+          "loci": 10000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 1,
+          "actual_microtiles": 20,
+          "alignment_record_visits": 3417
+        },
+        {
+          "label": "window-cram-regions-workers8-cache-r3-cold",
+          "phase": "cold",
+          "case": "workers8-cache",
+          "repeat": 3,
+          "loci": 10000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 8,
+          "actual_microtiles": 20,
+          "alignment_record_visits": 3417
+        },
+        {
+          "label": "window-cram-regions-workers8-cache-r3-resumed",
+          "phase": "resumed",
+          "case": "workers8-cache",
+          "repeat": 3,
+          "loci": 10000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 8,
+          "actual_microtiles": 0,
+          "alignment_record_visits": 0
+        },
+        {
+          "label": "window-cram-regions-workers2-r3",
+          "phase": "fresh",
+          "case": "workers2",
+          "repeat": 3,
+          "loci": 10000,
+          "admitted_tile_bases": 4096,
+          "admitted_workers": 2,
+          "actual_microtiles": 20,
+          "alignment_record_visits": 3417
+        },
+        {
+          "label": "window-cram-regions-m128-t4096-r3",
+          "phase": "fresh",
+          "case": "m128-t4096",
+          "repeat": 3,
+          "loci": 10000,
+          "admitted_tile_bases": 4096,
+          "admitted_workers": 1,
+          "actual_microtiles": 20,
+          "alignment_record_visits": 3417
+        },
+        {
+          "label": "window-cram-regions-m256-t16384-r3",
+          "phase": "fresh",
+          "case": "m256-t16384",
+          "repeat": 3,
+          "loci": 10000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 1,
+          "actual_microtiles": 20,
+          "alignment_record_visits": 3417
+        },
+        {
+          "label": "window-cram-regions-m96-t128-r3",
+          "phase": "fresh",
+          "case": "m96-t128",
+          "repeat": 3,
+          "loci": 10000,
+          "admitted_tile_bases": 128,
+          "admitted_workers": 1,
+          "actual_microtiles": 80,
+          "alignment_record_visits": 5769
+        }
+      ],
+      "distinct_observed_work_signatures": 2,
+      "observed_execution_changed": true,
+      "denominator_consistent": true
+    },
+    {
+      "workload": "window-cram-sites",
+      "observations": [
+        {
+          "label": "window-cram-sites-m128-t4096-r1",
+          "phase": "fresh",
+          "case": "m128-t4096",
+          "repeat": 1,
+          "loci": 1000,
+          "admitted_tile_bases": 4096,
+          "admitted_workers": 1,
+          "actual_microtiles": 245,
+          "alignment_record_visits": 207924
+        },
+        {
+          "label": "window-cram-sites-m96-t128-r1",
+          "phase": "fresh",
+          "case": "m96-t128",
+          "repeat": 1,
+          "loci": 1000,
+          "admitted_tile_bases": 128,
+          "admitted_workers": 1,
+          "actual_microtiles": 1000,
+          "alignment_record_visits": 39233
+        },
+        {
+          "label": "window-cram-sites-m256-t16384-r1",
+          "phase": "fresh",
+          "case": "m256-t16384",
+          "repeat": 1,
+          "loci": 1000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 1,
+          "actual_microtiles": 62,
+          "alignment_record_visits": 248188
+        },
+        {
+          "label": "window-cram-sites-workers8-cache-r1-cold",
+          "phase": "cold",
+          "case": "workers8-cache",
+          "repeat": 1,
+          "loci": 1000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 8,
+          "actual_microtiles": 62,
+          "alignment_record_visits": 248188
+        },
+        {
+          "label": "window-cram-sites-workers8-cache-r1-resumed",
+          "phase": "resumed",
+          "case": "workers8-cache",
+          "repeat": 1,
+          "loci": 1000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 8,
+          "actual_microtiles": 0,
+          "alignment_record_visits": 0
+        },
+        {
+          "label": "window-cram-sites-workers2-r1",
+          "phase": "fresh",
+          "case": "workers2",
+          "repeat": 1,
+          "loci": 1000,
+          "admitted_tile_bases": 4096,
+          "admitted_workers": 2,
+          "actual_microtiles": 245,
+          "alignment_record_visits": 207924
+        },
+        {
+          "label": "window-cram-sites-workers8-cache-r2-cold",
+          "phase": "cold",
+          "case": "workers8-cache",
+          "repeat": 2,
+          "loci": 1000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 8,
+          "actual_microtiles": 62,
+          "alignment_record_visits": 248188
+        },
+        {
+          "label": "window-cram-sites-workers8-cache-r2-resumed",
+          "phase": "resumed",
+          "case": "workers8-cache",
+          "repeat": 2,
+          "loci": 1000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 8,
+          "actual_microtiles": 0,
+          "alignment_record_visits": 0
+        },
+        {
+          "label": "window-cram-sites-workers2-r2",
+          "phase": "fresh",
+          "case": "workers2",
+          "repeat": 2,
+          "loci": 1000,
+          "admitted_tile_bases": 4096,
+          "admitted_workers": 2,
+          "actual_microtiles": 245,
+          "alignment_record_visits": 207924
+        },
+        {
+          "label": "window-cram-sites-m256-t16384-r2",
+          "phase": "fresh",
+          "case": "m256-t16384",
+          "repeat": 2,
+          "loci": 1000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 1,
+          "actual_microtiles": 62,
+          "alignment_record_visits": 248188
+        },
+        {
+          "label": "window-cram-sites-m96-t128-r2",
+          "phase": "fresh",
+          "case": "m96-t128",
+          "repeat": 2,
+          "loci": 1000,
+          "admitted_tile_bases": 128,
+          "admitted_workers": 1,
+          "actual_microtiles": 1000,
+          "alignment_record_visits": 39233
+        },
+        {
+          "label": "window-cram-sites-m128-t4096-r2",
+          "phase": "fresh",
+          "case": "m128-t4096",
+          "repeat": 2,
+          "loci": 1000,
+          "admitted_tile_bases": 4096,
+          "admitted_workers": 1,
+          "actual_microtiles": 245,
+          "alignment_record_visits": 207924
+        },
+        {
+          "label": "window-cram-sites-m96-t128-r3",
+          "phase": "fresh",
+          "case": "m96-t128",
+          "repeat": 3,
+          "loci": 1000,
+          "admitted_tile_bases": 128,
+          "admitted_workers": 1,
+          "actual_microtiles": 1000,
+          "alignment_record_visits": 39233
+        },
+        {
+          "label": "window-cram-sites-m128-t4096-r3",
+          "phase": "fresh",
+          "case": "m128-t4096",
+          "repeat": 3,
+          "loci": 1000,
+          "admitted_tile_bases": 4096,
+          "admitted_workers": 1,
+          "actual_microtiles": 245,
+          "alignment_record_visits": 207924
+        },
+        {
+          "label": "window-cram-sites-workers2-r3",
+          "phase": "fresh",
+          "case": "workers2",
+          "repeat": 3,
+          "loci": 1000,
+          "admitted_tile_bases": 4096,
+          "admitted_workers": 2,
+          "actual_microtiles": 245,
+          "alignment_record_visits": 207924
+        },
+        {
+          "label": "window-cram-sites-workers8-cache-r3-cold",
+          "phase": "cold",
+          "case": "workers8-cache",
+          "repeat": 3,
+          "loci": 1000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 8,
+          "actual_microtiles": 62,
+          "alignment_record_visits": 248188
+        },
+        {
+          "label": "window-cram-sites-workers8-cache-r3-resumed",
+          "phase": "resumed",
+          "case": "workers8-cache",
+          "repeat": 3,
+          "loci": 1000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 8,
+          "actual_microtiles": 0,
+          "alignment_record_visits": 0
+        },
+        {
+          "label": "window-cram-sites-m256-t16384-r3",
+          "phase": "fresh",
+          "case": "m256-t16384",
+          "repeat": 3,
+          "loci": 1000,
+          "admitted_tile_bases": 16384,
+          "admitted_workers": 1,
+          "actual_microtiles": 62,
+          "alignment_record_visits": 248188
+        }
+      ],
+      "distinct_observed_work_signatures": 3,
+      "observed_execution_changed": true,
+      "denominator_consistent": true
+    }
+  ],
+  "verification_summaries": [
+    {
+      "workload": "chromosome-bam-sparse",
+      "kind": "rosalind",
+      "case": "m128-t4096",
+      "phase": "fresh",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 2.075476875528693,
+        "minimum": 1.8085360415279865,
+        "maximum": 2.1160348746925592
+      }
+    },
+    {
+      "workload": "chromosome-bam-sparse",
+      "kind": "rosalind",
+      "case": "m256-t16384",
+      "phase": "fresh",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 1.984646124765277,
+        "minimum": 1.9759803339838982,
+        "maximum": 2.2364841252565384
+      }
+    },
+    {
+      "workload": "chromosome-bam-sparse",
+      "kind": "rosalind",
+      "case": "m96-t128",
+      "phase": "fresh",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 2.014426457695663,
+        "minimum": 1.9583290414884686,
+        "maximum": 2.086530708707869
+      }
+    },
+    {
+      "workload": "window-bam-regions",
+      "kind": "dataset",
+      "case": "workers8-cache",
+      "phase": "persisted",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 0.021202290430665016,
+        "minimum": 0.020479959435760975,
+        "maximum": 0.0213025426492095
+      }
+    },
+    {
+      "workload": "window-bam-regions",
+      "kind": "rosalind",
+      "case": "m128-t4096",
+      "phase": "fresh",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 1.4465335002169013,
+        "minimum": 1.3575600842013955,
+        "maximum": 1.7373817078769207
+      }
+    },
+    {
+      "workload": "window-bam-regions",
+      "kind": "rosalind",
+      "case": "m256-t16384",
+      "phase": "fresh",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 1.550623208284378,
+        "minimum": 1.4373881667852402,
+        "maximum": 1.711569583043456
+      }
+    },
+    {
+      "workload": "window-bam-regions",
+      "kind": "rosalind",
+      "case": "m96-t128",
+      "phase": "fresh",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 1.5713002495467663,
+        "minimum": 1.5563922077417374,
+        "maximum": 1.7013330413028598
+      }
+    },
+    {
+      "workload": "window-bam-regions",
+      "kind": "rosalind",
+      "case": "workers2",
+      "phase": "fresh",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 1.5613808743655682,
+        "minimum": 1.4701587921008468,
+        "maximum": 1.720511875115335
+      }
+    },
+    {
+      "workload": "window-bam-regions",
+      "kind": "rosalind",
+      "case": "workers8-cache",
+      "phase": "cold",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 1.46739795897156,
+        "minimum": 1.4135395847260952,
+        "maximum": 1.4735869159922004
+      }
+    },
+    {
+      "workload": "window-bam-regions",
+      "kind": "rosalind",
+      "case": "workers8-cache",
+      "phase": "resumed",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 1.448032708838582,
+        "minimum": 1.4143225830048323,
+        "maximum": 1.463221374899149
+      }
+    },
+    {
+      "workload": "window-bam-sites",
+      "kind": "dataset",
+      "case": "workers8-cache",
+      "phase": "persisted",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 0.011131583712995052,
+        "minimum": 0.010804415680468082,
+        "maximum": 0.01187241729348898
+      }
+    },
+    {
+      "workload": "window-bam-sites",
+      "kind": "rosalind",
+      "case": "m128-t4096",
+      "phase": "fresh",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 1.485204666852951,
+        "minimum": 1.4115609163418412,
+        "maximum": 1.564911125227809
+      }
+    },
+    {
+      "workload": "window-bam-sites",
+      "kind": "rosalind",
+      "case": "m256-t16384",
+      "phase": "fresh",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 1.5583153339102864,
+        "minimum": 1.412806916050613,
+        "maximum": 1.57101225014776
+      }
+    },
+    {
+      "workload": "window-bam-sites",
+      "kind": "rosalind",
+      "case": "m96-t128",
+      "phase": "fresh",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 1.5552206672728062,
+        "minimum": 1.533675916492939,
+        "maximum": 1.5586989996954799
+      }
+    },
+    {
+      "workload": "window-bam-sites",
+      "kind": "rosalind",
+      "case": "workers2",
+      "phase": "fresh",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 1.4771177498623729,
+        "minimum": 1.361616083420813,
+        "maximum": 1.715595000423491
+      }
+    },
+    {
+      "workload": "window-bam-sites",
+      "kind": "rosalind",
+      "case": "workers8-cache",
+      "phase": "cold",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 1.558760166168213,
+        "minimum": 1.5482498751953244,
+        "maximum": 1.7118668742477894
+      }
+    },
+    {
+      "workload": "window-bam-sites",
+      "kind": "rosalind",
+      "case": "workers8-cache",
+      "phase": "resumed",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 1.5541185420006514,
+        "minimum": 1.5534726670011878,
+        "maximum": 1.70687466673553
+      }
+    },
+    {
+      "workload": "window-cram-regions",
+      "kind": "dataset",
+      "case": "workers8-cache",
+      "phase": "persisted",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 0.024115207605063915,
+        "minimum": 0.022794583812355995,
+        "maximum": 0.024269208312034607
+      }
+    },
+    {
+      "workload": "window-cram-regions",
+      "kind": "rosalind",
+      "case": "m128-t4096",
+      "phase": "fresh",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 1.4842222090810537,
+        "minimum": 1.4560420420020819,
+        "maximum": 1.7117599165067077
+      }
+    },
+    {
+      "workload": "window-cram-regions",
+      "kind": "rosalind",
+      "case": "m256-t16384",
+      "phase": "fresh",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 1.454232624731958,
+        "minimum": 1.3460240000858903,
+        "maximum": 1.4823679998517036
+      }
+    },
+    {
+      "workload": "window-cram-regions",
+      "kind": "rosalind",
+      "case": "m96-t128",
+      "phase": "fresh",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 1.4528522081673145,
+        "minimum": 1.358870416879654,
+        "maximum": 1.5909945825114846
+      }
+    },
+    {
+      "workload": "window-cram-regions",
+      "kind": "rosalind",
+      "case": "workers2",
+      "phase": "fresh",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 1.7072606245055795,
+        "minimum": 1.467934750020504,
+        "maximum": 1.7178086247295141
+      }
+    },
+    {
+      "workload": "window-cram-regions",
+      "kind": "rosalind",
+      "case": "workers8-cache",
+      "phase": "cold",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 1.7045905413106084,
+        "minimum": 1.4473161669448018,
+        "maximum": 1.7354508340358734
+      }
+    },
+    {
+      "workload": "window-cram-regions",
+      "kind": "rosalind",
+      "case": "workers8-cache",
+      "phase": "resumed",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 1.6980126248672605,
+        "minimum": 1.5548547497019172,
+        "maximum": 1.7315240846946836
+      }
+    },
+    {
+      "workload": "window-cram-sites",
+      "kind": "dataset",
+      "case": "workers8-cache",
+      "phase": "persisted",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 0.011169792152941227,
+        "minimum": 0.010762665420770645,
+        "maximum": 0.012019124813377857
+      }
+    },
+    {
+      "workload": "window-cram-sites",
+      "kind": "rosalind",
+      "case": "m128-t4096",
+      "phase": "fresh",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 1.4893829999491572,
+        "minimum": 1.3460152074694633,
+        "maximum": 1.5469117909669876
+      }
+    },
+    {
+      "workload": "window-cram-sites",
+      "kind": "rosalind",
+      "case": "m256-t16384",
+      "phase": "fresh",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 1.5560552077367902,
+        "minimum": 1.5348309576511383,
+        "maximum": 1.712002624757588
+      }
+    },
+    {
+      "workload": "window-cram-sites",
+      "kind": "rosalind",
+      "case": "m96-t128",
+      "phase": "fresh",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 1.5741771245375276,
+        "minimum": 1.3542262492701411,
+        "maximum": 1.5998898334801197
+      }
+    },
+    {
+      "workload": "window-cram-sites",
+      "kind": "rosalind",
+      "case": "workers2",
+      "phase": "fresh",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 1.5484795421361923,
+        "minimum": 1.3949897084385157,
+        "maximum": 1.556848792359233
+      }
+    },
+    {
+      "workload": "window-cram-sites",
+      "kind": "rosalind",
+      "case": "workers8-cache",
+      "phase": "cold",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 1.5486102076247334,
+        "minimum": 1.5408527916297317,
+        "maximum": 1.6444323752075434
+      }
+    },
+    {
+      "workload": "window-cram-sites",
+      "kind": "rosalind",
+      "case": "workers8-cache",
+      "phase": "resumed",
+      "runs": 3,
+      "wall_seconds": {
+        "median": 1.5538335414603353,
+        "minimum": 1.5519485427066684,
+        "maximum": 1.6862801248207688
+      }
+    }
+  ],
+  "limitations": [
+    "After-run hashes detect changed final bytes; they do not prove files never changed and reverted between invocations.",
+    "Receipt verification is the retained timed native verification, not independently reimplemented here.",
+    "Microtile counts and record visits corroborate work changes; admitted widths and worker counts do not prove actual worker utilization.",
+    "Retained storage sizes are current logical/allocated file bytes, not physical I/O traffic or peak temporary disk use.",
+    "Prediction underestimates are reported separately; only exceeding an admitted budget is a budget breach."
+  ],
+  "report_identity": {
+    "sha256": "4c379715a06048641e801858b49b0e8e041d272fb4de5aa01a33a1aa27538e99",
+    "bytes": 588342
+  },
+  "base_status": "passed",
+  "inventory": {
+    "expected": 108,
+    "recorded": 108,
+    "missing": [],
+    "unexpected": [],
+    "duplicate_labels": []
+  },
+  "identity_hashing_seconds": 1.4598576249554753,
+  "retained_storage": [
+    {
+      "path": "/private/tmp/rosalind-hg002-curve/cache",
+      "files": 1020,
+      "logical_bytes": 208433016,
+      "allocated_bytes": 211009536
+    },
+    {
+      "path": "/private/tmp/rosalind-hg002-curve/artifacts",
+      "files": 216,
+      "logical_bytes": 60454330,
+      "allocated_bytes": 61337600
+    },
+    {
+      "path": "/private/tmp/rosalind-hg002-curve/raw",
+      "files": 789,
+      "logical_bytes": 411548,
+      "allocated_bytes": 2371584
+    }
+  ],
+  "elapsed_seconds": 1.5384594583883882
+}
