@@ -235,7 +235,7 @@ Independent persona feedback, design-partner recruitment and the 30-day return t
 
   Remaining gate: Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed.
 
-  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)
+  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145) · [Retained source-bound validation and failures](https://github.com/logannye/rosalind/blob/codex/cohort-preview/docs/findings/cohort-preview-2026-09-18/README.md)
 
 - [ ] **[C02](https://github.com/logannye/rosalind/issues/130) — Compose immutable cohort snapshots**
 
@@ -245,7 +245,7 @@ Independent persona feedback, design-partner recruitment and the 30-day return t
 
   Remaining gate: Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed.
 
-  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)
+  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145) · [Retained source-bound validation and failures](https://github.com/logannye/rosalind/blob/codex/cohort-preview/docs/findings/cohort-preview-2026-09-18/README.md)
 
 - [ ] **[C03](https://github.com/logannye/rosalind/issues/131) — Separate comparison from same-source reuse identity**
 
@@ -255,7 +255,7 @@ Independent persona feedback, design-partner recruitment and the 30-day return t
 
   Remaining gate: Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed.
 
-  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)
+  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145) · [Retained source-bound validation and failures](https://github.com/logannye/rosalind/blob/codex/cohort-preview/docs/findings/cohort-preview-2026-09-18/README.md)
 
 - [ ] **[C04](https://github.com/logannye/rosalind/issues/132) — Plan and extract saved cohort evidence**
 
@@ -265,7 +265,7 @@ Independent persona feedback, design-partner recruitment and the 30-day return t
 
   Remaining gate: Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed.
 
-  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)
+  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145) · [Retained source-bound validation and failures](https://github.com/logannye/rosalind/blob/codex/cohort-preview/docs/findings/cohort-preview-2026-09-18/README.md)
 
 - [ ] **[C05](https://github.com/logannye/rosalind/issues/133) — Preserve cohort missingness**
 
@@ -275,7 +275,7 @@ Independent persona feedback, design-partner recruitment and the 30-day return t
 
   Remaining gate: Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed.
 
-  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)
+  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145) · [Retained source-bound validation and failures](https://github.com/logannye/rosalind/blob/codex/cohort-preview/docs/findings/cohort-preview-2026-09-18/README.md)
 
 - [ ] **[C06](https://github.com/logannye/rosalind/issues/134) — Summarize exact candidate support**
 
@@ -285,7 +285,7 @@ Independent persona feedback, design-partner recruitment and the 30-day return t
 
   Remaining gate: Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed.
 
-  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)
+  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145) · [Retained source-bound validation and failures](https://github.com/logannye/rosalind/blob/codex/cohort-preview/docs/findings/cohort-preview-2026-09-18/README.md)
 
 - [ ] **[C07](https://github.com/logannye/rosalind/issues/135) — Govern one bounded cohort artifact lifecycle**
 
@@ -295,7 +295,7 @@ Independent persona feedback, design-partner recruitment and the 30-day return t
 
   Remaining gate: Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed.
 
-  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)
+  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145) · [Retained source-bound validation and failures](https://github.com/logannye/rosalind/blob/codex/cohort-preview/docs/findings/cohort-preview-2026-09-18/README.md)
 
 - [ ] **[C08](https://github.com/logannye/rosalind/issues/136) — Extend only missing loci with explicit sources**
 
@@ -305,7 +305,7 @@ Independent persona feedback, design-partner recruitment and the 30-day return t
 
   Remaining gate: Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed.
 
-  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)
+  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145) · [Retained source-bound validation and failures](https://github.com/logannye/rosalind/blob/codex/cohort-preview/docs/findings/cohort-preview-2026-09-18/README.md)
 
 - [ ] **[C09](https://github.com/logannye/rosalind/issues/137) — Expose matching cohort CLI and Python**
 
@@ -315,7 +315,7 @@ Independent persona feedback, design-partner recruitment and the 30-day return t
 
   Remaining gate: Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed.
 
-  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)
+  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145) · [Retained source-bound validation and failures](https://github.com/logannye/rosalind/blob/codex/cohort-preview/docs/findings/cohort-preview-2026-09-18/README.md)
 
 - [ ] **[C10](https://github.com/logannye/rosalind/issues/138) — Verify and replay complete cohort lineage**
 
@@ -325,7 +325,7 @@ Independent persona feedback, design-partner recruitment and the 30-day return t
 
   Remaining gate: Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed.
 
-  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)
+  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145) · [Retained source-bound validation and failures](https://github.com/logannye/rosalind/blob/codex/cohort-preview/docs/findings/cohort-preview-2026-09-18/README.md)
 
 - [ ] **[C11](https://github.com/logannye/rosalind/issues/139) — Demonstrate recurring cohort questions and total costs**
 
@@ -335,7 +335,7 @@ Independent persona feedback, design-partner recruitment and the 30-day return t
 
   Remaining gate: Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed.
 
-  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)
+  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145) · [Retained source-bound validation and failures](https://github.com/logannye/rosalind/blob/codex/cohort-preview/docs/findings/cohort-preview-2026-09-18/README.md)
 
 ## F — Expand demonstrated value
 
