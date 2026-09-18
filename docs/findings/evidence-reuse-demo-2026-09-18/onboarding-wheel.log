@@ -1,0 +1,46 @@
+packaged researcher-quickstart: binary=$ROSALIND; python=$PYTHON; cwd=$TMP/rosalind-readme-wheel-c49vrpwd/research-workflows/researcher-quickstart
+Prepared 4 independently generated candidate SNVs in $TMP/rosalind-readme-wheel-c49vrpwd/research-workflows/researcher-quickstart/inputs
+evidence: 4 loci; peak RSS 12 MiB; 1988 record visits; receipt $TMP/rosalind-readme-wheel-c49vrpwd/research-workflows/researcher-quickstart/inputs/evidence.tsv.manifest.json
+verify: peak 12 MiB within budget 256 MiB
+verify: evidence records process RSS; individual internal allocations are modeled, not measured
+verify: OK — 5 input(s), 2 output(s) match
+  claim       : d9a3d1dc69 (re-derived)
+  code        : (build-identity unavailable)
+  inputs      : 5 file(s) located by content hash
+  output      : output[0]  OK byte-identical (blake3 64d7b6d905)
+  output      : output[1]  OK byte-identical (blake3 9bf5038c8e)
+  VERDICT     : REPRODUCED
+  -> wrote reproduction certificate: $TMP/rosalind-readme-wheel-c49vrpwd/research-workflows/researcher-quickstart/inputs/evidence.tsv.manifest.json.repro.json (chains to d9a3d1dc69)
+packaged researcher-quickstart: passed outside the checkout
+packaged reuse-quickstart: binary=$ROSALIND; python=$PYTHON; cwd=$TMP/rosalind-readme-wheel-c49vrpwd/research-workflows/reuse-quickstart
+Prepared 4 independently generated candidate SNVs in $TMP/rosalind-readme-wheel-c49vrpwd/research-workflows/temporary/rosalind-reuse-n1ssvs8z/inputs
+evidence: 2 loci; peak RSS 9 MiB; 848 record visits; receipt $TMP/rosalind-readme-wheel-c49vrpwd/research-workflows/temporary/rosalind-reuse-n1ssvs8z/fresh-candidates.arrow.manifest.json
+evidence: 3159 loci; peak RSS 9 MiB; 3307 record visits; receipt $TMP/rosalind-readme-wheel-c49vrpwd/research-workflows/temporary/rosalind-reuse-n1ssvs8z/fresh-panel.tsv.manifest.json
+evidence: 3159 loci; peak RSS 11 MiB; 3307 record visits; receipt $TMP/rosalind-readme-wheel-c49vrpwd/research-workflows/temporary/rosalind-reuse-n1ssvs8z/all-evidence.arrow.manifest.json
+{"dataset_namespace":"0ffc5ae083bb776d57a8f9d6a052008f3a7d6a52ff0c6009bf1b6065c7930662","original_sources_rehashed":false,"status":"verified","verified_loci":3159,"verified_partition_files":4}
+verify: peak 10 MiB within budget 256 MiB
+verify: evidence records process RSS; individual internal allocations are modeled, not measured
+verify: OK — 5 input(s), 1 output(s) match
+verify: peak 9 MiB within budget 256 MiB
+verify: evidence records process RSS; individual internal allocations are modeled, not measured
+verify: OK — 7 input(s), 1 output(s) match
+Verified identical candidate evidence and panel QC without original inputs.
+Inspect the dataset, outputs, and receipts in: $TMP/rosalind-readme-wheel-c49vrpwd/research-workflows/temporary/rosalind-reuse-n1ssvs8z
+packaged reuse-quickstart: passed outside the checkout
+evidence: 4 loci; peak RSS 9 MiB; 1988 record visits; receipt candidate-evidence.tsv.manifest.json
+verify: peak 9 MiB within budget 256 MiB
+verify: evidence records process RSS; individual internal allocations are modeled, not measured
+verify: OK — 5 input(s), 1 output(s) match
+packaged readme-candidates: passed outside the checkout
+evidence: 3159 loci; peak RSS 35 MiB; 3307 record visits; receipt panel-evidence.arrow.manifest.json
+packaged readme-save: passed outside the checkout
+evidence: 2 loci; peak RSS 9 MiB; 848 record visits; receipt fresh-second.tsv.manifest.json
+evidence: 3159 loci; peak RSS 9 MiB; 3307 record visits; receipt fresh-panel.tsv.manifest.json
+verify: peak 18 MiB within budget 256 MiB
+verify: evidence records process RSS; individual internal allocations are modeled, not measured
+verify: OK — 5 input(s), 1 output(s) match
+verify: peak 18 MiB within budget 256 MiB
+verify: evidence records process RSS; individual internal allocations are modeled, not measured
+verify: OK — 7 input(s), 1 output(s) match
+packaged readme-reuse: installed Python example matched fresh extraction without original inputs
+PASSED installed-wheel researcher, reuse, and README examples

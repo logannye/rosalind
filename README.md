@@ -193,6 +193,7 @@ supported scope are documented in [scientific semantics](docs/SEMANTICS.md),
 | Build and integrate | [Builder quickstart](docs/builder-quickstart.md) · [Rust SDK](docs/analyzer-sdk.md) · [Python](python/README.md) · [Nextflow/Snakemake](docs/workflow-integration.md) |
 | Check maturity or contribute | [Implementation status](docs/implementation-status.md) · [Roadmap](docs/ROADMAP.md) · [Contributor guide](CONTRIBUTING.md) |
 | Try your own task and report results | [Researcher and builder validation kit](docs/adoption-validation.md) |
+| Watch or rerun a complete workflow | [Evidence-reuse demonstration](docs/evidence-reuse-demo.md) |
 | Find everything else | [Documentation index](docs/index.md) · [Security](SECURITY.md) · [Citation](CITATION.cff) |
 
 ## License

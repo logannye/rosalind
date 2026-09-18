@@ -1,0 +1,257 @@
+{
+  "schema": 1,
+  "distribution_label": "source-preview",
+  "label_is_operator_assertion": true,
+  "binary_version": "0.5.0",
+  "binary_sha256": "7a07689d345abd97ae227908af984ec0dc4038604667cd4d92383177bf609193",
+  "platform": "Darwin",
+  "architecture": "arm64",
+  "python": "3.11.15",
+  "pysam": "0.23.3",
+  "commands": [
+    {
+      "argv": [
+        "$PYTHON",
+        "$REPOSITORY/examples/research-filter/prepare.py",
+        "$DEMO/inputs"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "$ROSALIND",
+        "analyze",
+        "evidence",
+        "--reference",
+        "$DEMO/inputs/ex1.fa",
+        "--alignments",
+        "$DEMO/inputs/sample.bam",
+        "--memory-budget-mb",
+        "256",
+        "--sites",
+        "$DEMO/inputs/candidates.vcf",
+        "--output",
+        "$DEMO/candidate-evidence.tsv"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "$ROSALIND",
+        "verify",
+        "--manifest",
+        "$DEMO/candidate-evidence.tsv.manifest.json"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "$ROSALIND",
+        "analyze",
+        "evidence",
+        "--reference",
+        "$DEMO/inputs/ex1.fa",
+        "--alignments",
+        "$DEMO/inputs/sample.bam",
+        "--memory-budget-mb",
+        "256",
+        "--regions",
+        "$DEMO/inputs/targets.bed",
+        "--fields",
+        "depths,alleles,quality-sums",
+        "--format",
+        "arrow-ipc",
+        "--cache-dir",
+        "$DEMO/cache",
+        "--output",
+        "$DEMO/target-evidence.arrow"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "$ROSALIND",
+        "analyze",
+        "evidence",
+        "--reference",
+        "$DEMO/inputs/ex1.fa",
+        "--alignments",
+        "$DEMO/inputs/sample.bam",
+        "--memory-budget-mb",
+        "256",
+        "--sites",
+        "$DEMO/relocated/second-candidates.vcf",
+        "--fields",
+        "depths,alleles",
+        "--output",
+        "$DEMO/fresh-candidates.tsv"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "$ROSALIND",
+        "analyze",
+        "panel-qc",
+        "--reference",
+        "$DEMO/inputs/ex1.fa",
+        "--alignments",
+        "$DEMO/inputs/sample.bam",
+        "--memory-budget-mb",
+        "256",
+        "--regions",
+        "$DEMO/inputs/targets.bed",
+        "--min-callable-depth",
+        "10",
+        "--output",
+        "$DEMO/fresh-panel.tsv"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "$ROSALIND",
+        "dataset",
+        "verify",
+        "--dataset",
+        "$DEMO/relocated/portable/evidence-dataset.manifest.json"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "$ROSALIND",
+        "dataset",
+        "extract",
+        "--dataset",
+        "$DEMO/relocated/portable/evidence-dataset.manifest.json",
+        "--sites",
+        "$DEMO/relocated/second-candidates.vcf",
+        "--fields",
+        "depths,alleles",
+        "--memory-budget-mb",
+        "256",
+        "--output",
+        "$DEMO/reused-candidates.tsv"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "$ROSALIND",
+        "dataset",
+        "panel-qc",
+        "--dataset",
+        "$DEMO/relocated/portable/evidence-dataset.manifest.json",
+        "--regions",
+        "$DEMO/relocated/targets.bed",
+        "--min-callable-depth",
+        "10",
+        "--memory-budget-mb",
+        "256",
+        "--output",
+        "$DEMO/reused-panel.tsv"
+      ],
+      "returncode": 0
+    }
+  ],
+  "preparation": {
+    "schema": 1,
+    "source_repository": "https://github.com/samtools/samtools",
+    "source_commit": "da72567097265a61650a081c9f68d4a9f45bd105",
+    "source_release": "1.22",
+    "description": "SAMtools ex1: real NA18507 MAQ alignments, extracted and fixmate-adjusted by upstream; renamed build36 chr2 and chr20 reference slices. Not a truth set.",
+    "files": [
+      {
+        "name": "ex1.fa",
+        "sha256": "b9969f5de2e8a630134fa8af6b6a9f69f540f48de9b15eaba80b6711d21b15c7",
+        "url": "https://raw.githubusercontent.com/samtools/samtools/da72567097265a61650a081c9f68d4a9f45bd105/examples/ex1.fa"
+      },
+      {
+        "name": "ex1.sam.gz",
+        "sha256": "dc89fe1d2277324ff0de90bce457cf1579ec078a25944c8400b8a0576712993a",
+        "url": "https://raw.githubusercontent.com/samtools/samtools/da72567097265a61650a081c9f68d4a9f45bd105/examples/ex1.sam.gz"
+      },
+      {
+        "name": "00README.txt",
+        "sha256": "6034a3ac1aaeef603fedb5a24439ac1d28327e272b38eb560dbafd9500dead65",
+        "url": "https://raw.githubusercontent.com/samtools/samtools/da72567097265a61650a081c9f68d4a9f45bd105/examples/00README.txt"
+      }
+    ],
+    "pysam_version": "0.23.3",
+    "htslib_samtools_bcftools_version": "1.21",
+    "candidate_generator_argv": [
+      [
+        "bcftools",
+        "mpileup",
+        "--no-version",
+        "-f",
+        "$DEMO/inputs/ex1.fa",
+        "-q",
+        "20",
+        "-Q",
+        "20",
+        "-Ob",
+        "-o",
+        "$DEMO/inputs/likelihoods.bcf",
+        "$DEMO/inputs/sample.bam"
+      ],
+      [
+        "bcftools",
+        "call",
+        "--no-version",
+        "-m",
+        "-v",
+        "--ploidy",
+        "2",
+        "-Ov",
+        "-o",
+        "$DEMO/inputs/candidate-all.vcf",
+        "$DEMO/inputs/likelihoods.bcf"
+      ]
+    ],
+    "candidate_snvs": 4,
+    "prepared_sha256": {
+      "sample.bam.bai": "07b02d0bd15ee7c3ba2c1ee1716189a21bfaf54dd9909befa5cc6a59ebb0f890",
+      "targets.bed": "5cf62b6fb8bd7b11569ff7059a25410af2fef3bd1587ae3a500672fa893acac2",
+      "00README.txt": "6034a3ac1aaeef603fedb5a24439ac1d28327e272b38eb560dbafd9500dead65",
+      "ex1.sam.gz": "dc89fe1d2277324ff0de90bce457cf1579ec078a25944c8400b8a0576712993a",
+      "ex1.fa": "b9969f5de2e8a630134fa8af6b6a9f69f540f48de9b15eaba80b6711d21b15c7",
+      "ex1.fa.fai": "8f25f72e57565e0c0a18c46e06be4c82fb62966801a15bb1a7b9d7166723e925",
+      "sample.bam": "56c3c3b6f2714867602d7f419dfcc8f2e5228f209f2d7a60f5c254570c873048",
+      "candidate-all.vcf": "95a08e1dd15d1757fcbde582f73143b6a2ceb1d9794de60f41e750373e12b380",
+      "candidates.vcf": "a632427b2fa2f66d8cb886d9d351ac8ed82ce1ef9f7677b595f08d8930d43f86",
+      "likelihoods.bcf": "d0b6d279cf4313d865fb6fee046b1f6ee2a79963a44dd34c0b8f1a74973f3730"
+    }
+  },
+  "candidate_evidence": [
+    [
+      "seq1",
+      "548",
+      36,
+      17
+    ],
+    [
+      "seq1",
+      "1294",
+      34,
+      16
+    ],
+    [
+      "seq2",
+      "505",
+      44,
+      22
+    ],
+    [
+      "seq2",
+      "1344",
+      27,
+      12
+    ]
+  ],
+  "verified_loci": 3159,
+  "outputs": {},
+  "passed": false,
+  "error": "fresh/reused evidence differs: reused-candidates.tsv"
+}

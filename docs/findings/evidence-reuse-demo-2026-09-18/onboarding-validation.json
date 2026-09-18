@@ -1,0 +1,25 @@
+{
+  "platform": "Darwin",
+  "architecture": "arm64",
+  "native_binary_sha256": "7a07689d345abd97ae227908af984ec0dc4038604667cd4d92383177bf609193",
+  "native_binary_source": "9b8e12f3b6e802d2103c5ebeb5ff89a08c8d85ce",
+  "script_unit_tests": 44,
+  "script_tests_passed": true,
+  "staged_guides": 47,
+  "readme_native_markers": [
+    "readme-candidates",
+    "readme-save"
+  ],
+  "readme_wheel_markers": [
+    "readme-candidates",
+    "readme-save",
+    "readme-reuse"
+  ],
+  "fixture_reused_from": "researcher-quickstart",
+  "original_input_copies_removed_before_python_reuse": true,
+  "fresh_and_saved_tsv_equal": true,
+  "registry_installation_tested": false,
+  "full_sdk_smoke_repeated": false,
+  "staged_demo_passed": true,
+  "staged_demo_output_hashes_match_recording": true
+}
