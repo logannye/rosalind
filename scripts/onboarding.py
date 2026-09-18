@@ -6,8 +6,10 @@ import hashlib
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
@@ -228,6 +230,93 @@ def candidate_config(source, native_version):
     )
 
 
+def research_snippet(markdown, marker, python, binary, work):
+    """Bind documented shell examples to one isolated smoke invocation.
+
+    The examples remain directly runnable for readers. Only setup, interpreter,
+    binary, and temporary paths are adapted here; analysis commands and the reuse
+    program come from the packaged Markdown rather than a second implementation.
+    """
+    program = snippet(markdown, marker, "sh")
+    quoted_python = shlex.quote(str(python))
+    if marker == "researcher-quickstart":
+        setup = ("python3 -m venv /tmp/rosalind-tutorial-env\n"
+                 "/tmp/rosalind-tutorial-env/bin/pip install pysam==0.23.3\n")
+        if program.count(setup) != 1:
+            raise ValueError("researcher setup changed; review isolated smoke binding")
+        program = program.replace(setup, "")
+        program, python_count = re.subn(
+            r"(?m)^(?:/tmp/rosalind-tutorial-env/bin/python|python3)(?=\s)",
+            lambda _: quoted_python, program,
+        )
+        program, binary_count = re.subn(
+            r"(?m)^(?:target/debug/rosalind|\./rosalind)(?=\s)",
+            lambda _: shlex.quote(str(binary)), program,
+        )
+        if python_count != 2 or binary_count != 3:
+            raise ValueError("researcher launch commands changed; review isolated smoke binding")
+        program = program.replace("/tmp/research-filter", shlex.quote(str(work / "inputs")))
+    elif marker == "reuse-quickstart":
+        program, count = re.subn(
+            r"^/tmp/rosalind-reuse-env/bin/python(?=\s)",
+            lambda _: quoted_python, program,
+        )
+        if count != 1:
+            raise ValueError("reuse Python launcher changed; review isolated smoke binding")
+    else:
+        raise ValueError(f"unknown researcher smoke marker: {marker}")
+    # An explicitly supplied interpreter may itself live at a tutorial path.
+    # Inspect only text that was not bound to the caller's selected paths.
+    unbound = program
+    for selected in (quoted_python, shlex.quote(str(binary)), shlex.quote(str(work / "inputs"))):
+        unbound = unbound.replace(selected, "")
+    if any(path in unbound for path in ("/tmp/rosalind-tutorial-env",
+                                        "/tmp/rosalind-reuse-env", "/tmp/research-filter")):
+        raise ValueError("researcher smoke still contains a shared temporary path")
+    return program
+
+
+def smoke_research_workflows(bundle, binary, python, work, environment):
+    """Execute both packaged researcher workflows outside the source checkout."""
+    root = work / "research-workflows"
+    root.mkdir()
+    scratch = root / "temporary"
+    scratch.mkdir()
+    environment = environment.copy()
+    for name in ("TMPDIR", "TMP", "TEMP"):
+        environment[name] = str(scratch)
+    if python is None:
+        # Native bundles have no Python installation. Install preparation-only
+        # dependencies in this invocation's environment, never a global /tmp path.
+        private_environment = root / "venv"
+        command([sys.executable, "-m", "venv", private_environment], env=environment)
+        python = python_executable(private_environment / "bin/python")
+        command([python, "-m", "pip", "install", "pysam==0.23.3"], env=environment)
+    else:
+        python = python_executable(python)
+    command([python, "-c", "import pysam; assert pysam.__version__ == '0.23.3', pysam.__version__"],
+            cwd=root, env=environment)
+    # The reuse program discovers 'rosalind' on PATH. Bind that name to the exact
+    # supplied binary even when its filename differs or another CLI is installed.
+    launchers = root / "bin"
+    launchers.mkdir()
+    (launchers / "rosalind").symlink_to(binary)
+    environment["PATH"] = str(launchers) + os.pathsep + environment.get("PATH", "")
+    for document, marker in (
+        ("examples/research-filter/README.md", "researcher-quickstart"),
+        ("docs/reuse-quickstart.md", "reuse-quickstart"),
+    ):
+        run = root / marker
+        assets = run / "examples/research-filter"
+        assets.mkdir(parents=True)
+        for name in ("prepare.py", "join.py", "sources.json"):
+            shutil.copy2(bundle / "examples/research-filter" / name, assets / name)
+        program = research_snippet((bundle / document).read_text(), marker, python, binary, run)
+        print(f"packaged {marker}: binary={binary}; python={python}; cwd={run}", flush=True)
+        command(["bash", "-euo", "pipefail", "-c", program], cwd=run, env=environment)
+        print(f"packaged {marker}: passed outside the checkout", flush=True)
+
+
 def smoke(args):
     bundle = args.bundle.resolve()
     binary = args.binary.resolve(strict=True)
@@ -256,6 +345,7 @@ def smoke(args):
             print(f"SDK origin: explicit candidate source {source}; not registry validation", flush=True)
         else:
             print(f"SDK origin: registry-only exact version {native_version}", flush=True)
+        smoke_research_workflows(bundle, binary, args.python, work, environment)
         for marker, project in (("legacy-scaffold", "locus-qc"),
                                 ("evidence-scaffold", "candidate-qc")):
             sdk = snippet((bundle / "docs/analyzer-sdk.md").read_text(), marker, "sh")

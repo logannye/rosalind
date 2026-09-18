@@ -1,5 +1,5 @@
 name: 'Rosalind deterministic analysis contract'
-description: 'Plan, govern, verify, and retain a deterministic per-locus genomics artifact.'
+description: 'Legacy variants/features/coverage wrapper; exact evidence and dataset commands require the maintained evidence workflows.'
 author: 'logannye'
 branding:
   icon: 'shield'
@@ -21,7 +21,7 @@ inputs:
     description: 'Declared memory budget in MiB. The run is refused up front (exit 3) or fails after (exit 4) if the realized peak exceeds it.'
     required: true
   max-depth:
-    description: 'Active-set depth cap (the bound the contract relies on). 0 = uncapped (then --enforce is rejected).'
+    description: 'Legacy active-set capacity; current source fails at capacity without sampling. 0 = uncapped (then --enforce is rejected).'
     required: false
     default: '1000'
   max-read-len:
@@ -33,7 +33,7 @@ inputs:
     required: false
     default: 'calls.vcf'
   analyzer:
-    description: 'variants, features, or coverage.'
+    description: 'Legacy variants, features, or coverage; evidence and panel-qc are not supported by this wrapper.'
     required: false
     default: 'variants'
   format:

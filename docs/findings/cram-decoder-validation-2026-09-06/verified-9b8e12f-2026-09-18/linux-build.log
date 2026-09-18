@@ -1,0 +1,4 @@
+   Compiling rosalind-build-info v0.1.0 (/source/crates/build-info)
+   Compiling rosalind-receipt v0.3.0 (/source/crates/receipt)
+   Compiling rosalind-bio v0.5.0 (/source)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 14.52s

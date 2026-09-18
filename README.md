@@ -1,10 +1,10 @@
 # Rosalind
 
 [![CI](https://github.com/logannye/rosalind/actions/workflows/ci.yml/badge.svg)](https://github.com/logannye/rosalind/actions/workflows/ci.yml)
-[![crates.io](https://img.shields.io/crates/v/rosalind-bio?logo=rust&label=crates.io&color=orange)](https://crates.io/crates/rosalind-bio)
+[![Latest published release](https://img.shields.io/github/v/release/logannye/rosalind)](https://github.com/logannye/rosalind/releases/latest)
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/license-MIT%20OR%20Apache--2.0-blue)](#license)
 
-**Turn short-read alignments into reusable, verifiable genomic evidence.**
+**Reusable genomic evidence for research and analysis tools.**
 
 Rosalind is a CLI, Rust library, and Python interface for researchers inspecting
 candidate SNVs and target regions, and builders developing analyses on that evidence.
@@ -15,9 +15,10 @@ Its core idea: **memory settings control how work is scheduled, without changing
 successful scientific results.** Smaller tiles can trade memory for extra indexed
 I/O. Counts remain exact; insufficient resources cause refusal or an explicit failure.
 
-**Development preview:** these features are in the 0.5.0 source tree. The older
-published packages do not include them. Build from source below while the first
-feature-bearing release candidate completes publication. See
+**Development preview:** these features are in the 0.5.0 source tree. The latest
+public stable release is 0.1.0 and does not provide this evidence workflow.
+Use the [source installation guide](docs/installation.md) for the features below;
+a source version or candidate build does not establish package publication. See
 [implementation status](docs/implementation-status.md) for verified capabilities
 and [release gates](docs/ROADMAP.md) for what remains.
 
@@ -33,7 +34,15 @@ and [release gates](docs/ROADMAP.md) for what remains.
 
 ## Get started
 
-Build with Rust 1.83 or newer and the
+Choose a starting point:
+
+- **[Analyze my data](docs/researcher-quickstart.md)**: inspect supplied SNVs, interpret evidence, verify, and replay.
+- **[Build an analyzer](docs/builder-quickstart.md)**: implement a bounded analyzer over live or saved evidence.
+
+Then [reuse saved evidence](docs/reuse-quickstart.md) to answer a second question,
+or browse [all documentation](docs/index.md) for concepts, workflows, and troubleshooting.
+
+For the current source preview, build with Rust 1.83 or newer and the
 [native build prerequisites](docs/analyzer-sdk.md#build-prerequisites):
 
 ```sh
@@ -109,11 +118,13 @@ not biological validity or authorship. See [receipts and trust](docs/receipts-an
 
 | Start here | Guide |
 |---|---|
-| Research workflow | [Candidate evidence and filtering](examples/research-filter/README.md) |
+| Install the right version | [Stable release versus source preview](docs/installation.md) |
+| Research workflow | [Researcher quickstart](docs/researcher-quickstart.md) · [Pinned real-data tutorial](examples/research-filter/README.md) |
+| Understand the results | [Core concepts](docs/concepts.md) · [Troubleshooting](docs/troubleshooting.md) |
 | Variant interoperability | [VCF/BCF annotation](docs/variant-annotation.md) |
-| Repeated analysis | [Portable datasets, cache, and resume](docs/reusable-evidence.md) |
-| Workflow integration | [Nextflow](integrations/nextflow/) · [Snakemake](integrations/snakemake/) |
-| Builder extension | [Rust SDK](docs/analyzer-sdk.md) · [Python](python/README.md) |
+| Repeated analysis | [Executable reuse quickstart](docs/reuse-quickstart.md) · [Dataset reference](docs/reusable-evidence.md) |
+| Workflow integration | [Integration guide](docs/workflow-integration.md) · [Nextflow](integrations/nextflow/) · [Snakemake](integrations/snakemake/) |
+| Builder extension | [Builder quickstart](docs/builder-quickstart.md) · [Rust SDK](docs/analyzer-sdk.md) · [Python](python/README.md) |
 | Validation | [Implementation status](docs/implementation-status.md) · [Benchmarks and limits](docs/benchmarks-and-limitations.md) |
 | Try a real task and report results | [Researcher and builder validation kit](docs/adoption-validation.md) |
 | Contribute | [Contributor guide](CONTRIBUTING.md) · [Roadmap](docs/ROADMAP.md) · [Security](SECURITY.md) · [Citation](CITATION.cff) |

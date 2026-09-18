@@ -1,5 +1,11 @@
 # Analyzer SDK
 
+The managed evidence API is the default choice for new reducers. Start with the
+[builder quickstart](builder-quickstart.md) for a complete build, useful statistic
+change, saved-evidence run and replay. This guide describes current source and the
+unpublished evidence candidate; public stable v0.1.0 does not provide this API.
+
+
 ## Build prerequisites
 
 An installed native binary or wheel needs no Rust compiler. Building Rosalind or
@@ -20,6 +26,26 @@ On macOS, install Xcode Command Line Tools (`xcode-select --install`) and, with
 Homebrew, `brew install cmake pkg-config xz`. Python source wheel builds additionally
 need Python 3.9+ and Maturin; see [Python installation](../python/README.md).
 
+## Candidate dependency setup
+
+Generate the project first, then apply these patches **before its first Cargo
+command**. Use paths to the same checkout that produced the generator binary.
+
+For an unpublished checkout or candidate, add explicit local patches to the
+generated analyzer `Cargo.toml` before running Cargo. Replace the example paths
+with absolute paths to that same candidate checkout:
+
+```toml
+[patch.crates-io]
+rosalind-bio = { path = "/absolute/path/to/rosalind" }
+rosalind-build-info = { path = "/absolute/path/to/rosalind/crates/build-info" }
+```
+
+This validates the candidate SDK, not a registry installation. Remove those
+patches and regenerate the lockfile to validate a subsequently published SDK.
+The maintained package smokes distinguish `--candidate-source PATH` from
+`--registry-sdk`; only the latter tests registry-only resolution.
+
 ## Exact evidence consumers
 
 Use `rosalind::evidence::run_evidence_artifact` for new standalone exact short-read
@@ -32,7 +58,8 @@ inputs, finalizes the analyzer, and publishes the output and receipt together.
 `EvidenceArtifactSource::Native` reads indexed BAM/CRAM plus a local reference.
 CRAM uses the [checked decoder profile](SEMANTICS.md#cram-decoder-admission),
 including one complete cooperative validation pass before indexed extraction.
-Its cost and decoder envelope are recorded separately from queried record visits.
+Native decoding can allocate before the next checkpoint during that pass; neither
+its plan nor sampled RSS proves prospective allocation control. Its cost and decoder envelope are recorded separately from queried record visits.
 `EvidenceArtifactSource::Dataset` reads a verified portable dataset without reopening
 its original BAM/reference. Both feed canonical batches to the same analyzer. Dataset
 queries require complete locus coverage and available fields; stored profile/sample
@@ -49,10 +76,12 @@ cargo build --release --locked --offline
 rosalind conformance analyzer --api evidence --binary ./target/release/candidate-qc --json > conformance.json
 ```
 
+For an unpublished generator, stop after `rosalind new analyzer` above and apply
+the [candidate patches](#candidate-dependency-setup) before `cargo test`.
 The source example uses local Cargo dependencies. Native bundles include its
 manifest, lockfile, build script, and Rust source, with dependencies rendered to the
 bundle's exact registry SDK versions. `ONBOARDING-BUNDLE.json` records those changes.
-An unpublished candidate needs the explicit source patches described below.
+An unpublished candidate needs the explicit source patches described above.
 
 An analyzer declares `EvidenceRequirements`: field capabilities, whether real
 reference bases are required, flanking context, and a conservative peak retained
@@ -72,8 +101,10 @@ do not depend on execution microtile width or persisted partition layout.
 Groups such as `row.depths` and `row.alleles` are optional borrowed values. Check
 capabilities before reading metrics; absence never means zero. Copies retained
 after a callback belong to
-the analyzer's memory model. Use checked integer reducers and deterministic order;
-do not retain a genome table, timestamps, random identifiers, or unordered output.
+the analyzer's memory model. Use checked integer reducers and deterministic order. Admitted budgets and
+computation tiles must not alter the successful scientific result; output-affecting
+parameters belong in scientific identity, while the full receipt can also bind
+execution declarations. Do not retain a genome table, timestamps, random identifiers, or unordered output.
 `PanelQcAnalyzer` keeps state proportional to original target count and declares
 that memory. `FusedAnalyzers` combines two consumers over one traversal.
 
@@ -139,21 +170,6 @@ and leave `CARGO_TARGET_DIR` unset so the documented
 binary path is correct. The generated manifest pins the SDK version to the
 generating executable. It resolves from crates.io only after that exact version
 is published.
-
-For an unpublished checkout or candidate, add explicit local patches to the
-generated analyzer `Cargo.toml` before running Cargo. Replace the example paths
-with absolute paths to that same candidate checkout:
-
-```toml
-[patch.crates-io]
-rosalind-bio = { path = "/absolute/path/to/rosalind" }
-rosalind-build-info = { path = "/absolute/path/to/rosalind/crates/build-info" }
-```
-
-This validates the candidate SDK, not a registry installation. Remove those
-patches and regenerate the lockfile to validate a subsequently published SDK.
-The maintained package smokes distinguish `--candidate-source PATH` from
-`--registry-sdk`; only the latter tests registry-only resolution.
 
 `run_column_analysis(analyzer, spec)` owns reference/BAM validation, prediction,
 refusal, governance, atomic output, receipt sealing, and replay.

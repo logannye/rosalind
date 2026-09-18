@@ -1,0 +1,475 @@
+{
+  "binary": {
+    "sha256": "f6c18ea49e3b5b924bb95b6bf6bd8654b11957e7c0b03ecca3bf61783a501643",
+    "version": "rosalind 0.5.0"
+  },
+  "checks": [
+    "independent-sam-counts",
+    "hand-authored-missingness-and-summary",
+    "exclusive-filter-counters",
+    "relocated-offline-byte-equality",
+    "strict-missing-refusal",
+    "missing-fields-refusal",
+    "fresh-reuse-byte-equality",
+    "reuse-denominators",
+    "reused-artifact-verification"
+  ],
+  "commands": [
+    {
+      "argv": [
+        "<rosalind-binary>",
+        "analyze",
+        "evidence",
+        "--reference",
+        "<fixture-output>/raw/reference.fa",
+        "--alignments",
+        "<fixture-output>/raw/specimen-a.bam",
+        "--regions",
+        "<repository>/examples/cohort-reanalysis/specimen-a.bed",
+        "--fields",
+        "depths,alleles",
+        "--memory-budget-mb",
+        "128",
+        "--format",
+        "tsv",
+        "--output",
+        "<fixture-output>/validation/specimen-a-stored.tsv",
+        "--cache-dir",
+        "<fixture-output>/validation/specimen-a-cache"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "<rosalind-binary>",
+        "analyze",
+        "evidence",
+        "--reference",
+        "<fixture-output>/raw/reference.fa",
+        "--alignments",
+        "<fixture-output>/raw/specimen-b.bam",
+        "--regions",
+        "<repository>/examples/cohort-reanalysis/specimen-b.bed",
+        "--fields",
+        "depths,alleles",
+        "--memory-budget-mb",
+        "128",
+        "--format",
+        "tsv",
+        "--output",
+        "<fixture-output>/validation/specimen-b-stored.tsv",
+        "--cache-dir",
+        "<fixture-output>/validation/specimen-b-cache"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "<rosalind-binary>",
+        "analyze",
+        "evidence",
+        "--reference",
+        "<fixture-output>/raw/reference.fa",
+        "--alignments",
+        "<fixture-output>/raw/specimen-c.bam",
+        "--regions",
+        "<repository>/examples/cohort-reanalysis/specimen-c.bed",
+        "--fields",
+        "depths,alleles",
+        "--memory-budget-mb",
+        "128",
+        "--format",
+        "tsv",
+        "--output",
+        "<fixture-output>/validation/specimen-c-stored.tsv",
+        "--cache-dir",
+        "<fixture-output>/validation/specimen-c-cache"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "<rosalind-binary>",
+        "dataset",
+        "verify",
+        "--dataset",
+        "<fixture-output>/validation/portable/specimen-a/evidence-dataset.manifest.json"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "<rosalind-binary>",
+        "dataset",
+        "extract",
+        "--dataset",
+        "<fixture-output>/validation/portable/specimen-a/evidence-dataset.manifest.json",
+        "--regions",
+        "<repository>/examples/cohort-reanalysis/specimen-a.bed",
+        "--fields",
+        "depths,alleles",
+        "--format",
+        "tsv",
+        "--output",
+        "<fixture-output>/validation/specimen-a-offline.tsv"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "<rosalind-binary>",
+        "dataset",
+        "verify",
+        "--dataset",
+        "<fixture-output>/validation/portable/specimen-b/evidence-dataset.manifest.json"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "<rosalind-binary>",
+        "dataset",
+        "extract",
+        "--dataset",
+        "<fixture-output>/validation/portable/specimen-b/evidence-dataset.manifest.json",
+        "--regions",
+        "<repository>/examples/cohort-reanalysis/specimen-b.bed",
+        "--fields",
+        "depths,alleles",
+        "--format",
+        "tsv",
+        "--output",
+        "<fixture-output>/validation/specimen-b-offline.tsv"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "<rosalind-binary>",
+        "dataset",
+        "extract",
+        "--dataset",
+        "<fixture-output>/validation/portable/specimen-b/evidence-dataset.manifest.json",
+        "--sites",
+        "<repository>/examples/cohort-reanalysis/candidates.vcf",
+        "--format",
+        "tsv",
+        "--output",
+        "<fixture-output>/validation/specimen-b-missing.tsv"
+      ],
+      "exit_code": 3
+    },
+    {
+      "argv": [
+        "<rosalind-binary>",
+        "dataset",
+        "verify",
+        "--dataset",
+        "<fixture-output>/validation/portable/specimen-c/evidence-dataset.manifest.json"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "<rosalind-binary>",
+        "dataset",
+        "extract",
+        "--dataset",
+        "<fixture-output>/validation/portable/specimen-c/evidence-dataset.manifest.json",
+        "--regions",
+        "<repository>/examples/cohort-reanalysis/specimen-c.bed",
+        "--fields",
+        "depths,alleles",
+        "--format",
+        "tsv",
+        "--output",
+        "<fixture-output>/validation/specimen-c-offline.tsv"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "<rosalind-binary>",
+        "dataset",
+        "extract",
+        "--dataset",
+        "<fixture-output>/validation/portable/specimen-c/evidence-dataset.manifest.json",
+        "--sites",
+        "<repository>/examples/cohort-reanalysis/candidates.vcf",
+        "--format",
+        "tsv",
+        "--output",
+        "<fixture-output>/validation/specimen-c-missing.tsv"
+      ],
+      "exit_code": 3
+    },
+    {
+      "argv": [
+        "<rosalind-binary>",
+        "dataset",
+        "extract",
+        "--dataset",
+        "<fixture-output>/validation/portable/specimen-a/evidence-dataset.manifest.json",
+        "--fields",
+        "strands",
+        "--format",
+        "tsv",
+        "--output",
+        "<fixture-output>/validation/missing-fields.tsv"
+      ],
+      "exit_code": 3
+    },
+    {
+      "argv": [
+        "<rosalind-binary>",
+        "analyze",
+        "evidence",
+        "--reference",
+        "<fixture-output>/raw/reference.fa",
+        "--alignments",
+        "<fixture-output>/raw/specimen-a.bam",
+        "--sites",
+        "<repository>/examples/cohort-reanalysis/candidates.vcf",
+        "--fields",
+        "depths,alleles",
+        "--memory-budget-mb",
+        "128",
+        "--format",
+        "tsv",
+        "--output",
+        "<fixture-output>/validation/specimen-a-fresh.tsv"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "<rosalind-binary>",
+        "analyze",
+        "evidence",
+        "--reference",
+        "<fixture-output>/raw/reference.fa",
+        "--alignments",
+        "<fixture-output>/raw/specimen-a.bam",
+        "--sites",
+        "<repository>/examples/cohort-reanalysis/candidates.vcf",
+        "--fields",
+        "depths,alleles",
+        "--memory-budget-mb",
+        "128",
+        "--format",
+        "tsv",
+        "--output",
+        "<fixture-output>/validation/specimen-a-reused.tsv",
+        "--reuse-dataset",
+        "<fixture-output>/validation/portable/specimen-a/evidence-dataset.manifest.json",
+        "--workers",
+        "1"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "<rosalind-binary>",
+        "verify",
+        "--manifest",
+        "<fixture-output>/validation/specimen-a-reused.tsv.manifest.json"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "<rosalind-binary>",
+        "analyze",
+        "evidence",
+        "--reference",
+        "<fixture-output>/raw/reference.fa",
+        "--alignments",
+        "<fixture-output>/raw/specimen-b.bam",
+        "--sites",
+        "<repository>/examples/cohort-reanalysis/candidates.vcf",
+        "--fields",
+        "depths,alleles",
+        "--memory-budget-mb",
+        "128",
+        "--format",
+        "tsv",
+        "--output",
+        "<fixture-output>/validation/specimen-b-fresh.tsv"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "<rosalind-binary>",
+        "analyze",
+        "evidence",
+        "--reference",
+        "<fixture-output>/raw/reference.fa",
+        "--alignments",
+        "<fixture-output>/raw/specimen-b.bam",
+        "--sites",
+        "<repository>/examples/cohort-reanalysis/candidates.vcf",
+        "--fields",
+        "depths,alleles",
+        "--memory-budget-mb",
+        "128",
+        "--format",
+        "tsv",
+        "--output",
+        "<fixture-output>/validation/specimen-b-reused.tsv",
+        "--reuse-dataset",
+        "<fixture-output>/validation/portable/specimen-b/evidence-dataset.manifest.json",
+        "--workers",
+        "1"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "<rosalind-binary>",
+        "verify",
+        "--manifest",
+        "<fixture-output>/validation/specimen-b-reused.tsv.manifest.json"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "<rosalind-binary>",
+        "analyze",
+        "evidence",
+        "--reference",
+        "<fixture-output>/raw/reference.fa",
+        "--alignments",
+        "<fixture-output>/raw/specimen-c.bam",
+        "--sites",
+        "<repository>/examples/cohort-reanalysis/candidates.vcf",
+        "--fields",
+        "depths,alleles",
+        "--memory-budget-mb",
+        "128",
+        "--format",
+        "tsv",
+        "--output",
+        "<fixture-output>/validation/specimen-c-fresh.tsv"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "<rosalind-binary>",
+        "analyze",
+        "evidence",
+        "--reference",
+        "<fixture-output>/raw/reference.fa",
+        "--alignments",
+        "<fixture-output>/raw/specimen-c.bam",
+        "--sites",
+        "<repository>/examples/cohort-reanalysis/candidates.vcf",
+        "--fields",
+        "depths,alleles",
+        "--memory-budget-mb",
+        "128",
+        "--format",
+        "tsv",
+        "--output",
+        "<fixture-output>/validation/specimen-c-reused.tsv",
+        "--reuse-dataset",
+        "<fixture-output>/validation/portable/specimen-c/evidence-dataset.manifest.json",
+        "--workers",
+        "1"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "<rosalind-binary>",
+        "verify",
+        "--manifest",
+        "<fixture-output>/validation/specimen-c-reused.tsv.manifest.json"
+      ],
+      "exit_code": 0
+    }
+  ],
+  "expected_counts": "examples/cohort-reanalysis/expected.json",
+  "fixture": "cohort-contract-synthetic-v1",
+  "generator_sha256": "70de0bd9b2d79f81ee3ff2bc02c1eb36d810fc7cf710ee850a534e5452b674a6",
+  "not_established": [
+    "cohort API or snapshot implementation",
+    "representative cohort performance",
+    "independent users or partners",
+    "release acceptance"
+  ],
+  "offline_original_input_paths_unavailable": true,
+  "passed": true,
+  "path_placeholders": {
+    "<fixture-output>": "fresh directory prepared by prepare.py",
+    "<repository>": "checkout containing the fixture",
+    "<rosalind-binary>": "existing native binary with the recorded SHA256"
+  },
+  "preparation": {
+    "metadata_sha256": "88162543f9b7534bb93d129a1fc59089aac7a7cafc94a680696b593be9cbe2a0",
+    "prepared_sha256": {
+      "candidates.vcf": "428590b0bed84fc678db68f58716223a674525bdee7501f21d559ceb36e31a51",
+      "reference.fa": "63b8393197edd1124e37f262d20e3b90d8ce018c720fbe07853e848203c01a4b",
+      "reference.fa.fai": "ac856ead5043de8d89d7e62132da1052fed7c8b933c10e46da8a685f381b1501",
+      "specimen-a.bam": "986760cef994598db73ee7ce29bea8abb25d0a0e6a1200cfe7fb993c43bea411",
+      "specimen-a.bam.bai": "0bd01996ca4ccd40b0becf7f7a2d4d49c2108fe77e4da8307ef641998758534a",
+      "specimen-a.bed": "e81a7a66d729b6c668f0aa66c6c3f60b77251fa126d0db1c198aab1ab7e46a48",
+      "specimen-a.sam": "7a765dc08ff0ea693261877b7b14b95384712ab02f152cbcdf1ac436a7221d30",
+      "specimen-b.bam": "0d8b2e00cc87c2d4bc40165f4e0e24d62de7e1a8e005a05c61bd806bb546a297",
+      "specimen-b.bam.bai": "3fd14a6e2a8d397782bd896bd132acfb12e2299849e02341b259f777bdbc66dc",
+      "specimen-b.bed": "3e90648fec3bb321bcfc6815436c08a115499ddbbf6557cbc20e1fe0af0d625d",
+      "specimen-b.sam": "014d5b0eb537cecf875ced1f3efcb605a17d43ca28bbf32a222e18c0c9087275",
+      "specimen-c.bam": "63dcc41e07727bc4351e7489b9acad1893cdeb62168afd368a0c8c9af0c8505f",
+      "specimen-c.bam.bai": "6f490950924a605f9929a1d258289ca147af1da03e193ecaeeabf97a5eb8a288",
+      "specimen-c.bed": "ea104509bbf35e6ec89c880cf67aa420821e21d2bc0373e42b56087a82808cb5",
+      "specimen-c.sam": "b99bee1d075b8e48fc9d2b4d99a40823aa1c2d5aaba6ad7ed9091efbc51d7a0a"
+    },
+    "pysam": "0.23.3",
+    "python": "3.11.15",
+    "repeat_preparation_identical": true,
+    "samtools": "1.21",
+    "source_sha256": {
+      "candidates.vcf": "428590b0bed84fc678db68f58716223a674525bdee7501f21d559ceb36e31a51",
+      "expected.json": "c69e822c613b279636ced4b805889835ac05ccdadd030612d63357b70fd129fe",
+      "members.tsv": "8385b318e476f3cb4d1e38860708915f38c90a07ab10068d3d2dcb5bfde58fb5",
+      "reads.tsv": "ab92c141414137c8f241ad48016119d8a1c97afa581b74bb647c16bddd467601",
+      "reference.fa": "63b8393197edd1124e37f262d20e3b90d8ce018c720fbe07853e848203c01a4b",
+      "specimen-a.bed": "e81a7a66d729b6c668f0aa66c6c3f60b77251fa126d0db1c198aab1ab7e46a48",
+      "specimen-b.bed": "3e90648fec3bb321bcfc6815436c08a115499ddbbf6557cbc20e1fe0af0d625d",
+      "specimen-c.bed": "ea104509bbf35e6ec89c880cf67aa420821e21d2bc0373e42b56087a82808cb5"
+    }
+  },
+  "preparation_command": [
+    "<pysam-python>",
+    "<repository>/examples/cohort-reanalysis/prepare.py",
+    "<fixture-output>"
+  ],
+  "recorded": "2026-09-18",
+  "refusal_outputs_absent": true,
+  "reuse": {
+    "specimen-a": {
+      "computed_loci": 0,
+      "reused_loci": 4
+    },
+    "specimen-b": {
+      "computed_loci": 1,
+      "reused_loci": 3
+    },
+    "specimen-c": {
+      "computed_loci": 1,
+      "reused_loci": 3
+    }
+  },
+  "schema": 1,
+  "scope": "Existing single-sample extraction/dataset/reuse checks; no cohort implementation or user validation.",
+  "validation_command": [
+    "<pysam-python>",
+    "<repository>/examples/cohort-reanalysis/validate.py",
+    "<fixture-output>",
+    "--binary",
+    "<rosalind-binary>"
+  ],
+  "validator_sha256": "7c60bdc44a5916165611d3a7c4982c82a5d6d6a8fb65a0ce7ab733cb9dac5edb"
+}

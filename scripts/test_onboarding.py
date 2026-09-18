@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -109,13 +110,9 @@ class OnboardingTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             bundle = root / "bundle"
-            bundle.mkdir()
-            self.fixture(bundle)
-            (bundle / "docs/analyzer-sdk.md").write_text(
-                (REPOSITORY / "docs/analyzer-sdk.md").read_text()
-                .replace("../examples/evidence-analyzer/", "../example/")
-                .replace("SEMANTICS.md", "semantics.md")
-            )
+            # Exercise the full current guide closure; new navigation links must
+            # not require a hand-maintained subset or rewritten guide prose.
+            ONBOARDING.stage_guides(REPOSITORY, bundle)
             commands = root / "bin"
             commands.mkdir()
             binary = commands / "rosalind"
@@ -141,7 +138,12 @@ else:
 import os
 import pathlib
 import sys
-project = pathlib.Path.cwd().name
+project_path = (pathlib.Path(sys.argv[sys.argv.index("--manifest-path") + 1]).parent
+                if "--manifest-path" in sys.argv else pathlib.Path.cwd())
+project = project_path.name
+if project == "evidence-analyzer":
+    assert sys.argv[1] in ("fetch", "test")
+    sys.exit(0)
 assert project in ("locus-qc", "candidate-qc")
 assert pathlib.Path(os.environ["CARGO_HOME"]).name == "cargo-home"
 assert "CARGO_TARGET_DIR" not in os.environ
@@ -157,8 +159,108 @@ if sys.argv[1] == "build":
             cargo.chmod(0o755)
             args = argparse.Namespace(bundle=bundle, binary=binary, python=None,
                                       candidate_source=None, registry_sdk=True)
-            with patch.dict(os.environ, {"CARGO_TARGET_DIR": "must-not-leak"}):
+            with patch.dict(os.environ, {"CARGO_TARGET_DIR": "must-not-leak"}), \
+                    patch.object(ONBOARDING, "smoke_research_workflows") as research:
                 ONBOARDING.smoke(args)
+            research.assert_called_once()
+            self.assertEqual(research.call_args.args[:3], (bundle.resolve(), binary.resolve(), None))
+
+    def test_researcher_example_uses_exact_launchers_and_quoted_private_paths(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            work = root / "work space ' $(touch quoting-escaped)"
+            work.mkdir()
+            log = root / "launches.jsonl"
+            launchers = root / "chosen launchers"
+            launchers.mkdir()
+            logger = "#!" + sys.executable + "\n" + r'''
+import json
+import os
+from pathlib import Path
+import sys
+with Path(os.environ["ONBOARDING_TEST_LOG"]).open("a") as output:
+    output.write(json.dumps([sys.argv[0], *sys.argv[1:]]) + "\n")
+if len(sys.argv) > 2 and sys.argv[1].endswith("prepare.py"):
+    Path(sys.argv[2]).mkdir()
+'''
+            python = launchers / "selected-python"
+            binary = launchers / "selected-native"
+            for executable in (python, binary):
+                executable.write_text(logger)
+                executable.chmod(0o755)
+            markdown = (REPOSITORY / "examples/research-filter/README.md").read_text()
+            program = ONBOARDING.research_snippet(markdown, "researcher-quickstart",
+                                                  python, binary, work)
+            environment = dict(os.environ, ONBOARDING_TEST_LOG=str(log))
+            subprocess.run(["bash", "-euo", "pipefail", "-c", program],
+                           cwd=work, env=environment, check=True)
+            launches = [json.loads(line) for line in log.read_text().splitlines()]
+            self.assertEqual([Path(args[0]) for args in launches],
+                             [python, binary, python, binary, binary])
+            self.assertEqual(launches[0][-1], str(work / "inputs"))
+            self.assertIn(str(work / "inputs/candidates.evidence.vcf"), launches[1])
+            self.assertTrue((work / "inputs/research-review.tsv").is_file())
+            self.assertFalse((work / "quoting-escaped").exists())
+            self.assertNotIn("/tmp/research-filter", program)
+            self.assertNotIn("/tmp/rosalind-tutorial-env", program)
+            bundled = markdown.replace("target/debug/rosalind", "./rosalind")
+            self.assertEqual(ONBOARDING.research_snippet(bundled, "researcher-quickstart",
+                                                       python, binary, work), program)
+            # Linux commonly places the smoke's own unique root under /tmp.
+            private = Path("/tmp/rosalind-onboarding-unique/research-workflows/researcher")
+            self.assertIn(str(private / "inputs"), ONBOARDING.research_snippet(
+                markdown, "researcher-quickstart", python, binary, private))
+            # A caller may explicitly select an existing tutorial environment;
+            # it must remain the selected interpreter rather than get replaced.
+            selected = Path("/tmp/rosalind-reuse-env/bin/python")
+            reuse = (REPOSITORY / "docs/reuse-quickstart.md").read_text()
+            self.assertTrue(ONBOARDING.research_snippet(
+                reuse, "reuse-quickstart", selected, binary, private).startswith(str(selected)))
+
+    def test_research_smoke_isolates_dependencies_tempfiles_and_exact_binary(self):
+        for supplied_python in (True, False):
+            with self.subTest(supplied_python=supplied_python), \
+                    tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                bundle = root / "bundle"
+                ONBOARDING.stage_guides(REPOSITORY, bundle)
+                work = root / "smoke"
+                work.mkdir()
+                binary = root / "exact-selected-native"
+                binary.write_text("not executed by this orchestration test")
+                python = ONBOARDING.python_executable(sys.executable) if supplied_python else None
+                calls = []
+
+                def record(args, **kwargs):
+                    args = list(map(str, args))
+                    calls.append((args, kwargs))
+                    if args[1:3] == ["-m", "venv"]:
+                        interpreter = Path(args[3]) / "bin/python"
+                        interpreter.parent.mkdir(parents=True)
+                        interpreter.symlink_to(sys.executable)
+
+                with patch.object(ONBOARDING, "command", side_effect=record):
+                    ONBOARDING.smoke_research_workflows(bundle, binary, python, work,
+                                                       {"PATH": "/intentionally-unrelated"})
+                research_root = work / "research-workflows"
+                expected_python = python or research_root / "venv/bin/python"
+                launched = [entry for entry in calls if entry[0][0] == "bash"]
+                self.assertEqual(len(launched), 2)
+                for _, kwargs in calls:
+                    for name in ("TMPDIR", "TMP", "TEMP"):
+                        self.assertEqual(Path(kwargs["env"][name]), research_root / "temporary")
+                for args, kwargs in launched:
+                    self.assertTrue(Path(kwargs["cwd"]).is_relative_to(work))
+                    self.assertTrue((Path(kwargs["cwd"]) / "examples/research-filter/prepare.py").is_file())
+                    self.assertIn(str(expected_python), args[-1])
+                    self.assertNotIn("/tmp/rosalind-", args[-1])
+                    selected = Path(kwargs["env"]["PATH"].split(os.pathsep)[0]) / "rosalind"
+                    self.assertEqual(selected.resolve(), binary.resolve())
+                self.assertEqual(len([args for args, _ in calls if args[1:3] == ["-m", "venv"]]),
+                                 0 if supplied_python else 1)
+                installs = [args for args, _ in calls if args[1:4] == ["-m", "pip", "install"]]
+                self.assertEqual(installs, [] if supplied_python else [
+                    [str(expected_python), "-m", "pip", "install", "pysam==0.23.3"]])
 
     def test_candidate_source_version_must_match_packaged_cli(self):
         with tempfile.TemporaryDirectory() as temporary:

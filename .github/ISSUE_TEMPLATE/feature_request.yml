@@ -1,0 +1,36 @@
+name: Scientific workflow or builder feature
+description: Describe a useful task and the work a new capability would avoid
+title: "[Feature] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: "Describe your task without private genomic data, patient details, credentials, or private receipts. See the current roadmap before requesting an existing capability."
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Current workflow and intended user
+      description: What question are you answering, and which steps/tools do you use today?
+    validations:
+      required: true
+  - type: textarea
+    id: inputs
+    attributes:
+      label: Inputs and approximate scale
+      description: Formats, samples, selected loci/targets, counting unit, and resources; use anonymous descriptions.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Desired output and success criterion
+      description: What result would make this useful, and how would you check it?
+    validations:
+      required: true
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Current workaround and work avoided
+      description: Describe recurring processing or integration effort; separate estimates from measurements.
+    validations:
+      required: true

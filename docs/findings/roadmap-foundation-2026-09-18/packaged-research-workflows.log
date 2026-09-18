@@ -1,0 +1,123 @@
+FOUNDATION DOCUMENTATION WORKFLOW VALIDATION
+Modified staged guides and onboarding harness; clean installed 9b8e12f candidate runtime.
+This is a local macOS arm64 / Python 3.11 documentation check, not an all-platform or final-source package claim.
+{
+  "schema": 1,
+  "started_utc": "2026-09-18T16:45:38.465767+00:00",
+  "validation_kind": "modified foundation documentation/harness on clean installed candidate runtime",
+  "scope": "macOS arm64 Python 3.11; researcher/reuse workflows, README CLI example, and pinned-fixture denominator audit",
+  "exclusions": [
+    "not all-platform package validation",
+    "not final foundation source package validation",
+    "not a performance benchmark",
+    "not independent user adoption"
+  ],
+  "runtime_source_commit": "9b8e12f3b6e802d2103c5ebeb5ff89a08c8d85ce",
+  "runtime_source_attribution": "clean frozen candidate identified by candidate validation agent; installed wheel hashes verified here",
+  "harness_checkout_head": "c824bc6f48014a6705ed6adeb83287138d1c86ac",
+  "harness_checkout_dirty": true,
+  "source_sha256": {
+    "scripts/onboarding.py": "458f24f7d8a370a05cab3ef296721ede5ef46d06370b232eb138f972756311a9",
+    "README.md": "d133a510a28fad0d9d593a3111ad027c532c0fbee9dabdf419851c794f253556",
+    "docs/researcher-quickstart.md": "6031e4c9b3ed726b6c982178cbd31e40db4935a1fe1001386fd764cfa7e330bf",
+    "docs/reuse-quickstart.md": "512c89788b6d8c9479f8d7fdb0e5d6777feb381a7bdec818ce642b4998d9159e",
+    "docs/concepts.md": "33613e11793270d9d04e6e7841ac9523211f25302f1c7a4e6a1bc535e5e0d586",
+    "examples/research-filter/README.md": "022f448a8af1feaa146d97b5fee6e5f6960a0afdb820c14409d4e28e0f002ad2",
+    "examples/research-filter/prepare.py": "770a01b099fd51a820517cada4449017946aacb7474b715ff378ce2c2d8f0357",
+    "examples/research-filter/join.py": "0148a7a0fe29e3a31f69bc842c408c589462ebb1192b910fbede873c96963f9f",
+    "examples/research-filter/sources.json": "0380a67da2da0e6e647ff92bf135843c6eae85a27c296b5a04fd410e027830fc"
+  },
+  "runtime_binary": "/private/tmp/rosalind-validation-20260918-py311/bin/rosalind",
+  "runtime_binary_sha256": "7a07689d345abd97ae227908af984ec0dc4038604667cd4d92383177bf609193",
+  "wheel": "/tmp/rosalind-validation-20260918-results/candidate-wheels/rosalind_bio-0.5.0-py3-none-macosx_11_0_arm64.whl",
+  "wheel_sha256": "831148614233ac932487f5064784da801cca78d514f85f3fe3d3355ac3a30d63",
+  "python_executable": "/tmp/rosalind-validation-20260918-py311/bin/python",
+  "python_version": "3.11.15 (main, Mar 25 2026, 02:58:47) [Clang 22.1.1 ]",
+  "platform": "macOS-26.2-arm64-arm-64bit",
+  "pysam_version": "0.23.3",
+  "pyarrow_version": "25.0.0",
+  "installed_rosalind_version": "0.5.0",
+  "installed_rosalind_path": "/tmp/rosalind-validation-20260918-py311/lib/python3.11/site-packages/rosalind/__init__.py",
+  "installed_distribution_direct_url": {
+    "url": "file:///tmp/rosalind-validation-20260918-results/candidate-wheels/rosalind_bio-0.5.0-py3-none-macosx_11_0_arm64.whl",
+    "archive_info": {}
+  },
+  "validation_script_sha256": "b9cc43da5dd14c6a2b1eaf31e0bdf77a5e5528feb3707dececacd0eee37c1267"
+}
+packaged researcher-quickstart: binary=/private/tmp/rosalind-validation-20260918-py311/bin/rosalind; python=/tmp/rosalind-validation-20260918-py311/bin/python; cwd=/private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-installed-docs-iazty91b/work/research-workflows/researcher-quickstart
+Prepared 4 independently generated candidate SNVs in /private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-installed-docs-iazty91b/work/research-workflows/researcher-quickstart/inputs
+evidence: 4 loci; peak RSS 12 MiB; 1988 record visits; receipt /private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-installed-docs-iazty91b/work/research-workflows/researcher-quickstart/inputs/evidence.tsv.manifest.json
+verify: peak 12 MiB within budget 256 MiB
+verify: evidence records process RSS; individual internal allocations are modeled, not measured
+verify: OK — 5 input(s), 2 output(s) match
+  claim       : 8bd5b9034a (re-derived)
+  code        : (build-identity unavailable)
+  inputs      : 5 file(s) located by content hash
+  output      : output[0]  OK byte-identical (blake3 1ad3142683)
+  output      : output[1]  OK byte-identical (blake3 9bf5038c8e)
+  VERDICT     : REPRODUCED
+  -> wrote reproduction certificate: /private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-installed-docs-iazty91b/work/research-workflows/researcher-quickstart/inputs/evidence.tsv.manifest.json.repro.json (chains to 8bd5b9034a)
+packaged researcher-quickstart: passed outside the checkout
+packaged reuse-quickstart: binary=/private/tmp/rosalind-validation-20260918-py311/bin/rosalind; python=/tmp/rosalind-validation-20260918-py311/bin/python; cwd=/private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-installed-docs-iazty91b/work/research-workflows/reuse-quickstart
+Prepared 4 independently generated candidate SNVs in /private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-installed-docs-iazty91b/work/research-workflows/temporary/rosalind-reuse-4mzibzaw/inputs
+evidence: 2 loci; peak RSS 9 MiB; 848 record visits; receipt /private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-installed-docs-iazty91b/work/research-workflows/temporary/rosalind-reuse-4mzibzaw/fresh-candidates.arrow.manifest.json
+evidence: 3159 loci; peak RSS 9 MiB; 3307 record visits; receipt /private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-installed-docs-iazty91b/work/research-workflows/temporary/rosalind-reuse-4mzibzaw/fresh-panel.tsv.manifest.json
+evidence: 3159 loci; peak RSS 11 MiB; 3307 record visits; receipt /private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-installed-docs-iazty91b/work/research-workflows/temporary/rosalind-reuse-4mzibzaw/all-evidence.arrow.manifest.json
+{"dataset_namespace":"0ffc5ae083bb776d57a8f9d6a052008f3a7d6a52ff0c6009bf1b6065c7930662","original_sources_rehashed":false,"status":"verified","verified_loci":3159,"verified_partition_files":4}
+verify: peak 10 MiB within budget 256 MiB
+verify: evidence records process RSS; individual internal allocations are modeled, not measured
+verify: OK — 5 input(s), 1 output(s) match
+verify: peak 9 MiB within budget 256 MiB
+verify: evidence records process RSS; individual internal allocations are modeled, not measured
+verify: OK — 7 input(s), 1 output(s) match
+Verified identical candidate evidence and panel QC without original inputs.
+Inspect the dataset, outputs, and receipts in: /private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-installed-docs-iazty91b/work/research-workflows/temporary/rosalind-reuse-4mzibzaw
+packaged reuse-quickstart: passed outside the checkout
+Executing the primary README analyze/verify shell block verbatim with staged fixture names:
+rosalind analyze evidence \
+  --reference genome.fa --alignments sample.sorted.bam --sites candidates.vcf \
+  --memory-budget-mb 256 --format arrow-ipc --output evidence.arrow
+
+rosalind verify --manifest evidence.arrow.manifest.json
+evidence: 4 loci; peak RSS 9 MiB; 1988 record visits; receipt evidence.arrow.manifest.json
+verify: peak 9 MiB within budget 256 MiB
+verify: evidence records process RSS; individual internal allocations are modeled, not measured
+verify: OK — 5 input(s), 1 output(s) match
+Checking full-target denominators and separate overlapping targets: ["/private/tmp/rosalind-validation-20260918-py311/bin/rosalind", "analyze", "panel-qc", "--reference", "/private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-installed-docs-iazty91b/work/research-workflows/researcher-quickstart/inputs/ex1.fa", "--alignments", "/private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-installed-docs-iazty91b/work/research-workflows/researcher-quickstart/inputs/sample.bam", "--regions", "/private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-installed-docs-iazty91b/work/readme-example/targets.bed", "--min-callable-depth", "10", "--memory-budget-mb", "256", "--position-output", "/private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-installed-docs-iazty91b/work/readme-example/positions.arrow", "--output", "/private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-installed-docs-iazty91b/work/readme-example/panel.tsv"]
+evidence: 3159 loci; peak RSS 25 MiB; 3307 record visits; receipt /private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-installed-docs-iazty91b/work/readme-example/panel.tsv.manifest.json
+verify: peak 25 MiB within budget 256 MiB
+verify: evidence records process RSS; individual internal allocations are modeled, not measured
+verify: OK — 5 input(s), 2 output(s) match
+Observed pinned-fixture denominator audit: [
+  {
+    "target": "seq1-full",
+    "length": 1575,
+    "zero_depth_positions": 6,
+    "callable_depth_sum": 48069,
+    "positions_at_least_10x": 1493
+  },
+  {
+    "target": "seq2-full",
+    "length": 1584,
+    "zero_depth_positions": 17,
+    "callable_depth_sum": 58873,
+    "positions_at_least_10x": 1517
+  },
+  {
+    "target": "overlap-first",
+    "length": 100,
+    "zero_depth_positions": 0,
+    "callable_depth_sum": 948,
+    "positions_at_least_10x": 59
+  },
+  {
+    "target": "overlap-second",
+    "length": 100,
+    "zero_depth_positions": 0,
+    "callable_depth_sum": 995,
+    "positions_at_least_10x": 57
+  }
+]
+Exact counts and full-target denominators passed; overlapping targets retained independently.
+PASS: modified foundation documentation/harness workflows on the clean installed 9b8e12f runtime.
+Metadata: /Users/logannye/Documents/Rosalind/docs/findings/roadmap-foundation-2026-09-18/packaged-research-workflows.metadata.json

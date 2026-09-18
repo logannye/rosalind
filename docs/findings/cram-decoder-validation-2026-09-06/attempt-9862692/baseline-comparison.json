@@ -1,0 +1,19 @@
+{
+  "source_commit": "9862692685ee865aa8678b185d60a45380c51ac0",
+  "status": "failed-or-refused",
+  "requested": 108,
+  "completed": 106,
+  "outputs_differing_from_baseline": [],
+  "failed": [
+    {
+      "label": "window-cram-regions-workers8-cache-r1-cold",
+      "status": "failed",
+      "exit_code": -11
+    },
+    {
+      "label": "window-cram-regions-workers8-cache-r1-persisted",
+      "status": "dependency-failed",
+      "exit_code": null
+    }
+  ]
+}

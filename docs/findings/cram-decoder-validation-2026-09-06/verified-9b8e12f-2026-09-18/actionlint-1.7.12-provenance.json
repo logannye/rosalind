@@ -1,0 +1,112 @@
+{
+  "schema": 1,
+  "recorded_at": "2026-09-18T16:49:11.033195+00:00",
+  "official_release": "https://github.com/rhysd/actionlint/releases/tag/v1.7.12",
+  "release_tag": "v1.7.12",
+  "downloaded_assets": [
+    {
+      "name": "actionlint_1.7.12_checksums.txt",
+      "url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_checksums.txt",
+      "sha256": "433028cf0ba3c42163ea1a668dedce30fcdbe84fe912b1a5e288c006eab8a4f5",
+      "bytes": 1130,
+      "github_asset_digest_matched": true
+    },
+    {
+      "name": "actionlint_1.7.12_darwin_arm64.tar.gz",
+      "url": "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_darwin_arm64.tar.gz",
+      "sha256": "aba9ced2dee8d27fecca3dc7feb1a7f9a52caefa1eb46f3271ea66b6e0e6953f",
+      "bytes": 2164202,
+      "github_asset_digest_matched": true
+    }
+  ],
+  "official_checksum_file_matched": true,
+  "private_tool": {
+    "path": "/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-release-tools-20260918-6sls49t2/bin/actionlint",
+    "sha256": "8db11704dc296f096216db4db65d86cd7f0ebfdf4c38453a1da276b137b88388",
+    "version": "1.7.12\ninstalled by downloading from release page\nbuilt with go1.26.1 compiler for darwin/arm64"
+  },
+  "original_global_tool": {
+    "path": "/Users/logannye/.local/bin/actionlint",
+    "sha256": "00aba386d026da33be6e85dd5a46d7af4dd9e4d6cbdb02335f4b267162fd2d9e",
+    "unchanged": true
+  },
+  "workflow_check": {
+    "argv": [
+      "/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-release-tools-20260918-6sls49t2/bin/actionlint"
+    ],
+    "cwd": "/Users/logannye/Documents/Rosalind",
+    "exit_code": 0,
+    "workflow_hashes": [
+      {
+        "path": ".github/workflows/baseline-pr.yml",
+        "sha256": "a8fd70ea5abebb9a436d33470d2c57069c716dff6832f7e5fd28a96d36c372fa"
+      },
+      {
+        "path": ".github/workflows/ci.yml",
+        "sha256": "0ca877e5f48eb6e7256f6abdcb7df251079b393cacfc5438ac5df9da49ddd394"
+      },
+      {
+        "path": ".github/workflows/container.yml",
+        "sha256": "d81992d054dec960dadfc3fe20753d24205d86f9b818bd4a9aaa4edd673f7b9c"
+      },
+      {
+        "path": ".github/workflows/fuzz.yml",
+        "sha256": "1a4be6ccf685ef552166fbf5709fd6feeca6d953dba86a0b5bbc5d2de3a99b3a"
+      },
+      {
+        "path": ".github/workflows/giab.yml",
+        "sha256": "e1016e6397c677b000840c0d0c863bf1f698b2551123bd0f8a7d352a466dfc35"
+      },
+      {
+        "path": ".github/workflows/happy-candidate.yml",
+        "sha256": "af73df0c3902a338067f3dbe328e5c1c91d37cba851cf542ae21705c1c69af56"
+      },
+      {
+        "path": ".github/workflows/happy-image.yml",
+        "sha256": "6ec3195279c2daebf17cfb54da2a9ca53afe90e9244e08e49eb7dfbdd99e5d7a"
+      },
+      {
+        "path": ".github/workflows/integrations.yml",
+        "sha256": "67ecfd0ee927c422a0f58dcdcd613d75da3c2e363866e66e0b51a58de5fbf788"
+      },
+      {
+        "path": ".github/workflows/pages.yml",
+        "sha256": "d6810222544feabd9526dd8152599f7cc86a2d31b6dcf06cc0dd2823981a3141"
+      },
+      {
+        "path": ".github/workflows/platform-benchmark.yml",
+        "sha256": "78528cee4e49ad144f425a3951b2e38ac0a3c40c306fa3d11f54858af2bd7f57"
+      },
+      {
+        "path": ".github/workflows/rc.yml",
+        "sha256": "780a3d7193cf46a95b0133edf71abb9da1a82053852dc8ba1bea693b669fa543"
+      },
+      {
+        "path": ".github/workflows/release.yml",
+        "sha256": "38b67d6c1de9224319f6fed31edffd0e747f747ad8d6db3431e472fbfefa3e12"
+      },
+      {
+        "path": ".github/workflows/wheels.yml",
+        "sha256": "c70bb79ecb7b23d0125551cb2ba52db1091bf709ff881bf796fd03af85bbbb7a"
+      }
+    ]
+  },
+  "doctor": {
+    "argv": [
+      "cargo",
+      "xtask",
+      "doctor",
+      "--json"
+    ],
+    "docker_context": "colima-rosalind-ci",
+    "private_path_prefix": "/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-release-tools-20260918-6sls49t2/bin",
+    "exit_code": 3,
+    "status": "blocked",
+    "blockers": [
+      "github.environment.rc.deployment_refs: custom deployment policy has no allowed branch/tag refs; configure the intended workflow dispatch ref",
+      "github.environment.release.deployment_refs: custom deployment policy has no allowed branch/tag refs; configure the intended workflow dispatch ref",
+      "github.secret.CARGO_REGISTRY_TOKEN: missing; configure with `gh secret set CARGO_REGISTRY_TOKEN --repo logannye/rosalind`"
+    ]
+  },
+  "scope": "Supplementary local tooling/readiness check on current documentation foundation checkout; historical exact9b8e12f execution evidence unchanged. No credential or remote setting changed."
+}

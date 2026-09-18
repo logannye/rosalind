@@ -1,0 +1,73 @@
+{
+  "source_commit": "9862692685ee865aa8678b185d60a45380c51ac0",
+  "source_archive": "/tmp/rosalind-cram-9862692-source.tar.gz",
+  "source_archive_sha256": "c6655cdb11db614c402c44d5c27422a52ff1b9c5e5551ad48f11954b1895fe11",
+  "binary": "/tmp/rosalind-cram-9862692-linux-binary",
+  "binary_sha256": "6b18495e2b629c987fc53db3b316dd078ccff0daa365bdc0c55d2df439f099f3",
+  "platform_log": "/tmp/rosalind-cram-9862692-linux-platform.txt",
+  "test_log": "/tmp/rosalind-cram-9862692-linux-build-tests.log",
+  "commands": [
+    "cargo build --locked --bin rosalind",
+    "cargo test --locked --test evidence_cram_envelope --test evidence_engine",
+    "cargo test --locked --lib evidence::cram"
+  ],
+  "passed_tests": {
+    "cram_integration": 4,
+    "evidence_engine": 20,
+    "cram_unit": 5
+  },
+  "docker_context": "colima-rosalind-ci",
+  "platform": "linux/amd64 via Rosetta in isolated Colima VM on macOS arm64",
+  "cgroup_reports": [
+    "/tmp/rosalind-cram-9862692-cgroup-hg002-bam/report.json",
+    "/tmp/rosalind-cram-9862692-cgroup-hg002-cram/report.json"
+  ],
+  "cgroup_status": "passed",
+  "baseline_binary_sha256": "b3ed85fec8c7de920d2983e8ef72e8c5c16860057a88e36f9f37ca47fbc12755",
+  "baseline_reports_unchanged": true,
+  "harness_sha256": "32112344e33b2ef6996e9dc6cdb2843c5395f3ec5536fe133a606d63b8701b46",
+  "report_sha256": {
+    "/tmp/rosalind-cram-9862692-cgroup-hg002-bam/report.json": "4e4c5f080a21e811f81caaca4f789a71e7f5973d16a898eacff108246e037543",
+    "/tmp/rosalind-cram-9862692-cgroup-hg002-cram/report.json": "193f25fa720ea75fe165903f9667329cb8ca732c329bf1f4975e4a93c97bba50"
+  },
+  "cgroup_cases_passed": 14,
+  "completed": [
+    {
+      "report": "/tmp/rosalind-cram-9862692-cgroup-hg002-bam/report.json",
+      "case": "admitted-cooperative",
+      "output_sha256": "f84b6c05e3ffb26b4ef187a2e9383135a84fb84382b3f5a8a0e3a17f3055f30b",
+      "peak_rss_bytes": 28962816,
+      "predicted_peak_rss_bytes": 87341648,
+      "decoder_bytes": 11534336,
+      "validated_records": 0
+    },
+    {
+      "report": "/tmp/rosalind-cram-9862692-cgroup-hg002-bam/report.json",
+      "case": "admitted-os-limit",
+      "output_sha256": "f84b6c05e3ffb26b4ef187a2e9383135a84fb84382b3f5a8a0e3a17f3055f30b",
+      "peak_rss_bytes": 29409280,
+      "predicted_peak_rss_bytes": 88050256,
+      "decoder_bytes": 11534336,
+      "validated_records": 0
+    },
+    {
+      "report": "/tmp/rosalind-cram-9862692-cgroup-hg002-cram/report.json",
+      "case": "admitted-cooperative",
+      "output_sha256": "f84b6c05e3ffb26b4ef187a2e9383135a84fb84382b3f5a8a0e3a17f3055f30b",
+      "peak_rss_bytes": 42250240,
+      "predicted_peak_rss_bytes": 134216926,
+      "decoder_bytes": 46673984,
+      "validated_records": 261761
+    },
+    {
+      "report": "/tmp/rosalind-cram-9862692-cgroup-hg002-cram/report.json",
+      "case": "admitted-os-limit",
+      "output_sha256": "f84b6c05e3ffb26b4ef187a2e9383135a84fb84382b3f5a8a0e3a17f3055f30b",
+      "peak_rss_bytes": 42622976,
+      "predicted_peak_rss_bytes": 134217430,
+      "decoder_bytes": 46673984,
+      "validated_records": 261761
+    }
+  ],
+  "owned_probe_resources_removed": true
+}

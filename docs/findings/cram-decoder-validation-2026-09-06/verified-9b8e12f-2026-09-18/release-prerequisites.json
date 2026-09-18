@@ -1,0 +1,30 @@
+{
+  "inspected_at": "2026-09-18T16:38:13.942477+00:00",
+  "repository": "logannye/rosalind",
+  "read_only": true,
+  "environments": [
+    {
+      "name": "rc",
+      "requires_reviewer": true,
+      "deployment_branch_policy": {
+        "protected_branches": false,
+        "custom_branch_policies": true
+      },
+      "allowed_refs": [],
+      "secret_names": []
+    },
+    {
+      "name": "release",
+      "requires_reviewer": true,
+      "deployment_branch_policy": {
+        "protected_branches": false,
+        "custom_branch_policies": true
+      },
+      "allowed_refs": [],
+      "secret_names": []
+    }
+  ],
+  "repository_secret_names": [],
+  "pypi_trusted_publisher": "not inspected in authenticated index settings; remains unverified",
+  "settings_changed": false
+}

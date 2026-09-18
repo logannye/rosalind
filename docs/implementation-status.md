@@ -1,180 +1,120 @@
-# Evidence engine implementation status
+# Capability and release status
 
-Updated 2026-09-06. The evidence-engine foundation was merged in PR #97. The current
-development package is **0.5.0**, preparing the first feature-bearing RC; no 0.4
-release was published. M1–M3 releases and independent adoption remain separate
-from implementation. Current follow-up work is recorded in
-[ADOPTION_ROADMAP.md](ADOPTION_ROADMAP.md).
+Updated **2026-09-18**. This is the authoritative availability inventory. The
+[roadmap](ROADMAP.md) tracks delivery tasks; retained reports establish only the
+source, workload and platform they actually tested.
 
-Sample-scope and panel-default corrections now pass focused Rust, CLI, Python,
-cache/replay, and existing engine conformance checks. No new candidate has been
-published by this follow-up work.
+## Which version can I use?
 
-| Phase | Code state | Verification state | Released | External adoption |
+| Channel | Availability | Appropriate use |
+|---|---|---|
+| Public stable | [v0.1.0, June 2](https://github.com/logannye/rosalind/releases/tag/v0.1.0) | Historical legacy feature/caller commands; not the current evidence/dataset SDK tutorials |
+| Current development | Package version **0.5.0** | Exact-evidence, dataset and SDK research previews, built from an identified source checkout |
+| Feature-bearing RC | Not published at this review | The older unpublished RC workflow was canceled as superseded; no soak has started |
+| Cohort APIs | Planned next-minor previews; not implemented | Follow milestone C; do not expect `cohort` commands in 0.5 |
+
+No 0.4 release was published. Native/wheel build artifacts, author-run examples
+and green CI are not registry publication or independent adoption. Follow the
+[installation guide](installation.md) for the channel actually available.
+
+## Capability inventory
+
+“Source” means implemented in development, not necessarily published. **No
+independent adoption is established for the current evidence platform.**
+
+| Capability | Implementation | Validation evidence and limits | Published availability | Independent use |
 |---|---|---|---|---|
-| M0 stabilization | Implemented: exact-or-fail pileup, streaming merge, Arrow/resource corrections, replay and release infrastructure | Local regression/package/fuzz checks pass; platform/container/GIAB release evidence pending | No new release from this work | Not established |
-| M1 exact evidence | Implemented: indexed tiled engine, bounded FASTA/pack windows, semantics, CLI, Arrow/TSV, Python, tutorial | Independent field comparison, adversarial cases, budget/tile invariance and fresh local wheel checks pass | No | Not established |
-| M2 panel/SDK | Implemented: target summaries, fused output, declared SDK requirements, standalone crate, workflows | Oracle/fused-output tests, separate crate and both workflow examples pass locally | No | Not established |
-| M3 datasets | Implemented: verified cache/resume, bounded workers, streaming dataset comparison | Cache integrity/resume/input-mutation/1–8 worker tests and HG002 BAM/CRAM observation invariance pass; decoder model correction and external evidence pending | No | Not established |
+| Exact read-level SNV evidence | Source; indexed BAM/BAI/CSI and checked CRAM preview | Independent integer observation oracle; CIGAR/filter/sample fixtures; admitted budget/tile/worker invariance. See foundation and representative reports below | Not in current public stable | Not established |
+| Panel QC and fused position evidence | Source; full target denominators and uncovered positions | Independent target summaries and fused/separate equality; configurable technical thresholds have no clinical meaning | Not published | Not established |
+| VCF/VCF.gz/BCF selection and annotation | Source; record, genotype and allele-order preservation | All 128 field masks, allele-sum oracle, output/annotation/replay tests in [PR101](https://github.com/logannye/rosalind/pull/101) | Not published | Not established |
+| Physical field projection and sparse fetch coalescing | Source; omitted groups do not allocate their accumulators/outputs | Corrected synthetic pressure matrix in [PR99](https://github.com/logannye/rosalind/pull/99); no universal speed claim | Not published | Not established |
+| Verified cache/resume and workers | Source; canonical first-party partition extraction | Integrity, mutation, resume and worker tests. Native CRAM resume still performs complete source validation | Not published | Not established |
+| Portable evidence and subset queries | Source; query stored evidence without original alignments | Relocated offline extraction/panel QC, integer preservation and projection checks in [PR102](https://github.com/logannye/rosalind/pull/102) | Not published | Not established |
+| Partial-overlap reuse | Source; serial missing-locus computation | Fresh/reused output equality; explicit compatible source identity. Expanded Arrow/TSV output does not publish an expanded cache | Not published | Not established |
+| Arrow/TSV and Parquet interchange | Source; bounded export and Python/R/SQL examples | uint64 preservation, error cleanup and independently executed adapters. Native directory replay for Parquet is unsupported | Evidence APIs not published; historical feature TSV is in v0.1.0 | Not established |
+| Python interface | Source; matching CLI bundled with wheel | Fresh Python 3.9/3.11 installs on Linux x86_64 and macOS arm64/x86_64; native/Python identity and lifecycle tests | Current mixed package not published | Not established |
+| Managed evidence analyzer SDK | Source; factory, canonical batches, cancellation, transactional artifacts, receipts/replay | 19 separately compiled conformance checks and fresh candidate source-patched builds in [PR103](https://github.com/logannye/rosalind/pull/103). These are not non-author users | Not published | Not established |
+| Nextflow/Snakemake | Source; exact-evidence examples | Author-run local and Linux CI integration; individual site executors/limits need their own evidence | Guides available in source | Not established |
+| GitHub Action | Existing legacy variants/features/coverage integration | Does not expose the new evidence or dataset command family; defaults preserved | Historical Action available | Current adoption not established |
+| Receipts, verification and replay | Historical verification plus additive evidence recipes | Schema 1–5 compatibility, tamper/artifact checks, relocated replay. Unsigned receipts do not authenticate an author or prove biology | Historical receipts in v0.1.0; new recipes source-only | Not established for new recipes |
+| Legacy features, pileup and experimental caller | Available; new legacy runs exact-or-fail | Capacity/Arrow/merge regressions; historical downsampling replay needs its original producer. GIAB caller baseline is unestablished | v0.1.0 contains historical behavior, not all current corrections | Not established here |
+| Local cohort snapshots and cross-sample reanalysis | Planned | Separate compatibility, missingness and independent oracle required | Unavailable | Not established |
 
-## Current code and compatibility
+## Validation records and their identities
 
-Original `features`, `analyze coverage`, experimental `variants`, `.rref`, legacy
-`.idx`, schema-5 receipts, analyzer scaffold, and first-party shard merge remain.
-New legacy-pileup runs use exact-or-fail capacity semantics. Historical receipt
-verification remains supported; replay of old sampling semantics requires its
-matching producer.
+- **Foundation, September 5:** [retained report](https://github.com/logannye/rosalind/blob/main/docs/findings/evidence-engine-2026-09-05/README.md)
+  records 467 Rust tests, historical receipts, Python 3.9/3.11 and fresh wheel
+  checks, plus a small NA18507 34-field oracle study. Those are historical counts,
+  not a claim about every later commit.
+- **Projection, annotation, portable datasets and SDK, September 6:** merged
+  PRs 99/101/102/103 retain their own source-specific evidence. The
+  [portable report](https://github.com/logannye/rosalind/blob/main/docs/findings/portable-evidence-2026-09-06/README.md)
+  includes R and DuckDB checks; the
+  [SDK report](https://github.com/logannye/rosalind/blob/main/docs/findings/evidence-sdk-2026-09-06/README.md)
+  includes the standalone analyzer and installed candidate smoke.
+- **Representative baseline:** [PR #104](https://github.com/logannye/rosalind/pull/104)
+  retains 108 requested HG002 runs over chromosome-sparse and matched BAM/CRAM
+  windows. All observation comparisons passed and RSS remained below requested
+  budgets, but **eight CRAM plan underestimates** were found. WGS-derived panel
+  positions are not a high-depth capture-assay benchmark. Linux probes use a VM
+  on the same physical workstation, not an independent physical machine.
+- **First decoder correction, source 9862692:** the retained failed attempt has
+  106 completed runs, one eight-worker CRAM SIGSEGV and one dependent query that
+  could not run. Completed outputs match the original baseline and had no plan
+  underestimates; that does not make the failed candidate release-ready.
+- **Native lifetime correction, source 9b8e12f:** destroys the native CRAM index
+  before its borrowed file handle; preserves the public engine's Send contract.
+  The [verified report](https://github.com/logannye/rosalind/blob/main/docs/findings/cram-decoder-validation-2026-09-06/verified-9b8e12f-2026-09-18/README.md)
+  records all 108 packaged representative runs passing with no baseline output
+  differences or prediction underestimates, 14 real Linux cgroup cases, and
+  installed Python 3.9/3.11 plus analyzer onboarding checks. The new regression
+  reproduces the old SIGSEGV as a negative control. The failed attempt remains
+  separately retained. Merge/publication gates remain distinct from these results.
+- **Onboarding and cohort preparation:** the
+  [September 18 report](https://github.com/logannye/rosalind/blob/main/docs/findings/roadmap-foundation-2026-09-18/README.md)
+  records executable researcher/reuse/builder checks and a small independently
+  specified multi-sample fixture. The [cohort contract](https://github.com/logannye/rosalind/blob/main/docs/cohort-contract.md) is a
+  proposal; no cohort commands or independent partner usage are claimed.
 
-`analyze evidence` and `analyze panel-qc` form the indexed path. Their scientific
-profile is defined in [SEMANTICS.md](SEMANTICS.md), separately from legacy feature
-and caller defaults. Full evidence preserves schema-1 output bytes; selected field
-groups use schema 2 and allocate only those groups. Panel summaries request depths
-and quality sums. Sparse selection shares bounded fetch windows without emitting
-gap loci. The public preview batch API now exposes borrowed optional groups through
-`rows()`; owned full-row materialization is an explicit fallible adapter.
+Findings are linked remotely so onboarding bundles do not accidentally include
+large raw benchmark archives. Retained raw failures must not be overwritten by
+later successful runs.
 
-VCF/VCF.gz/BCF selection and optional record-preserving annotation are implemented.
-Annotation adds evidence INFO fields in original allele order, keeps genotypes and
-existing fields, and shares atomic publication and byte replay with its evidence
-artifact. Opt-in per-allele quality/position sums use field-mask version 2; existing
-full and projected goldens remain unchanged. All 128 field masks and independent
-allele oracles pass locally, as do annotation format/budget/worker and replay tests.
-The workspace suite passed 514 tests before the final focused validation hardening;
-those additional encoder checks and the 18-test Python 3.11 suite pass. Python 3.9
-also passes the existing suite and all five annotation tests. Clippy, Rust 1.83,
-and offline documentation-link checks pass. PR #101 passed every platform gate and merged.
+## Platforms and assurance
 
-## Portable evidence follow-up
+Supported candidate packaging targets are Linux x86_64 and macOS arm64/x86_64.
+Linux ARM and Windows remain deferred. Fresh candidate wheel CI is evidence of
+installation on its tested platform/version, not evidence of public publication.
+See [candidate wheel CI](https://github.com/logannye/rosalind/actions/runs/34009965756)
+and each PR's current checks.
 
-The development tree now implements portable dataset descriptors/session hashes,
-verified offline subset extraction and panel QC, serial reuse that computes missing
-loci, bounded Parquet export, and Python/R/SQL adapters. Focused Rust tests cover
-field projection, source/selection mutation, malformed ownership, local budget
-checks, integer preservation, and transactional publication. Five Python dataset
-tests pass on macOS and Linux, including three-budget byte equality and relocated
-replay. The R adapter passes on Linux after removing original alignments and
-preserves the full uint64 range as strings. The full workspace suite, Clippy,
-Rust 1.83, all 23 Python tests on both 3.9/3.11, DuckDB 1.4.4 queries, and a fresh
-wheel installation/onboarding pass. [Retained results](findings/portable-evidence-2026-09-06/README.md)
-distinguish the frozen Linux snapshot and later focused error-reporting changes.
-These results do not establish registry publication or external adoption.
+Memory accounting is cooperative and sampled RSS is not a native-allocation
+sandbox. In particular, native CRAM validation may allocate before a checkpoint.
+An existing Linux cgroup-v2 limit is a separate, explicitly checked assurance.
+Retained Python/R/SQL consumer memory is outside the native process's budget.
 
-See [reusable evidence](reusable-evidence.md) for supported paths and limitations.
+“Exact” describes the declared short-read counting profile. Overlapping mates
+count separately; there is no UMI/fragment consensus, indel calling, long-read
+model, methylation model or calibrated clinical inference. Saved aggregates
+cannot undo their original filtering. See [semantics](SEMANTICS.md).
 
-## Managed evidence analyzer follow-up
+## Release and adoption gates
 
-The development tree adds an evidence artifact factory/runner, an opt-in evidence
-scaffold, and conformance over native and persisted sources. Custom reducers declare
-retained memory and implement their output; the runner owns canonical batches,
-resource admission, cancellation, atomic publication, receipts and relocated replay.
-Unknown analyzer bounds remain observation-only. Exact byte budgets are interpreted
-consistently by receipt verification and trust inspection; historical schemas remain
-supported. Focused lifecycle and cancellation tests and fresh generated Rust 1.83
-projects pass. All 19 external conformance checks, full workspace tests, Clippy/MSRV and both
-Python suites pass. A fresh Python3.11 wheel passes installed analysis, verification,
-replay, datasets/Parquet, both generated analyzers and all 19 evidence conformance
-checks. Linux focused artifact/cancellation tests and all 19 external conformance checks
-pass; platform PR gates remain.
-[Retained SDK results](findings/evidence-sdk-2026-09-06/README.md) include the fresh
-wheel reproduction that caught a receipt-sealing bug and its focused correction.
-These are source-candidate checks, not registry publication or independent adoption.
+The September 18 read-only GitHub inspection still found required reviewers but
+zero allowed deployment refs in the protected RC/release environments and no
+listed repository/environment secrets. Publisher mappings in PyPI/TestPyPI
+remain unverified. R02 records configuration work separately from code completion;
+never place credentials in this document.
 
-## Validation results
+Use the existing release policy: a real immutable prerelease starts the seven-day
+soak, accepted feedback must cover its three named personas and matching contract,
+and watched caller/shared-source changes require reviewed evidence. Candidate
+SDK source patches do not establish registry installation. Stable promotion must
+pass fresh registry-only smoke.
 
-### Representative workloads and user-validation kit
-
-[Retained HG002 findings](findings/representative-evidence-2026-09-06/README.md)
-cover 108 repeated oracle/native/dataset runs: a chromosome BAM and matched
-261,761-read BAM/CRAM windows, sparse sites and 10,000 panel positions. Every
-requested comparison passed; final source/binary/harness identities were unchanged
-and external RSS stayed below declared budgets. Eight CRAM decoder predictions
-were too small and remain explicitly recorded; a conservative decoder envelope
-correction is in progress. The workload is WGS, not a high-depth panel assay.
-
-Linux/amd64 BAM and CRAM each passed seven actual cgroup scenarios, including
-verified 128 MiB successes, typed refusal/resource failure, and native OOM with
-kernel/Docker evidence. These use the baseline source candidate in a VM on the
-same physical workstation. The study retains full outputs, caches, raw costs,
-package hashes and separate verification timings; it is not a whole-genome or
-equal-trust speed ranking. The [adoption kit](adoption-validation.md) is implemented
-and its researcher workflow passes locally. No non-author sessions or return
-usage have been recorded.
-
-### Foundation snapshot
-
-These historical foundation checks apply to their recorded source snapshot, not
-the latest test count or a published candidate.
-Full results and retained raw logs are in the
-[validation report](findings/evidence-engine-2026-09-05/README.md).
-
-- 467 Rust workspace tests pass, including historical schema fixtures; no ignored tests.
-- Workspace/all-target Clippy, Rust 1.83 minimum-version check, formatting, and docs pass.
-- Eight Python lifecycle/version tests pass on Python 3.9 and 3.11.
-- Fresh local macOS arm64 wheel installs on both Python versions complete analysis,
-  bounded evidence iteration, panel QC, verification, offline replay, and packaged
-  scaffold/conformance. Unpublished SDK dependencies use explicit candidate source
-  patches; registry-install validation remains a release gate.
-- All three publishable crates package and verify with the candidate dependency patches.
-- Three 15-second fuzz workloads completed without crashes; raw logs are retained.
-- M0 release tooling: 24 xtask unit and 5 publication integration tests pass.
-- Six Python release-helper and four streaming-baseline tests pass.
-- Legacy Python API lifecycle/version tests pass, including distinct RC versions.
-- Workflow policy, actionlint 1.7.12, and shellcheck pass for edited release and
-  benchmark scripts.
-- Standalone analyzer build and Nextflow/Snakemake real-origin examples pass locally.
-- Independent pysam comparison matches all 34 fields across three budgets and
-  three repetitions. Cached reuse preserves output with zero alignment-record visits.
-- The original 70,000-row Arrow memory case now refuses an insufficient budget and
-  completes an admitted run. Packed-reference sparse queries across a 128 MiB
-  reference complete at 13.77 MiB peak RSS under a declared 32 MiB budget.
-
-Historical July checks tested the preceding overhaul. They are not fresh evidence
-for the new semantics, encoders, or scheduling changes.
-
-### Subsequent GitHub validation (2026-09-06)
-
-- [Candidate wheel CI](https://github.com/logannye/rosalind/actions/runs/34009965756)
-  passed on Linux x86_64, macOS arm64, and macOS x86_64, including fresh Python
-  3.9/3.11 installations, native/Python version agreement, analysis, verification,
-  offline replay, and scaffold/conformance. These are retained CI artifacts;
-  they have not been published to a package registry.
-- [Application CI](https://github.com/logannye/rosalind/actions/runs/34010203922)
-  passed the full Linux Rust suite, independent analyzer, package verification,
-  Python/CLI workflows, advisory audit, Clippy, MSRV, contract harness, release
-  automation checks, and regenerated browser verifier check.
-- [Workflow integration CI](https://github.com/logannye/rosalind/actions/runs/34010203990)
-  passed Nextflow and Snakemake execution on Linux. These checks are performed by
-  repository automation, not independent external users.
-- [Evaluator candidate CI](https://github.com/logannye/rosalind/actions/runs/34010511992)
-  built the pinned Linux image and completed an offline hap.py/vcfeval comparison
-  of one synthetic SNV. This verifies evaluator setup and execution; the image
-  remains unpublished and does not establish the GIAB caller baseline.
-
-## External prerequisites and unmeasured claims
-
-No registry publication, tag, container push, or GitHub release was performed by
-this work. Release tooling checks registry/trusted-publisher configuration and
-protected environment approval before publication. Wheel CI results above
-establish candidate installation on the three supported platforms. Standalone
-native release assets and registry installations retain their publication gates.
-
-The original local Docker daemon was unavailable during the foundational checks.
-A separate Linux x86_64 validation environment is now available and has exercised
-native dataset/R interoperability, variant I/O, and the baseline new-engine
-BAM/CRAM cgroup probes above. High-depth assays, additional CRAM layouts and
-independent-machine workloads remain unmeasured.
-
-The inspected repository has no `CARGO_REGISTRY_TOKEN`. The protected `rc` and
-`release` environments retain required review, but their custom deployment
-policies currently allow zero refs. PyPI trusted-publisher configuration is
-unverified. These settings were inspected without changing them.
-
-The GIAB baseline remains `not-yet-established`; the evaluator lock needs an
-immutable published image. Scheduled readiness records the blocked prerequisite
-without claiming evaluation. Changed caller defaults, implementation, or watched
-shared processing require reviewed evidence from tested source before release.
-Unrelated evidence-only changes do not automatically require a caller score.
-
-No whole-genome speedup, universal hard RAM bound, competitive accuracy,
-second-machine replay, external adoption, or 30-day repeat usage is established by
-implementation. [ROADMAP.md](ROADMAP.md) separates executable and adoption gates.
+The [adoption kit](adoption-validation.md) distinguishes researcher/builder/workflow
+tasks from those release personas. Three non-authors, one independent analyzer,
+one integrated workflow and two teams returning after 30 days are targets, not
+completed achievements. The 30-day return milestone does not block the first
+stable release. No whole-genome speedup, universal hard RAM bound, competitive
+caller accuracy or commercial purchase is claimed here.

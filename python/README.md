@@ -1,5 +1,11 @@
 # rosalind-bio for Python
 
+For version selection and the current source workflow, start with
+[installation](../docs/installation.md). The public stable release is 0.1.0;
+an unqualified registry install is not evidence that this preview is installed.
+The [documentation index](../docs/index.md) connects this interface to the
+researcher and saved-dataset quickstarts.
+
 The mixed Maturin wheel bundles the matching `rosalind` executable. The distribution
 is `rosalind-bio`; import `rosalind`. Python 3.9+ is declared and tested by candidate
 wheel CI. The source version is 0.5.0; these changes are unpublished until the
@@ -21,6 +27,17 @@ python3 -m venv /tmp/rosalind-python
 ```
 
 Run Python outside the repository to verify the installed package is being used.
+With the environment created above:
+
+```sh
+cd /tmp
+/tmp/rosalind-python/bin/python -c 'import rosalind; print(rosalind.__version__); print(rosalind.__file__)'
+/tmp/rosalind-python/bin/rosalind --version
+/tmp/rosalind-python/bin/rosalind analyze evidence --help
+```
+
+The module path should be inside that environment's `site-packages`; compare the
+printed Python and native versions before following a tutorial.
 RC versions are normalized between native `0.5.0-rc.N` and Python `0.5.0rcN`;
 different RC numbers and stable versions do not count as a match.
 

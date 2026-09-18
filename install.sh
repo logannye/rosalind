@@ -109,11 +109,14 @@ dir="rosalind-${target}"
 say ""
 say "Installed: ./$dir/rosalind"
 say ""
-say "Try the memory contract on the bundled data (≈60 seconds):"
+"./$dir/rosalind" --version
 say "  cd $dir"
-say "  ./rosalind index --reference examples/data/illumina_toy/reference.fa --output ref.idx"
-say "  ./rosalind sort  --input examples/data/illumina_toy/alignments.bam --output sorted.bam"
-say "  ./rosalind plan  --index ref.idx --budget-mb 512"
-say "  ./rosalind variants --index ref.idx --alignments sorted.bam \\"
-say "      --memory-budget-mb 512 --enforce -o calls.vcf"
-say "  ./rosalind verify --manifest calls.vcf.manifest.json"
+if "./$dir/rosalind" analyze evidence --help >/dev/null 2>&1; then
+  say "This binary supports exact evidence. Start with the bundled README and researcher guide."
+  say "  ./rosalind analyze evidence --help"
+  say "Researcher guide: https://github.com/${REPO}/blob/main/docs/researcher-quickstart.md"
+else
+  say "This is a legacy release; it does not provide the current exact-evidence/dataset APIs."
+  say "Use this release's own documentation. For current evidence APIs, follow the source installation guide."
+fi
+say "Version-aware installation: https://github.com/${REPO}/blob/main/docs/installation.md"

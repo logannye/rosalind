@@ -1,0 +1,7 @@
+##fileformat=VCFv4.2
+##contig=<ID=synthetic,length=64>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO
+synthetic	10	candidate-10	A	C	.	PASS	.
+synthetic	20	candidate-20	A	G	.	PASS	.
+synthetic	30	candidate-30	A	T	.	PASS	.
+synthetic	40	candidate-40	A	C	.	PASS	.

@@ -1,0 +1,62 @@
+{
+  "source_lock_sha256": "409aa2d18e98b8c5405c1c35e4f46b7871607b27b20585093e81fe443a4c91a6",
+  "sources": [
+    {
+      "id": "reference",
+      "path": "/Users/logannye/.cache/rosalind-validation/2026-09-18/downloads/GCA_000001405.15_GRCh38_no_alt_analysis_set.fasta.gz",
+      "url": "https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/references/GRCh38/GCA_000001405.15_GRCh38_no_alt_analysis_set.fasta.gz",
+      "sha256": "3c8def6d325c5d1e934b2dd530c4d1709f027677a15859467071fddf3fff2026",
+      "bytes": 886344618,
+      "verification_download_seconds": 124.51375933398958
+    },
+    {
+      "id": "reads_bam",
+      "path": "/Users/logannye/.cache/rosalind-validation/2026-09-18/downloads/HG002.novaseq.pcr-free.35x.dedup.grch38_no_alt.chr20.bam",
+      "url": "https://storage.googleapis.com/deepvariant/case-study-testdata/HG002.novaseq.pcr-free.35x.dedup.grch38_no_alt.chr20.bam",
+      "sha256": "34ac157739e1feeb590f6eb7e11046ccc2aa3277fd55a3ce0942e774d931ed81",
+      "bytes": 1093938924,
+      "verification_download_seconds": 23.16753587499261
+    },
+    {
+      "id": "reads_bai",
+      "path": "/Users/logannye/.cache/rosalind-validation/2026-09-18/downloads/HG002.novaseq.pcr-free.35x.dedup.grch38_no_alt.chr20.bam.bai",
+      "url": "https://storage.googleapis.com/deepvariant/case-study-testdata/HG002.novaseq.pcr-free.35x.dedup.grch38_no_alt.chr20.bam.bai",
+      "sha256": "245dcdcc474b1971eeb36fc9a8af37b76ac8b4c7ce06a7bdee64e0c42bd93f34",
+      "bytes": 196136,
+      "verification_download_seconds": 0.5572969159693457
+    }
+  ],
+  "source_lock_snapshot": "source-lock.tsv",
+  "preparation_script_sha256": "3c93d72fe0e7cb7b63546e1f21cd1423ec44010eee74532641a81ffe4f11f6d5",
+  "preparation_script_snapshot": "prepare_representative.py",
+  "argv": [
+    "benchmarks/evidence/prepare_representative.py",
+    "--download-cache",
+    "/Users/logannye/.cache/rosalind-validation/2026-09-18/downloads",
+    "--output",
+    "/Users/logannye/.cache/rosalind-validation/2026-09-18/prepared"
+  ],
+  "pysam": "0.23.3",
+  "samtools": "1.21",
+  "window": {
+    "contig": "chr20",
+    "start": 10000000,
+    "end": 11000000
+  },
+  "dictionary_contigs": 195,
+  "samples": [
+    "HG002"
+  ],
+  "window_records": 261761,
+  "window_query_bases": 39485841,
+  "window_max_read_length": 151,
+  "preparation_seconds": 22.15033274999587,
+  "limits": [
+    "Public HG002 short-read data; no reads replicated or simulated.",
+    "Panel selection models an analysis request, not a target-enrichment assay.",
+    "VCF ALT bases are deterministic evidence probes, not validated variants.",
+    "Full source dictionary and all overlapping window reads are retained.",
+    "CRAM3.0 is locally encoded from the same unfiltered source records.",
+    "Three serial budgets and extra parallel/cache cases are not a full Cartesian matrix."
+  ]
+}
