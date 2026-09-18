@@ -44,6 +44,8 @@
 // Each module is a layer of the genomics engine.
 /// The calling layer: probabilistically-grounded, abstention-aware variant calls from pileup columns.
 pub mod call;
+// Isolated next-minor storage foundation; no supported public cohort API yet.
+pub(crate) mod cohort;
 /// Offline conformance harness for external analyzer binaries.
 pub mod conformance;
 /// Public orchestration for inheriting planning, enforcement, and receipts.

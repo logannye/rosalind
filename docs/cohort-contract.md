@@ -1,11 +1,13 @@
 # Proposed contract: local cohort candidate reanalysis
 
-**Design and fixture proposal, not a shipped feature.** Current Rosalind has
-single-sample evidence and portable datasets; it has no `cohort` command or
-`open_cohort` Python API. This document prepares roadmap C01 while release work
-continues. Implementing/merging cohort APIs remains gated on stable evidence
-release closure and the two recurring-workflow partners in R06/U02. No partner
-validation, representative cohort performance or clinical interpretation is claimed.
+**Internal next-minor foundation, not a shipped feature.** This isolated
+development branch contains crate-private snapshot import/verification and
+comparison contracts. It has no `cohort` command or `open_cohort` Python API.
+The implementation stays out of the 0.5 release candidate and its frozen public
+contract. Engineering can progress while publication and adoption work continue.
+Independent participants and design partners inform usability and product decisions;
+their completion is not a software shipping prerequisite. No partner validation,
+representative cohort performance or clinical interpretation is claimed.
 
 The first outcome is repeat candidate-SNV questions across explicitly identified
 specimens, using saved evidence. Paired/longitudinal analysis is a later feature;
@@ -51,8 +53,9 @@ counting. Distinct BAMs with the same SM are not automatically the same specimen
 the author must supply specimen IDs.
 
 Within a member, every leaf must have the same existing source-reuse compatibility
-key and physical field mask. This conservative v1 rule keeps extensions tied to
-unchanged original inputs and the same capability set. Each selected coordinate
+key. Physical field masks may differ across nonoverlapping leaves; a future query
+must find all its requested groups in every consumed leaf. This keeps extensions
+tied to unchanged original inputs without equating physical storage with science. Each selected coordinate
 belongs to at most one leaf for that member. Reject overlap even when values agree;
 never add duplicate counts or apply implicit last-writer precedence.
 
@@ -70,7 +73,13 @@ scope. Keep it unchanged for reuse. A new cross-member comparison contract requi
 
 The effective analysis reference is the descriptor's `reference` source, or its
 `cram-reference` source when that supplies the analysis bases. V1 conservatively
-requires matching representation/source-role and byte identity. Equal dictionary
+requires matching byte identity and source length. Normalize the effective source
+role: a BAM using `reference` and a CRAM using `cram-reference` can compare when
+the actual reference bytes match. When an effective FAI is present, compare its
+byte hash and length too, normalizing `reference-fai`/`cram-reference-fai`. Equal
+FASTA bytes and dictionary alone do not establish identical offset mappings.
+Paths and filename extensions are provenance,
+not comparison keys. Equal dictionary
 or assembly label alone is insufficient; a FASTA and an equivalent `.rref` are
 not silently equated. A future sequence-based reference identity needs its own
 specification and migration evidence.
@@ -94,8 +103,12 @@ cohort-root/
     manifest.json                   # receipt binding snapshot bytes and inputs
 ```
 
-The directory names illustrate the contract, not a frozen wire schema. The leaf
-object key hashes the actual portable manifest bytes. The snapshot descriptor
+The internal snapshot schema is version 1, independently versioned from all
+existing dataset formats. The leaf object key is lowercase BLAKE3 of the complete
+`evidence-dataset.manifest.json` bytes, not its receipt self-hash and not the legacy
+`dataset.manifest.json`. The snapshot ID is lowercase BLAKE3 of canonical compact
+UTF-8 `snapshot.json`; preserve struct field order and sorted member/leaf arrays.
+Readers reject noncanonical encodings, unknown keys and unsupported versions. The snapshot descriptor
 pins member metadata, ordered leaf identities, their descriptor hashes, comparison
 contract version and optional parent-snapshot identity. Do not include its own
 hash inside the bytes being hashed. Paths stored in a snapshot are relative to
@@ -109,11 +122,68 @@ source files must not change the stored object. Existing objects must verify bef
 reuse. Original dataset wire schemas, partition receipts and producer identities
 remain intact; no old partition is relabeled under a new request namespace.
 
-Publish the snapshot directory last. A failure cannot expose a completed new
-snapshot. Existing snapshots remain unchanged. Interrupted imports may leave
+Publish the snapshot directory last with a same-filesystem atomic create-new
+directory rename (`RENAME_NOREPLACE` on Linux, `RENAME_EXCL` on macOS). No
+replacement fallback is allowed. The directory contains the descriptor and a
+self-checking receipt binding its identity, leaf manifests/descriptors and optional
+parent descriptor. A failure cannot expose a completed new snapshot. Existing snapshots remain unchanged. Interrupted imports may leave
 verified unreferenced objects; automatic garbage collection is out of v1 scope.
 Copying the entire root preserves offline access to every referenced snapshot.
 Report one-time copying time and additional storage as part of reuse cost.
+
+
+The copied portable inventory is exactly the portable manifest, descriptor, and
+all declared partition `manifest.json`/`evidence.arrow` pairs. Preserve these bytes
+without modification. The source directory's legacy cache manifest and unrelated
+files are not part of this content-bound portable inventory and are not copied.
+Original alignment/reference paths in receipts remain provenance claims; import
+and verification never follow them. Existing objects reject undeclared files or
+directories, including empty directories. Source inventories reject symlink files
+and directory components; ordinary copying creates independent inodes.
+
+Opening a snapshot verifies its metadata, parent chain, leaf metadata and member
+ownership. Full verification additionally streams every unique current-snapshot
+leaf through the existing bounded Arrow reader, checking every partition hash,
+receipt, row count and coordinate. Ancestor descriptors/receipts are checked, but
+unreferenced ancestor payloads are not claimed to be consumed. Imported objects
+always receive full verification. The store may contain scientifically incompatible
+members so they can be inspected and explicitly selected; query planning owns
+cross-member compatibility and named-sample requirements.
+
+Snapshot shape (hash values below are explanatory placeholders):
+
+```json
+{"version":1,"comparison_version":1,"parent":null,"members":[{"metadata":{"id":"sample-A","group":null,"subject":null,"timepoint":null},"leaves":[{"object_id":"64 lowercase hex characters","descriptor_blake3":"64 lowercase hex characters"}]}]}
+```
+
+Members sort by exact UTF-8 ID bytes; leaves sort by object ID. IDs are nonempty,
+at most 256 UTF-8 bytes; optional metadata is nonempty when present and at most
+1,024 bytes per value. Control characters are rejected and no Unicode normalization
+is implicit. Empty cohorts are representable; an included member requires at least
+one leaf. Duplicate member IDs, repeated leaf references, overlapping selected
+intervals and source/scope aliases are rejected. Disjoint intervals inside the
+same canonical partition are valid. Snapshot identity includes asserted metadata
+and parent identity, and contains no runtime timestamp or absolute local path.
+
+Default reader/import envelopes are 8 MiB snapshot JSON, 65,536 members, 262,144
+leaf references, 262,144 ownership intervals per member, and 1,024 ancestor
+snapshots. Snapshot receipts have a 32 MiB envelope. Existing dataset envelopes
+remain 32 MiB manifest/descriptor and 64 KiB partition receipt. These are adjustable
+operational refusal limits, not claimed scientific scalability. Parsing/encoding,
+copy buffers, inventory clones, ownership state and retained mutation guards are
+admitted before their associated allocations; leaf decoders run serially. Current
+admission uses conservative measured process high-water RSS plus transient
+reservations, and can overestimate after earlier allocations are released. It is
+not a tight aggregate cohort query planner or an OS allocation cap.
+
+The internal functions obey existing cancellation/governor checkpoints and retain
+ordinary-mutation guards through publication. They do not start a nested governor.
+The complete outer lifecycle and cross-budget execution study remain C07 work.
+File synchronization plus atomic directory visibility does not claim recovery
+from power loss. Readers require an immutable store during an operation; integrity
+checks do not provide authenticity or defense against deliberate concurrent
+metadata restoration. Garbage collection, replacing an object, and mutable
+`latest` aliases remain unsupported.
 
 ## Query, missingness and candidate summary
 
@@ -187,7 +257,9 @@ Queries never discover or reopen original BAM/CRAM/reference files. A separate
 `extend` request supplies an explicit member-to-local-source map and new loci.
 For each affected member, use a verified input session to check exact original
 source/reuse identity, then subtract existing coverage and extract only missing
-loci. Preserve the member's physical fields, profile and scope. Publish missing-only
+loci. Preserve the member's profile and scope and explicitly specify the new leaf's
+physical fields. Every later query still requires adequate fields at every stored
+locus; extension never silently fills missing groups at existing loci. Publish missing-only
 leaf objects and a new parent-linked snapshot last. Old snapshots and leaves do
 not change. A fully covered no-op creates no new evidence leaf.
 
@@ -246,5 +318,6 @@ schemas, goldens and conformance must remain valid.
 
 The accompanying fixture checks **existing extraction/reuse primitives only**.
 It cannot establish a future snapshot implementation, cohort runtime bound, real
-assay performance, user demand or partner acceptance. Those checks remain roadmap
-C02–C11 work after their gates.
+assay performance, user demand or partner acceptance. Storage/comparison tests now exercise the internal C02/C03 foundation on this
+branch. CLI/Python querying, managed reducers, extension and replay remain C04–C11
+work; fixture arithmetic is not partner acceptance or a performance measurement.
