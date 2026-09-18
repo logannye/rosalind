@@ -1,0 +1,30 @@
+{
+  "baseline_commit": "bc6e9e6e051d233da98573dc40f894f56ccd58b5",
+  "candidate_commit": "222b8e1e2b0182bb3b19ba3545e7d18ff6cb30ed",
+  "baseline_aggregate_blake3": "cc493862f498187d12ece7c8a73b8bc024a5659694deaddca3069b427feaa5a1",
+  "candidate_aggregate_blake3": "8724eed303c014c2b52d74337eab5f935599a8fd2a841743fd2ae41ef2cafd91",
+  "components_added": {
+    "python.contract": "546cd430a14f97ca0b25ee0b38e58c5dd31ca90c19db4ddddd8b384decf0eeea"
+  },
+  "components_removed": {},
+  "components_changed": {
+    "package.rosalind-bio.files": {
+      "before": "499884f85d7560ab046f2c4c8d0e016fbbe607d07526f932b79305196df16bbb",
+      "after": "f4eef1e5fba793a3b55f0cfdfc784720cc1bb1d8296237ef24f156faed5df7dc"
+    }
+  },
+  "components_unchanged": 61,
+  "receipt_fields_equal": true,
+  "primary_artifacts_equal": true,
+  "package_versions_equal": true,
+  "rosalind_bio_package_file_inventory": {
+    "baseline_count": 332,
+    "candidate_count": 335,
+    "added": [
+      "scripts/python-api-contract.py",
+      "scripts/test_installer.py",
+      "scripts/test_python_api_contract.py"
+    ],
+    "removed": []
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "commit": "222b8e1e2b0182bb3b19ba3545e7d18ff6cb30ed",
+  "worktree": "/private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-contract-222b8e1-wwmyflig/worktree",
+  "private_target": "/private/tmp/rosalind-nativefix-target",
+  "registry_cache": "/Users/logannye/.cargo",
+  "cargo_target_dir_was_unset": true,
+  "command": [
+    "cargo",
+    "+1.95.0",
+    "xtask",
+    "contract",
+    "snapshot",
+    "--ref",
+    "222b8e1e2b0182bb3b19ba3545e7d18ff6cb30ed",
+    "--output",
+    "/private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-contract-222b8e1-wwmyflig/contract-snapshot.json",
+    "--json"
+  ],
+  "started_utc": "2026-09-18T17:00:31.230547+00:00",
+  "environment_overrides": {
+    "CARGO_NET_OFFLINE": "true",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_BUILD_JOBS": "2",
+    "TMPDIR": "/private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-contract-222b8e1-wwmyflig/temporary",
+    "TMP": "/private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-contract-222b8e1-wwmyflig/temporary",
+    "TEMP": "/private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-contract-222b8e1-wwmyflig/temporary"
+  },
+  "finished_utc": "2026-09-18T17:01:26.032736+00:00",
+  "exit_code": 0,
+  "worktree_status_after": ""
+}

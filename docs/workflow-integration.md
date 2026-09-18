@@ -8,12 +8,22 @@ public stable v0.1.0. Start with [installation and source status](../README.md) 
 
 ## Local source validation
 
-Build the current CLI and put it on PATH from the repository root:
+For a reproducible source route, start in a fresh clone pinned to the corrected
+engine validated on September 18, then put that CLI on PATH:
 
 ```sh
+git clone https://github.com/logannye/rosalind.git rosalind-workflow
+cd rosalind-workflow
+git checkout --detach 9b8e12f3b6e802d2103c5ebeb5ff89a08c8d85ce
 cargo build --locked --bin rosalind
 export PATH="$PWD/target/debug:$PATH"
 ```
+
+This pins both the integration files and binary source. It is a tested source
+revision, not a published package. See the
+[validation record](https://github.com/logannye/rosalind/blob/main/docs/findings/cram-decoder-validation-2026-09-06/verified-9b8e12f-2026-09-18/README.md)
+for its measured scope. Keep this clone as the working directory for the commands
+below.
 
 Prepare a `.rref` reference, coordinate-sorted indexed BAM and target BED. The
 [Nextflow guide](../integrations/nextflow/README.md) specifies its tested tool versions.

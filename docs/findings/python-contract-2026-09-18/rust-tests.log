@@ -1,0 +1,71 @@
+   Compiling libc v0.2.177
+   Compiling rustix v1.1.2
+   Compiling bitflags v2.10.0
+   Compiling once_cell v1.21.3
+   Compiling fastrand v2.3.0
+   Compiling xtask v0.1.0 (/Users/logannye/Documents/Rosalind/xtask)
+   Compiling errno v0.3.14
+   Compiling getrandom v0.3.4
+   Compiling tempfile v3.23.0
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.29s
+     Running unittests src/lib.rs (/tmp/rosalind-nativefix-target/debug/deps/xtask-0a26831f254e8999)
+
+running 32 tests
+test tests::baseline_update_requires_a_reason_specific_changelog_entry ... ok
+test tests::cli_shape_ignores_copy_but_detects_flags_and_operands ... ok
+test tests::docs_only_changes_are_outside_the_contract_snapshot ... ok
+test tests::contract_diff_localizes_every_frozen_surface ... ok
+test tests::cli_shape_fingerprints_argument_and_option_value_enums ... ok
+test tests::duplicate_dispatch_finds_the_existing_plan_run ... ok
+test caller_evidence::tests::invalid_or_missing_caller_source_fails_closed ... ok
+test caller_evidence::tests::release_version_and_xtask_do_not_change_dependency_identity ... ok
+test caller_evidence::tests::feature_only_cli_changes_do_not_require_caller_evidence ... ok
+test caller_evidence::tests::defaults_dispatch_and_transitive_helpers_change_caller_identity ... ok
+test tests::github_timestamp_parser_handles_fractional_utc_and_rejects_invalid_dates ... ok
+test tests::maintainer_exit_codes_distinguish_gates_remote_and_integrity ... ok
+test tests::older_snapshots_remain_readable_and_new_python_component_requires_review ... ok
+test tests::partner_gate_rejects_pii_shaped_unknown_fields ... ok
+test tests::partner_gate_accepts_all_personas_and_rejects_blockers ... ok
+test tests::blocked_plan_cannot_be_changed_to_ready ... ok
+test tests::plan_id_is_deterministic_and_authenticates_gate_results ... ok
+test tests::stabilization_release_gates_begin_at_configured_version ... ok
+test tests::soak_boundary_is_exact ... ok
+test tests::python_contract_freezes_dependencies_and_packaging_but_not_descriptive_copy ... ok
+test tests::dispatch_fake_remote_uses_tokenized_arguments_and_no_unplanned_mutation ... ok
+test tests::create_new_writer_refuses_overwrite ... ok
+test tests::plan_tampering_is_rejected ... ok
+test tests::immutable_digest_validation_rejects_tags_and_image_ids ... ok
+test tests::evaluator_source_identity_includes_python_wheel_lock ... ok
+test tests::evaluator_source_identity_includes_version_patch ... ok
+test tests::cli_inventory_expands_analyzer_kinds_exactly_once_from_actual_help ... ok
+test tests::cli_inventory_covers_dataset_leaves_and_both_analyzer_apis ... ok
+test tests::evaluator_source_identity_at_ref_uses_the_same_version_patch_inputs ... ok
+test tests::embedded_python_contract_parses_without_importing_candidate_code ... ok
+test tests::partner_report_rejects_missing_personas_duplicates_and_stale_commits ... ok
+test caller_evidence::tests::shared_caller_changes_require_fresh_reviewed_evidence_but_feature_changes_do_not ... ok
+
+test result: ok. 32 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.67s
+
+     Running unittests src/main.rs (/tmp/rosalind-nativefix-target/debug/deps/xtask-7a418b769524a097)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/release_publish.rs (/tmp/rosalind-nativefix-target/debug/deps/release_publish-da99be9e40c06900)
+
+running 5 tests
+test checksum_conflict_fails_permanently ... ok
+test concurrent_upload_failure_is_accepted_only_after_exact_requery ... ok
+test partial_publication_resumes_remaining_packages ... ok
+test exact_existing_versions_resume_without_upload ... ok
+test absent_versions_publish_in_dependency_order ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.21s
+
+   Doc-tests xtask
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

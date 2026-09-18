@@ -1,0 +1,37 @@
+{
+  "commit": "bc6e9e6e051d233da98573dc40f894f56ccd58b5",
+  "aggregate_blake3": "cc493862f498187d12ece7c8a73b8bc024a5659694deaddca3069b427feaa5a1",
+  "component_count": 62,
+  "component_categories": {
+    "cli_help": 49,
+    "legacy": 5,
+    "package": 3,
+    "public_api": 2,
+    "schema": 3
+  },
+  "package_versions": {
+    "rosalind-bio": "0.5.0",
+    "rosalind-build-info": "0.1.0",
+    "rosalind-receipt": "0.3.0"
+  },
+  "primary_artifact_keys": [
+    "demo",
+    "generated_analyzer",
+    "generated_analyzer_conformance",
+    "gvcf",
+    "index",
+    "raw_bam",
+    "sam",
+    "sorted_bam",
+    "tsv",
+    "vcf"
+  ],
+  "receipt_field_counts": {
+    "measurements": 8,
+    "params": 74,
+    "top_level": 6
+  },
+  "report_status": "ready",
+  "python_fingerprint_present": false,
+  "snapshot_sha256": "de1bf55a5df01e51b499eeafd79fa81a70f67ec9281ba6b97abde5c5c529578b"
+}

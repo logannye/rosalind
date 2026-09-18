@@ -1,0 +1,16 @@
+{
+  "platform": "Darwin-25.2.0-arm64-arm-64bit-Mach-O",
+  "tool_versions": {
+    "rustup run 1.95.0 rustc --version": "rustc 1.95.0 (59807616e 2026-04-14)",
+    "rustup run nightly-2026-04-15 rustc --version": "rustc 1.97.0-nightly (a5c825cd8 2026-04-14)",
+    "cargo public-api --version": "cargo-public-api 0.50.1",
+    "python3 --version": "Python 3.14.6"
+  },
+  "compiler_environment": {
+    "RUSTFLAGS": null,
+    "RUSTDOCFLAGS": null,
+    "CARGO_ENCODED_RUSTFLAGS": null,
+    "CARGO_PROFILE_DEV_DEBUG": null
+  },
+  "cargo_user_config_sha256": "2588dae92bb5bc490469aecd30a59a5f25d1e024a268267e9cf710407ce71cf5"
+}

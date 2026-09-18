@@ -1,0 +1,20 @@
+{
+  "command": [
+    "cargo",
+    "+1.95.0",
+    "package",
+    "-p",
+    "rosalind-bio",
+    "--allow-dirty",
+    "--list",
+    "--config",
+    "patch.crates-io.rosalind-receipt.path=\"crates/receipt\"",
+    "--config",
+    "patch.crates-io.rosalind-build-info.path=\"crates/build-info\""
+  ],
+  "exit_code": 0,
+  "cwd": "/private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-contract-bc6e9e6-o7ven_y5/worktree",
+  "environment_overrides": {
+    "CARGO_NET_OFFLINE": "true"
+  }
+}

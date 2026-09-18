@@ -1,0 +1,27 @@
+{
+  "status": "passed",
+  "purpose": "Exact canonical AST byte equivalence across Python versions for all current python/rosalind modules",
+  "results": [
+    {
+      "interpreter": "/tmp/rosalind-validation-20260918-py39/bin/python",
+      "version": "Python 3.9.6",
+      "bytes": 179800,
+      "sha256": "b667369a352a735a163589c22c09bfbd87fd682b503ea06db9022926792e400d",
+      "module_count": 5
+    },
+    {
+      "interpreter": "/tmp/rosalind-validation-20260918-py311/bin/python",
+      "version": "Python 3.11.15",
+      "bytes": 179800,
+      "sha256": "b667369a352a735a163589c22c09bfbd87fd682b503ea06db9022926792e400d",
+      "module_count": 5
+    },
+    {
+      "interpreter": "python3",
+      "version": "Python 3.14.6",
+      "bytes": 179800,
+      "sha256": "b667369a352a735a163589c22c09bfbd87fd682b503ea06db9022926792e400d",
+      "module_count": 5
+    }
+  ]
+}

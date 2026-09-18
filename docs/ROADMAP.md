@@ -105,7 +105,7 @@ The 30-day return target measures adoption; it is not an additional first-stable
 
   Remaining gate: Merge the implementation and link final acceptance evidence.
 
-  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143) · [Actual v0.1.0 installation check](https://github.com/logannye/rosalind/blob/222b8e1/docs/findings/roadmap-foundation-2026-09-18/public-stable-installer.log)
 
 - [ ] **[D02](https://github.com/logannye/rosalind/issues/114) — Deliver researcher candidate-evidence quickstart**
 
@@ -187,15 +187,17 @@ The 30-day return target measures adoption; it is not an additional first-stable
 
   Remaining gate: 2026-09-18 inspection: rc/release custom deployment policies allow no refs; CARGO_REGISTRY_TOKEN absent from repository/environment secret inventories; TestPyPI/PyPI private publisher state unverified. Maintainer account configuration and protected approvals remain required.
 
+  Evidence: [Maintainer setup and exact trusted publisher fields](https://github.com/logannye/rosalind/blob/main/docs/MAINTAINER_RELEASES.md) · [Read-only prerequisite inspection](https://github.com/logannye/rosalind/blob/bc6e9e6/docs/findings/cram-decoder-validation-2026-09-06/verified-9b8e12f-2026-09-18/release-prerequisites.json)
+
 - [ ] **[R03](https://github.com/logannye/rosalind/issues/122) — Freeze complete public contract inventory**
 
   Status: **implemented**. Owner: engineering. Dependencies: R01, G02.
 
   Done when: Dataset family and evidence analyzer help variants, Python/API/schema/version contracts included; historical verification preserved.
 
-  Remaining gate: Merge the implementation and link final acceptance evidence.
+  Remaining gate: Clean exact-source full snapshot passes with 63 components including Python code/packaging and 49 CLI entries; merge and final review remain.
 
-  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143) · [Complete contract snapshot and comparison](https://github.com/logannye/rosalind/blob/codex/python-contract-freeze/docs/findings/python-contract-2026-09-18/README.md)
 
 - [ ] **[R04](https://github.com/logannye/rosalind/issues/123) — Publish fresh immutable evidence-engine RC**
 

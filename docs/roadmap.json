@@ -139,7 +139,8 @@
       "owner": "engineering",
       "status": "implemented",
       "evidence": [
-        "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)"
+        "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)",
+        "[Actual v0.1.0 installation check](https://github.com/logannye/rosalind/blob/222b8e1/docs/findings/roadmap-foundation-2026-09-18/public-stable-installer.log)"
       ],
       "issue_number": 113,
       "issue_url": "https://github.com/logannye/rosalind/issues/113",
@@ -269,7 +270,10 @@
       "acceptance": "Maintainer configures allowed refs with reviewers, exact publishers, GHCR visibility and crates credentials; inspect names only and never expose secrets.",
       "owner": "maintainer",
       "status": "blocked",
-      "evidence": [],
+      "evidence": [
+        "[Maintainer setup and exact trusted publisher fields](https://github.com/logannye/rosalind/blob/main/docs/MAINTAINER_RELEASES.md)",
+        "[Read-only prerequisite inspection](https://github.com/logannye/rosalind/blob/bc6e9e6/docs/findings/cram-decoder-validation-2026-09-06/verified-9b8e12f-2026-09-18/release-prerequisites.json)"
+      ],
       "issue_number": 121,
       "issue_url": "https://github.com/logannye/rosalind/issues/121",
       "blocker": "2026-09-18 inspection: rc/release custom deployment policies allow no refs; CARGO_REGISTRY_TOKEN absent from repository/environment secret inventories; TestPyPI/PyPI private publisher state unverified. Maintainer account configuration and protected approvals remain required."
@@ -285,11 +289,12 @@
       "owner": "engineering",
       "status": "implemented",
       "evidence": [
-        "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)"
+        "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)",
+        "[Complete contract snapshot and comparison](https://github.com/logannye/rosalind/blob/codex/python-contract-freeze/docs/findings/python-contract-2026-09-18/README.md)"
       ],
       "issue_number": 122,
       "issue_url": "https://github.com/logannye/rosalind/issues/122",
-      "blocker": "Merge the implementation and link final acceptance evidence."
+      "blocker": "Clean exact-source full snapshot passes with 63 components including Python code/packaging and 49 CLI entries; merge and final review remain."
     },
     {
       "id": "R04",
