@@ -46,6 +46,9 @@
 pub mod call;
 // Isolated next-minor storage foundation; no supported public cohort API yet.
 pub(crate) mod cohort;
+/// Internal binary bridge for the experimental cohort CLI.
+#[doc(hidden)]
+pub mod cohort_cli;
 /// Offline conformance harness for external analyzer binaries.
 pub mod conformance;
 /// Public orchestration for inheriting planning, enforcement, and receipts.
