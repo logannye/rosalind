@@ -8,8 +8,9 @@ researcher and saved-dataset quickstarts.
 
 The mixed Maturin wheel bundles the matching `rosalind` executable. The distribution
 is `rosalind-bio`; import `rosalind`. Python 3.9+ is declared and tested by candidate
-wheel CI. The source version is 0.5.0; these changes are unpublished until the
-release gates complete. A source version does not establish registry availability.
+wheel CI. This development line is 0.6.0 with experimental cohort interfaces;
+the 0.5 evidence release remains a separate release effort. These changes are
+unpublished. A source version does not establish registry availability.
 
 Installing a prebuilt wheel needs Python, pip, and its declared PyArrow dependency;
 it does not need a compiler. Building a wheel from source needs Rust/Cargo and the
@@ -100,3 +101,61 @@ or `materialize_evidence`. Native accumulation, Arrow batches, and persisted
 artifacts contain only those groups and the locus identity columns. Missing
 columns are absent. `panel_qc` defaults to depths and quality sums; an explicit
 field list must include both groups. Use `fields="all"` for complete evidence.
+
+The next-minor cohort preview adds immutable local sample collections above
+portable datasets. Create a snapshot with `rosalind cohort create --cohort cohort
+--members members.tsv`; the table contains `id` and `manifest` columns. Each
+member must have named single-sample evidence. Use the returned `snapshot_id`:
+
+```python
+from rosalind import open_cohort
+
+cohort = open_cohort("cohort", snapshot="<snapshot_id from cohort create>")
+plan = cohort.plan(sites="candidates.vcf")
+result = cohort.materialize("candidate-review.tsv", sites="candidates.vcf", format="tsv")
+summary = cohort.summarize("candidate-summary.arrow", sites="candidates.vcf",
+                           min_callable_depth=10)
+# Ask a second question using only the cohort directory and a new candidate file.
+with cohort.batches(sites="second-candidates.vcf", missing="partial") as run:
+    for batch in run:
+        print(batch.num_rows)
+    assert run.result is not None
+```
+
+`open_cohort()` is lazy. Each native call verifies the immutable snapshot and
+consumed evidence. Strict coverage refuses unmeasured loci; explicit partial
+coverage emits null evidence and status while retaining measured zero depth.
+The depth threshold is a technical screen. ALT support proportions are not
+genotypes or population allele frequencies. `members=None` selects all members;
+`members=[]` selects none. Sample labels and metadata are user assertions.
+
+`batches()` currently materializes a complete native Arrow artifact on disk
+before yielding its first batch, then reads at most 1,024 rows per batch. A
+context manager owns the child process and reader. Its `workdir` (a new temporary
+directory by default) retains the artifact and receipt; remove it when no longer
+needed. For an explicitly named artifact use `materialize()`. Native budgets
+exclude Python-retained state; `memory_budget_mb` enables cooperative admission,
+and `require_os_limit=True` additionally requires a verified Linux cgroup limit.
+
+To fill missing loci, supply a TSV with `id`, `role`, and `path` columns containing
+exactly the affected samples and all original scientific source roles. Paths are
+relative to the table; their content identities must match the original sources.
+
+```python
+cohort.plan(operation="extend", sites="second-candidates.vcf", sources="sources.tsv")
+extension = cohort.extend("sources.tsv", sites="second-candidates.vcf", workdir="scratch")
+extended = extension.cohort
+print(extension.report["members"])
+extended.verify()
+```
+
+The scratch directory must exist outside the cohort. Extension computes missing
+loci only, publishes a new snapshot after all additions succeed, and preserves
+the original. It cannot add missing fields at already stored loci. A source-free
+no-op uses a header-only source table and returns the same snapshot. Plan reports
+do not open raw sources; execution verifies their hashes and reports native
+record visits, CRAM full-validation work and existing-object hashing separately.
+Large explicit member selections for extraction, summaries and their plans use
+a bounded temporary native argument file, removed when the invocation closes.
+Extension currently supports at most 64 KiB of command arguments; select all
+members (the default) and use the source table for large extension operations.
