@@ -2957,7 +2957,7 @@ fn image_plan<R: Runner>(
             policy.happy_repository
         ),
         "attest image and SBOM".into(),
-        "open a digest-lock pull request".into(),
+        "stage evidence for a maintainer-created digest-lock pull request".into(),
     ];
     report.seal();
     report
@@ -3057,7 +3057,7 @@ fn image_status<R: Runner>(runner: &R, root: &Path, policy: &Policy) -> Maintain
         }
         Err(error) => report.check("image.lock", false, error),
     }
-    report.actions = vec!["merge the generated digest-lock PR before benchmarking".into()];
+    report.actions = vec!["review the uploaded lock and merge a maintainer-created PR before benchmarking".into()];
     report.seal();
     report
 }

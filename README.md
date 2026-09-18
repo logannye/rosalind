@@ -22,8 +22,10 @@ Indexed BAM/CRAM + reference + candidate sites or target regions
 public stable release is **v0.1.0**, which predates this evidence engine. Start with
 [installation](docs/installation.md); current examples require a source build.
 [Implementation status](docs/implementation-status.md) distinguishes implemented,
-validated, published, and independently used capabilities. Cohort APIs are
-[planned](docs/ROADMAP.md), not currently available.
+validated, published, and independently used capabilities. Cohort CLI/Python APIs
+are implemented in the separate, **unpublished 0.6 preview** [PR #145](https://github.com/logannye/rosalind/pull/145),
+with a [source-bound validation report](https://github.com/logannye/rosalind/blob/codex/cohort-preview/docs/findings/cohort-preview-2026-09-18/README.md).
+Current `main` remains the 0.5 line and does not include those cohort commands.
 
 ## Choose your starting point
 

@@ -1,34 +1,34 @@
 {
-  "schema": 1,
-  "hap_py": {
-    "version": "0.3.15",
-    "url": "https://github.com/Illumina/hap.py/archive/refs/tags/v0.3.15.tar.gz",
-    "sha256": "838912f1ab805224110af3c1035849d5483b5ce4c565ae0f0db7f7284af06676"
-  },
-  "rtg_tools": {
-    "version": "3.12.1",
-    "url": "https://github.com/RealTimeGenomics/rtg-tools/releases/download/3.12.1/rtg-tools-3.12.1-nojre.zip",
-    "sha256": "5efc8cb1a44019b97dce8d324e3a0b3dc3328d022fc9db13c80b09996757c4aa"
-  },
   "base_image": {
+    "digest": "sha256:dca176c9663a7ba4c1f0e710986f5a25e672842963d95b960191e2d9f7185ebe",
     "name": "docker.io/library/ubuntu:18.04",
-    "platform": "linux/amd64",
-    "digest": "sha256:dca176c9663a7ba4c1f0e710986f5a25e672842963d95b960191e2d9f7185ebe"
-  },
-  "generated_image": {
-    "repository": "ghcr.io/logannye/rosalind-happy",
-    "digest": null,
-    "platform": "linux/amd64",
-    "source_lock_blake3": null,
-    "built_from_commit": null
+    "platform": "linux/amd64"
   },
   "evaluation_policy": "Published evaluation requires NAME@sha256:REGISTRY_MANIFEST_DIGEST and attestation. build.sh identifies its local config ID and executes a synthetic offline smoke; it does not produce a registry digest.",
+  "generated_image": {
+    "built_from_commit": "92ac1ccd7bb898060a7e6bb7297411cde895a3fd",
+    "digest": "sha256:e2a6bed76ec740eec691a9383790b130f0882705b0aca4f8563e74cd233cc6cf",
+    "platform": "linux/amd64",
+    "repository": "ghcr.io/logannye/rosalind-happy",
+    "source_lock_blake3": "fdcf635037992264eb95dae5b3d1c6a7c36ebb702e586b67f82a64bad4d55a7c"
+  },
+  "hap_py": {
+    "sha256": "838912f1ab805224110af3c1035849d5483b5ce4c565ae0f0db7f7284af06676",
+    "url": "https://github.com/Illumina/hap.py/archive/refs/tags/v0.3.15.tar.gz",
+    "version": "0.3.15"
+  },
   "python_runtime": {
-    "version": "2.7",
+    "bx_python": "0.8.9",
     "reason": "hap.py0.3.15 upstream requires Python2 syntax",
     "requirements_file": "requirements-py27.txt",
-    "bx_python": "0.8.9",
     "six": "1.16.0",
+    "version": "2.7",
     "wheel_platform": "cp27-cp27mu-manylinux1_x86_64"
-  }
+  },
+  "rtg_tools": {
+    "sha256": "5efc8cb1a44019b97dce8d324e3a0b3dc3328d022fc9db13c80b09996757c4aa",
+    "url": "https://github.com/RealTimeGenomics/rtg-tools/releases/download/3.12.1/rtg-tools-3.12.1-nojre.zip",
+    "version": "3.12.1"
+  },
+  "schema": 1
 }

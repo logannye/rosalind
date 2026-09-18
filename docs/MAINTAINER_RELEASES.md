@@ -223,7 +223,7 @@ caller remains explicitly experimental with no accuracy claim.
 synthetic identical-SNV case through the actual offline hap.py/vcfeval path. It
 runs on evaluator PRs and when a scheduled GIAB run lacks a published evaluator.
 The protected image workflow requires that candidate gate, then publishes and
-attests a digest and proposes its lock. A candidate build is not a GIAB result;
+attests a digest and uploads its lock for a maintainer-created PR. A candidate build is not a GIAB result;
 HG002 execution still requires the reviewed published image and prepared data.
 Python 2.7 is required by pinned hap.py 0.3.15; compatible bx-python/six wheels are
 hash-locked rather than resolved from floating dependencies.
@@ -234,7 +234,11 @@ were retained. The maintainer confirms that the TestPyPI trusted publisher is
 configured; the first protected OIDC upload will verify that mapping in practice.
 The read-only secret-name inventory still contains no `CARGO_REGISTRY_TOKEN`,
 which is required for stable crate publication, not RC preparation. PyPI stable
-publisher setup and GHCR visibility remain to be verified. No credential values
+publisher setup remains to be verified. Anonymous GHCR retrieval of the pinned
+hap.py evaluator is verified: [run 35378796613](https://github.com/logannye/rosalind/actions/runs/35378796613)
+published, smoked and attested the image, then failed only at automatic PR creation.
+The [recovery record](findings/evaluator-publication-2026-09-18/README.md) retains
+that failure and the verified image identity; this is not scientific GIAB evidence. No credential values
 were read or recorded. The Actions setting for automatic PR creation remains
 disabled; evaluator-lock and baseline evidence can be reviewed through an ordinary
 maintainer-created PR without broadening that setting.

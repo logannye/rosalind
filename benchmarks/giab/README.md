@@ -14,7 +14,7 @@ extraction with a version-neutral header, and writes a local SHA-256 data manife
 benchmarks/giab/prepare.sh
 cargo xtask giab image plan --output image-plan.json --json
 cargo xtask giab image dispatch --plan image-plan.json --confirm PLAN_ID
-# Merge the generated digest-lock PR, then:
+# Review happy-image-evidence and merge its lock through a maintainer-created PR, then:
 benchmarks/giab/run.sh
 ```
 

@@ -1,0 +1,94 @@
+{
+  "mediaType": "application/vnd.dev.sigstore.verificationresult+json;version=0.1",
+  "signature": {
+    "certificate": {
+      "buildConfigDigest": "92ac1ccd7bb898060a7e6bb7297411cde895a3fd",
+      "buildConfigURI": "https://github.com/logannye/rosalind/.github/workflows/happy-image.yml@refs/heads/main",
+      "buildSignerDigest": "92ac1ccd7bb898060a7e6bb7297411cde895a3fd",
+      "buildSignerURI": "https://github.com/logannye/rosalind/.github/workflows/happy-image.yml@refs/heads/main",
+      "buildTrigger": "workflow_dispatch",
+      "certificateIssuer": "CN=sigstore-intermediate,O=sigstore.dev",
+      "githubWorkflowName": "Build pinned hap.py evaluator image",
+      "githubWorkflowRef": "refs/heads/main",
+      "githubWorkflowRepository": "logannye/rosalind",
+      "githubWorkflowSHA": "92ac1ccd7bb898060a7e6bb7297411cde895a3fd",
+      "githubWorkflowTrigger": "workflow_dispatch",
+      "issuer": "https://token.actions.githubusercontent.com",
+      "runInvocationURI": "https://github.com/logannye/rosalind/actions/runs/35378796613/attempts/1",
+      "runnerEnvironment": "github-hosted",
+      "sourceRepositoryDigest": "92ac1ccd7bb898060a7e6bb7297411cde895a3fd",
+      "sourceRepositoryIdentifier": "1094599988",
+      "sourceRepositoryOwnerIdentifier": "87274608",
+      "sourceRepositoryOwnerURI": "https://github.com/logannye",
+      "sourceRepositoryRef": "refs/heads/main",
+      "sourceRepositoryURI": "https://github.com/logannye/rosalind",
+      "sourceRepositoryVisibilityAtSigning": "public",
+      "subjectAlternativeName": "https://github.com/logannye/rosalind/.github/workflows/happy-image.yml@refs/heads/main"
+    }
+  },
+  "statement": {
+    "_type": "https://in-toto.io/Statement/v1",
+    "predicate": {
+      "buildDefinition": {
+        "buildType": "https://actions.github.io/buildtypes/workflow/v1",
+        "externalParameters": {
+          "workflow": {
+            "path": ".github/workflows/happy-image.yml",
+            "ref": "refs/heads/main",
+            "repository": "https://github.com/logannye/rosalind"
+          }
+        },
+        "internalParameters": {
+          "github": {
+            "event_name": "workflow_dispatch",
+            "repository_id": "1094599988",
+            "repository_owner_id": "87274608",
+            "runner_environment": "github-hosted"
+          }
+        },
+        "resolvedDependencies": [
+          {
+            "digest": {
+              "gitCommit": "92ac1ccd7bb898060a7e6bb7297411cde895a3fd"
+            },
+            "uri": "git+https://github.com/logannye/rosalind@refs/heads/main"
+          }
+        ]
+      },
+      "runDetails": {
+        "builder": {
+          "id": "https://github.com/logannye/rosalind/.github/workflows/happy-image.yml@refs/heads/main"
+        },
+        "metadata": {
+          "invocationId": "https://github.com/logannye/rosalind/actions/runs/35378796613/attempts/1"
+        }
+      }
+    },
+    "predicateType": "https://slsa.dev/provenance/v1",
+    "subject": [
+      {
+        "digest": {
+          "sha256": "e2a6bed76ec740eec691a9383790b130f0882705b0aca4f8563e74cd233cc6cf"
+        },
+        "name": "ghcr.io/logannye/rosalind-happy"
+      }
+    ]
+  },
+  "verifiedIdentity": {
+    "issuer": {
+      "issuer": "",
+      "regexp": ".*"
+    },
+    "subjectAlternativeName": {
+      "regexp": "^https://github.com/logannye/rosalind/.github/workflows/happy-image.yml",
+      "subjectAlternativeName": ""
+    }
+  },
+  "verifiedTimestamps": [
+    {
+      "timestamp": "2026-09-18T12:14:33-07:00",
+      "type": "Tlog",
+      "uri": "https://rekor.sigstore.dev"
+    }
+  ]
+}

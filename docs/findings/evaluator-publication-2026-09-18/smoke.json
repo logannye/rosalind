@@ -1,0 +1,24 @@
+{
+  "status": "passed",
+  "scope": "one synthetic identical SNV; not GIAB validation",
+  "snp": {
+    "Type": "SNP",
+    "Filter": "ALL",
+    "TRUTH.TOTAL": "1",
+    "TRUTH.TP": "1",
+    "TRUTH.FN": "0",
+    "QUERY.TOTAL": "1",
+    "QUERY.FP": "0",
+    "QUERY.UNK": "0",
+    "FP.gt": "0",
+    "FP.al": "0",
+    "METRIC.Recall": "1.0",
+    "METRIC.Precision": "1.0",
+    "METRIC.Frac_NA": "0.0",
+    "METRIC.F1_Score": "1.0",
+    "TRUTH.TOTAL.TiTv_ratio": "0.0",
+    "QUERY.TOTAL.TiTv_ratio": "0.0",
+    "TRUTH.TOTAL.het_hom_ratio": "",
+    "QUERY.TOTAL.het_hom_ratio": ""
+  }
+}

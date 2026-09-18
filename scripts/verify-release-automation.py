@@ -130,9 +130,12 @@ def main() -> None:
             fail(f"{name}: candidate must control checkout")
 
     image = (WORKFLOWS / "happy-image.yml").read_text()
-    for marker in ("platforms: linux/amd64", "push: true", "environment: release", "create-pull-request", "uses: ./.github/workflows/happy-candidate.yml", "needs: [resolve, candidate]"):
+    for marker in ("platforms: linux/amd64", "push: true", "environment: release", "Record maintainer PR handoff", "happy-image-evidence", "GITHUB_STEP_SUMMARY", "uses: ./.github/workflows/happy-candidate.yml", "needs: [resolve, candidate]"):
         if marker not in image:
             fail(f"hap.py image workflow lacks {marker}")
+
+    if "create-pull-request@" in image or "pull-requests: write" in image or "contents: write" in image:
+        fail("evaluator lock handoff must not require automatic PR creation or repository writes")
 
     candidate = (WORKFLOWS / "happy-candidate.yml").read_text()
     for marker in ("workflow_call:", "candidate_sha:", "--platform linux/amd64", "happy/smoke.sh", "if: always()"):
