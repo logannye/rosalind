@@ -6,6 +6,38 @@ on:
   pull_request:
 
 jobs:
+  container-smoke:
+    name: Container build and offline non-root smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+      - name: Build the release Dockerfile without publishing
+        run: |
+          set -euo pipefail
+          docker build --platform linux/amd64 --progress plain \
+            --file containers/rosalind/Dockerfile \
+            --tag "rosalind-ci:$GITHUB_SHA" . \
+            2>&1 | tee "$RUNNER_TEMP/rosalind-container-build.log"
+      - name: Exercise the installed image offline as its default non-root user
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["package"]["version"])')
+          bash scripts/smoke-container.sh "rosalind-ci:$GITHUB_SHA" "$version" \
+            "$RUNNER_TEMP/rosalind-container-smoke"
+      - name: Retain container build and smoke evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: container-smoke-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/rosalind-container-build.log
+            ${{ runner.temp }}/rosalind-container-smoke
+          retention-days: 30
+
   macos-smoke:
     name: macOS smoke
     runs-on: macos-latest

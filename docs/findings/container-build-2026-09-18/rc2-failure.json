@@ -1,0 +1,12 @@
+{
+  "candidate_sha": "8874508844e106484fa290b04e3fc6349686beaf",
+  "cause": "libz-sys zlib-ng build could not execute missing cmake",
+  "excerpt": "rc2-failure.txt",
+  "full_downloaded_job_log_bytes": 90607,
+  "full_downloaded_job_log_sha256": "6ffe4bbd9ac9cf018309a20e1c23bf1c44bc0d69f6fb874ff53bece011759d3f",
+  "job_id": 105726566760,
+  "job_url": "https://github.com/logannye/rosalind/actions/runs/35379805820/job/105726566760",
+  "release_tag": "v0.5.0-rc.2",
+  "result": "failed",
+  "workflow_run_id": 35379805820
+}
