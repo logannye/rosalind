@@ -1,10 +1,12 @@
-//! Internal next-minor cohort storage preparation. No CLI or public SDK yet.
+//! Internal implementation of the next-minor cohort CLI/Python preview.
+//! Generic cohort consumers are not a public Rust SDK contract.
 #![allow(dead_code)]
 
 pub(crate) mod artifact;
 pub(crate) mod comparison;
 pub(crate) mod descriptor;
 pub(crate) mod encoding;
+pub(crate) mod extend;
 pub(crate) mod query;
 pub(crate) mod runtime;
 pub(crate) mod store;

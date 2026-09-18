@@ -829,7 +829,7 @@ mod tests {
         assert!(extend_snapshot(
             &parent,
             &query(&[8, 9]),
-            &[sources.clone()],
+            std::slice::from_ref(&sources),
             &work.0,
             &execution,
             limits
@@ -844,7 +844,7 @@ mod tests {
         assert!(extend_snapshot(
             &parent,
             &query(&[8]),
-            &[sources.clone()],
+            std::slice::from_ref(&sources),
             &work.0,
             &execution,
             limits

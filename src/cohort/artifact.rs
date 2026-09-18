@@ -5,7 +5,7 @@ use super::descriptor::{CohortLimits, SNAPSHOT_FILE, SNAPSHOT_RECEIPT};
 use super::encoding::{
     memory_bytes, summary_memory_bytes, CohortOutputFormat, ExtractEncoder, SummaryEncoder,
 };
-use super::query::{plan_query, CohortQuery, CohortQueryLimits};
+use super::query::{plan_query, CohortQuery, CohortQueryLimits, CohortQueryPlan};
 use super::runtime::{visit_rows, visit_windows, CohortRunStats};
 use super::store::open_snapshot;
 use super::summary::required_fields;
@@ -18,9 +18,10 @@ use crate::evidence::{
     EvidenceArtifactError, EvidenceError, EvidenceExecution, EvidenceSelection,
     CANONICAL_TILE_BASES,
 };
-use crate::provenance::{FileHash, RunManifest};
+use crate::provenance::{CommandCapture, FileHash, RunManifest};
 use crate::util::atomic::{commit_group, ensure_destination, AtomicFile};
 use crate::util::rss::peak_rss_bytes;
+use crate::variant_io::{parse_snv_record, VariantLimits, VariantReader};
 use std::collections::BTreeMap;
 use std::fs::{self, File};
 use std::io::{BufWriter, Read, Seek, Write};
@@ -38,6 +39,10 @@ pub(crate) struct CohortArtifactSpec {
     pub root: PathBuf,
     pub snapshot_id: String,
     pub query: CohortQuery,
+    /// A bounded VCF/VCF.gz/BCF selection parsed inside this managed lifetime.
+    pub sites: Option<(PathBuf, VariantLimits)>,
+    /// Explicit content-located replay operands; each must match a consumed input.
+    pub artifacts: Vec<PathBuf>,
     pub execution: EvidenceExecution,
     pub limits: CohortQueryLimits,
     pub operation: CohortOperation,
@@ -64,7 +69,26 @@ pub(crate) struct CohortArtifactOutcome {
 /// Refusal, cancellation and failed output/receipt publication never create a
 /// completed result. Resource failures currently discard staged cohort files;
 /// partial cohort artifacts are not a supported product surface.
-pub(crate) fn run_cohort_artifact(mut spec: CohortArtifactSpec) -> Result<CohortArtifactOutcome> {
+pub(crate) fn run_cohort_artifact(spec: CohortArtifactSpec) -> Result<CohortArtifactOutcome> {
+    match execute(spec, false)? {
+        ArtifactExecution::Completed(outcome) => Ok(outcome),
+        ArtifactExecution::Planned(_) => unreachable!("execution requested"),
+    }
+}
+
+pub(crate) fn plan_cohort_artifact(spec: CohortArtifactSpec) -> Result<CohortQueryPlan> {
+    match execute(spec, true)? {
+        ArtifactExecution::Planned(plan) => Ok(plan),
+        ArtifactExecution::Completed(_) => unreachable!("plan requested"),
+    }
+}
+
+enum ArtifactExecution {
+    Planned(CohortQueryPlan),
+    Completed(CohortArtifactOutcome),
+}
+
+fn execute(mut spec: CohortArtifactSpec, plan_only: bool) -> Result<ArtifactExecution> {
     let started = Instant::now();
     let token = spec.cancellation.clone().unwrap_or_default();
     let cancellation = CancellationScope::start(token.clone())
@@ -131,33 +155,67 @@ pub(crate) fn run_cohort_artifact(mut spec: CohortArtifactSpec) -> Result<Cohort
     spec.limits.cohort.dataset.memory_budget_bytes = budget;
     let limits = spec.limits.cohort;
     limits.admit(0)?;
-    let snapshot = open_snapshot(&spec.root, &spec.snapshot_id, limits)?;
-    let receipt_path = spec
-        .manifest
-        .clone()
-        .unwrap_or_else(|| suffix(&spec.output, ".manifest.json"));
-    let output = absolute_destination(&spec.output)?;
-    let manifest = absolute_destination(&receipt_path)?;
-    if output == manifest
-        || [&output, &manifest]
-            .iter()
-            .any(|path| path.starts_with(&snapshot.root))
-    {
-        return Err(CohortError::Incompatible(
-            "cohort outputs must be distinct and outside the immutable store".into(),
+    if spec.artifacts.len() > spec.limits.cohort.max_leaf_references {
+        return Err(CohortError::Limit(
+            "replay operands exceed metadata envelope".into(),
         ));
     }
-    let replace = spec.output_policy == OutputPolicy::ReplaceAtomic;
-    ensure_destination(&output, replace)?;
-    ensure_destination(&manifest, replace)?;
+    limits.admit((spec.artifacts.len() as u64).saturating_mul(16_384))?;
+    spec.artifacts = spec
+        .artifacts
+        .iter()
+        .map(fs::canonicalize)
+        .collect::<std::io::Result<_>>()?;
+    let replay_guard = InputSnapshot::capture(spec.artifacts.iter().cloned())?;
+    let snapshot = open_snapshot(&spec.root, &spec.snapshot_id, limits)?;
     spec.query.requirements.fields = required_fields();
     spec.query.requirements.requires_reference = true;
     spec.query.requirements.context_bases = 0;
     // The first metadata plan establishes dictionary and coverage; no output has
     // been created. A second plan admits the complete encoder/finalization bound.
     spec.query.requirements.retained_bytes = Some(0);
-    let mut plan = plan_query(&snapshot, &spec.query, &spec.execution, spec.limits)?;
-    plan.ensure_executable()?;
+    let mut dictionary_query = spec.query.clone();
+    if spec.sites.is_some() {
+        dictionary_query.selection = EvidenceSelection::Sites(Vec::new());
+    }
+    let mut plan = plan_query(&snapshot, &dictionary_query, &spec.execution, spec.limits)?;
+    let candidate_input = if let Some((path, variant_limits)) = &spec.sites {
+        let path = fs::canonicalize(path)?;
+        let guard = InputSnapshot::capture([path.clone()])?;
+        let hash = hash_file(&path, limits)?;
+        let parser_bytes = (variant_limits.max_header_bytes as u64)
+            .saturating_add(variant_limits.max_record_bytes as u64)
+            .saturating_mul(4)
+            .saturating_add(128 << 10);
+        limits.admit(parser_bytes)?;
+        let mut reader = VariantReader::open(&path, *variant_limits)?;
+        let mut sites = Vec::new();
+        while let Some(record) = reader.read()? {
+            if sites.len() >= spec.limits.max_input_sites {
+                return Err(CohortError::Limit(
+                    "candidate file exceeds record envelope".into(),
+                ));
+            }
+            let bytes = (sites.len() as u64 + 1).saturating_mul(4096);
+            if bytes > spec.limits.max_query_bytes {
+                return Err(CohortError::Limit(
+                    "candidate file exceeds query byte envelope".into(),
+                ));
+            }
+            limits.admit(parser_bytes.saturating_add(bytes))?;
+            sites.push(parse_snv_record(record, &plan.contigs)?);
+        }
+        drop(reader);
+        guard.verify()?;
+        spec.query.selection = EvidenceSelection::Sites(sites);
+        plan = plan_query(&snapshot, &spec.query, &spec.execution, spec.limits)?;
+        Some((path, hash, guard))
+    } else {
+        None
+    };
+    if !plan_only {
+        plan.ensure_executable()?;
+    }
     let max_text = plan
         .contigs
         .iter()
@@ -197,7 +255,38 @@ pub(crate) fn run_cohort_artifact(mut spec: CohortArtifactSpec) -> Result<Cohort
     limits.admit(reserve)?;
     spec.query.requirements.retained_bytes = Some(reserve);
     plan = plan_query(&snapshot, &spec.query, &spec.execution, spec.limits)?;
+    if plan_only {
+        if let Some((_, _, guard)) = &candidate_input {
+            guard.verify()?;
+        }
+        return Ok(ArtifactExecution::Planned(plan));
+    }
     plan.ensure_executable()?;
+    let receipt_path = spec
+        .manifest
+        .clone()
+        .unwrap_or_else(|| suffix(&spec.output, ".manifest.json"));
+    let output = absolute_destination(&spec.output)?;
+    let manifest = absolute_destination(&receipt_path)?;
+    if output == manifest
+        || [&output, &manifest]
+            .iter()
+            .any(|path| path.starts_with(&snapshot.root))
+        || candidate_input
+            .as_ref()
+            .is_some_and(|(path, _, _)| path == &output || path == &manifest)
+        || spec
+            .artifacts
+            .iter()
+            .any(|path| path == &output || path == &manifest)
+    {
+        return Err(CohortError::Incompatible(
+            "cohort outputs must be distinct and outside the immutable store".into(),
+        ));
+    }
+    let replace = spec.output_policy == OutputPolicy::ReplaceAtomic;
+    ensure_destination(&output, replace)?;
+    ensure_destination(&manifest, replace)?;
     let normalized = canonical_dataset_query(
         &DatasetQuery {
             selection: EvidenceSelection::Sites(plan.sites.clone()),
@@ -205,6 +294,11 @@ pub(crate) fn run_cohort_artifact(mut spec: CohortArtifactSpec) -> Result<Cohort
         },
         &plan.contigs,
     )?;
+    if candidate_input.is_none() && normalized.len() > crate::evidence::MAX_ARTIFACT_QUERY_BYTES {
+        return Err(CohortError::Limit(
+            "inline replay query exceeds 32 KiB; supply a candidate file instead".into(),
+        ));
+    }
     let selected = serde_json::to_string(
         &plan
             .members
@@ -275,12 +369,16 @@ pub(crate) fn run_cohort_artifact(mut spec: CohortArtifactSpec) -> Result<Cohort
             .insert("memory_budget_bytes".into(), bytes.to_string());
     }
     let mut lineage = BTreeMap::new();
+    if let Some((path, hash, guard)) = &candidate_input {
+        guard.verify()?;
+        lineage.insert(path.clone(), hash.clone());
+    }
     let snapshot_path = snapshot
         .root
         .join("snapshots")
         .join(&snapshot.id)
         .join(SNAPSHOT_FILE);
-    lineage.insert(snapshot_path, snapshot.id.clone());
+    lineage.insert(snapshot_path.clone(), snapshot.id.clone());
     let snapshot_receipt = snapshot
         .root
         .join("snapshots")
@@ -350,10 +448,87 @@ pub(crate) fn run_cohort_artifact(mut spec: CohortArtifactSpec) -> Result<Cohort
         stats
     };
     pending.file_mut().sync_all()?;
+    for (path, blake3) in &stats.consumed_inputs {
+        receipt.inputs.push(FileHash {
+            path: path.clone(),
+            blake3: blake3.clone(),
+        });
+    }
+    for path in &spec.artifacts {
+        let hash = hash_file(path, limits)?;
+        if !receipt.inputs.iter().any(|input| input.blake3 == hash) {
+            return Err(CohortError::Incompatible(
+                "replay operand does not match a verified cohort dependency".into(),
+            ));
+        }
+    }
+    replay_guard.verify()?;
     receipt.outputs.push(FileHash {
         path: output.display().to_string(),
         blake3: hash_file(pending.temporary_path(), limits)?,
     });
+    let mut capture = CommandCapture::from_argv_prefix(["cohort", operation]);
+    for input in &receipt.inputs {
+        let flag = if Path::new(&input.path) == snapshot_path {
+            "--cohort-snapshot-manifest"
+        } else if candidate_input
+            .as_ref()
+            .is_some_and(|(path, _, _)| Path::new(&input.path) == path)
+        {
+            "--sites"
+        } else {
+            "--cohort-artifact"
+        };
+        capture.input_hashed(flag, &input.path, &input.blake3);
+    }
+    if candidate_input.is_none() {
+        capture.opt("--cohort-query", &normalized);
+    }
+    capture
+        .opt("--snapshot", &snapshot.id)
+        .opt("--cohort-members", &receipt.params["cohort.members"])
+        .opt("--fields", plan.fields.names().join(","))
+        .opt("--missing", &receipt.params["cohort.missing_policy"])
+        .opt("--min-callable-depth", spec.min_callable_depth)
+        .opt("--format", format)
+        .opt("--max-microtile-bases", spec.execution.max_microtile_bases)
+        .opt("--max-receipt-bytes", spec.max_receipt_bytes)
+        .opt(
+            "--max-snapshot-bytes",
+            spec.limits.cohort.max_snapshot_bytes,
+        )
+        .opt(
+            "--max-dataset-metadata-bytes",
+            spec.limits
+                .cohort
+                .dataset
+                .max_manifest_bytes
+                .max(spec.limits.cohort.dataset.max_descriptor_bytes),
+        )
+        .opt("--max-candidate-sites", spec.limits.max_input_sites)
+        .flag_if(enforced, "--enforce")
+        .flag_if(
+            spec.enforcement == EnforcementMode::RequireOsLimit,
+            "--require-os-limit",
+        );
+    if let Some((_, variant_limits)) = &spec.sites {
+        capture
+            .opt(
+                "--max-variant-header-bytes",
+                variant_limits.max_header_bytes,
+            )
+            .opt(
+                "--max-variant-record-bytes",
+                variant_limits.max_record_bytes,
+            );
+    }
+    if let Some(bytes) = declared {
+        capture.opt("--memory-budget-bytes", bytes);
+    }
+    for output in &receipt.outputs {
+        capture.output_hashed("--output", &output.path, &output.blake3);
+    }
+    capture.record_into(&mut receipt);
     receipt.measurements.extend([
         ("peak_rss_bytes".into(), "00000000000000000000".into()),
         (
@@ -404,6 +579,9 @@ pub(crate) fn run_cohort_artifact(mut spec: CohortArtifactSpec) -> Result<Cohort
     test_before_publication()?;
     snapshot.verify_unchanged()?;
     lineage_guard.verify()?;
+    if let Some((_, _, guard)) = &candidate_input {
+        guard.verify()?;
+    }
     limits.admit(0)?;
     let peak = peak_rss_bytes();
     crate::evidence::reseal_observed_measurements(&mut bytes, peak, declared)?;
@@ -413,8 +591,12 @@ pub(crate) fn run_cohort_artifact(mut spec: CohortArtifactSpec) -> Result<Cohort
     pending_receipt.file_mut().sync_all()?;
     snapshot.verify_unchanged()?;
     lineage_guard.verify()?;
+    if let Some((_, _, guard)) = &candidate_input {
+        guard.verify()?;
+    }
     limits.admit(0)?;
     token.check().map_err(EvidenceError::from)?;
+    replay_guard.verify()?;
     commit_group(
         vec![
             (pending, output.clone()),
@@ -422,13 +604,13 @@ pub(crate) fn run_cohort_artifact(mut spec: CohortArtifactSpec) -> Result<Cohort
         ],
         replace,
     )?;
-    Ok(CohortArtifactOutcome {
+    Ok(ArtifactExecution::Completed(CohortArtifactOutcome {
         output,
         manifest,
         claim_hash,
         stats,
         peak_rss_bytes: peak,
-    })
+    }))
 }
 
 fn absolute_destination(path: &Path) -> Result<PathBuf> {
@@ -502,6 +684,8 @@ mod tests {
             root: root.to_owned(),
             snapshot_id: snapshot.into(),
             query,
+            sites: None,
+            artifacts: Vec::new(),
             execution: EvidenceExecution {
                 memory_budget_bytes: Some(512 << 20),
                 ..EvidenceExecution::default()
@@ -610,6 +794,16 @@ mod tests {
                     assert_eq!(manifest.measurement_hash_ok(), Some(true));
                     assert_eq!(manifest.params["manifest_blake3"], outcome.claim_hash);
                     assert_eq!(manifest.params["cohort.snapshot_blake3"], snapshot.id);
+                    assert_eq!(manifest.params["replay_schema"], "3");
+                    assert!(manifest.params["command_argv"].contains("--cohort-snapshot-manifest"));
+                    assert!(manifest.params["command_argv"].contains("--cohort-query"));
+                    assert_eq!(outcome.stats.consumed_inputs.len(), 4);
+                    for (path, hash) in &outcome.stats.consumed_inputs {
+                        assert!(manifest
+                            .inputs
+                            .iter()
+                            .any(|input| &input.path == path && &input.blake3 == hash));
+                    }
                     assert_eq!(
                         manifest.measurements["execution.original_alignment_records_decoded"],
                         "0"
@@ -657,6 +851,55 @@ mod tests {
         protected.manifest = Some(protected.output.clone());
         assert!(run_cohort_artifact(protected).is_err());
         assert!(!temporary.path().join("outside").exists());
+
+        // File selection is parsed inside the managed lifetime; a strict plan
+        // explains missing loci without creating an output. The file itself and
+        // every consumed partition remain receipt inputs for relocated replay.
+        let candidates = temporary.path().join("candidates.vcf");
+        let vcf = "##fileformat=VCFv4.3\n##contig=<ID=chr1,length=32>\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\nchr1\t2\t.\tA\tC\t.\tPASS\t.\nchr1\t3\t.\tA\tC\t.\tPASS\t.\nchr1\t9\t.\tA\tC\t.\tPASS\t.\n";
+        fs::write(&candidates, vcf).unwrap();
+        let mut file_spec = specification(&store, &snapshot.id, &output);
+        file_spec.sites = Some((candidates.clone(), VariantLimits::default()));
+        file_spec.query.missing_policy = MissingPolicy::Strict;
+        let plan = plan_cohort_artifact(file_spec.clone()).unwrap();
+        assert_eq!(plan.issue_count, 2);
+        assert!(!output.exists());
+        file_spec.query.missing_policy = MissingPolicy::Partial;
+        let outcome = run_cohort_artifact(file_spec.clone()).unwrap();
+        let receipt =
+            RunManifest::from_canonical_json(&fs::read_to_string(&outcome.manifest).unwrap())
+                .unwrap();
+        assert!(receipt.params["command_argv"].contains("--sites"));
+        assert!(!receipt.params["command_argv"].contains("--cohort-query"));
+        assert!(receipt.inputs.iter().any(
+            |input| input.path == fs::canonicalize(&candidates).unwrap().display().to_string()
+        ));
+        fs::remove_file(&output).unwrap();
+        fs::remove_file(&outcome.manifest).unwrap();
+
+        let mut overwrite = file_spec.clone();
+        overwrite.output = candidates.clone();
+        overwrite.output_policy = OutputPolicy::ReplaceAtomic;
+        assert!(run_cohort_artifact(overwrite).is_err());
+        assert_eq!(fs::read_to_string(&candidates).unwrap(), vcf);
+        let copy = temporary.path().join("dependency-copy");
+        fs::copy(&candidates, &copy).unwrap();
+        let mut replay_overwrite = file_spec.clone();
+        replay_overwrite.artifacts = vec![copy.clone()];
+        replay_overwrite.manifest = Some(copy.clone());
+        replay_overwrite.output_policy = OutputPolicy::ReplaceAtomic;
+        assert!(run_cohort_artifact(replay_overwrite).is_err());
+        assert_eq!(fs::read_to_string(&copy).unwrap(), vcf);
+        let candidates_for_hook = candidates.clone();
+        BEFORE_PUBLICATION.with(|hook| {
+            *hook.borrow_mut() = Some(Box::new(move || {
+                fs::write(candidates_for_hook, b"changed candidate input")?;
+                Ok(())
+            }))
+        });
+        assert!(run_cohort_artifact(file_spec).is_err());
+        assert!(!output.exists());
+        assert!(!suffix(&output, ".manifest.json").exists());
 
         // Failure at the second publication rolls back the first output. Existing
         // sentinels survive; this uses the same group helper as single-sample artifacts.

@@ -120,6 +120,8 @@ pub(crate) struct CohortQueryReservations {
     pub baseline_rss_bytes: u64,
     pub query_bytes: u64,
     pub plan_bytes: u64,
+    /// Consumed partition identities, mutation guards, and receipt encoding.
+    pub lineage_bytes: u64,
     pub consumer_bytes: u64,
     pub consumer_bound_known: bool,
     pub max_reader_metadata_bytes: u64,
@@ -132,6 +134,7 @@ impl CohortQueryReservations {
     pub fn retained_bytes(&self) -> u64 {
         self.query_bytes
             .saturating_add(self.plan_bytes)
+            .saturating_add(self.lineage_bytes)
             .saturating_add(self.consumer_bytes)
     }
 }
@@ -495,6 +498,7 @@ pub(crate) fn plan_query(
             baseline_rss_bytes: baseline,
             query_bytes,
             plan_bytes,
+            lineage_bytes: 0,
             consumer_bytes,
             consumer_bound_known: query.requirements.retained_bytes.is_some(),
             max_reader_metadata_bytes: 0,
@@ -618,6 +622,52 @@ pub(crate) fn plan_query(
                         })?);
                 }
                 if split.covered_loci != 0 {
+                    // Each touched immutable ownership partition is consumed in
+                    // full by the saved reader. Reserve its two input identities
+                    // once per leaf, independent of execution window width.
+                    if let EvidenceSelection::Sites(sites) = &split.covered {
+                        let mut previous = None;
+                        for site in sites {
+                            let start = site.position / crate::evidence::CANONICAL_TILE_BASES
+                                * crate::evidence::CANONICAL_TILE_BASES;
+                            let key = (site.contig, start);
+                            if previous == Some(key) {
+                                continue;
+                            }
+                            previous = Some(key);
+                            let index = descriptor
+                                .partitions
+                                .binary_search_by_key(&key, |part| (part.contig, part.start))
+                                .map_err(|_| {
+                                    CohortError::Corrupt(
+                                        "covered candidate has no declared partition".into(),
+                                    )
+                                })?;
+                            let part = &descriptor.partitions[index];
+                            let path_bytes = snapshot.root.as_os_str().len() as u64
+                                + leaf.object_id.len() as u64
+                                + 32;
+                            let bytes = (path_bytes
+                                .saturating_mul(2)
+                                .saturating_add(part.arrow.path.len() as u64)
+                                .saturating_add(part.receipt.path.len() as u64)
+                                .saturating_add(1024))
+                            .saturating_mul(16);
+                            plan.reservations.lineage_bytes = plan
+                                .reservations
+                                .lineage_bytes
+                                .checked_add(bytes)
+                                .ok_or_else(|| {
+                                    CohortError::Limit("cohort lineage reservation overflow".into())
+                                })?;
+                            if plan.reservations.lineage_bytes > limits.max_plan_bytes {
+                                return Err(CohortError::Limit(
+                                    "consumed partition lineage exceeds metadata envelope".into(),
+                                ));
+                            }
+                        }
+                        limits.cohort.admit(plan.reservations.retained_bytes())?;
+                    }
                     let fields_ok = match check_required_fields(descriptor, query.fields) {
                         Ok(()) => true,
                         Err(mismatch) => {

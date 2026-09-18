@@ -226,7 +226,8 @@ pub struct PlannedOutput {
 pub struct ReproductionPlan {
     /// Executable selected by policy, never by an untrusted recorded path.
     pub binary: PathBuf,
-    /// Fully substituted argv passed directly to the executable (never a shell).
+    /// Fully substituted argv (never a shell). Cohort replay transports this
+    /// through a bounded private request file to avoid operating-system argv limits.
     pub argv: Vec<String>,
     /// Fresh isolated working directory.
     pub work_dir: PathBuf,
@@ -309,6 +310,27 @@ fn output_is_byte_comparable(path: &str) -> bool {
 fn artifact_is_byte_comparable(manifest: &RunManifest, index: usize) -> bool {
     let path = &manifest.outputs[index].path;
     if output_is_byte_comparable(path) {
+        return true;
+    }
+    if manifest
+        .params
+        .get("cohort.result_semantics")
+        .map(String::as_str)
+        == Some("cohort-candidate-v1")
+        && manifest.params.get("replay.kind").map(String::as_str) == Some("rosalind")
+        && manifest.params.get("run_status").map(String::as_str) == Some("completed")
+        && manifest
+            .params
+            .get(&format!("artifact.output.{index}.role"))
+            .map(String::as_str)
+            == Some("cohort-candidate-result")
+        && matches!(
+            manifest.params.get("cohort.format").map(String::as_str),
+            Some("arrow-ipc" | "tsv")
+        )
+    {
+        // Cohort encoders are byte deterministic even when the chosen filename
+        // has no extension. This does not add Parquet replay support.
         return true;
     }
     if manifest
@@ -787,6 +809,11 @@ fn built_in_prefix_allowed(prefix: &[String]) -> bool {
             ))
         || (prefix.first().map(String::as_str) == Some("reference")
             && matches!(prefix.get(1).map(String::as_str), Some("build" | "convert")))
+        || (prefix.first().map(String::as_str) == Some("cohort")
+            && matches!(
+                prefix.get(1).map(String::as_str),
+                Some("extract" | "summarize")
+            ))
 }
 
 /// Re-derive the result recorded in `manifest_path` from inputs content-located under
@@ -915,7 +942,7 @@ pub fn execute_reproduction(plan: ReproductionPlan) -> Result<ReproReport> {
         binary: execution_binary,
         argv,
         work_dir: work,
-        producer_kind: _,
+        producer_kind,
         inputs,
         outputs,
         manifest,
@@ -940,6 +967,7 @@ pub fn execute_reproduction(plan: ReproductionPlan) -> Result<ReproReport> {
             compared,
         };
 
+    let argv = prepare_execution_argv(&argv, &work, &producer_kind)?;
     let mut command = std::process::Command::new(&execution_binary);
     command
         .args(&argv)
@@ -1097,6 +1125,77 @@ pub fn execute_reproduction(plan: ReproductionPlan) -> Result<ReproReport> {
     })
 }
 
+/// Transport a validated first-party cohort recipe without making the number of
+/// consumed partitions subject to execve's aggregate argument limit. The child
+/// accepts only cohort extract/summarize through this bounded hidden adapter;
+/// external analyzers keep their explicit executable and original argv.
+fn prepare_execution_argv(
+    argv: &[String],
+    work: &Path,
+    kind: &ProducerKind,
+) -> Result<Vec<String>> {
+    if !matches!(kind, ProducerKind::Rosalind)
+        || argv.first().map(String::as_str) != Some("cohort")
+        || !matches!(
+            argv.get(1).map(String::as_str),
+            Some("extract" | "summarize")
+        )
+    {
+        return Ok(argv.to_vec());
+    }
+    // Bound before allocation; JSON control escaping is at most six bytes per
+    // input byte. Inputs are already bounded
+    // and content-located by the validated reproduction planner.
+    let bound = argv
+        .iter()
+        .try_fold(2usize, |bytes, token| {
+            bytes.checked_add(token.len().checked_mul(6)?.checked_add(3)?)
+        })
+        .ok_or_else(|| anyhow!("cohort replay request size overflow"))?;
+    if bound > 32 << 20 {
+        return Err(anyhow!(
+            "cohort replay request exceeds 32 MiB envelope; select fewer members or candidates"
+        ));
+    }
+    let request = work.join("cohort-replay-request.json");
+    let mut file = std::fs::OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&request)?;
+    serde_json::to_writer(&mut file, argv)?;
+    file.sync_all()?;
+    let mut compact = vec![
+        "cohort".into(),
+        "replay".into(),
+        "--request".into(),
+        request.display().to_string(),
+    ];
+    if let Some(index) = argv
+        .iter()
+        .position(|token| token == "--memory-budget-bytes")
+    {
+        let value = argv
+            .get(index + 1)
+            .ok_or_else(|| anyhow!("missing replay budget value"))?;
+        compact.extend(["--memory-budget-bytes".into(), value.clone()]);
+    } else if let Some(index) = argv.iter().position(|token| token == "--memory-budget-mb") {
+        let value = argv
+            .get(index + 1)
+            .ok_or_else(|| anyhow!("missing replay budget value"))?;
+        let bytes = value
+            .parse::<u64>()?
+            .checked_mul(1 << 20)
+            .ok_or_else(|| anyhow!("replay budget overflow"))?;
+        compact.extend(["--memory-budget-bytes".into(), bytes.to_string()]);
+    }
+    for flag in ["--enforce", "--require-os-limit"] {
+        if argv.iter().any(|token| token == flag) {
+            compact.push(flag.into());
+        }
+    }
+    Ok(compact)
+}
+
 fn build_identity_from_manifest(manifest: &RunManifest) -> BTreeMap<String, String> {
     [
         "code_git_sha",
@@ -1140,6 +1239,76 @@ fn short(hex: &str) -> &str {
 mod tests {
     use super::*;
     use crate::provenance::{CommandCapture, FileHash};
+
+    #[test]
+    fn cohort_replay_packs_large_argv_without_changing_external_analyzers() {
+        let work = make_temp_dir().unwrap();
+        let mut argv = vec!["cohort".into(), "extract".into()];
+        for index in 0..10_000 {
+            argv.extend([
+                "--cohort-artifact".into(),
+                format!("/relocated/cohort/objects/{index:064x}/partition/evidence.arrow"),
+            ]);
+        }
+        argv.extend([
+            "--memory-budget-mb".into(),
+            "512".into(),
+            "--enforce".into(),
+        ]);
+        assert!(argv.iter().map(String::len).sum::<usize>() > 256 << 10);
+        assert_eq!(
+            prepare_execution_argv(&argv, &work, &ProducerKind::ExternalAnalyzer).unwrap(),
+            argv
+        );
+        assert!(!work.join("cohort-replay-request.json").exists());
+        let compact = prepare_execution_argv(&argv, &work, &ProducerKind::Rosalind).unwrap();
+        assert_eq!(&compact[..3], ["cohort", "replay", "--request"]);
+        assert_eq!(
+            &compact[4..],
+            ["--memory-budget-bytes", "536870912", "--enforce"]
+        );
+        assert!(compact.iter().map(String::len).sum::<usize>() < 4096);
+        let restored: Vec<String> =
+            serde_json::from_slice(&std::fs::read(&compact[3]).unwrap()).unwrap();
+        assert_eq!(restored, argv);
+        // Existing request files cannot be overwritten, including through an
+        // externally created symlink at the same private destination.
+        assert!(prepare_execution_argv(&argv, &work, &ProducerKind::Rosalind).is_err());
+        std::fs::remove_dir_all(work).unwrap();
+    }
+
+    #[test]
+    fn cohort_byte_replay_is_additive_and_does_not_include_parquet() {
+        let mut receipt = RunManifest::new("cohort extract");
+        receipt.outputs.push(FileHash {
+            path: "extensionless".into(),
+            blake3: "a".repeat(64),
+        });
+        for (key, value) in [
+            ("cohort.result_semantics", "cohort-candidate-v1"),
+            ("replay.kind", "rosalind"),
+            ("run_status", "completed"),
+            ("artifact.output.0.role", "cohort-candidate-result"),
+            ("cohort.format", "arrow-ipc"),
+        ] {
+            receipt.params.insert(key.into(), value.into());
+        }
+        assert!(artifact_is_byte_comparable(&receipt, 0));
+        receipt
+            .params
+            .insert("cohort.format".into(), "parquet".into());
+        assert!(!artifact_is_byte_comparable(&receipt, 0));
+        assert!(built_in_prefix_allowed(&[
+            "cohort".into(),
+            "summarize".into()
+        ]));
+        for operation in ["create", "extend", "replay"] {
+            assert!(!built_in_prefix_allowed(&[
+                "cohort".into(),
+                operation.into()
+            ]));
+        }
+    }
 
     fn fh(hash: &str) -> FileHash {
         FileHash {
