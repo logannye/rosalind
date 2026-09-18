@@ -282,6 +282,8 @@ jobs:
           subject-path: release-assets/*
       - name: Create immutable RC tag and prerelease
         env:
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.gates.outputs.tag }}
           COMMIT: ${{ needs.gates.outputs.commit }}

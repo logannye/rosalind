@@ -121,7 +121,15 @@ publication, and fresh-cache downstream installation before creating the stable
 tag. The requested version must match the committed root package and release
 policy, and the clean candidate must be reachable from the pushed default branch.
 Each `PLAN_ID` is the exact ID returned by the corresponding plan. Plans are kept
-outside the checkout so they do not make the release tree dirty.
+outside the checkout so they do not make the release tree dirty. `HEAD`, branch
+names and full SHAs are resolved once during planning. RC, stable and evaluator
+image plans record and dispatch the resulting full commit SHA; remote recomputation
+uses that same identity. Older plans retaining a mutable `ref` must be regenerated
+before dispatch. Both release tag steps set their Git committer identity locally
+to the step, without relying on machine-wide Git configuration.
+
+The [September 18 bootstrap findings](https://github.com/logannye/rosalind/blob/main/docs/findings/release-bootstrap-2026-09-18/README.md)
+retain the failed `HEAD` checkout attempt and the focused correction checks.
 
 The additive `python.contract` snapshot component freezes normalized ASTs of all
 `python/rosalind/*.py` modules, including nested and private implementation, plus

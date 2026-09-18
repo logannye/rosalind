@@ -12,6 +12,9 @@ The seven-day RC soak, protected publication review, and change-based caller
 evidence requirements apply. Independent-user feedback remains advisory and
 can continue after release; missing participants do not block shipping.
 
+- RC, stable and evaluator-image dispatches pin the resolved commit instead of
+  passing local `HEAD` or movable branch names to remote checkout. Annotated
+  release tags use an explicit step-scoped bot identity on fresh runners.
 - Release planning and RC status retain submitted-feedback validation, accepted
   counts, and missing/invalid adoption findings without making participation an
   eligibility blocker. Explicit unresolved release-blocking defects still block

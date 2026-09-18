@@ -1777,6 +1777,7 @@ fn release_preflight<R: Runner>(
 ) -> MaintainerReport {
     let commit = git_commit(runner, root, reference).unwrap_or_else(|_| "unknown".into());
     let mut report = MaintainerReport::new("release.preflight", &commit);
+    report.metadata.insert("ref".into(), commit.clone());
     report.version = Some(version.to_string());
     let clean = command_text(runner, root, "git", &args(&["status", "--porcelain"]));
     report.check(
@@ -1887,7 +1888,6 @@ fn rc_plan<R: Runner>(
     report.command = "rc.plan".into();
     let tag = format!("v{version}-rc.{number}");
     report.metadata.insert("tag".into(), tag.clone());
-    report.metadata.insert("ref".into(), reference.into());
     let tag_ref = format!("refs/tags/{tag}");
     let tag_query = command_text(
         runner,
@@ -1907,7 +1907,7 @@ fn rc_plan<R: Runner>(
             "available"
         },
     );
-    match contract_snapshot(runner, root, reference, policy) {
+    match contract_snapshot(runner, root, &report.commit, policy) {
         Ok(snapshot) => {
             report.contract_fingerprint = Some(snapshot.aggregate_blake3);
             report.check("contract.snapshot", true, "generated");
@@ -2241,7 +2241,6 @@ fn stable_release_plan<R: Runner>(
     let mut report = release_preflight(runner, root, policy, reference, version);
     report.command = "release.plan".into();
     report.metadata.insert("rc_tag".into(), rc_tag.into());
-    report.metadata.insert("ref".into(), reference.into());
     let stable_tag = format!("v{version}");
     let direct_ref = format!("refs/tags/{stable_tag}");
     let peeled_ref = format!("{direct_ref}^{{}}");
@@ -2385,7 +2384,7 @@ fn stable_release_plan<R: Runner>(
             .unwrap_or_else(|| "candidate CI status unavailable".into()),
     );
     let mut candidate_fingerprint = None;
-    match contract_snapshot(runner, root, reference, policy) {
+    match contract_snapshot(runner, root, &report.commit, policy) {
         Ok(snapshot) => {
             report.contract_fingerprint = Some(snapshot.aggregate_blake3.clone());
             candidate_fingerprint = Some(snapshot.aggregate_blake3.clone());
@@ -2937,10 +2936,10 @@ fn image_plan<R: Runner>(
     reference: &str,
 ) -> MaintainerReport {
     let commit = git_commit(runner, root, reference).unwrap_or_else(|_| "unknown".into());
-    let mut report = MaintainerReport::new("giab.image.plan", commit);
-    report.metadata.insert("ref".into(), reference.into());
-    add_mutation_preflight(&mut report, runner, root, policy, reference);
-    match source_lock_hash_at_ref(runner, root, reference) {
+    let mut report = MaintainerReport::new("giab.image.plan", &commit);
+    report.metadata.insert("ref".into(), commit.clone());
+    add_mutation_preflight(&mut report, runner, root, policy, &commit);
+    match source_lock_hash_at_ref(runner, root, &commit) {
         Ok(source) => {
             report
                 .metadata
@@ -3268,6 +3267,22 @@ fn dispatch_plan<R: Runner>(
             format!("plan is {}, not ready", plan.status),
         ));
     }
+    if matches!(
+        plan.command.as_str(),
+        "rc.plan" | "release.plan" | "giab.image.plan"
+    ) && (plan.commit.len() != 40
+        || !plan.commit.bytes().all(|byte| byte.is_ascii_hexdigit())
+        || plan
+            .metadata
+            .get("ref")
+            .is_some_and(|reference| reference != &plan.commit))
+    {
+        return Err((
+            EXIT_INTEGRITY,
+            "plan must pin ref to its exact candidate commit; regenerate the plan before dispatch"
+                .into(),
+        ));
+    }
     let (workflow, mut fields): (&str, Vec<(&str, String)>) = match plan.command.as_str() {
         "rc.plan" => (
             "rc.yml",
@@ -3281,13 +3296,7 @@ fn dispatch_plan<R: Runner>(
                         .unwrap_or("1")
                         .to_string(),
                 ),
-                (
-                    "ref",
-                    plan.metadata
-                        .get("ref")
-                        .cloned()
-                        .unwrap_or_else(|| plan.commit.clone()),
-                ),
+                ("ref", plan.commit.clone()),
             ],
         ),
         "release.plan" => (
@@ -3298,25 +3307,10 @@ fn dispatch_plan<R: Runner>(
                     "rc_tag",
                     plan.metadata.get("rc_tag").cloned().unwrap_or_default(),
                 ),
-                (
-                    "ref",
-                    plan.metadata
-                        .get("ref")
-                        .cloned()
-                        .unwrap_or_else(|| plan.commit.clone()),
-                ),
+                ("ref", plan.commit.clone()),
             ],
         ),
-        "giab.image.plan" => (
-            "happy-image.yml",
-            vec![(
-                "ref",
-                plan.metadata
-                    .get("ref")
-                    .cloned()
-                    .unwrap_or_else(|| plan.commit.clone()),
-            )],
-        ),
+        "giab.image.plan" => ("happy-image.yml", vec![("ref", plan.commit.clone())]),
         "giab.benchmark.plan" => (
             "giab.yml",
             vec![(
@@ -4075,6 +4069,107 @@ mod tests {
         assert_eq!(&dispatched[..3], ["workflow", "run", "rc.yml"]);
         assert!(dispatched.contains(&format!("plan_id={}", plan.plan_id)));
         assert!(!dispatched.iter().any(|argument| argument.contains(';')));
+    }
+
+    #[test]
+    fn default_head_plan_matches_sha_and_dispatch_ignores_later_branch_moves() {
+        let (repository, _) = git_repository();
+        let policy_root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let policy = load_policy(policy_root).unwrap();
+        for (name, manifest) in [
+            ("rosalind-bio", "Cargo.toml"),
+            ("rosalind-receipt", "crates/receipt/Cargo.toml"),
+            ("rosalind-build-info", "crates/build-info/Cargo.toml"),
+        ] {
+            let path = repository.path().join(manifest);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(
+                path,
+                format!(
+                    "[package]\nversion = \"{}\"\n",
+                    policy.package_versions[name]
+                ),
+            )
+            .unwrap();
+        }
+        fs::write(repository.path().join("CHANGELOG.md"), "## [Unreleased]\n").unwrap();
+        for arguments in [
+            vec!["add", "."],
+            vec!["commit", "-q", "-m", "release fixture"],
+            vec!["branch", "-M", "main"],
+            vec![
+                "remote",
+                "add",
+                "origin",
+                "https://github.com/logannye/rosalind.git",
+            ],
+            vec!["update-ref", "refs/remotes/origin/main", "HEAD"],
+        ] {
+            run_checked(&SystemRunner, repository.path(), "git", args(&arguments)).unwrap();
+        }
+        let commit = git_commit(&SystemRunner, repository.path(), "HEAD").unwrap();
+        let make_plan = |reference: &str| {
+            // Exercise real release preflight/ref resolution independently of
+            // the expensive contract-build matrix, then the real dispatcher.
+            let mut plan = release_preflight(
+                &SystemRunner,
+                repository.path(),
+                &policy,
+                reference,
+                "0.5.0",
+            );
+            assert_eq!(plan.status, "ready", "{:?}", plan.blockers);
+            plan.command = "rc.plan".into();
+            plan.metadata.insert("tag".into(), "v0.5.0-rc.2".into());
+            plan.seal();
+            plan
+        };
+        let head = make_plan("HEAD");
+        assert_eq!(head.metadata["ref"], commit);
+        assert_eq!(head.plan_id, make_plan("main").plan_id);
+        assert_eq!(head.plan_id, make_plan(&commit).plan_id);
+        run_checked(
+            &SystemRunner,
+            repository.path(),
+            "git",
+            args(&["commit", "--allow-empty", "-q", "-m", "branch moved"]),
+        )
+        .unwrap();
+        assert_ne!(
+            git_commit(&SystemRunner, repository.path(), "main").unwrap(),
+            commit
+        );
+        let output = tempdir().unwrap();
+        let path = output.path().join("plan.json");
+        fs::write(&path, serde_json::to_vec(&head).unwrap()).unwrap();
+        let runner = RecordingRunner::default();
+        dispatch_plan(&runner, repository.path(), &policy, &path, &head.plan_id).unwrap();
+        let calls = runner.calls.lock().unwrap();
+        assert_eq!(calls.len(), 2);
+        let fields = &calls[1].1;
+        assert!(fields.contains(&OsString::from(format!("ref={commit}"))));
+        assert!(!fields.contains(&OsString::from("ref=HEAD")));
+        assert!(!fields.contains(&OsString::from("ref=main")));
+    }
+
+    #[test]
+    fn old_mutable_ref_plans_require_replanning_before_any_remote_operation() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let policy = load_policy(root).unwrap();
+        for command in ["rc.plan", "release.plan", "giab.image.plan"] {
+            let mut plan = report();
+            plan.command = command.into();
+            plan.metadata.insert("ref".into(), "HEAD".into());
+            plan.seal();
+            let temporary = tempdir().unwrap();
+            let path = temporary.path().join("plan.json");
+            fs::write(&path, serde_json::to_vec(&plan).unwrap()).unwrap();
+            let runner = RecordingRunner::default();
+            let error = dispatch_plan(&runner, root, &policy, &path, &plan.plan_id).unwrap_err();
+            assert_eq!(error.0, EXIT_INTEGRITY);
+            assert!(error.1.contains("regenerate"));
+            assert!(runner.calls.lock().unwrap().is_empty());
+        }
     }
 
     #[test]
