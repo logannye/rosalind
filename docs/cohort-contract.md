@@ -1,9 +1,10 @@
-# Proposed contract: local cohort candidate reanalysis
+# Preview contract: local cohort candidate reanalysis
 
-**Internal next-minor foundation, not a shipped feature.** This isolated
-development branch contains crate-private snapshot import/verification, comparison
-contracts, metadata query planning, exact candidate reducers and a serial saved-only
-window runtime. It has no `cohort` command or `open_cohort` Python API.
+**Unpublished 0.6 development preview.** This isolated branch implements snapshot
+import/verification, comparison contracts, query planning, exact candidate reducers,
+explicit extension and a serial saved-only runtime through the
+[`cohort` CLI](cohort-cli-preview.md) and Python `open_cohort()` adapter.
+Generic cohort consumers remain internal rather than a public Rust SDK.
 The implementation stays out of the 0.5 release candidate and its frozen public
 contract. Engineering can progress while publication and adoption work continue.
 Independent participants and design partners inform usability and product decisions;
@@ -13,8 +14,8 @@ representative cohort performance or clinical interpretation is claimed.
 The first outcome is repeat candidate-SNV questions across explicitly identified
 specimens, using saved evidence. Paired/longitudinal analysis is a later feature;
 optional subject/timepoint metadata does not imply pairing or longitudinal inference.
-The [synthetic fixture](../examples/cohort-reanalysis/README.md) exercises current
-single-sample primitives and independently specified cohort expectations.
+The [synthetic workflow](../examples/cohort-reanalysis/README.md) exercises the
+cohort interfaces against independently specified observations and summaries.
 
 ## Existing implementation seams
 
@@ -100,7 +101,7 @@ Use one local directory with shared immutable objects:
 cohort-root/
   objects/<leaf-manifest-byte-hash>/  # complete original portable dataset layout
   snapshots/<snapshot-content-hash>/
-    snapshot.json                   # canonical proposed snapshot metadata
+    snapshot.json                   # canonical snapshot metadata
     manifest.json                   # receipt binding snapshot bytes and inputs
 ```
 
@@ -179,7 +180,9 @@ not a tight aggregate cohort query planner or an OS allocation cap.
 
 The internal functions obey existing cancellation/governor checkpoints and retain
 ordinary-mutation guards through publication. They do not start a nested governor.
-The complete outer lifecycle and cross-budget execution study remain C07 work.
+The complete query artifact runner owns that outer lifetime. Managed tests retain
+identical Arrow/TSV bytes across three admitted budgets and execution widths;
+these small synthetic results do not establish representative cohort performance.
 File synchronization plus atomic directory visibility does not claim recovery
 from power loss. Readers require an immutable store during an operation; integrity
 checks do not provide authenticity or defense against deliberate concurrent
@@ -249,8 +252,8 @@ independent of metadata cardinality; oversized inventories may refuse explicitly
 Use one outer managed cancellation/governor scope. Native or consumer allocations
 can precede checkpoints; a declared budget is not a universal OS allocation cap.
 A completed primary output and receipt publish together. Refusal, ordinary failure,
-corruption or cancellation cannot publish success; any resource partial is clearly
-identified and never accepted as a completed snapshot or query.
+corruption or cancellation cannot publish success. Failed cohort queries discard
+staged output; publishing partial cohort query artifacts is unsupported.
 
 ## Explicit extension
 
@@ -270,18 +273,18 @@ its complete source-validation cost, and rehashing remains real work. Current
 `run_reusing_dataset` can validate fresh-versus-reused equality but does not itself
 publish expanded caches. Use the existing native partition publisher for each delta.
 
-## Proposed CLI and Python surface
+## CLI and Python preview surface
 
-**The following names are proposals and must not be run against current releases.**
+**Requires this 0.6 development branch; absent from the public stable and 0.5 candidate.**
 
 ```text
-rosalind cohort create --members members.tsv --output cohort-root
+rosalind cohort create --members members.tsv --cohort cohort-root
 rosalind cohort inspect --cohort cohort-root --snapshot SNAPSHOT_ID
 rosalind cohort verify --cohort cohort-root --snapshot SNAPSHOT_ID
 rosalind cohort extract --cohort cohort-root --snapshot SNAPSHOT_ID \
   --sites candidates.vcf --fields depths,alleles --missing strict --plan
 rosalind cohort summarize --cohort cohort-root --snapshot SNAPSHOT_ID \
-  --sites candidates.vcf --missing partial --min-callable-depth 10
+  --sites candidates.vcf --missing partial --min-callable-depth 10 --output summary.tsv
 rosalind cohort extend --cohort cohort-root --snapshot SNAPSHOT_ID \
   --sites expanded.vcf --sources sources.tsv
 ```
@@ -292,21 +295,24 @@ create-new behavior, with explicit replacement only for derived artifacts where
 supported. Snapshot/object replacement is never implicit. `--plan` is a mode of
 extract/summarize/extend, not a separate scientific operation.
 
-Proposed Python follows the current lazy dataset adapter:
+Python follows the current lazy dataset adapter:
 `open_cohort(root, snapshot=...)`, `.batches(...)`, `.materialize(...)`,
 `.summarize(...)`. It delegates to the matching native executable, preserves error
-codes and requires stream exhaustion for completed results. Retained Python arrays
-are outside native budgeting. Keep a new generic cohort analyzer API internal
+codes. `batches()` completes a disk-backed native artifact before yielding bounded
+Arrow batches; it requires exhaustion to set its completed result. Retained Python arrays
+are outside native budgeting. Keep the generic cohort analyzer API internal
 until first-party reducers establish the necessary contract.
 
 ## Verification, replay and acceptance
 
 Derived receipts bind snapshot bytes, normalized member/query selection, consumed
 leaf metadata/partitions, reducer identity/parameters and actual output bytes.
-Verification identifies exactly which saved inputs were checked. Add tokenized
-Arrow/TSV replay using the intact relocated cohort root and external selection
-files. Explicit external binaries remain required. Parquet directory byte replay
-is not added by this proposal. A receipt neither authenticates authorship nor
+Verification identifies exactly which saved inputs were checked. Tokenized
+Arrow/TSV replay uses the intact relocated cohort root and external selection
+files. Large cohort replay arguments travel through a bounded private request file;
+the adapter accepts only extraction and summary operations. Explicit external
+analyzer binaries remain required. Parquet directory byte replay
+is not added. A receipt neither authenticates authorship nor
 proves biological truth.
 
 Before feature acceptance, require independent per-sample/candidate oracles,
@@ -317,14 +323,13 @@ source-free relocation, cancellation and publication failure. Extension must mat
 fresh extraction and leave old snapshot hashes unchanged. Existing single-source
 schemas, goldens and conformance must remain valid.
 
-The accompanying fixture checks **existing extraction/reuse primitives only**.
-It cannot establish a future snapshot implementation, cohort runtime bound, real
-assay performance, user demand or partner acceptance. Internal tests exercise snapshot storage, comparison, metadata planning, exact
-reducers and saved-only streaming on this branch. Streaming tests distinguish
+The accompanying fixture runs a complete **synthetic cohort workflow**, including
+first and second candidate questions, explicit extension, fresh-extraction
+agreement, relocation and replay. It cannot establish real assay performance,
+user demand or partner acceptance. Internal tests exercise snapshot storage,
+comparison, metadata planning, exact reducers and saved-only streaming. Tests distinguish
 unmeasured from observed zero, accept new ALTs at stored positions, cross canonical
 partition boundaries, retain output bytes across three admitted budgets/window
 widths, and refuse strict gaps, changed inputs and cancellation. These small local
-tests are not a representative resource benchmark or Linux cgroup study.
-CLI/Python exposure, complete managed artifact publication, extension and replay
-remain later work; fixture arithmetic is not partner acceptance or a performance
-measurement.
+tests are not a representative resource benchmark. Linux cgroup results require
+their own retained controller evidence; fixture arithmetic is not partner acceptance.

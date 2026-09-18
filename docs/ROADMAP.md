@@ -233,69 +233,109 @@ Independent persona feedback, design-partner recruitment and the 30-day return t
 
   Done when: Unique asserted member IDs, optional group/subject/timepoint metadata, one analysis sample; named-sample summaries, exact missingness and independently checked public fixtures.
 
-  Remaining gate: Proposed contract and synthetic fixture pass current primitive checks. Final schema, admission limits and scientific contract review remain engineering work; no cohort API is implemented. Proceed on an isolated next-minor line while release and adoption work continue.
+  Remaining gate: Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed.
 
-  Evidence: [Proposed contract and independently specified fixture](https://github.com/logannye/rosalind/pull/143)
+  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)
 
 - [ ] **[C02](https://github.com/logannye/rosalind/issues/130) — Compose immutable cohort snapshots**
 
-  Status: **planned**. Owner: engineering. Dependencies: C01.
+  Status: **implemented**. Owner: engineering. Dependencies: C01.
 
   Done when: Copy intact verified datasets once into objects keyed by manifest-byte hash; staging/verification/atomic publication, no symlinks; relative snapshot objects and parent identity; relocate unchanged schemas.
 
+  Remaining gate: Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed.
+
+  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)
+
 - [ ] **[C03](https://github.com/logannye/rosalind/issues/131) — Separate comparison from same-source reuse identity**
 
-  Status: **planned**. Owner: engineering. Dependencies: C01.
+  Status: **implemented**. Owner: engineering. Dependencies: C01.
 
   Done when: Keep source-bound identity; separate semantics/counting/filter/reference comparison; different samples pass; incompatible reference/profile fails; adequate differing masks pass.
 
+  Remaining gate: Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed.
+
+  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)
+
 - [ ] **[C04](https://github.com/logannye/rosalind/issues/132) — Plan and extract saved cohort evidence**
 
-  Status: **planned**. Owner: engineering. Dependencies: C02, C03.
+  Status: **implemented**. Owner: engineering. Dependencies: C02, C03.
 
   Done when: Inspect/verify/plan members, fields, gaps and memory; supported SNV VCF encodings; no original source opening; per-sample oracle agreement.
 
+  Remaining gate: Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed.
+
+  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)
+
 - [ ] **[C05](https://github.com/logannye/rosalind/issues/133) — Preserve cohort missingness**
 
-  Status: **planned**. Owner: engineering. Dependencies: C04.
+  Status: **implemented**. Owner: engineering. Dependencies: C04.
 
   Done when: Strict default; explicit partial status/nulls for unmeasured; keep measured zero/low depth; missing fields and incompatible semantics fail, never fabricate zeros.
 
+  Remaining gate: Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed.
+
+  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)
+
 - [ ] **[C06](https://github.com/logannye/rosalind/issues/134) — Summarize exact candidate support**
 
-  Status: **planned**. Owner: engineering. Dependencies: C05.
+  Status: **implemented**. Owner: engineering. Dependencies: C05.
 
   Done when: Requested/observed/depth-eligible/ALT-supported denominators, exact counts; configurable technical depth 10; zero denominator undefined; not genotype frequency/confidence.
 
+  Remaining gate: Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed.
+
+  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)
+
 - [ ] **[C07](https://github.com/logannye/rosalind/issues/135) — Govern one bounded cohort artifact lifecycle**
 
-  Status: **planned**. Owner: engineering. Dependencies: C04.
+  Status: **implemented**. Owner: engineering. Dependencies: C04.
 
   Done when: Serial bounded tiles/canonical batches, no dense cohort matrix; one outer cancellation/governor scope; account metadata/decoder/reducer/encoder/finalization; failures publish no success.
 
+  Remaining gate: Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed.
+
+  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)
+
 - [ ] **[C08](https://github.com/logannye/rosalind/issues/136) — Extend only missing loci with explicit sources**
 
-  Status: **planned**. Owner: engineering. Dependencies: C02, C04, C07.
+  Status: **implemented**. Owner: engineering. Dependencies: C02, C04, C07.
 
   Done when: Verify original source identities, create missing-only intact leaves then new snapshot last; retain originals, reject overlaps and missing-field backfill; equal fresh extraction.
 
+  Remaining gate: Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed.
+
+  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)
+
 - [ ] **[C09](https://github.com/logannye/rosalind/issues/137) — Expose matching cohort CLI and Python**
 
-  Status: **planned**. Owner: engineering. Dependencies: C05, C06, C07, C08.
+  Status: **implemented**. Owner: engineering. Dependencies: C05, C06, C07, C08.
 
   Done when: create/inspect/verify/extract/summarize/extend and execution --plan; lazy open_cohort, bounded batches/materialize; native error/lifecycle parity; Arrow/TSV; generic plugin stays internal.
 
+  Remaining gate: Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed.
+
+  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)
+
 - [ ] **[C10](https://github.com/logannye/rosalind/issues/138) — Verify and replay complete cohort lineage**
 
-  Status: **planned**. Owner: engineering. Dependencies: C07, C09.
+  Status: **implemented**. Owner: engineering. Dependencies: C07, C09.
 
   Done when: Bind snapshot/query/sample selection/consumed leaves/reducer/output; additive tokenized replay relocates Arrow/TSV; preserve explicit external binary and Parquet limits.
 
+  Remaining gate: Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed.
+
+  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)
+
 - [ ] **[C11](https://github.com/logannye/rosalind/issues/139) — Demonstrate recurring cohort questions and total costs**
 
-  Status: **planned**. Owner: engineering. Dependencies: C09, C10.
+  Status: **implemented**. Owner: engineering. Dependencies: C09, C10.
 
   Done when: Executable first/second candidate lists and explicit extension with readable report/Python; results match an independent oracle and measured costs include copy, storage, hashing, verification and extraction. Record actual partner use separately under U02/U04; absent participants do not block shipping.
+
+  Remaining gate: Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed.
+
+  Evidence: [0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)
 
 ## F — Expand demonstrated value
 

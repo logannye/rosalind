@@ -5,6 +5,21 @@ from the cohort development branch; the public stable release and 0.5 candidate 
 not include these commands. Check `rosalind --version` and `rosalind cohort --help`.
 The hidden binary bridge is not a supported Rust cohort SDK.
 
+With the [source build prerequisites](analyzer-sdk.md#build-prerequisites) installed:
+
+```sh
+git clone --branch codex/cohort-preview https://github.com/logannye/rosalind.git rosalind-cohort
+cd rosalind-cohort
+cargo build --locked --release --bin rosalind
+export PATH="$PWD/target/release:$PATH"
+rosalind --version
+rosalind cohort --help
+```
+
+The [three-sample tutorial](../examples/cohort-reanalysis/README.md) supplies
+redistributable data, an independent arithmetic oracle, a readable report, a
+Python example and measurements of import, storage, verification and repeated queries.
+
 A cohort stores intact copies of verified evidence datasets and immutable sample
 snapshots. It answers a new candidate-SNV question across selected samples, reports
 which observations were actually measured, and can explicitly extract missing loci

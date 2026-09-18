@@ -432,11 +432,11 @@
       "owner": "engineering",
       "status": "implemented",
       "evidence": [
-        "[Proposed contract and independently specified fixture](https://github.com/logannye/rosalind/pull/143)"
+        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)"
       ],
       "issue_number": 129,
       "issue_url": "https://github.com/logannye/rosalind/issues/129",
-      "blocker": "Proposed contract and synthetic fixture pass current primitive checks. Final schema, admission limits and scientific contract review remain engineering work; no cohort API is implemented. Proceed on an isolated next-minor line while release and adoption work continue."
+      "blocker": "Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed."
     },
     {
       "id": "C02",
@@ -446,10 +446,13 @@
       ],
       "acceptance": "Copy intact verified datasets once into objects keyed by manifest-byte hash; staging/verification/atomic publication, no symlinks; relative snapshot objects and parent identity; relocate unchanged schemas.",
       "owner": "engineering",
-      "status": "planned",
-      "evidence": [],
+      "status": "implemented",
+      "evidence": [
+        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)"
+      ],
       "issue_number": 130,
-      "issue_url": "https://github.com/logannye/rosalind/issues/130"
+      "issue_url": "https://github.com/logannye/rosalind/issues/130",
+      "blocker": "Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed."
     },
     {
       "id": "C03",
@@ -459,10 +462,13 @@
       ],
       "acceptance": "Keep source-bound identity; separate semantics/counting/filter/reference comparison; different samples pass; incompatible reference/profile fails; adequate differing masks pass.",
       "owner": "engineering",
-      "status": "planned",
-      "evidence": [],
+      "status": "implemented",
+      "evidence": [
+        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)"
+      ],
       "issue_number": 131,
-      "issue_url": "https://github.com/logannye/rosalind/issues/131"
+      "issue_url": "https://github.com/logannye/rosalind/issues/131",
+      "blocker": "Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed."
     },
     {
       "id": "C04",
@@ -473,10 +479,13 @@
       ],
       "acceptance": "Inspect/verify/plan members, fields, gaps and memory; supported SNV VCF encodings; no original source opening; per-sample oracle agreement.",
       "owner": "engineering",
-      "status": "planned",
-      "evidence": [],
+      "status": "implemented",
+      "evidence": [
+        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)"
+      ],
       "issue_number": 132,
-      "issue_url": "https://github.com/logannye/rosalind/issues/132"
+      "issue_url": "https://github.com/logannye/rosalind/issues/132",
+      "blocker": "Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed."
     },
     {
       "id": "C05",
@@ -486,10 +495,13 @@
       ],
       "acceptance": "Strict default; explicit partial status/nulls for unmeasured; keep measured zero/low depth; missing fields and incompatible semantics fail, never fabricate zeros.",
       "owner": "engineering",
-      "status": "planned",
-      "evidence": [],
+      "status": "implemented",
+      "evidence": [
+        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)"
+      ],
       "issue_number": 133,
-      "issue_url": "https://github.com/logannye/rosalind/issues/133"
+      "issue_url": "https://github.com/logannye/rosalind/issues/133",
+      "blocker": "Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed."
     },
     {
       "id": "C06",
@@ -499,10 +511,13 @@
       ],
       "acceptance": "Requested/observed/depth-eligible/ALT-supported denominators, exact counts; configurable technical depth 10; zero denominator undefined; not genotype frequency/confidence.",
       "owner": "engineering",
-      "status": "planned",
-      "evidence": [],
+      "status": "implemented",
+      "evidence": [
+        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)"
+      ],
       "issue_number": 134,
-      "issue_url": "https://github.com/logannye/rosalind/issues/134"
+      "issue_url": "https://github.com/logannye/rosalind/issues/134",
+      "blocker": "Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed."
     },
     {
       "id": "C07",
@@ -512,10 +527,13 @@
       ],
       "acceptance": "Serial bounded tiles/canonical batches, no dense cohort matrix; one outer cancellation/governor scope; account metadata/decoder/reducer/encoder/finalization; failures publish no success.",
       "owner": "engineering",
-      "status": "planned",
-      "evidence": [],
+      "status": "implemented",
+      "evidence": [
+        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)"
+      ],
       "issue_number": 135,
-      "issue_url": "https://github.com/logannye/rosalind/issues/135"
+      "issue_url": "https://github.com/logannye/rosalind/issues/135",
+      "blocker": "Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed."
     },
     {
       "id": "C08",
@@ -527,10 +545,13 @@
       ],
       "acceptance": "Verify original source identities, create missing-only intact leaves then new snapshot last; retain originals, reject overlaps and missing-field backfill; equal fresh extraction.",
       "owner": "engineering",
-      "status": "planned",
-      "evidence": [],
+      "status": "implemented",
+      "evidence": [
+        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)"
+      ],
       "issue_number": 136,
-      "issue_url": "https://github.com/logannye/rosalind/issues/136"
+      "issue_url": "https://github.com/logannye/rosalind/issues/136",
+      "blocker": "Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed."
     },
     {
       "id": "C09",
@@ -543,10 +564,13 @@
       ],
       "acceptance": "create/inspect/verify/extract/summarize/extend and execution --plan; lazy open_cohort, bounded batches/materialize; native error/lifecycle parity; Arrow/TSV; generic plugin stays internal.",
       "owner": "engineering",
-      "status": "planned",
-      "evidence": [],
+      "status": "implemented",
+      "evidence": [
+        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)"
+      ],
       "issue_number": 137,
-      "issue_url": "https://github.com/logannye/rosalind/issues/137"
+      "issue_url": "https://github.com/logannye/rosalind/issues/137",
+      "blocker": "Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed."
     },
     {
       "id": "C10",
@@ -557,10 +581,13 @@
       ],
       "acceptance": "Bind snapshot/query/sample selection/consumed leaves/reducer/output; additive tokenized replay relocates Arrow/TSV; preserve explicit external binary and Parquet limits.",
       "owner": "engineering",
-      "status": "planned",
-      "evidence": [],
+      "status": "implemented",
+      "evidence": [
+        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)"
+      ],
       "issue_number": 138,
-      "issue_url": "https://github.com/logannye/rosalind/issues/138"
+      "issue_url": "https://github.com/logannye/rosalind/issues/138",
+      "blocker": "Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed."
     },
     {
       "id": "C11",
@@ -571,10 +598,13 @@
       ],
       "acceptance": "Executable first/second candidate lists and explicit extension with readable report/Python; results match an independent oracle and measured costs include copy, storage, hashing, verification and extraction. Record actual partner use separately under U02/U04; absent participants do not block shipping.",
       "owner": "engineering",
-      "status": "planned",
-      "evidence": [],
+      "status": "implemented",
+      "evidence": [
+        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)"
+      ],
       "issue_number": 139,
-      "issue_url": "https://github.com/logannye/rosalind/issues/139"
+      "issue_url": "https://github.com/logannye/rosalind/issues/139",
+      "blocker": "Implemented on the isolated 0.6 preview branch, not merged into the 0.5 release. Final preview CI and retained acceptance evidence are being completed; publication and independent use are not claimed."
     },
     {
       "id": "F01",

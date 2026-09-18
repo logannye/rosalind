@@ -6,6 +6,10 @@ preview**. The public stable release is **0.1.0**; it does not include these
 evidence commands. Start with [installation](installation.md) to choose the right
 version.
 
+The separate **0.6 development branch** also has a [cohort CLI preview](cohort-cli-preview.md)
+and [complete synthetic reanalysis example](../examples/cohort-reanalysis/README.md).
+These commands are not included in the 0.5 release candidate.
+
 ## Choose your first task
 
 | I want to… | Start here | Result |
