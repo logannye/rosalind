@@ -1,13 +1,13 @@
-# Synthetic cohort contract fixture
+# Synthetic cohort reanalysis
 
-**Design fixture, not a shipped cohort capability.** The proposed
-[cohort contract](../../docs/cohort-contract.md) describes future work. This example
-uses only existing single-sample `analyze evidence`, `dataset` and reuse commands.
-There is no cohort runtime, public cohort schema or `open_cohort` implementation.
-It does not establish partner validation, biological accuracy or representative
-performance. Feature implementation may proceed on an isolated next-minor line
-while 0.5 release closure and partner recruitment continue; neither publication
-nor participant availability is a prerequisite for that development.
+**Source preview on the isolated 0.6 development line.** This example shows a
+three-sample cohort answering a second candidate question from saved evidence,
+then explicitly filling two unmeasured loci into an immutable child snapshot.
+The [CLI/Python preview guide](../../docs/cohort-cli-preview.md) explains the
+interfaces; the [cohort contract](../../docs/cohort-contract.md) specifies their
+scientific and storage semantics. These additions are separate from 0.5 release
+closure and are not a claim of published availability, partner validation,
+biological accuracy or representative performance.
 
 All inputs are authored synthetic data, redistributable under this repository's
 MIT OR Apache-2.0 license. There are no human sequences, participant identities,
@@ -21,15 +21,18 @@ sequencing assay or a replacement for adversarial/native decoder fixtures.
   position, base, number of copies, MAPQ, BQ and SAM flag. Read names and order are
   deterministic; each BAM has its own named `@RG SM` sample.
 - `members.tsv` maps asserted specimen IDs to named samples and stored BED selection.
-  It is fixture metadata, not the future cohort import format.
+  It is fixture metadata; `run_cohort.py` writes a separate native import table.
 - `expected.json` contains hand-specified complete per-locus depths/counts, the
-  proposed partial-output rows with explicit nulls, and candidate-summary totals
+  partial-output rows with explicit nulls, and candidate-summary totals
   before and after filling missing loci. It is an oracle, not Rosalind output.
 - `prepare.py` expands the reads into deterministic SAM, BAM/BAI and FASTA/FAI using
   pinned pysam. It records source/generated file hashes without paths or timestamps.
 - `validate.py` independently parses these simple SAM reads without htslib, checks
   the authored arithmetic, and compares current Rosalind native/saved/reused output.
   Its tiny in-memory tables are fixture oracles, not a bounded cohort implementation.
+- `run_cohort.py` exercises native cohort import, strict/partial planning, saved-only
+  queries, relocation, explicit extension, verification and receipt replay. It
+  compares the second query and completed child against fresh native extraction.
 
 Every candidate has REF A. At the default technical depth threshold 10, a member is
 ALT-supported only when depth-eligible and at least one requested ALT read exists.
@@ -62,7 +65,78 @@ a defined ALT/depth fraction but fails the technical screen. Filling C:30 change
 its status to observed zero; filling B:40 adds 10 callable and 3 ALT observations.
 
 The [retained local validation note](VALIDATION.md) identifies the tested binary
-and exact limits of the observed result.
+and limits of the earlier single-sample primitive validation. A new cohort run
+records its own exact binary identity and results in `cohort-validation/report.json`.
+
+## Run the cohort preview
+
+Build the binary from the isolated cohort development branch. Use a new fixture
+directory; the script refuses existing output rather than replacing an earlier
+success or failure:
+
+```sh
+cargo build --locked --bin rosalind
+python3 -m venv /tmp/rosalind-cohort-fixture-env
+/tmp/rosalind-cohort-fixture-env/bin/pip install pysam==0.23.3
+/tmp/rosalind-cohort-fixture-env/bin/python examples/cohort-reanalysis/prepare.py \
+  /tmp/rosalind-cohort-preview-fixture
+/tmp/rosalind-cohort-fixture-env/bin/python examples/cohort-reanalysis/run_cohort.py \
+  /tmp/rosalind-cohort-preview-fixture --binary "$PWD/target/debug/rosalind"
+```
+
+Keep that binary unchanged during the run; the script checks its identity so one
+report cannot silently combine results from concurrent rebuilds.
+
+The native processes use a cooperative 512 MiB budget by default; change it with
+`--budget-mb`. This does not claim an OS memory cap. The Python demonstration loads
+only the deliberately tiny fixture tables and is outside the native budget.
+
+The demonstration:
+
+1. Checks prepared-input hashes and the independent simple-SAM arithmetic; creates
+   projected single-sample datasets and imports verified ordinary copies.
+2. Plans the first four candidates, confirms strict refusal, then emits partial
+   evidence and summaries matching the authored missingness and threshold oracle.
+3. Relocates the cohort and makes both original input paths and imported dataset
+   paths unavailable. A second list asks for G at positions 10 and 20, including a
+   new ALT at a stored position; saved-only results verify and replay to identical
+   TSV bytes.
+4. Restores raw inputs and compares all six second-query sample/candidate rows
+   against fresh native extraction, including every depth, allele and exclusive
+   filter counter. The report records both costs for that matched question.
+5. Supplies explicit local source mappings for B and C. Extension preserves A:4/0,
+   B:3/1 and C:3/1 retained/computed loci, publishes a child last, and leaves the
+   original snapshot's partial output byte-identical.
+6. Compares all 12 child rows against fresh extraction and checks completed
+   summary arithmetic. The child also queries, verifies and replays with original
+   inputs unavailable. A `finally` block restores the prepared input directories.
+
+Open `cohort-validation/REPORT.md` for the sample-by-candidate table.
+`cohort-validation/report.json` retains every command and exit code, expected
+refusals, binary/fixture/script hashes, native receipt measurements, import and
+relocation costs, storage bytes, fresh-versus-saved elapsed times, and extension
+hashing/record-visit counts. Failed runs retain their report and outputs for
+inspection; rerun using a newly prepared directory.
+
+These are single ordered measurements of tiny authored data. Process startup,
+source hashing, verification, encoding and finalization are included; the script
+does not establish representative speedups or an economic break-even point.
+Independent team usage remains unmeasured.
+
+With a matching preview Python installation, the resulting snapshot can be opened
+without original alignments:
+
+```python
+import json
+from pathlib import Path
+from rosalind import open_cohort
+
+work = Path("/tmp/rosalind-cohort-preview-fixture/cohort-validation")
+report = json.loads((work / "report.json").read_text())
+cohort = open_cohort(report["cohort"], report["child_snapshot"], binary=report["binary"])
+print(cohort.plan(sites=work / "second.vcf"))
+cohort.summarize(work / "python-summary.tsv", sites=work / "first.vcf", format="tsv")
+```
 
 ## Prepare and validate current primitives
 
@@ -98,7 +172,7 @@ executed commands, results and reuse counts. Generated BAMs/caches/reports stay 
 the chosen output directory; do not commit them. Repeated preparation with the same
 pinned tools should produce the same `preparation.json` hashes.
 
-These checks establish current primitives on a deliberately tiny fixture. They do
-not test future snapshot import, member compatibility, cross-member resource
-planning, cancellation or cohort replay. Those are acceptance requirements in the
-proposed contract and remain implementation work after the relevant gates.
+This older validator establishes single-sample primitives on a deliberately tiny
+fixture. Use `run_cohort.py` above for the cohort demonstration. Broader resource,
+cancellation, compatibility and adversarial cases are covered separately by the
+native regression suite; neither fixture validator establishes independent usage.
