@@ -1553,6 +1553,59 @@ fn generate_primary_artifacts<R: Runner>(
     result
 }
 
+fn python_contract_fingerprint(
+    sources: &serde_json::Value,
+    pyproject: &str,
+) -> Result<String, String> {
+    let mut metadata: toml::Value = toml::from_str(pyproject)
+        .map_err(|error| format!("cannot parse Python packaging metadata: {error}"))?;
+    let project = metadata
+        .get_mut("project")
+        .and_then(toml::Value::as_table_mut)
+        .ok_or_else(|| "pyproject.toml lacks [project] metadata".to_string())?;
+    // Descriptive copy may evolve during an RC soak. Freeze all remaining
+    // project/build/tool metadata conservatively, including dependencies.
+    for field in [
+        "description",
+        "readme",
+        "authors",
+        "maintainers",
+        "keywords",
+        "urls",
+    ] {
+        project.remove(field);
+    }
+    let body = serde_json::to_vec(&serde_json::json!({
+        "schema": 1,
+        "sources": sources,
+        "packaging": metadata,
+    }))
+    .map_err(|error| error.to_string())?;
+    Ok(hash_bytes(&body))
+}
+
+fn python_contract<R: Runner>(runner: &R, root: &Path) -> Result<String, String> {
+    // Embed the trusted parser so an older target ref need not contain the
+    // helper. Isolated Python parses package source; it never imports it.
+    let output = command_text(
+        runner,
+        root,
+        "python3",
+        &[
+            "-I".into(),
+            "-c".into(),
+            include_str!("../../scripts/python-api-contract.py").into(),
+            "--root".into(),
+            root.as_os_str().to_owned(),
+        ],
+    )?;
+    let sources = serde_json::from_str(&output)
+        .map_err(|error| format!("cannot parse Python source contract: {error}"))?;
+    let pyproject = fs::read_to_string(root.join("pyproject.toml"))
+        .map_err(|error| format!("cannot read Python packaging metadata: {error}"))?;
+    python_contract_fingerprint(&sources, &pyproject)
+}
+
 fn snapshot_here<R: Runner>(
     runner: &R,
     root: &Path,
@@ -1574,6 +1627,7 @@ fn snapshot_here<R: Runner>(
     )?;
     let binary = root.join("target/debug/rosalind");
     let mut components = BTreeMap::new();
+    components.insert("python.contract".into(), python_contract(runner, root)?);
     for package in ["rosalind-bio", "rosalind-receipt"] {
         let output = command_text(
             runner,
@@ -3753,6 +3807,8 @@ fn contract_diff(a: &ContractSnapshot, b: &ContractSnapshot) -> BTreeSet<String>
         if a.components.get(key) != b.components.get(key) {
             let category = if key.starts_with("public_api.") {
                 "rust-api"
+            } else if key.starts_with("python.") {
+                "python"
             } else if key.starts_with("cli_help.") {
                 "cli"
             } else if key.starts_with("schema.") {
@@ -4276,6 +4332,8 @@ mod tests {
             .insert("cli_help.root".into(), "changed".into());
         b.components
             .insert("schema.receipt".into(), "changed".into());
+        b.components
+            .insert("python.contract".into(), "changed".into());
         b.receipt_fields.insert("params".into(), vec!["new".into()]);
         b.primary_artifacts.insert("vcf".into(), "changed".into());
         let diff = contract_diff(&a, &b);
@@ -4284,6 +4342,7 @@ mod tests {
             BTreeSet::from([
                 "cli".into(),
                 "primary-artifacts".into(),
+                "python".into(),
                 "receipt-fields".into(),
                 "rust-api".into(),
                 "schema".into(),
@@ -4296,6 +4355,77 @@ mod tests {
         let a = snapshot();
         let b = a.clone();
         assert!(contract_diff(&a, &b).is_empty());
+    }
+
+    #[test]
+    fn python_contract_freezes_dependencies_and_packaging_but_not_descriptive_copy() {
+        let sources = serde_json::json!({"schema": 1, "modules": {"__init__.py": {}}});
+        let metadata = "[build-system]\nrequires=['maturin==1.9.4']\n[project]\nname='rosalind-bio'\nrequires-python='>=3.9'\ndependencies=['pyarrow>=15']\ndescription='Original copy'\n[tool.maturin]\nbindings='bin'\n";
+        let original = python_contract_fingerprint(&sources, metadata).unwrap();
+        assert_eq!(
+            original,
+            python_contract_fingerprint(&sources, &metadata.replace("Original copy", "New docs"))
+                .unwrap()
+        );
+        assert_eq!(
+            original,
+            python_contract_fingerprint(&sources, &(metadata.to_string() + "\n# More comments\n"))
+                .unwrap()
+        );
+        for (old, new) in [
+            ("pyarrow>=15", "pyarrow>=16"),
+            (">=3.9", ">=3.10"),
+            ("maturin==1.9.4", "maturin==1.9.5"),
+            ("bindings='bin'", "bindings='pyo3'"),
+        ] {
+            assert_ne!(
+                original,
+                python_contract_fingerprint(&sources, &metadata.replace(old, new)).unwrap()
+            );
+        }
+        assert!(python_contract_fingerprint(&sources, "[build-system]\n").is_err());
+    }
+
+    #[test]
+    fn older_snapshots_remain_readable_and_new_python_component_requires_review() {
+        let old = snapshot();
+        let encoded = serde_json::to_vec(&old).unwrap();
+        let decoded: ContractSnapshot = serde_json::from_slice(&encoded).unwrap();
+        assert_eq!(decoded.schema, 1);
+        let mut new = decoded.clone();
+        new.components
+            .insert("python.contract".into(), "new".into());
+        assert_eq!(
+            contract_diff(&decoded, &new),
+            BTreeSet::from(["python".into()])
+        );
+    }
+
+    #[test]
+    fn embedded_python_contract_parses_without_importing_candidate_code() {
+        let temporary = tempdir().unwrap();
+        let package = temporary.path().join("python/rosalind");
+        fs::create_dir_all(&package).unwrap();
+        fs::write(
+            package.join("__init__.py"),
+            "raise RuntimeError('never import')\n",
+        )
+        .unwrap();
+        fs::write(
+            temporary.path().join("pyproject.toml"),
+            "[project]\nname='test'\n",
+        )
+        .unwrap();
+        let first = python_contract(&SystemRunner, temporary.path()).unwrap();
+        fs::write(
+            package.join("__init__.py"),
+            "raise RuntimeError('behavior changed')\n",
+        )
+        .unwrap();
+        assert_ne!(
+            first,
+            python_contract(&SystemRunner, temporary.path()).unwrap()
+        );
     }
 
     #[test]

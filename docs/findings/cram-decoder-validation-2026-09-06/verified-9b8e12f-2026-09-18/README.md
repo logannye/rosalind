@@ -99,14 +99,30 @@ committed as `48c63f3`.
 
 Read-only [release prerequisites](release-prerequisites.json) and
 [doctor with the explicit Colima context](release-doctor-colima.json) show that
-the existing Linux daemon is healthy. Release dispatch still needs allowed refs
-in the protected `rc` and `release` environments, a configured
-`CARGO_REGISTRY_TOKEN`, and the pinned actionlint 1.7.12 rather than local 1.7.7.
+the existing Linux daemon was healthy. Those historical snapshots reported
+missing allowed refs in the protected `rc` and `release` environments, an absent
+`CARGO_REGISTRY_TOKEN`, and local actionlint 1.7.7 rather than pinned 1.7.12.
 The [default-context doctor](release-doctor.json) additionally reports the unused
 `desktop-linux` daemon unavailable. Its failure does not describe the explicitly
 selected Colima validation environment. PyPI/TestPyPI publisher configuration
 was not verified in authenticated index settings. No credentials, approval
 rules or deployment settings were changed.
+
+The later [private-tool check](actionlint-1.7.12.log) passes workflow validation
+with official actionlint 1.7.12. Its macOS/arm64 archive was verified against both
+the official release checksum file and GitHub's asset digest before extraction
+into a task-private `/tmp` directory. [Provenance](actionlint-1.7.12-provenance.json)
+records the download, executable and workflow hashes. The global 1.7.7 binary
+remained unchanged. A new [doctor snapshot](release-doctor-private-tools.json)
+using that private PATH and the explicit Colima context passes every local tool
+and daemon check; only the protected-environment ref policies and registry token
+remain reported blockers. Historical doctor snapshots are unchanged.
+
+After these checks, the existing Colima VM was restored to its earlier stopped
+state, and the default Docker context remained `desktop-linux`
+([cleanup record](local-environment-restoration.json)). A future Linux or release
+check must start the VM and select its context again. The private tool directory
+is temporary; future runs must install or select the pinned version explicitly.
 
 These publication prerequisites are distinct from the later stable-release
 adoption and soak gates. Neither a successful local check nor this report

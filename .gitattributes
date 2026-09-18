@@ -1,3 +1,4 @@
 # Retained command output preserves its original bytes, including blank lines.
 docs/findings/representative-evidence-2026-09-06/*.log -whitespace
 docs/findings/cram-decoder-validation-2026-09-06/**/*.log -whitespace
+docs/findings/python-contract-2026-09-18/**/*.log -whitespace

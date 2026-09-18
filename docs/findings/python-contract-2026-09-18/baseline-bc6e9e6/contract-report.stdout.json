@@ -1,0 +1,20 @@
+{
+  "schema": 1,
+  "command": "contract.snapshot",
+  "status": "ready",
+  "commit": "bc6e9e6e051d233da98573dc40f894f56ccd58b5",
+  "version": null,
+  "checks": [
+    {
+      "id": "contract.generated",
+      "ok": true,
+      "detail": "62 components"
+    }
+  ],
+  "blockers": [],
+  "actions": [
+    "attach and attest contract-snapshot.json on an RC"
+  ],
+  "contract_fingerprint": "cc493862f498187d12ece7c8a73b8bc024a5659694deaddca3069b427feaa5a1",
+  "plan_id": "3948298ed22a05b5b79e76f748ad09a45acf5b35aefee2fc231c2fff8f89c2ec"
+}

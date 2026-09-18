@@ -109,7 +109,10 @@ dir="rosalind-${target}"
 say ""
 say "Installed: ./$dir/rosalind"
 say ""
-"./$dir/rosalind" --version
+if ! "./$dir/rosalind" --version 2>/dev/null; then
+  say "This historical binary does not expose --version (release selector: $VERSION)."
+  say "Retain the release tag and verified download checksum to identify it."
+fi
 say "  cd $dir"
 if "./$dir/rosalind" analyze evidence --help >/dev/null 2>&1; then
   say "This binary supports exact evidence. Start with the bundled README and researcher guide."

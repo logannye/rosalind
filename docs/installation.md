@@ -14,6 +14,20 @@ use the source instructions below. Neither `cargo install rosalind-bio` nor
 `pip install rosalind-bio` should be assumed to install the unpublished evidence
 preview.
 
+## Install the historical stable release
+
+For the legacy v0.1.0 interface only, run this from an empty directory:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/logannye/rosalind/main/install.sh \
+  | ROSALIND_VERSION=v0.1.0 sh
+```
+
+The installer selects the supported platform bundle, checks its published
+checksum when available, and prints its local executable path. This old binary
+does not expose `--version`; retain the v0.1.0 tag and verified download checksum
+and use its `--help`. It cannot run the current evidence quickstarts below.
+
 ## Build the current CLI
 
 You need Git, Rust/Cargo **1.83 or newer**, a C/C++ toolchain, CMake, pkg-config,

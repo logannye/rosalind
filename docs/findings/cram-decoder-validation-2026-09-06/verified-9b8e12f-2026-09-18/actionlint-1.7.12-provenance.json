@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "recorded_at": "2026-09-18T16:49:11.033195+00:00",
+  "recorded_at": "2026-09-18T16:49:29.412140+00:00",
   "official_release": "https://github.com/rhysd/actionlint/releases/tag/v1.7.12",
   "release_tag": "v1.7.12",
   "downloaded_assets": [
@@ -21,7 +21,7 @@
   ],
   "official_checksum_file_matched": true,
   "private_tool": {
-    "path": "/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-release-tools-20260918-6sls49t2/bin/actionlint",
+    "path": "/tmp/rosalind-release-tools-20260918-4pqkzru8/bin/actionlint",
     "sha256": "8db11704dc296f096216db4db65d86cd7f0ebfdf4c38453a1da276b137b88388",
     "version": "1.7.12\ninstalled by downloading from release page\nbuilt with go1.26.1 compiler for darwin/arm64"
   },
@@ -32,7 +32,7 @@
   },
   "workflow_check": {
     "argv": [
-      "/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-release-tools-20260918-6sls49t2/bin/actionlint"
+      "/tmp/rosalind-release-tools-20260918-4pqkzru8/bin/actionlint"
     ],
     "cwd": "/Users/logannye/Documents/Rosalind",
     "exit_code": 0,
@@ -99,7 +99,7 @@
       "--json"
     ],
     "docker_context": "colima-rosalind-ci",
-    "private_path_prefix": "/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/rosalind-release-tools-20260918-6sls49t2/bin",
+    "private_path_prefix": "/tmp/rosalind-release-tools-20260918-4pqkzru8/bin",
     "exit_code": 3,
     "status": "blocked",
     "blockers": [

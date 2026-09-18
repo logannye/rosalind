@@ -123,6 +123,17 @@ policy, and the clean candidate must be reachable from the pushed default branch
 Each `PLAN_ID` is the exact ID returned by the corresponding plan. Plans are kept
 outside the checkout so they do not make the release tree dirty.
 
+The additive `python.contract` snapshot component freezes normalized ASTs of all
+`python/rosalind/*.py` modules, including nested and private implementation, plus
+parsed `pyproject.toml` metadata. This is deliberately stronger than a signature
+check: behavior, defaults, dependencies and packaging changes require a new
+contract. Comments, docstrings, source locations and descriptive project fields
+(`description`, `readme`, `authors`, `maintainers`, `keywords`, `urls`) are ignored.
+The stdlib-only parser uses Python 3.9 syntax and a version-independent node
+representation; it never imports or executes the candidate package. Maintainer
+Python must be 3.9 or newer. Existing schema-1 snapshots remain readable, but one
+without this component cannot match a new fingerprint and needs a fresh RC.
+
 The feature-bearing evidence-engine candidate uses the 0.5.0 release sequence.
 The server-timestamped seven-day soak and three partner personas apply at 0.5.0
 and later. The soak begins when the GitHub prerelease is published, after its

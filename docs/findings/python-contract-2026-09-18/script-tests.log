@@ -1,0 +1,20 @@
+.......offline onboarding links: 45 reachable guides
+onboarding executable: /private/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmpbiiva3kw/bin/rosalind; version=0.5.0; sha256=c69e9d36ece1521e78a605a4a7f8695812d3d96200ce19c44984d9d98f512675
+SDK origin: registry-only exact version 0.5.0
+legacy-scaffold conformance: {"passed": true}
+evidence-scaffold conformance: {"passed": true}
+packaged onboarding snippets and conformance passed outside the checkout
+....packaged researcher-quickstart: binary=/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmpmx2evjts/exact-selected-native; python=/opt/homebrew/opt/python@3.14/bin/python3.14; cwd=/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmpmx2evjts/smoke/research-workflows/researcher-quickstart
+packaged researcher-quickstart: passed outside the checkout
+packaged reuse-quickstart: binary=/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmpmx2evjts/exact-selected-native; python=/opt/homebrew/opt/python@3.14/bin/python3.14; cwd=/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmpmx2evjts/smoke/research-workflows/reuse-quickstart
+packaged reuse-quickstart: passed outside the checkout
+packaged researcher-quickstart: binary=/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmp6yljknpo/exact-selected-native; python=/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmp6yljknpo/smoke/research-workflows/venv/bin/python; cwd=/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmp6yljknpo/smoke/research-workflows/researcher-quickstart
+packaged researcher-quickstart: passed outside the checkout
+packaged reuse-quickstart: binary=/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmp6yljknpo/exact-selected-native; python=/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmp6yljknpo/smoke/research-workflows/venv/bin/python; cwd=/var/folders/11/rxn26h9514v0yswdz8pg6tmw0000gn/T/tmp6yljknpo/smoke/research-workflows/reuse-quickstart
+packaged reuse-quickstart: passed outside the checkout
+..............................
+----------------------------------------------------------------------
+Ran 41 tests in 4.315s
+
+OK
+Synchronized 1 roadmap tasks and 1 milestones
