@@ -1,0 +1,4 @@
+id	left	right
+a-to-b	specimen-a	specimen-b
+b-to-a	specimen-b	specimen-a
+a-to-c	specimen-a	specimen-c

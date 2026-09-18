@@ -64,7 +64,7 @@ pub(crate) fn max_text_length(contigs: &ContigSet) -> usize {
         .max(MAX_MEMBER_ID_BYTES)
 }
 
-fn validate_text(value: &str, format: CohortOutputFormat, maximum: usize) -> Result<()> {
+pub(super) fn validate_text(value: &str, format: CohortOutputFormat, maximum: usize) -> Result<()> {
     if value.len() > maximum {
         return Err(CohortError::Limit(format!(
             "cohort output text exceeds {maximum} bytes"
@@ -82,18 +82,18 @@ fn validate_text(value: &str, format: CohortOutputFormat, maximum: usize) -> Res
     Ok(())
 }
 
-fn validate_contigs(contigs: &ContigSet, format: CohortOutputFormat) -> Result<()> {
+pub(super) fn validate_contigs(contigs: &ContigSet, format: CohortOutputFormat) -> Result<()> {
     for contig in contigs.iter() {
         validate_text(&contig.name, format, MAX_TEXT_BYTES)?;
     }
     Ok(())
 }
 
-fn arrow_error(error: arrow_schema::ArrowError) -> CohortError {
+pub(super) fn arrow_error(error: arrow_schema::ArrowError) -> CohortError {
     CohortError::Corrupt(format!("cohort Arrow encoding: {error}"))
 }
 
-struct BatchSink<W: Write> {
+pub(super) struct BatchSink<W: Write> {
     output: Option<W>,
     arrow: Option<StreamWriter<W>>,
     format: CohortOutputFormat,
@@ -101,7 +101,7 @@ struct BatchSink<W: Write> {
     finished: bool,
 }
 impl<W: Write> BatchSink<W> {
-    fn new(output: W, format: CohortOutputFormat) -> Self {
+    pub(super) fn new(output: W, format: CohortOutputFormat) -> Self {
         Self {
             output: Some(output),
             arrow: None,
@@ -140,7 +140,7 @@ impl<W: Write> BatchSink<W> {
         self.started = true;
         Ok(())
     }
-    fn write(&mut self, batch: &RecordBatch) -> Result<()> {
+    pub(super) fn write(&mut self, batch: &RecordBatch) -> Result<()> {
         if self.finished {
             return Err(CohortError::Corrupt(
                 "cannot append to a finished cohort output".into(),
@@ -172,7 +172,7 @@ impl<W: Write> BatchSink<W> {
         }
         Ok(())
     }
-    fn finish(&mut self, schema: &Schema) -> Result<()> {
+    pub(super) fn finish(&mut self, schema: &Schema) -> Result<()> {
         if !self.finished {
             self.start(schema)?;
             match self.format {
@@ -188,7 +188,7 @@ impl<W: Write> BatchSink<W> {
         }
         Ok(())
     }
-    fn into_inner(mut self) -> Result<W> {
+    pub(super) fn into_inner(mut self) -> Result<W> {
         if !self.finished {
             return Err(CohortError::Corrupt("cohort output is unfinished".into()));
         }
@@ -266,14 +266,14 @@ fn write_tsv_value(out: &mut dyn Write, array: &dyn Array, row: usize) -> Result
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-struct CandidateKey {
-    contig: u32,
-    position: u32,
-    reference: u8,
-    alternate: u8,
+pub(super) struct CandidateKey {
+    pub(super) contig: u32,
+    pub(super) position: u32,
+    pub(super) reference: u8,
+    pub(super) alternate: u8,
 }
 impl CandidateKey {
-    fn from_row(row: CohortRow<'_>) -> Self {
+    pub(super) fn from_row(row: CohortRow<'_>) -> Self {
         Self {
             contig: row.contig,
             position: row.position,
@@ -281,7 +281,7 @@ impl CandidateKey {
             alternate: row.alternate,
         }
     }
-    fn validate(self, contigs: &ContigSet) -> Result<()> {
+    pub(super) fn validate(self, contigs: &ContigSet) -> Result<()> {
         let contig = contigs
             .by_id(self.contig)
             .ok_or_else(|| CohortError::Corrupt("cohort output refers to unknown contig".into()))?;
@@ -296,7 +296,7 @@ impl CandidateKey {
     }
 }
 
-fn candidate_fields() -> Vec<Field> {
+pub(super) fn candidate_fields() -> Vec<Field> {
     vec![
         Field::new("contig", DataType::Utf8, false),
         Field::new("pos", DataType::UInt32, false),
@@ -304,7 +304,7 @@ fn candidate_fields() -> Vec<Field> {
         Field::new("alt", DataType::Utf8, false),
     ]
 }
-fn candidate_arrays(keys: &[CandidateKey], contigs: &ContigSet) -> Vec<ArrayRef> {
+pub(super) fn candidate_arrays(keys: &[CandidateKey], contigs: &ContigSet) -> Vec<ArrayRef> {
     vec![
         Arc::new(StringArray::from_iter_values(keys.iter().map(|key| {
             contigs
@@ -324,7 +324,7 @@ fn candidate_arrays(keys: &[CandidateKey], contigs: &ContigSet) -> Vec<ArrayRef>
         )),
     ]
 }
-fn output_schema(fields: Vec<Field>, kind: &str) -> Schema {
+pub(super) fn output_schema(fields: Vec<Field>, kind: &str) -> Schema {
     Schema::new(fields).with_metadata(std::collections::HashMap::from([(
         "rosalind.cohort.schema".into(),
         format!("1;{kind};counting-unit=read-observations"),

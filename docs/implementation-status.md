@@ -122,3 +122,12 @@ independent analyzer, one integrated workflow and two teams returning after 30 d
 completed achievements. The 30-day return milestone does not block the first
 stable release. No whole-genome speedup, universal hard RAM bound, competitive
 caller accuracy or commercial purchase is claimed here.
+
+
+### Explicit paired comparisons on the follow-on development branch
+
+`codex/cohort-pairs-preview` adds ordered `cohort compare-pairs` and the matching
+Python method above saved cohort evidence. The [paired contract](cohort-pairs-contract.md)
+records direction, exact arithmetic, missingness, limits and lineage. It remains
+unpublished, with authored engineering validation rather than independent partner
+use; the separate 0.5 release is unchanged.
