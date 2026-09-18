@@ -1,6 +1,9 @@
 import importlib.util
 import json
 import hashlib
+import os
+import re
+import textwrap
 import subprocess
 import tempfile
 import unittest
@@ -161,6 +164,60 @@ class WheelArtifacts(unittest.TestCase):
             archive.writestr('rosalind_bio-0.5.0rc1.dist-info/METADATA', 'Name: rosalind-bio\nVersion: 0.5.0rc2\n')
         with self.assertRaises(ValueError):
             wheel_artifacts.wheel_identity(wheel, 'aarch64-apple-darwin', '0.5.0-rc.1')
+
+
+class ReleaseTagIdentity(unittest.TestCase):
+    def test_workflow_tag_steps_work_without_ambient_git_identity(self):
+        workflows = Path(__file__).resolve().parents[1] / '.github/workflows'
+        for filename, title, tag in [
+            ('rc.yml', 'Create immutable RC tag and prerelease', 'v0.5.0-rc.2'),
+            ('release.yml', 'Create stable tag and GitHub Release last', 'v0.5.0'),
+        ]:
+            with self.subTest(workflow=filename), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                repo, remote, commands = root / 'repo', root / 'remote.git', root / 'bin'
+                repo.mkdir()
+                commands.mkdir()
+                environment = {key: value for key, value in os.environ.items() if not key.startswith('GIT_')}
+                environment.update(GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_GLOBAL=os.devnull)
+                def git(*arguments):
+                    return subprocess.check_output(['git', *arguments], cwd=repo, env=environment,
+                                                   text=True, stderr=subprocess.PIPE).strip()
+                git('init', '-q')
+                git('config', 'user.useConfigOnly', 'true')
+                git('-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid',
+                    'commit', '--allow-empty', '-q', '-m', 'fixture')
+                commit = git('rev-parse', 'HEAD')
+                git('init', '--bare', '-q', str(remote))
+                git('remote', 'add', 'origin', str(remote))
+                step = (workflows / filename).read_text().split('      - name: ' + title + '\n', 1)[1]
+                declarations, script = step.split('        run: |\n', 1)
+                for name in ('GIT_COMMITTER_NAME', 'GIT_COMMITTER_EMAIL'):
+                    match = re.search(r'^          ' + name + r': ([^\n]+)$', declarations, re.M)
+                    self.assertIsNotNone(match, name)
+                    environment[name] = match.group(1).strip('"\'')
+                # Execute the actual checked-in publication shell with local Git
+                # only. The stub records a release request without network writes.
+                gh = commands / 'gh'
+                gh.write_text('#!/bin/sh\ncase "$1 $2" in\n'
+                              '"release view") exit 1 ;;\n'
+                              '"release create") printf "%s\\n" "$@" > "$CAPTURE" ;;\n'
+                              '*) exit 99 ;;\nesac\n')
+                gh.chmod(0o755)
+                environment.update(TAG=tag, COMMIT=commit, GH_TOKEN='test-only',
+                                   CAPTURE=str(root / 'release-arguments'),
+                                   PATH=str(commands) + os.pathsep + environment['PATH'])
+                script = textwrap.dedent(script).replace('${{ github.repository }}', 'fixture/rosalind')
+                result = subprocess.run(['bash', '-euo', 'pipefail', '-c', script], cwd=repo,
+                                        env=environment, text=True, capture_output=True)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertEqual(git('cat-file', '-t', tag), 'tag')
+                self.assertEqual(git('rev-list', '-n', '1', tag), commit)
+                self.assertEqual(git('for-each-ref', '--format=%(taggername) %(taggeremail)',
+                                    'refs/tags/' + tag),
+                                 'github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>')
+                self.assertIn(tag, (root / 'release-arguments').read_text().splitlines())
+                self.assertIn('refs/tags/' + tag, git('ls-remote', 'origin', 'refs/tags/' + tag))
 
 
 class PublisherBoundaries(unittest.TestCase):

@@ -6,133 +6,195 @@
 
 **Reusable genomic evidence for research and analysis tools.**
 
-Rosalind is a CLI, Rust library, and Python interface for researchers inspecting
-candidate SNVs and target regions, and builders developing analyses on that evidence.
-Supply indexed BAM/CRAM plus candidate sites or BED intervals to obtain exact
-read counts, quality summaries, and panel QC.
+Rosalind turns indexed DNA alignments into exact read evidence that you can inspect,
+save, and reuse. Researchers use it to review supplied candidate SNVs and measure
+coverage across target regions. Builders use its CLI, Python interface, or Rust SDK
+to create their own reports and analyzers, with evidence extraction, resource
+planning, and verifiable artifacts already provided.
 
-Its core idea: **memory settings control how work is scheduled, without changing
-successful scientific results.** Smaller tiles can trade memory for extra indexed
-I/O. Counts remain exact; insufficient resources cause refusal or an explicit failure.
+```text
+Indexed BAM/CRAM + reference + candidate sites or target regions
+    → exact evidence → candidate review, panel QC, or your analyzer
+    → portable dataset → another analysis without reopening the alignments
+```
 
-**Development preview:** these features are in the 0.5.0 source tree. The latest
-public stable release is 0.1.0 and does not provide this evidence workflow.
-Use the [source installation guide](docs/installation.md) for the features below;
-a source version or candidate build does not establish package publication. See
-[implementation status](docs/implementation-status.md) for verified capabilities
-and [release gates](docs/ROADMAP.md) for what remains.
+**Availability:** the workflows below are in the **0.5.0 source preview**. The latest
+public stable release is **v0.1.0**, which predates this evidence engine. Start with
+[installation](docs/installation.md); current examples require a source build.
+[Implementation status](docs/implementation-status.md) distinguishes implemented,
+validated, published, and independently used capabilities. Cohort APIs are
+[planned](docs/ROADMAP.md), not currently available.
 
-## What you can do
+## Choose your starting point
 
-| Task | Rosalind provides |
-|---|---|
-| Inspect candidate SNVs | Allele/strand counts, base and mapping quality summaries, read-position and filtering counts |
-| Check a BED panel | Per-target coverage and configurable callability, with optional position evidence from the same traversal |
-| Annotate variants | Evidence added to VCF, VCF.gz, or BCF while preserving records, genotypes, and allele order |
-| Reuse an analysis | Verified Arrow datasets, cache/resume, subset queries, and Parquet export for Python, R, or SQL |
-| Build a new analyzer | A Rust batch SDK with managed resource admission, cancellation, output publication, receipts, and replay |
+- **[Analyze my data](docs/researcher-quickstart.md)** — extract candidate evidence, understand the counts, verify, and replay.
+- **[Build an analyzer](docs/builder-quickstart.md)** — customize a working Rust reducer and run it on native or saved evidence.
 
-## Get started
+No data ready? The [small real-data tutorial](examples/research-filter/README.md)
+prepares four supplied candidate SNVs from 118 KB of pinned public inputs.
 
-Choose a starting point:
+## What you can build
 
-- **[Analyze my data](docs/researcher-quickstart.md)**: inspect supplied SNVs, interpret evidence, verify, and replay.
-- **[Build an analyzer](docs/builder-quickstart.md)**: implement a bounded analyzer over live or saved evidence.
+| Use case | Who it helps | What Rosalind supplies |
+|---|---|---|
+| Candidate-review report | Researchers revisiting supplied SNVs; developers building review tools | Exact allele and strand counts, quality summaries, and optional record-preserving VCF/BCF annotation |
+| Reusable panel analysis | Workflow maintainers and developers answering new questions over the same target regions | Saved evidence for another candidate list, panel QC, bounded Python batches, or a custom Rust reducer |
 
-Then [reuse saved evidence](docs/reuse-quickstart.md) to answer a second question,
-or browse [all documentation](docs/index.md) for concepts, workflows, and troubleshooting.
+The useful boundary is **save evidence once, then reuse the measured loci and fields**.
+A later query can select different stored positions or SNV alleles and compute
+compatible summaries. It cannot recover excluded reads, unmeasured positions, or
+molecular information that was never stored.
 
-For the current source preview, build with Rust 1.83 or newer and the
-[native build prerequisites](docs/analyzer-sdk.md#build-prerequisites):
+## Builder quickstart: a working analyzer
+
+Install Rust 1.83+ and the [native build prerequisites](docs/analyzer-sdk.md#build-prerequisites).
+Clone the repository and build the source CLI:
 
 ```sh
 git clone https://github.com/logannye/rosalind.git
 cd rosalind
-cargo build --locked --bin rosalind
+cargo build --locked --bin rosalind --target-dir target
 export PATH="$PWD/target/debug:$PATH"
+rosalind --version
 ```
 
-**No data ready?** The [small real-data tutorial](examples/research-filter/README.md)
-downloads 118 KB of pinned public data and walks through extraction, a candidate
-filter, verification, and replay.
+Then build and check the included candidate-summary analyzer. These commands run
+from the repository root and need no user data. Its local dependencies already
+select this source checkout:
 
-With your own indexed alignments, indexed FASTA, and SNV candidates:
+<!-- smoke:readme-builder -->
+```sh
+cargo test --locked --manifest-path examples/evidence-analyzer/Cargo.toml --target-dir target
+cargo build --locked --manifest-path examples/evidence-analyzer/Cargo.toml --target-dir target
+rosalind conformance analyzer --api evidence \
+  --binary ./target/debug/rosalind-example-evidence-analyzer --json
+```
 
+The analyzer reports selected loci, callable read observations, and supplied ALT
+observations. Its tests check the statistic; the 19 conformance checks exercise
+execution behavior, including native/saved evidence agreement. The
+[builder quickstart](docs/builder-quickstart.md) runs it on the four-candidate
+fixture, adds a zero-coverage statistic, and verifies and replays its output.
+
+To start a separate project, use `rosalind new analyzer candidate-qc --api evidence
+--output ./candidate-qc`, then apply the [source dependency patches](docs/analyzer-sdk.md#candidate-dependency-setup)
+before its first Cargo build. The generated project pins the SDK version; the
+current evidence SDK is not yet available from the public registry.
+
+Your reducer declares the fields it needs, its retained memory, and its scientific
+parameters. Rosalind manages input validation, resource admission, cancellation,
+output publication, and receipts. Your tests establish the scientific correctness
+of the new statistic. See the [SDK reference](docs/analyzer-sdk.md) for that contract.
+
+Prefer Python? Follow the [Python source installation](python/README.md) to install
+`rosalind-bio` (import `rosalind`) with its matching native binary. You can stream
+bounded Arrow batches or use the saved-evidence example below.
+
+## Example 1: evidence for a candidate-review tool
+
+With an indexed reference, indexed alignments, and a supplied SNV VCF:
+
+<!-- smoke:readme-candidates -->
 ```sh
 rosalind analyze evidence \
-  --reference genome.fa --alignments sample.sorted.bam --sites candidates.vcf \
-  --memory-budget-mb 256 --format arrow-ipc --output evidence.arrow
+  --reference genome.fa --alignments sample.bam --sites candidates.vcf \
+  --memory-budget-mb 256 --output candidate-evidence.tsv
 
-rosalind verify --manifest evidence.arrow.manifest.json
+rosalind verify --manifest candidate-evidence.tsv.manifest.json
 ```
 
-Use `--regions targets.bed` instead of `--sites` for evidence at every selected
-position, including zero coverage. Omit `--format arrow-ipc` for TSV. For target
-summaries, use `rosalind analyze panel-qc` with the same reference, alignment, and
-BED arguments. Add `--plan` to either analysis command to inspect resource planning.
+Join the resulting counts to your candidate list to build a review table. The
+[complete tutorial](examples/research-filter/README.md) includes that join,
+interpretation of callable depth and ALT strand support, and an illustrative
+research screen. [VCF/BCF annotation](docs/variant-annotation.md) can also add
+evidence while preserving input records, genotypes, and allele order.
 
-Inputs need BAM+BAI/CSI or CRAM+CRAI; CRAM requires an explicit local FASTA.
-The current CRAM path supports checked CRAM 3.0 layouts and validates the whole
-file once per run; see [supported layouts and costs](docs/SEMANTICS.md#cram-decoder-admission).
-References can be indexed FASTA, `.rref`, or compatible legacy `.idx` files.
-The default evidence profile requires MAPQ 20 and base quality 20, and excludes
-unmapped, secondary, supplementary, duplicate, and QC-failed reads. It counts
-**reads**, including overlapping mates separately. For multiple samples, select
-`--sample NAME` or explicitly use `--pool-samples`.
-[Scientific semantics](docs/SEMANTICS.md) defines the full contract.
+## Example 2: a second question from saved evidence
 
-## Use evidence in your own tools
+Extract all positions in your target BED once. Saving only the original candidate
+sites would leave the other target positions unmeasured:
 
-The [Python interface](python/README.md) yields bounded Arrow batches and can
-materialize verified artifacts. [Saved-dataset examples](examples/persisted-evidence/README.md)
-show Python, R, and SQL queries without reopening the original alignments.
-Downstream code is responsible for memory it retains.
-
-For a Rust analyzer, generate a working starting point:
-
+<!-- smoke:readme-save -->
 ```sh
-rosalind new analyzer candidate-qc --api evidence --output ./candidate-qc
+rosalind analyze evidence \
+  --reference genome.fa --alignments sample.bam --regions targets.bed \
+  --cache-dir evidence-cache --memory-budget-mb 256 \
+  --format arrow-ipc --output panel-evidence.arrow
 ```
 
-Follow the [SDK guide](docs/analyzer-sdk.md) to build it against the current source,
-implement your reducer, and run conformance checks. The guide includes the local
-dependency setup required until the candidate crates are published.
+With the matching Python package installed, use the portable manifest recorded in
+the receipt to query another candidate list and produce a panel summary:
 
-## Resource and verification guarantees
+<!-- smoke:readme-reuse -->
+```python
+import json
+from pathlib import Path
+from rosalind import open_dataset
 
-Scientific settings and execution settings are recorded separately. Successful
-supported runs must preserve their evidence across admitted budgets, tile layouts,
-and worker counts. Caching is opt-in; reused inputs and partitions are content-verified.
+receipt = json.loads(Path("panel-evidence.arrow.manifest.json").read_text())
+dataset = open_dataset(receipt["measurements"]["execution.evidence_dataset_manifest"])
+dataset.verify()
+dataset.materialize("second-candidates.tsv", format="tsv",
+                    sites="second-candidates.vcf", fields=["depths", "alleles"],
+                    memory_budget_mb=256)
+dataset.panel_qc("targets.bed", "panel-qc.tsv", min_callable_depth=10,
+                 memory_budget_mb=256)
+```
 
-Memory planning and cooperative RSS checks are distinct from an OS-enforced cap.
-Native validation can allocate before a cooperative check. CRAM planning now
-includes a checked container envelope and a complete record-validation pass. Use the
-[resource findings](docs/benchmarks-and-limitations.md) to assess measured behavior,
-not a universal hard-memory guarantee.
+Both queries use saved evidence without opening the original alignment or reference.
+All requested loci and fields must be present; absent evidence is an error, while
+stored zero depth remains an observed zero. The depth threshold is a technical
+screen, not biological confidence. Both outputs receive verification/replay receipts.
+Use fresh output names for each run. The [reuse tutorial](docs/reuse-quickstart.md)
+checks equality with fresh extraction and relocates the dataset; copy the entire
+portable dataset directory, not just its manifest. [Python, R, and SQL examples](examples/persisted-evidence/README.md)
+show additional consumers and Parquet export.
 
-Outputs are create-new and atomic by default. Receipts support byte verification,
-comparison, and replay with the matching producer. They establish content identity,
-not biological validity or authorship. See [receipts and trust](docs/receipts-and-trust.md).
+## What makes the engine useful
 
-## Guides and project status
+- **Exact results across admitted execution settings.** Memory budgets change work
+  scheduling and indexed I/O, while successful runs preserve the scientific result.
+  The engine never silently downsamples; insufficient resources cause refusal or
+  an explicit failure. Cooperative accounting is distinct from an OS-enforced cap.
+- **Reusable local evidence.** Verified datasets preserve the measured counts and
+  their scientific settings, so compatible analyses can run without the original
+  alignments. Arrow and TSV support native byte replay; Parquet supports downstream
+  analysis and integrity verification.
+- **Managed analyzer execution.** The Rust SDK supplies canonical batches and a
+  shared lifecycle for native and saved evidence. Python exposes the same native
+  engine; memory retained by Python consumers remains their responsibility.
 
-| Start here | Guide |
+## Inputs, outputs, and current limits
+
+Inputs are indexed BAM (BAI/CSI) or CRAM (CRAI), a reference, and candidate SNVs
+(VCF/VCF.gz/BCF) or BED target intervals. CRAM requires a local FASTA and supports
+[checked CRAM 3.0 layouts](docs/SEMANTICS.md#cram-decoder-admission), with a complete
+file-validation pass per native run. Outputs include Arrow IPC, TSV, annotated
+variants, portable evidence datasets, and dataset-derived Parquet.
+
+The default evidence profile requires MAPQ 20 and base quality 20 and excludes
+unmapped, secondary, supplementary, duplicate, and QC-failed reads. It counts
+**reads**, including overlapping mates separately. Select `--sample NAME` for
+multi-sample alignments or explicitly use `--pool-samples`. This is research
+short-read DNA evidence; it does not provide UMI consensus, haplotype inference,
+or production/clinical variant calling. Legacy APIs retain separate semantics.
+
+Receipts establish content identity and reproducibility with the matching producer;
+they do not establish biological validity or authorship. Resource behavior and
+supported scope are documented in [scientific semantics](docs/SEMANTICS.md),
+[benchmarks and limitations](docs/benchmarks-and-limitations.md), and
+[receipts and trust](docs/receipts-and-trust.md).
+
+## Continue
+
+| Need | Guide |
 |---|---|
-| Install the right version | [Stable release versus source preview](docs/installation.md) |
-| Research workflow | [Researcher quickstart](docs/researcher-quickstart.md) · [Pinned real-data tutorial](examples/research-filter/README.md) |
-| Understand the results | [Core concepts](docs/concepts.md) · [Troubleshooting](docs/troubleshooting.md) |
-| Variant interoperability | [VCF/BCF annotation](docs/variant-annotation.md) |
-| Repeated analysis | [Executable reuse quickstart](docs/reuse-quickstart.md) · [Dataset reference](docs/reusable-evidence.md) |
-| Workflow integration | [Integration guide](docs/workflow-integration.md) · [Nextflow](integrations/nextflow/) · [Snakemake](integrations/snakemake/) |
-| Builder extension | [Builder quickstart](docs/builder-quickstart.md) · [Rust SDK](docs/analyzer-sdk.md) · [Python](python/README.md) |
-| Validation | [Implementation status](docs/implementation-status.md) · [Benchmarks and limits](docs/benchmarks-and-limitations.md) |
-| Try a real task and report results | [Researcher and builder validation kit](docs/adoption-validation.md) |
-| Contribute | [Contributor guide](CONTRIBUTING.md) · [Roadmap](docs/ROADMAP.md) · [Security](SECURITY.md) · [Citation](CITATION.cff) |
-
-Current scope is short-read DNA evidence and panel QC for research. Indel/haplotype
-inference, UMI consensus, and production or clinical calling are outside this
-contract. Legacy feature extraction, reference/search utilities, and the column
-analyzer API remain available with their own documented semantics.
+| Install or troubleshoot | [Installation](docs/installation.md) · [Concepts](docs/concepts.md) · [Troubleshooting](docs/troubleshooting.md) |
+| Build and integrate | [Builder quickstart](docs/builder-quickstart.md) · [Rust SDK](docs/analyzer-sdk.md) · [Python](python/README.md) · [Nextflow/Snakemake](docs/workflow-integration.md) |
+| Check maturity or contribute | [Implementation status](docs/implementation-status.md) · [Roadmap](docs/ROADMAP.md) · [Contributor guide](CONTRIBUTING.md) |
+| Try your own task and report results | [Researcher and builder validation kit](docs/adoption-validation.md) |
+| Watch or rerun a complete workflow | [Evidence-reuse demonstration](docs/evidence-reuse-demo.md) |
+| Find everything else | [Documentation index](docs/index.md) · [Security](SECURITY.md) · [Citation](CITATION.cff) |
 
 ## License
 

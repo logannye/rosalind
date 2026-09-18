@@ -31,6 +31,7 @@ CODE_FILES = (
     "examples/evidence-analyzer/build.rs",
     "examples/persisted-evidence/query.py", "examples/persisted-evidence/query.R",
     "examples/persisted-evidence/query.sql",
+    "scripts/reproduce_demo.sh", "scripts/reproduce_demo.py",
 )
 CODE_DIRECTORIES = ("integrations/nextflow", "integrations/snakemake")
 
@@ -278,6 +279,7 @@ def research_snippet(markdown, marker, python, binary, work):
 
 def smoke_research_workflows(bundle, binary, python, work, environment):
     """Execute both packaged researcher workflows outside the source checkout."""
+    installed_python = python is not None
     root = work / "research-workflows"
     root.mkdir()
     scratch = root / "temporary"
@@ -315,6 +317,56 @@ def smoke_research_workflows(bundle, binary, python, work, environment):
         print(f"packaged {marker}: binary={binary}; python={python}; cwd={run}", flush=True)
         command(["bash", "-euo", "pipefail", "-c", program], cwd=run, env=environment)
         print(f"packaged {marker}: passed outside the checkout", flush=True)
+    smoke_readme_examples(bundle, binary, python if installed_python else None, root,
+                          environment, root / "researcher-quickstart/inputs")
+
+
+def smoke_readme_examples(bundle, binary, python, root, environment, inputs):
+    """Execute README examples with the already prepared public researcher inputs.
+
+    Native bundles exercise the shell examples. Wheel smokes also execute the
+    Python example using their installed package; no source import or extra SDK
+    build is substituted for that installation.
+    """
+    run = root / "readme-examples"
+    run.mkdir()
+    for original, name in (("ex1.fa", "genome.fa"), ("ex1.fa.fai", "genome.fa.fai"),
+                           ("sample.bam", "sample.bam"), ("sample.bam.bai", "sample.bam.bai"),
+                           ("targets.bed", "targets.bed"), ("candidates.vcf", "candidates.vcf")):
+        shutil.copy2(inputs / original, run / name)
+    lines = (run / "candidates.vcf").read_text().splitlines(keepends=True)
+    headers = [line for line in lines if line.startswith("#")]
+    records = [line for line in lines if not line.startswith("#")]
+    if len(records) != 4:
+        raise ValueError("README smoke requires the pinned four-candidate fixture")
+    (run / "second-candidates.vcf").write_text("".join(headers + records[:2]))
+    markdown = (bundle / "README.md").read_text()
+    for marker in ("readme-candidates", "readme-save"):
+        command(["bash", "-euo", "pipefail", "-c", snippet(markdown, marker, "sh")],
+                cwd=run, env=environment)
+        print(f"packaged {marker}: passed outside the checkout", flush=True)
+    if (run / "candidate-evidence.tsv").read_bytes() != (inputs / "evidence.tsv").read_bytes():
+        raise ValueError("README candidate evidence differs from the researcher tutorial")
+    if python is None:
+        print("packaged readme-reuse: exercised by wheel smoke; native bundle has no Python package",
+              flush=True)
+        return
+    common = ["--reference", "genome.fa", "--alignments", "sample.bam", "--memory-budget-mb", "256"]
+    command([binary, "analyze", "evidence", *common, "--sites", "second-candidates.vcf",
+             "--fields", "depths,alleles", "--output", "fresh-second.tsv"], cwd=run, env=environment)
+    command([binary, "analyze", "panel-qc", *common, "--regions", "targets.bed",
+             "--min-callable-depth", "10", "--output", "fresh-panel.tsv"], cwd=run, env=environment)
+    # Only these copies, created above, are removed. Queries must consume the
+    # saved dataset instead of accidentally succeeding through original inputs.
+    for name in ("sample.bam", "sample.bam.bai", "genome.fa", "genome.fa.fai"):
+        (run / name).unlink()
+    command([python, "-c", snippet(markdown, "readme-reuse", "python")], cwd=run, env=environment)
+    for actual, fresh in (("second-candidates.tsv", "fresh-second.tsv"), ("panel-qc.tsv", "fresh-panel.tsv")):
+        if (run / actual).read_bytes() != (run / fresh).read_bytes():
+            raise ValueError(f"README saved evidence differs from fresh extraction: {actual}")
+        command([binary, "verify", "--manifest", actual + ".manifest.json"], cwd=run, env=environment)
+    print("packaged readme-reuse: installed Python example matched fresh extraction without original inputs",
+          flush=True)
 
 
 def smoke(args):

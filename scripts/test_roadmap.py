@@ -14,6 +14,17 @@ class RoadmapTest(unittest.TestCase):
     def test_repository_inventory_is_valid(self):
         roadmap.validate(self.data)
 
+    def test_cohort_implementation_does_not_depend_on_participants_or_stable_release(self):
+        tasks = {task['id']: task for task in self.data['tasks']}
+        def prerequisites(key):
+            direct = set(tasks[key]['depends_on'])
+            return direct | set().union(*(prerequisites(dep) for dep in direct))
+        for key in tasks:
+            if key.startswith('C'):
+                dependencies = prerequisites(key)
+                self.assertNotIn('R06', dependencies, key)
+                self.assertFalse(any(dep.startswith('U') for dep in dependencies), key)
+
     def test_duplicate_mapping_is_rejected(self):
         self.data['tasks'][1]['issue_number'] = self.data['tasks'][0]['issue_number']
         self.data['tasks'][1]['issue_url'] = self.data['tasks'][0]['issue_url']

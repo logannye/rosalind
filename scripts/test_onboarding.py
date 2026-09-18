@@ -239,11 +239,16 @@ if len(sys.argv) > 2 and sys.argv[1].endswith("prepare.py"):
                         interpreter.parent.mkdir(parents=True)
                         interpreter.symlink_to(sys.executable)
 
-                with patch.object(ONBOARDING, "command", side_effect=record):
+                with patch.object(ONBOARDING, "command", side_effect=record), \
+                        patch.object(ONBOARDING, "smoke_readme_examples") as readme:
                     ONBOARDING.smoke_research_workflows(bundle, binary, python, work,
                                                        {"PATH": "/intentionally-unrelated"})
                 research_root = work / "research-workflows"
                 expected_python = python or research_root / "venv/bin/python"
+                readme.assert_called_once()
+                self.assertEqual(readme.call_args.args[:4],
+                                 (bundle, binary, python, research_root))
+                self.assertEqual(readme.call_args.args[-1], research_root / "researcher-quickstart/inputs")
                 launched = [entry for entry in calls if entry[0][0] == "bash"]
                 self.assertEqual(len(launched), 2)
                 for _, kwargs in calls:

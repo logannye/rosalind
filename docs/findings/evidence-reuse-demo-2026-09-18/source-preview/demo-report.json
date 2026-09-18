@@ -1,0 +1,362 @@
+{
+  "schema": 1,
+  "distribution_label": "source-preview",
+  "label_is_operator_assertion": true,
+  "binary_version": "0.5.0",
+  "binary_sha256": "7a07689d345abd97ae227908af984ec0dc4038604667cd4d92383177bf609193",
+  "platform": "Darwin",
+  "architecture": "arm64",
+  "python": "3.11.15",
+  "pysam": "0.23.3",
+  "commands": [
+    {
+      "argv": [
+        "$PYTHON",
+        "$REPOSITORY/examples/research-filter/prepare.py",
+        "$DEMO/inputs"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "$ROSALIND",
+        "analyze",
+        "evidence",
+        "--reference",
+        "$DEMO/inputs/ex1.fa",
+        "--alignments",
+        "$DEMO/inputs/sample.bam",
+        "--memory-budget-mb",
+        "256",
+        "--sites",
+        "$DEMO/inputs/candidates.vcf",
+        "--output",
+        "$DEMO/candidate-evidence.tsv"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "$ROSALIND",
+        "verify",
+        "--manifest",
+        "$DEMO/candidate-evidence.tsv.manifest.json"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "$ROSALIND",
+        "analyze",
+        "evidence",
+        "--reference",
+        "$DEMO/inputs/ex1.fa",
+        "--alignments",
+        "$DEMO/inputs/sample.bam",
+        "--memory-budget-mb",
+        "256",
+        "--regions",
+        "$DEMO/inputs/targets.bed",
+        "--fields",
+        "depths,alleles,quality-sums",
+        "--format",
+        "arrow-ipc",
+        "--cache-dir",
+        "$DEMO/cache",
+        "--output",
+        "$DEMO/target-evidence.arrow"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "$ROSALIND",
+        "analyze",
+        "evidence",
+        "--reference",
+        "$DEMO/inputs/ex1.fa",
+        "--alignments",
+        "$DEMO/inputs/sample.bam",
+        "--memory-budget-mb",
+        "256",
+        "--sites",
+        "$DEMO/relocated/second-candidates.vcf",
+        "--fields",
+        "depths,alleles",
+        "--output",
+        "$DEMO/fresh-candidates.tsv"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "$ROSALIND",
+        "analyze",
+        "panel-qc",
+        "--reference",
+        "$DEMO/inputs/ex1.fa",
+        "--alignments",
+        "$DEMO/inputs/sample.bam",
+        "--memory-budget-mb",
+        "256",
+        "--regions",
+        "$DEMO/inputs/targets.bed",
+        "--min-callable-depth",
+        "10",
+        "--output",
+        "$DEMO/fresh-panel.tsv"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "$ROSALIND",
+        "dataset",
+        "verify",
+        "--dataset",
+        "$DEMO/relocated/portable/evidence-dataset.manifest.json"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "$ROSALIND",
+        "dataset",
+        "extract",
+        "--dataset",
+        "$DEMO/relocated/portable/evidence-dataset.manifest.json",
+        "--sites",
+        "$DEMO/relocated/second-candidates.vcf",
+        "--fields",
+        "depths,alleles",
+        "--memory-budget-mb",
+        "256",
+        "--format",
+        "tsv",
+        "--output",
+        "$DEMO/reused-candidates.tsv"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "$ROSALIND",
+        "dataset",
+        "panel-qc",
+        "--dataset",
+        "$DEMO/relocated/portable/evidence-dataset.manifest.json",
+        "--regions",
+        "$DEMO/relocated/targets.bed",
+        "--min-callable-depth",
+        "10",
+        "--memory-budget-mb",
+        "256",
+        "--output",
+        "$DEMO/reused-panel.tsv"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "$ROSALIND",
+        "verify",
+        "--manifest",
+        "$DEMO/reused-candidates.tsv.manifest.json"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "$ROSALIND",
+        "verify",
+        "--manifest",
+        "$DEMO/reused-panel.tsv.manifest.json"
+      ],
+      "returncode": 0
+    },
+    {
+      "argv": [
+        "$ROSALIND",
+        "reproduce",
+        "--manifest",
+        "$DEMO/reused-candidates.tsv.manifest.json",
+        "--inputs",
+        "$DEMO/relocated",
+        "--binary",
+        "$ROSALIND",
+        "--json",
+        "--no-attest"
+      ],
+      "returncode": 0
+    }
+  ],
+  "preparation": {
+    "schema": 1,
+    "source_repository": "https://github.com/samtools/samtools",
+    "source_commit": "da72567097265a61650a081c9f68d4a9f45bd105",
+    "source_release": "1.22",
+    "description": "SAMtools ex1: real NA18507 MAQ alignments, extracted and fixmate-adjusted by upstream; renamed build36 chr2 and chr20 reference slices. Not a truth set.",
+    "files": [
+      {
+        "name": "ex1.fa",
+        "sha256": "b9969f5de2e8a630134fa8af6b6a9f69f540f48de9b15eaba80b6711d21b15c7",
+        "url": "https://raw.githubusercontent.com/samtools/samtools/da72567097265a61650a081c9f68d4a9f45bd105/examples/ex1.fa"
+      },
+      {
+        "name": "ex1.sam.gz",
+        "sha256": "dc89fe1d2277324ff0de90bce457cf1579ec078a25944c8400b8a0576712993a",
+        "url": "https://raw.githubusercontent.com/samtools/samtools/da72567097265a61650a081c9f68d4a9f45bd105/examples/ex1.sam.gz"
+      },
+      {
+        "name": "00README.txt",
+        "sha256": "6034a3ac1aaeef603fedb5a24439ac1d28327e272b38eb560dbafd9500dead65",
+        "url": "https://raw.githubusercontent.com/samtools/samtools/da72567097265a61650a081c9f68d4a9f45bd105/examples/00README.txt"
+      }
+    ],
+    "pysam_version": "0.23.3",
+    "htslib_samtools_bcftools_version": "1.21",
+    "candidate_generator_argv": [
+      [
+        "bcftools",
+        "mpileup",
+        "--no-version",
+        "-f",
+        "$DEMO/inputs/ex1.fa",
+        "-q",
+        "20",
+        "-Q",
+        "20",
+        "-Ob",
+        "-o",
+        "$DEMO/inputs/likelihoods.bcf",
+        "$DEMO/inputs/sample.bam"
+      ],
+      [
+        "bcftools",
+        "call",
+        "--no-version",
+        "-m",
+        "-v",
+        "--ploidy",
+        "2",
+        "-Ov",
+        "-o",
+        "$DEMO/inputs/candidate-all.vcf",
+        "$DEMO/inputs/likelihoods.bcf"
+      ]
+    ],
+    "candidate_snvs": 4,
+    "prepared_sha256": {
+      "sample.bam.bai": "07b02d0bd15ee7c3ba2c1ee1716189a21bfaf54dd9909befa5cc6a59ebb0f890",
+      "targets.bed": "5cf62b6fb8bd7b11569ff7059a25410af2fef3bd1587ae3a500672fa893acac2",
+      "00README.txt": "6034a3ac1aaeef603fedb5a24439ac1d28327e272b38eb560dbafd9500dead65",
+      "ex1.sam.gz": "dc89fe1d2277324ff0de90bce457cf1579ec078a25944c8400b8a0576712993a",
+      "ex1.fa": "b9969f5de2e8a630134fa8af6b6a9f69f540f48de9b15eaba80b6711d21b15c7",
+      "ex1.fa.fai": "8f25f72e57565e0c0a18c46e06be4c82fb62966801a15bb1a7b9d7166723e925",
+      "sample.bam": "56c3c3b6f2714867602d7f419dfcc8f2e5228f209f2d7a60f5c254570c873048",
+      "candidate-all.vcf": "22c05d72223ad854719144ccf403f28310f014ced8f116c7e4cb051e9a007207",
+      "candidates.vcf": "89122c22811b354772d3cdc21642829a6cc22ea1838e1ce80bf131b1275e0b22",
+      "likelihoods.bcf": "228a1323861dfd054832843eb654fee1475bddf359785d298f2fbba0bb08bd72"
+    }
+  },
+  "candidate_evidence": [
+    [
+      "seq1",
+      "548",
+      36,
+      17
+    ],
+    [
+      "seq1",
+      "1294",
+      34,
+      16
+    ],
+    [
+      "seq2",
+      "505",
+      44,
+      22
+    ],
+    [
+      "seq2",
+      "1344",
+      27,
+      12
+    ]
+  ],
+  "verified_loci": 3159,
+  "outputs": {
+    "reused-candidates.tsv": {
+      "sha256": "5b2abcf82430795254aedd5191201a242b5de1b831658427b9836c00a104d186",
+      "equals_fresh_bytes": true
+    },
+    "reused-panel.tsv": {
+      "sha256": "b8881fba6d2a2cacce0d86c3528104f789b1ac751af835517e49c86d117c037d",
+      "equals_fresh_bytes": true
+    }
+  },
+  "panel_summary": [
+    {
+      "target": "seq1-full",
+      "length": "1575",
+      "callable_positions": "1493",
+      "callable_threshold": "10"
+    },
+    {
+      "target": "seq2-full",
+      "length": "1584",
+      "callable_positions": "1517",
+      "callable_threshold": "10"
+    }
+  ],
+  "selected_executable_unchanged": true,
+  "replay": {
+    "schema": 1,
+    "verdict": "REPRODUCED",
+    "exit_code": 0,
+    "compared": true,
+    "parent_claim": "9256baf3165dd1deea362f9d1ecd338c55a2be4a9d157075bd51f6922cb2b80a",
+    "parent_subcommand": "dataset extract",
+    "execution_binary": "$ROSALIND",
+    "code_identity_matches": true,
+    "original_code": {
+      "code_dirty": "false",
+      "code_git_sha": "9b8e12f3b6e802d2103c5ebeb5ff89a08c8d85ce",
+      "deps_lock_blake3": "ce245e0ef0d0076f1e27dcb5ca2a8d0f952ae5db7bec9d469382caf1b0f4457e",
+      "rustc_version": "rustc 1.95.0 (59807616e 2026-04-14)",
+      "target_triple": "aarch64-apple-darwin"
+    },
+    "reproducer_code": {
+      "code_dirty": "false",
+      "code_git_sha": "9b8e12f3b6e802d2103c5ebeb5ff89a08c8d85ce",
+      "deps_lock_blake3": "ce245e0ef0d0076f1e27dcb5ca2a8d0f952ae5db7bec9d469382caf1b0f4457e",
+      "rustc_version": "rustc 1.95.0 (59807616e 2026-04-14)",
+      "target_triple": "aarch64-apple-darwin"
+    },
+    "resource_here": {
+      "peak_rss_bytes": 10846208,
+      "declared_budget_mb": 256,
+      "declared_budget_bytes": 268435456,
+      "fit": true
+    },
+    "outputs": [
+      {
+        "role": "output[0]",
+        "recorded_blake3": "271fd55a63d7fbde17ad0b686add09211490efa7403a53ac90ea2cbd1ea7bc08",
+        "observed_blake3": "271fd55a63d7fbde17ad0b686add09211490efa7403a53ac90ea2cbd1ea7bc08",
+        "matched": true
+      }
+    ],
+    "messages": [
+      "  claim       : 9256baf316 (re-derived)",
+      "  code        : git 9b8e12f3b6 \u2014 matches",
+      "  inputs      : 5 file(s) located by content hash",
+      "  output      : output[0]  OK byte-identical (blake3 271fd55a63)",
+      "  resource    : peak 10846208 bytes vs declared 268435456 bytes (here: this machine)",
+      "  VERDICT     : REPRODUCED"
+    ]
+  },
+  "original_inputs_absent": true,
+  "passed": true
+}

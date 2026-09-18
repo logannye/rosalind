@@ -4,7 +4,7 @@
 
 Make Rosalind understandable, installable and useful for recurring candidate-SNV research, then build local cohort reanalysis on verified saved evidence.
 
-Lead workflow: candidate-SNV reanalysis. Documentation is GitHub-first; cohort v1 is local CLI/Python over immutable verified datasets. Complete the 0.5 release before merging cohort APIs onto the next minor development line.
+Lead workflow: candidate-SNV reanalysis. Documentation is GitHub-first; cohort v1 is local CLI/Python over immutable verified datasets. Keep 0.5 release closure separate from cohort APIs on an isolated next-minor development line; development need not wait for stable publication or participant recruitment.
 
 [Start here](index.md) · [Capability and release status](implementation-status.md) · [Adoption evidence](adoption-validation.md)
 
@@ -18,12 +18,12 @@ Update `docs/roadmap.json`, then run `python3 scripts/roadmap.py --render --chec
 
 1. Reconcile public claims and close CRAM correctness/validation work.
 2. Complete documentation, executable onboarding and publication prerequisites in parallel.
-3. Publish an immutable RC; observe the seven-day soak and real release-persona feedback.
+3. Publish an immutable RC; observe the seven-day soak and required technical evidence.
 4. Publish stable only after the existing policy and fresh registry-only installation checks pass.
-5. Build cohort snapshot composition and recurring candidate queries on the next development line.
+5. In parallel, build cohort snapshots and candidate queries on the isolated next-minor line.
 6. Use independent repeat usage to justify paired comparisons and later molecular feasibility.
 
-The 30-day return target measures adoption; it is not an additional first-stable-release gate. Cohort design/fixtures can be prepared during external waits, but feature rollout does not bypass release closure or partner-dependent acceptance.
+Independent persona feedback, design-partner recruitment and the 30-day return target measure adoption; they are not implementation or publication prerequisites. Validate actual submitted feedback and report absent evidence honestly. Explicit unresolved release-blocking defects remain technical blockers. Keep cohort work out of the frozen 0.5 candidate; next-minor features retain their technical, scientific and compatibility acceptance checks. F02/F03 remain product-review decisions requiring a specified useful task and validation plan.
 
 ## G — Coherent GitHub presence
 
@@ -109,15 +109,13 @@ The 30-day return target measures adoption; it is not an additional first-stable
 
   Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143) · [Saved-evidence reuse tutorial](https://github.com/logannye/rosalind/blob/main/docs/reuse-quickstart.md) · [Clean installed candidate: executed workflows and independent count checks](https://github.com/logannye/rosalind/blob/bc6e9e6e051d233da98573dc40f894f56ccd58b5/docs/findings/roadmap-foundation-2026-09-18/packaged-research-workflows.log)
 
-- [ ] **[D04](https://github.com/logannye/rosalind/issues/116) — Lead builders through managed evidence SDK**
+- [x] **[D04](https://github.com/logannye/rosalind/issues/116) — Lead builders through managed evidence SDK**
 
-  Status: **implemented**. Owner: engineering. Dependencies: D01, G02.
+  Status: **complete**. Owner: engineering. Dependencies: D01, G02.
 
-  Done when: Scaffold evidence API, modify useful statistic, declare fields/memory/params, scientific test and conformance, native/saved inputs and explicit-binary replay; retain legacy route.
+  Done when: Scaffold evidence API, modify useful statistic, declare fields/memory/params, scientific test and conformance, native/saved inputs and explicit-binary replay; retain legacy route. Independent developer adoption is tracked under U01, not required for this engineering task.
 
-  Remaining gate: Maintainer-authored customization passed scientific and conformance checks; independent developer completion remains unobserved.
-
-  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143) · [Builder tutorial and independent completion gate](https://github.com/logannye/rosalind/blob/main/docs/builder-quickstart.md)
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143) · [Builder tutorial](https://github.com/logannye/rosalind/blob/main/docs/builder-quickstart.md) · [Retained modified-analyzer and conformance validation](https://github.com/logannye/rosalind/blob/main/docs/findings/roadmap-foundation-2026-09-18/README.md)
 
 - [x] **[D05](https://github.com/logannye/rosalind/issues/117) — Explain concepts and actionable troubleshooting**
 
@@ -161,7 +159,7 @@ The 30-day return target measures adoption; it is not an additional first-stable
 
   Done when: Maintainer configures allowed refs with reviewers, exact publishers, GHCR visibility and crates credentials; inspect names only and never expose secrets.
 
-  Remaining gate: 2026-09-18 inspection: rc/release custom deployment policies allow no refs; CARGO_REGISTRY_TOKEN absent from repository/environment secret inventories; TestPyPI/PyPI private publisher state unverified. Maintainer account configuration and protected approvals remain required.
+  Remaining gate: 2026-09-18 update: rc/release now allow main and retain required reviewers. Maintainer confirms TestPyPI setup; actual OIDC publication will verify it. Stable CARGO_REGISTRY_TOKEN remains absent; PyPI stable publisher and GHCR visibility still need validation. Protected publication approvals remain required.
 
   Evidence: [Maintainer setup and exact trusted publisher fields](https://github.com/logannye/rosalind/blob/main/docs/MAINTAINER_RELEASES.md) · [Read-only prerequisite inspection](https://github.com/logannye/rosalind/blob/bc6e9e6/docs/findings/cram-decoder-validation-2026-09-06/verified-9b8e12f-2026-09-18/release-prerequisites.json)
 
@@ -175,23 +173,23 @@ The 30-day return target measures adoption; it is not an additional first-stable
 
 - [ ] **[R04](https://github.com/logannye/rosalind/issues/123) — Publish fresh immutable evidence-engine RC**
 
-  Status: **blocked**. Owner: maintainer. Dependencies: R01, R02, R03, D07.
+  Status: **planned**. Owner: maintainer. Dependencies: R01, R03, D07.
 
-  Done when: Next unused 0.5 RC, one source across binaries/wheels/OCI/docs/reports, actual prerelease published and outside-checkout onboarding; candidate SDK patches explicit.
+  Done when: Next unused 0.5 RC, one source across binaries/wheels/OCI/docs/reports, actual prerelease published and outside-checkout onboarding; candidate SDK patches explicit. Require the RC-specific protected refs, TestPyPI and GHCR setup; remaining stable-only credentials in R02 do not block RC preparation.
 
-  Remaining gate: R01 and R03 are merged. Maintainer-owned R02 environment/publisher setup blocks publication. The older unpublished rc.1 workflow was canceled; no 0.5 tags/prereleases exist. Plan rc.2 to distinguish it from the abandoned attempt, rechecking tags/index filenames and running native-bundle validation in the RC build stage before publication.
+  Remaining gate: R01 and R03 are merged; main is allowed in protected environments and TestPyPI setup is maintainer-confirmed. Recompute the fresh rc.2 plan at the selected source, run native-bundle validation and protected wheel/container publication, and verify actual public artifacts. No 0.5 prerelease exists yet; the old unpublished rc.1 attempt was canceled.
 
   Evidence: [Superseded older RC attempt](https://github.com/logannye/rosalind/actions/runs/34047733765)
 
-- [ ] **[R05](https://github.com/logannye/rosalind/issues/124) — Complete stable soak and persona gates**
+- [ ] **[R05](https://github.com/logannye/rosalind/issues/124) — Complete stable soak and technical evidence gates**
 
-  Status: **planned**. Owner: maintainer and independent participants. Dependencies: R04.
+  Status: **planned**. Owner: maintainer and engineering. Dependencies: R04.
 
-  Done when: Seven days after actual prerelease, accepted analyzer-builder/workflow-HPC/constrained-offline feedback with matching contract/ancestry and relevant reviewed GIAB; changed contract gets new RC.
+  Done when: Seven days after actual prerelease, matching contract and relevant reviewed GIAB; changed contract gets a new RC. Persona feedback is validated and reported as advisory, not a publication prerequisite. Explicit unresolved release-blocking defects in submitted feedback remain technical blockers.
 
 - [ ] **[R06](https://github.com/logannye/rosalind/issues/53) — Publish stable with registry-only verification**
 
-  Status: **planned**. Owner: maintainer. Dependencies: R05.
+  Status: **planned**. Owner: maintainer. Dependencies: R05, R02.
 
   Done when: Existing workflow publishes build-info, receipt, then Rosalind; clean registry SDK and native/Python smoke, wheels/OCI and final release before changing stable guidance.
 
@@ -207,13 +205,13 @@ The 30-day return target measures adoption; it is not an additional first-stable
 
   Status: **planned**. Owner: maintainer and independent participants. Dependencies: R04, D07.
 
-  Done when: Three non-authors complete researcher/builder/workflow tasks; record timing, assistance, failures, own-task completion; task categories do not replace release personas.
+  Done when: Three non-authors complete researcher/builder/workflow tasks; record timing, assistance, failures and own-task completion. Retain separate advisory persona scenarios; no implementation or shipping dependency.
 
 - [ ] **[U02](https://github.com/logannye/rosalind/issues/126) — Establish two recurring candidate-reanalysis partners**
 
   Status: **planned**. Owner: maintainer and independent participants. Dependencies: D02, D03.
 
-  Done when: Two teams document recurring SNV questions, scale, formats, fields, outputs and baseline; private data/identities stay outside GitHub.
+  Done when: Two teams document recurring SNV questions, scale, formats, fields, outputs and baseline; private data/identities stay outside GitHub. Adoption evidence and product feedback, not an implementation or shipping prerequisite.
 
 - [ ] **[U03](https://github.com/logannye/rosalind/issues/127) — Resolve observed onboarding failures**
 
@@ -231,11 +229,11 @@ The 30-day return target measures adoption; it is not an additional first-stable
 
 - [ ] **[C01](https://github.com/logannye/rosalind/issues/129) — Define cohort contract and independent fixtures**
 
-  Status: **implemented**. Owner: engineering. Dependencies: R06, U02.
+  Status: **implemented**. Owner: engineering. Dependencies: R01, R03.
 
   Done when: Unique asserted member IDs, optional group/subject/timepoint metadata, one analysis sample; named-sample summaries, exact missingness and independently checked public fixtures.
 
-  Remaining gate: Proposed contract and synthetic fixture pass current primitive checks. Partner scientific review, final schema/admission limits and stable-release dependency remain open; no cohort API is implemented.
+  Remaining gate: Proposed contract and synthetic fixture pass current primitive checks. Final schema, admission limits and scientific contract review remain engineering work; no cohort API is implemented. Proceed on an isolated next-minor line while release and adoption work continue.
 
   Evidence: [Proposed contract and independently specified fixture](https://github.com/logannye/rosalind/pull/143)
 
@@ -295,9 +293,9 @@ The 30-day return target measures adoption; it is not an additional first-stable
 
 - [ ] **[C11](https://github.com/logannye/rosalind/issues/139) — Demonstrate recurring cohort questions and total costs**
 
-  Status: **planned**. Owner: engineering. Dependencies: C09, C10, U02.
+  Status: **planned**. Owner: engineering. Dependencies: C09, C10.
 
-  Done when: Two partners complete first/second lists and explicit extension with readable report/Python and independent correctness; include copy, storage, hash, verification and extraction costs.
+  Done when: Executable first/second candidate lists and explicit extension with readable report/Python; results match an independent oracle and measured costs include copy, storage, hashing, verification and extraction. Record actual partner use separately under U02/U04; absent participants do not block shipping.
 
 ## F — Expand demonstrated value
 
@@ -305,7 +303,7 @@ The 30-day return target measures adoption; it is not an additional first-stable
 
   Status: **planned**. Owner: engineering. Dependencies: C11.
 
-  Done when: Ordered pair input and direction, counts/depth/eligibility/missingness/fractions; no inferred pairs or biological-response claim; independent oracle and partner task.
+  Done when: Ordered pair input and direction, counts/depth/eligibility/missingness/fractions; no inferred pairs or biological-response claim; results match an independent oracle. Real partner outcomes remain adoption evidence, not a shipping prerequisite.
 
 - [ ] **[F02](https://github.com/logannye/rosalind/issues/141) — Select next reducer from demonstrated recurring work**
 

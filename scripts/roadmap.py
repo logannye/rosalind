@@ -70,7 +70,8 @@ def render(data):
              data["objective"], "",
              "Lead workflow: candidate-SNV reanalysis. Documentation is GitHub-first; "
              "cohort v1 is local CLI/Python over immutable verified datasets. "
-             "Complete the 0.5 release before merging cohort APIs onto the next minor development line.", "",
+             "Keep 0.5 release closure separate from cohort APIs on an isolated next-minor development line; "
+             "development need not wait for stable publication or participant recruitment.", "",
              "[Start here](index.md) · [Capability and release status](implementation-status.md) · "
              "[Adoption evidence](adoption-validation.md)", "",
              "## How to use this backlog", "",
@@ -83,13 +84,16 @@ def render(data):
              "## Delivery order and gates", "",
              "1. Reconcile public claims and close CRAM correctness/validation work.",
              "2. Complete documentation, executable onboarding and publication prerequisites in parallel.",
-             "3. Publish an immutable RC; observe the seven-day soak and real release-persona feedback.",
+             "3. Publish an immutable RC; observe the seven-day soak and required technical evidence.",
              "4. Publish stable only after the existing policy and fresh registry-only installation checks pass.",
-             "5. Build cohort snapshot composition and recurring candidate queries on the next development line.",
+             "5. In parallel, build cohort snapshots and candidate queries on the isolated next-minor line.",
              "6. Use independent repeat usage to justify paired comparisons and later molecular feasibility.", "",
-             "The 30-day return target measures adoption; it is not an additional first-stable-release gate. "
-             "Cohort design/fixtures can be prepared during external waits, but feature rollout does not bypass "
-             "release closure or partner-dependent acceptance.", ""]
+             "Independent persona feedback, design-partner recruitment and the 30-day return target measure adoption; "
+             "they are not implementation or publication prerequisites. Validate actual submitted feedback and "
+             "report absent evidence honestly. Explicit unresolved release-blocking defects remain technical blockers. "
+             "Keep cohort work out of the frozen 0.5 candidate; next-minor "
+             "features retain their technical, scientific and compatibility acceptance checks. "
+             "F02/F03 remain product-review decisions requiring a specified useful task and validation plan.", ""]
     for prefix, title in data["milestones"].items():
         lines += [f"## {title}", ""]
         for task in data["tasks"]:

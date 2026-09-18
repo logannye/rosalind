@@ -1,0 +1,37 @@
+Rosalind evidence reuse demonstration (source-preview)
+Version: 0.5.0; executable SHA256: 7a07689d345abd97ae227908af984ec0dc4038604667cd4d92383177bf609193
+Public NA18507 tutorial slices; research evidence, not a calling-accuracy or speed benchmark.
+
+1. Prepare pinned public inputs and inspect four supplied candidate SNVs.
+$ $PYTHON $REPOSITORY/examples/research-filter/prepare.py $DEMO/inputs
+Prepared 4 independently generated candidate SNVs in $DEMO/inputs
+$ $ROSALIND analyze evidence --reference $DEMO/inputs/ex1.fa --alignments $DEMO/inputs/sample.bam --memory-budget-mb 256 --sites $DEMO/inputs/candidates.vcf --output $DEMO/candidate-evidence.tsv
+evidence: 4 loci; peak RSS 9 MiB; 1988 record visits; receipt $DEMO/candidate-evidence.tsv.manifest.json
+$ $ROSALIND verify --manifest $DEMO/candidate-evidence.tsv.manifest.json
+verify: peak 9 MiB within budget 256 MiB
+verify: evidence records process RSS; individual internal allocations are modeled, not measured
+verify: OK — 5 input(s), 1 output(s) match
+contig	position	callable_depth	ALT_read_observations
+seq1	548	36	17
+seq1	1294	34	16
+seq2	505	44	22
+seq2	1344	27	12
+
+2. Save every target position for later candidate queries and panel QC.
+$ $ROSALIND analyze evidence --reference $DEMO/inputs/ex1.fa --alignments $DEMO/inputs/sample.bam --memory-budget-mb 256 --regions $DEMO/inputs/targets.bed --fields depths,alleles,quality-sums --format arrow-ipc --cache-dir $DEMO/cache --output $DEMO/target-evidence.arrow
+evidence: 3159 loci; peak RSS 11 MiB; 3307 record visits; receipt $DEMO/target-evidence.arrow.manifest.json
+
+3. Keep fresh answers to check the changed two-candidate shortlist and panel summary.
+$ $ROSALIND analyze evidence --reference $DEMO/inputs/ex1.fa --alignments $DEMO/inputs/sample.bam --memory-budget-mb 256 --sites $DEMO/relocated/second-candidates.vcf --fields depths,alleles --output $DEMO/fresh-candidates.tsv
+evidence: 2 loci; peak RSS 9 MiB; 848 record visits; receipt $DEMO/fresh-candidates.tsv.manifest.json
+$ $ROSALIND analyze panel-qc --reference $DEMO/inputs/ex1.fa --alignments $DEMO/inputs/sample.bam --memory-budget-mb 256 --regions $DEMO/inputs/targets.bed --min-callable-depth 10 --output $DEMO/fresh-panel.tsv
+evidence: 3159 loci; peak RSS 9 MiB; 3307 record visits; receipt $DEMO/fresh-panel.tsv.manifest.json
+Moved the complete portable dataset to $DEMO/relocated/portable.
+Removed only this run's generated $DEMO/inputs (including BAM, FASTA, and indexes).
+
+4. Answer both questions from the relocated evidence alone.
+$ $ROSALIND dataset verify --dataset $DEMO/relocated/portable/evidence-dataset.manifest.json
+{"dataset_namespace":"0ffc5ae083bb776d57a8f9d6a052008f3a7d6a52ff0c6009bf1b6065c7930662","original_sources_rehashed":false,"status":"verified","verified_loci":3159,"verified_partition_files":4}
+$ $ROSALIND dataset extract --dataset $DEMO/relocated/portable/evidence-dataset.manifest.json --sites $DEMO/relocated/second-candidates.vcf --fields depths,alleles --memory-budget-mb 256 --output $DEMO/reused-candidates.tsv
+$ $ROSALIND dataset panel-qc --dataset $DEMO/relocated/portable/evidence-dataset.manifest.json --regions $DEMO/relocated/targets.bed --min-callable-depth 10 --memory-budget-mb 256 --output $DEMO/reused-panel.tsv
+FAILED: fresh/reused evidence differs: reused-candidates.tsv

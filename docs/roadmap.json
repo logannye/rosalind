@@ -192,16 +192,16 @@
         "D01",
         "G02"
       ],
-      "acceptance": "Scaffold evidence API, modify useful statistic, declare fields/memory/params, scientific test and conformance, native/saved inputs and explicit-binary replay; retain legacy route.",
+      "acceptance": "Scaffold evidence API, modify useful statistic, declare fields/memory/params, scientific test and conformance, native/saved inputs and explicit-binary replay; retain legacy route. Independent developer adoption is tracked under U01, not required for this engineering task.",
       "owner": "engineering",
-      "status": "implemented",
+      "status": "complete",
       "evidence": [
         "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)",
-        "[Builder tutorial and independent completion gate](https://github.com/logannye/rosalind/blob/main/docs/builder-quickstart.md)"
+        "[Builder tutorial](https://github.com/logannye/rosalind/blob/main/docs/builder-quickstart.md)",
+        "[Retained modified-analyzer and conformance validation](https://github.com/logannye/rosalind/blob/main/docs/findings/roadmap-foundation-2026-09-18/README.md)"
       ],
       "issue_number": 116,
-      "issue_url": "https://github.com/logannye/rosalind/issues/116",
-      "blocker": "Maintainer-authored customization passed scientific and conformance checks; independent developer completion remains unobserved."
+      "issue_url": "https://github.com/logannye/rosalind/issues/116"
     },
     {
       "id": "D05",
@@ -287,7 +287,7 @@
       ],
       "issue_number": 121,
       "issue_url": "https://github.com/logannye/rosalind/issues/121",
-      "blocker": "2026-09-18 inspection: rc/release custom deployment policies allow no refs; CARGO_REGISTRY_TOKEN absent from repository/environment secret inventories; TestPyPI/PyPI private publisher state unverified. Maintainer account configuration and protected approvals remain required."
+      "blocker": "2026-09-18 update: rc/release now allow main and retain required reviewers. Maintainer confirms TestPyPI setup; actual OIDC publication will verify it. Stable CARGO_REGISTRY_TOKEN remains absent; PyPI stable publisher and GHCR visibility still need validation. Protected publication approvals remain required."
     },
     {
       "id": "R03",
@@ -312,28 +312,27 @@
       "title": "Publish fresh immutable evidence-engine RC",
       "depends_on": [
         "R01",
-        "R02",
         "R03",
         "D07"
       ],
-      "acceptance": "Next unused 0.5 RC, one source across binaries/wheels/OCI/docs/reports, actual prerelease published and outside-checkout onboarding; candidate SDK patches explicit.",
+      "acceptance": "Next unused 0.5 RC, one source across binaries/wheels/OCI/docs/reports, actual prerelease published and outside-checkout onboarding; candidate SDK patches explicit. Require the RC-specific protected refs, TestPyPI and GHCR setup; remaining stable-only credentials in R02 do not block RC preparation.",
       "owner": "maintainer",
-      "status": "blocked",
+      "status": "planned",
       "evidence": [
         "[Superseded older RC attempt](https://github.com/logannye/rosalind/actions/runs/34047733765)"
       ],
       "issue_number": 123,
       "issue_url": "https://github.com/logannye/rosalind/issues/123",
-      "blocker": "R01 and R03 are merged. Maintainer-owned R02 environment/publisher setup blocks publication. The older unpublished rc.1 workflow was canceled; no 0.5 tags/prereleases exist. Plan rc.2 to distinguish it from the abandoned attempt, rechecking tags/index filenames and running native-bundle validation in the RC build stage before publication."
+      "blocker": "R01 and R03 are merged; main is allowed in protected environments and TestPyPI setup is maintainer-confirmed. Recompute the fresh rc.2 plan at the selected source, run native-bundle validation and protected wheel/container publication, and verify actual public artifacts. No 0.5 prerelease exists yet; the old unpublished rc.1 attempt was canceled."
     },
     {
       "id": "R05",
-      "title": "Complete stable soak and persona gates",
+      "title": "Complete stable soak and technical evidence gates",
       "depends_on": [
         "R04"
       ],
-      "acceptance": "Seven days after actual prerelease, accepted analyzer-builder/workflow-HPC/constrained-offline feedback with matching contract/ancestry and relevant reviewed GIAB; changed contract gets new RC.",
-      "owner": "maintainer and independent participants",
+      "acceptance": "Seven days after actual prerelease, matching contract and relevant reviewed GIAB; changed contract gets a new RC. Persona feedback is validated and reported as advisory, not a publication prerequisite. Explicit unresolved release-blocking defects in submitted feedback remain technical blockers.",
+      "owner": "maintainer and engineering",
       "status": "planned",
       "evidence": [],
       "issue_number": 124,
@@ -343,7 +342,8 @@
       "id": "R06",
       "title": "Publish stable with registry-only verification",
       "depends_on": [
-        "R05"
+        "R05",
+        "R02"
       ],
       "acceptance": "Existing workflow publishes build-info, receipt, then Rosalind; clean registry SDK and native/Python smoke, wheels/OCI and final release before changing stable guidance.",
       "owner": "maintainer",
@@ -373,7 +373,7 @@
         "R04",
         "D07"
       ],
-      "acceptance": "Three non-authors complete researcher/builder/workflow tasks; record timing, assistance, failures, own-task completion; task categories do not replace release personas.",
+      "acceptance": "Three non-authors complete researcher/builder/workflow tasks; record timing, assistance, failures and own-task completion. Retain separate advisory persona scenarios; no implementation or shipping dependency.",
       "owner": "maintainer and independent participants",
       "status": "planned",
       "evidence": [],
@@ -387,7 +387,7 @@
         "D02",
         "D03"
       ],
-      "acceptance": "Two teams document recurring SNV questions, scale, formats, fields, outputs and baseline; private data/identities stay outside GitHub.",
+      "acceptance": "Two teams document recurring SNV questions, scale, formats, fields, outputs and baseline; private data/identities stay outside GitHub. Adoption evidence and product feedback, not an implementation or shipping prerequisite.",
       "owner": "maintainer and independent participants",
       "status": "planned",
       "evidence": [],
@@ -425,8 +425,8 @@
       "id": "C01",
       "title": "Define cohort contract and independent fixtures",
       "depends_on": [
-        "R06",
-        "U02"
+        "R01",
+        "R03"
       ],
       "acceptance": "Unique asserted member IDs, optional group/subject/timepoint metadata, one analysis sample; named-sample summaries, exact missingness and independently checked public fixtures.",
       "owner": "engineering",
@@ -436,7 +436,7 @@
       ],
       "issue_number": 129,
       "issue_url": "https://github.com/logannye/rosalind/issues/129",
-      "blocker": "Proposed contract and synthetic fixture pass current primitive checks. Partner scientific review, final schema/admission limits and stable-release dependency remain open; no cohort API is implemented."
+      "blocker": "Proposed contract and synthetic fixture pass current primitive checks. Final schema, admission limits and scientific contract review remain engineering work; no cohort API is implemented. Proceed on an isolated next-minor line while release and adoption work continue."
     },
     {
       "id": "C02",
@@ -567,10 +567,9 @@
       "title": "Demonstrate recurring cohort questions and total costs",
       "depends_on": [
         "C09",
-        "C10",
-        "U02"
+        "C10"
       ],
-      "acceptance": "Two partners complete first/second lists and explicit extension with readable report/Python and independent correctness; include copy, storage, hash, verification and extraction costs.",
+      "acceptance": "Executable first/second candidate lists and explicit extension with readable report/Python; results match an independent oracle and measured costs include copy, storage, hashing, verification and extraction. Record actual partner use separately under U02/U04; absent participants do not block shipping.",
       "owner": "engineering",
       "status": "planned",
       "evidence": [],
@@ -583,7 +582,7 @@
       "depends_on": [
         "C11"
       ],
-      "acceptance": "Ordered pair input and direction, counts/depth/eligibility/missingness/fractions; no inferred pairs or biological-response claim; independent oracle and partner task.",
+      "acceptance": "Ordered pair input and direction, counts/depth/eligibility/missingness/fractions; no inferred pairs or biological-response claim; results match an independent oracle. Real partner outcomes remain adoption evidence, not a shipping prerequisite.",
       "owner": "engineering",
       "status": "planned",
       "evidence": [],

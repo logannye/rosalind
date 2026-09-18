@@ -233,6 +233,12 @@ impl Persona {
     }
 }
 
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "kebab-case")]
+enum PartnerFeedbackPolicy {
+    Advisory,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 struct Policy {
     schema: u32,
@@ -252,7 +258,7 @@ struct Policy {
     happy_repository: String,
     caller_source_base: String,
     caller_source_paths: Vec<String>,
-    partners_required_from: String,
+    partner_feedback: PartnerFeedbackPolicy,
     required_environments: Vec<String>,
     required_secrets: Vec<String>,
     partner_personas: Vec<String>,
@@ -1771,6 +1777,7 @@ fn release_preflight<R: Runner>(
 ) -> MaintainerReport {
     let commit = git_commit(runner, root, reference).unwrap_or_else(|_| "unknown".into());
     let mut report = MaintainerReport::new("release.preflight", &commit);
+    report.metadata.insert("ref".into(), commit.clone());
     report.version = Some(version.to_string());
     let clean = command_text(runner, root, "git", &args(&["status", "--porcelain"]));
     report.check(
@@ -1881,7 +1888,6 @@ fn rc_plan<R: Runner>(
     report.command = "rc.plan".into();
     let tag = format!("v{version}-rc.{number}");
     report.metadata.insert("tag".into(), tag.clone());
-    report.metadata.insert("ref".into(), reference.into());
     let tag_ref = format!("refs/tags/{tag}");
     let tag_query = command_text(
         runner,
@@ -1901,7 +1907,7 @@ fn rc_plan<R: Runner>(
             "available"
         },
     );
-    match contract_snapshot(runner, root, reference, policy) {
+    match contract_snapshot(runner, root, &report.commit, policy) {
         Ok(snapshot) => {
             report.contract_fingerprint = Some(snapshot.aggregate_blake3);
             report.check("contract.snapshot", true, "generated");
@@ -2011,7 +2017,7 @@ fn validate_partner_record(record: &PartnerRecord) -> Vec<String> {
         failures.push("contract change requests require a resolution".into());
     }
     if !record.consent_to_publish {
-        failures.push("sanitized release-gate record lacks consent to publish".into());
+        failures.push("sanitized feedback record lacks consent to publish".into());
     }
     let text_fields = std::iter::once(record.environment.as_str())
         .chain(std::iter::once(record.resolution.as_str()))
@@ -2069,12 +2075,13 @@ fn partner_report<R: Runner>(
     root: &Path,
     policy: &Policy,
     input_dir: &Path,
-    release_gate: Option<(&str, &str)>,
+    candidate_context: Option<(&str, &str)>,
 ) -> MaintainerReport {
     let commit = git_commit(runner, root, "HEAD").unwrap_or_else(|_| "unknown".into());
     let mut report = MaintainerReport::new("partners.report", commit);
     let mut personas = BTreeSet::new();
     let mut partner_ids = BTreeSet::new();
+    let mut unresolved_defects = BTreeSet::new();
     let mut count = 0usize;
     match files_recursively(input_dir) {
         Ok(files) => {
@@ -2084,11 +2091,20 @@ fn partner_report<R: Runner>(
             {
                 match read_partner_record(&path) {
                     Ok(record) => {
+                        // A parsed schema-1 record can report a known defect even
+                        // when the participant has not completed every scenario.
+                        // Incomplete success evidence is advisory; an explicitly
+                        // unresolved technical failure still requires resolution.
+                        if record.schema == 1
+                            && matches!(record.blocker_severity, Severity::ReleaseBlocking)
+                        {
+                            unresolved_defects.insert(record.partner_id.clone());
+                        }
                         let mut failures = validate_partner_record(&record);
                         if !partner_ids.insert(record.partner_id.clone()) {
                             failures.push("duplicate partner_id".into());
                         }
-                        if let Some((expected_fingerprint, candidate_commit)) = release_gate {
+                        if let Some((expected_fingerprint, candidate_commit)) = candidate_context {
                             if record.contract_fingerprint != expected_fingerprint {
                                 failures.push(format!(
                                     "contract fingerprint differs from release candidate: expected {expected_fingerprint}"
@@ -2147,12 +2163,71 @@ fn partner_report<R: Runner>(
             },
         );
     }
+    report.check(
+        "technical.partner_defects",
+        unresolved_defects.is_empty(),
+        if unresolved_defects.is_empty() {
+            "no submitted schema-1 record reports an unresolved release-blocking defect".into()
+        } else {
+            format!(
+                "submitted feedback reports unresolved release-blocking defects: {}",
+                unresolved_defects
+                    .into_iter()
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
+        },
+    );
     report
         .metadata
         .insert("accepted_records".into(), count.to_string());
     report.actions = vec!["collect one accepted anonymized record for every persona".into()];
     report.seal();
     report
+}
+
+/// Keep feedback validation and missing-persona findings visible without making
+/// another person's participation a prerequisite for technical release eligibility.
+fn record_partner_advisory(
+    report: &mut MaintainerReport,
+    partners: &MaintainerReport,
+    policy: &Policy,
+) {
+    let PartnerFeedbackPolicy::Advisory = policy.partner_feedback;
+    // Participant availability is not eligibility. An explicit unresolved
+    // technical defect is: retain that distinct check instead of accepting it
+    // as merely incomplete adoption evidence.
+    if let Some(defect) = partners
+        .checks
+        .iter()
+        .find(|check| check.id == "technical.partner_defects" && !check.ok)
+    {
+        report.check(&defect.id, false, defect.detail.clone());
+    }
+    let accepted = partners
+        .metadata
+        .get("accepted_records")
+        .map(String::as_str)
+        .unwrap_or("0");
+    report
+        .metadata
+        .insert("partner_feedback_policy".into(), "advisory".into());
+    report
+        .metadata
+        .insert("partners".into(), partners.status.clone());
+    report
+        .metadata
+        .insert("partner_accepted_records".into(), accepted.into());
+    let findings = if partners.blockers.is_empty() {
+        "all requested personas have validated feedback".into()
+    } else {
+        partners.blockers.join("; ")
+    };
+    report.check(
+        "design_partners.advisory",
+        true,
+        format!("participant completion is advisory; accepted records={accepted}; {findings}"),
+    );
 }
 
 fn stable_release_plan<R: Runner>(
@@ -2166,7 +2241,6 @@ fn stable_release_plan<R: Runner>(
     let mut report = release_preflight(runner, root, policy, reference, version);
     report.command = "release.plan".into();
     report.metadata.insert("rc_tag".into(), rc_tag.into());
-    report.metadata.insert("ref".into(), reference.into());
     let stable_tag = format!("v{version}");
     let direct_ref = format!("refs/tags/{stable_tag}");
     let peeled_ref = format!("{direct_ref}^{{}}");
@@ -2310,7 +2384,7 @@ fn stable_release_plan<R: Runner>(
             .unwrap_or_else(|| "candidate CI status unavailable".into()),
     );
     let mut candidate_fingerprint = None;
-    match contract_snapshot(runner, root, reference, policy) {
+    match contract_snapshot(runner, root, &report.commit, policy) {
         Ok(snapshot) => {
             report.contract_fingerprint = Some(snapshot.aggregate_blake3.clone());
             candidate_fingerprint = Some(snapshot.aggregate_blake3.clone());
@@ -2327,7 +2401,6 @@ fn stable_release_plan<R: Runner>(
         Err(error) => report.check("contract.snapshot", false, error),
     }
     let candidate_commit = report.commit.clone();
-    let partners_required = version_at_least(version, &policy.partners_required_from);
     let partners = partner_report(
         runner,
         root,
@@ -2337,20 +2410,7 @@ fn stable_release_plan<R: Runner>(
             .as_deref()
             .map(|fingerprint| (fingerprint, candidate_commit.as_str())),
     );
-    report.check(
-        "design_partners.complete",
-        !partners_required || partners.status == "ready",
-        if !partners_required {
-            format!(
-                "not required before {}; validation continues after stabilization",
-                policy.partners_required_from
-            )
-        } else if partners.status == "ready" {
-            "three personas accepted at the frozen contract".to_string()
-        } else {
-            partners.blockers.join("; ")
-        },
-    );
+    record_partner_advisory(&mut report, &partners, policy);
     match caller_evidence::gate(runner, root, policy, &report.commit) {
         Ok(detail) => report.check("giab.caller_source", true, detail),
         Err(detail) => report.check("giab.caller_source", false, detail),
@@ -2579,20 +2639,10 @@ fn rc_status<R: Runner>(runner: &R, root: &Path, policy: &Policy, tag: &str) -> 
             .as_deref()
             .map(|fingerprint| (fingerprint, report.commit.as_str())),
     );
-    report
-        .metadata
-        .insert("partners".into(), partners.status.clone());
-    report.check(
-        "design_partners.complete",
-        partners.status == "ready",
-        if partners.status == "ready" {
-            "all required personas accepted".into()
-        } else {
-            partners.blockers.join("; ")
-        },
-    );
+    record_partner_advisory(&mut report, &partners, policy);
     report.actions = vec![
-        "wait for the soak and complete design-partner records".into(),
+        "wait for the soak and retain technical release checks".into(),
+        "collect independent feedback as advisory post-release evidence".into(),
         "cut a new RC when contract.current_matches_rc is false".into(),
     ];
     report.seal();
@@ -2886,10 +2936,10 @@ fn image_plan<R: Runner>(
     reference: &str,
 ) -> MaintainerReport {
     let commit = git_commit(runner, root, reference).unwrap_or_else(|_| "unknown".into());
-    let mut report = MaintainerReport::new("giab.image.plan", commit);
-    report.metadata.insert("ref".into(), reference.into());
-    add_mutation_preflight(&mut report, runner, root, policy, reference);
-    match source_lock_hash_at_ref(runner, root, reference) {
+    let mut report = MaintainerReport::new("giab.image.plan", &commit);
+    report.metadata.insert("ref".into(), commit.clone());
+    add_mutation_preflight(&mut report, runner, root, policy, &commit);
+    match source_lock_hash_at_ref(runner, root, &commit) {
         Ok(source) => {
             report
                 .metadata
@@ -3217,6 +3267,22 @@ fn dispatch_plan<R: Runner>(
             format!("plan is {}, not ready", plan.status),
         ));
     }
+    if matches!(
+        plan.command.as_str(),
+        "rc.plan" | "release.plan" | "giab.image.plan"
+    ) && (plan.commit.len() != 40
+        || !plan.commit.bytes().all(|byte| byte.is_ascii_hexdigit())
+        || plan
+            .metadata
+            .get("ref")
+            .is_some_and(|reference| reference != &plan.commit))
+    {
+        return Err((
+            EXIT_INTEGRITY,
+            "plan must pin ref to its exact candidate commit; regenerate the plan before dispatch"
+                .into(),
+        ));
+    }
     let (workflow, mut fields): (&str, Vec<(&str, String)>) = match plan.command.as_str() {
         "rc.plan" => (
             "rc.yml",
@@ -3230,13 +3296,7 @@ fn dispatch_plan<R: Runner>(
                         .unwrap_or("1")
                         .to_string(),
                 ),
-                (
-                    "ref",
-                    plan.metadata
-                        .get("ref")
-                        .cloned()
-                        .unwrap_or_else(|| plan.commit.clone()),
-                ),
+                ("ref", plan.commit.clone()),
             ],
         ),
         "release.plan" => (
@@ -3247,25 +3307,10 @@ fn dispatch_plan<R: Runner>(
                     "rc_tag",
                     plan.metadata.get("rc_tag").cloned().unwrap_or_default(),
                 ),
-                (
-                    "ref",
-                    plan.metadata
-                        .get("ref")
-                        .cloned()
-                        .unwrap_or_else(|| plan.commit.clone()),
-                ),
+                ("ref", plan.commit.clone()),
             ],
         ),
-        "giab.image.plan" => (
-            "happy-image.yml",
-            vec![(
-                "ref",
-                plan.metadata
-                    .get("ref")
-                    .cloned()
-                    .unwrap_or_else(|| plan.commit.clone()),
-            )],
-        ),
+        "giab.image.plan" => ("happy-image.yml", vec![("ref", plan.commit.clone())]),
         "giab.benchmark.plan" => (
             "giab.yml",
             vec![(
@@ -3377,11 +3422,11 @@ fn init_partner_packet(root: &Path, persona: Persona, output: &Path) -> Result<(
         }
     };
     let instructions = format!(
-        "# Rosalind design-partner packet: {}\n\nRun every scenario below against one commit. Record only anonymized, consented evidence. Do not include names, email addresses, organizations, credentials, genomic data, or raw interview notes.\n\n## Scenario packet\n\n{scenarios}\n\nRecord the full tested commit with `git rev-parse HEAD`. Generate the frozen contract with `cargo xtask contract snapshot --output contract-snapshot.json` and copy its aggregate BLAKE3 into `feedback.json`.\n\nValidate with:\n\n```sh\ncargo xtask partners validate --input feedback.json --json\n```\n\nAfter review, place only the validated JSON record under `release/design-partners/`. Keep private interview notes in the ignored `release/private-design-partners/` directory or outside this repository.\n",
+        "# Rosalind design-partner packet: {}\n\nThis is advisory adoption evidence, not a shipping prerequisite. Run every scenario below against one commit. Record only anonymized, consented evidence. Do not include names, email addresses, organizations, credentials, genomic data, or raw interview notes.\n\n## Scenario packet\n\n{scenarios}\n\nRecord the full tested commit with `git rev-parse HEAD`. Generate the frozen contract with `cargo xtask contract snapshot --output contract-snapshot.json` and copy its aggregate BLAKE3 into `feedback.json`.\n\nValidate with:\n\n```sh\ncargo xtask partners validate --input feedback.json --json\n```\n\nAfter review, place only the validated JSON record under `release/design-partners/`. Keep private interview notes in the ignored `release/private-design-partners/` directory or outside this repository.\n",
         persona.as_str()
     );
     write_create_new(&output.join("README.md"), instructions.as_bytes())?;
-    let privacy = "Raw notes and personal data stay outside the repository. Only the completed, anonymized feedback.json may be proposed for the release gate.\n";
+    let privacy = "Raw notes and personal data stay outside the repository. Only the completed, anonymized feedback.json may be proposed as advisory release feedback.\n";
     write_create_new(&output.join("PRIVACY.md"), privacy.as_bytes())?;
     let _ = root;
     Ok(())
@@ -4027,6 +4072,107 @@ mod tests {
     }
 
     #[test]
+    fn default_head_plan_matches_sha_and_dispatch_ignores_later_branch_moves() {
+        let (repository, _) = git_repository();
+        let policy_root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let policy = load_policy(policy_root).unwrap();
+        for (name, manifest) in [
+            ("rosalind-bio", "Cargo.toml"),
+            ("rosalind-receipt", "crates/receipt/Cargo.toml"),
+            ("rosalind-build-info", "crates/build-info/Cargo.toml"),
+        ] {
+            let path = repository.path().join(manifest);
+            fs::create_dir_all(path.parent().unwrap()).unwrap();
+            fs::write(
+                path,
+                format!(
+                    "[package]\nversion = \"{}\"\n",
+                    policy.package_versions[name]
+                ),
+            )
+            .unwrap();
+        }
+        fs::write(repository.path().join("CHANGELOG.md"), "## [Unreleased]\n").unwrap();
+        for arguments in [
+            vec!["add", "."],
+            vec!["commit", "-q", "-m", "release fixture"],
+            vec!["branch", "-M", "main"],
+            vec![
+                "remote",
+                "add",
+                "origin",
+                "https://github.com/logannye/rosalind.git",
+            ],
+            vec!["update-ref", "refs/remotes/origin/main", "HEAD"],
+        ] {
+            run_checked(&SystemRunner, repository.path(), "git", args(&arguments)).unwrap();
+        }
+        let commit = git_commit(&SystemRunner, repository.path(), "HEAD").unwrap();
+        let make_plan = |reference: &str| {
+            // Exercise real release preflight/ref resolution independently of
+            // the expensive contract-build matrix, then the real dispatcher.
+            let mut plan = release_preflight(
+                &SystemRunner,
+                repository.path(),
+                &policy,
+                reference,
+                "0.5.0",
+            );
+            assert_eq!(plan.status, "ready", "{:?}", plan.blockers);
+            plan.command = "rc.plan".into();
+            plan.metadata.insert("tag".into(), "v0.5.0-rc.2".into());
+            plan.seal();
+            plan
+        };
+        let head = make_plan("HEAD");
+        assert_eq!(head.metadata["ref"], commit);
+        assert_eq!(head.plan_id, make_plan("main").plan_id);
+        assert_eq!(head.plan_id, make_plan(&commit).plan_id);
+        run_checked(
+            &SystemRunner,
+            repository.path(),
+            "git",
+            args(&["commit", "--allow-empty", "-q", "-m", "branch moved"]),
+        )
+        .unwrap();
+        assert_ne!(
+            git_commit(&SystemRunner, repository.path(), "main").unwrap(),
+            commit
+        );
+        let output = tempdir().unwrap();
+        let path = output.path().join("plan.json");
+        fs::write(&path, serde_json::to_vec(&head).unwrap()).unwrap();
+        let runner = RecordingRunner::default();
+        dispatch_plan(&runner, repository.path(), &policy, &path, &head.plan_id).unwrap();
+        let calls = runner.calls.lock().unwrap();
+        assert_eq!(calls.len(), 2);
+        let fields = &calls[1].1;
+        assert!(fields.contains(&OsString::from(format!("ref={commit}"))));
+        assert!(!fields.contains(&OsString::from("ref=HEAD")));
+        assert!(!fields.contains(&OsString::from("ref=main")));
+    }
+
+    #[test]
+    fn old_mutable_ref_plans_require_replanning_before_any_remote_operation() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let policy = load_policy(root).unwrap();
+        for command in ["rc.plan", "release.plan", "giab.image.plan"] {
+            let mut plan = report();
+            plan.command = command.into();
+            plan.metadata.insert("ref".into(), "HEAD".into());
+            plan.seal();
+            let temporary = tempdir().unwrap();
+            let path = temporary.path().join("plan.json");
+            fs::write(&path, serde_json::to_vec(&plan).unwrap()).unwrap();
+            let runner = RecordingRunner::default();
+            let error = dispatch_plan(&runner, root, &policy, &path, &plan.plan_id).unwrap_err();
+            assert_eq!(error.0, EXIT_INTEGRITY);
+            assert!(error.1.contains("regenerate"));
+            assert!(runner.calls.lock().unwrap().is_empty());
+        }
+    }
+
+    #[test]
     fn soak_boundary_is_exact() {
         assert_eq!(soak_elapsed(1_000, 605_799), 604_799);
         assert_eq!(soak_elapsed(1_000, 605_800), 604_800);
@@ -4201,7 +4347,7 @@ mod tests {
     }
 
     #[test]
-    fn partner_gate_accepts_all_personas_and_rejects_blockers() {
+    fn partner_validation_accepts_all_personas_and_rejects_blockers() {
         for persona in [
             Persona::AnalyzerBuilder,
             Persona::WorkflowHpc,
@@ -4235,6 +4381,119 @@ mod tests {
         assert!(validate_partner_record(&duplicate_scenario)
             .iter()
             .any(|failure| failure.contains("unique")));
+    }
+
+    #[test]
+    fn release_policy_keeps_soak_and_makes_feedback_advisory() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let policy = load_policy(root).unwrap();
+        assert_eq!(policy.partner_feedback, PartnerFeedbackPolicy::Advisory);
+        assert_eq!(policy.soak_required_from, "0.5.0");
+        assert_eq!(policy.soak_seconds, 7 * 24 * 60 * 60);
+    }
+
+    #[test]
+    fn absent_feedback_is_reported_without_blocking_release_or_rc_status() {
+        let (repository, commit) = git_repository();
+        let records = repository.path().join("records");
+        fs::create_dir(&records).unwrap();
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let policy = load_policy(root).unwrap();
+        let partners = partner_report(&SystemRunner, repository.path(), &policy, &records, None);
+        assert_eq!(partners.status, "blocked");
+        assert_eq!(partners.metadata["accepted_records"], "0");
+        for command in ["release.plan", "rc.status"] {
+            let mut report = MaintainerReport::new(command, &commit);
+            record_partner_advisory(&mut report, &partners, &policy);
+            report.seal();
+            assert_eq!(report.status, "ready");
+            assert_eq!(report.exit_code(), EXIT_OK);
+            assert!(report.blockers.is_empty());
+            assert_eq!(report.metadata["partners"], "blocked");
+            assert_eq!(report.metadata["partner_accepted_records"], "0");
+            for persona in &policy.partner_personas {
+                assert!(report.checks[0]
+                    .detail
+                    .contains(&format!("persona.{persona}: missing")));
+            }
+        }
+    }
+
+    #[test]
+    fn invalid_feedback_stays_invalid_and_cannot_clear_technical_gates() {
+        let (repository, commit) = git_repository();
+        let records = repository.path().join("records");
+        fs::create_dir(&records).unwrap();
+        fs::write(records.join("malformed.json"), "{not valid json}").unwrap();
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let policy = load_policy(root).unwrap();
+        let partners = partner_report(&SystemRunner, repository.path(), &policy, &records, None);
+        assert_eq!(partners.status, "blocked");
+        assert!(partners
+            .blockers
+            .iter()
+            .any(|finding| finding.contains("cannot parse")));
+        let mut report = MaintainerReport::new("release.plan", &commit);
+        record_partner_advisory(&mut report, &partners, &policy);
+        assert_eq!(report.status, "ready");
+        assert_eq!(report.metadata["partner_accepted_records"], "0");
+        assert!(report.checks[0].detail.contains("cannot parse"));
+        report.check("soak.elapsed", false, "seven days have not elapsed");
+        report.check(
+            "giab.caller_source",
+            false,
+            "reviewed scientific evidence is missing",
+        );
+        report.seal();
+        assert_eq!(report.status, "blocked");
+        assert_eq!(report.exit_code(), EXIT_BLOCKED);
+        assert_eq!(report.blockers.len(), 2);
+        assert!(report
+            .checks
+            .iter()
+            .filter(|check| !check.ok)
+            .all(|check| check.id != "design_partners.advisory"));
+    }
+
+    #[test]
+    fn explicit_unresolved_feedback_defects_remain_technical_release_blockers() {
+        let (repository, commit) = git_repository();
+        let records = repository.path().join("records");
+        fs::create_dir(&records).unwrap();
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let policy = load_policy(root).unwrap();
+        let mut feedback = partner(Persona::AnalyzerBuilder);
+        feedback.tested_commit = commit.clone();
+        feedback.scenarios[0].passed = false;
+        feedback.blocker_severity = Severity::ReleaseBlocking;
+        let path = records.join("analyzer.json");
+        fs::write(&path, serde_json::to_vec(&feedback).unwrap()).unwrap();
+        let partners = partner_report(&SystemRunner, repository.path(), &policy, &records, None);
+        for command in ["release.plan", "rc.status"] {
+            let mut report = MaintainerReport::new(command, &commit);
+            record_partner_advisory(&mut report, &partners, &policy);
+            report.seal();
+            assert_eq!(report.status, "blocked");
+            assert_eq!(report.exit_code(), EXIT_BLOCKED);
+            assert_eq!(report.blockers.len(), 1);
+            assert!(report.blockers[0].starts_with("technical.partner_defects:"));
+            assert_eq!(report.metadata["partner_accepted_records"], "0");
+        }
+        // Resolving the explicit defect restores eligibility even though the
+        // participant's failed/incomplete scenarios and other missing personas
+        // still prevent claiming completed independent validation.
+        feedback.blocker_severity = Severity::None;
+        feedback.resolution = "technical defect fixed; session remains incomplete".into();
+        fs::write(&path, serde_json::to_vec(&feedback).unwrap()).unwrap();
+        let partners = partner_report(&SystemRunner, repository.path(), &policy, &records, None);
+        assert_eq!(partners.status, "blocked");
+        let mut report = MaintainerReport::new("release.plan", &commit);
+        record_partner_advisory(&mut report, &partners, &policy);
+        assert_eq!(report.status, "ready");
+        assert_eq!(report.metadata["partner_accepted_records"], "0");
+        assert!(report.checks[0]
+            .detail
+            .contains("every persona scenario must pass"));
     }
 
     #[test]
@@ -4311,7 +4570,7 @@ mod tests {
     }
 
     #[test]
-    fn partner_gate_rejects_pii_shaped_unknown_fields() {
+    fn partner_validation_rejects_pii_shaped_unknown_fields() {
         let mut value = serde_json::to_value(partner(Persona::AnalyzerBuilder)).unwrap();
         value["email"] = serde_json::Value::String("private@example.test".into());
         assert!(serde_json::from_value::<PartnerRecord>(value).is_err());

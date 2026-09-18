@@ -1,0 +1,20 @@
+.......offline onboarding links: 47 reachable guides
+onboarding executable: $TMP/tmpkl2u2xt1/bin/rosalind; version=0.5.0; sha256=c69e9d36ece1521e78a605a4a7f8695812d3d96200ce19c44984d9d98f512675
+SDK origin: registry-only exact version 0.5.0
+legacy-scaffold conformance: {"passed": true}
+evidence-scaffold conformance: {"passed": true}
+packaged onboarding snippets and conformance passed outside the checkout
+....packaged researcher-quickstart: binary=$TMP/tmpierb7s1q/exact-selected-native; python=/opt/homebrew/opt/python@3.14/bin/python3.14; cwd=$TMP/tmpierb7s1q/smoke/research-workflows/researcher-quickstart
+packaged researcher-quickstart: passed outside the checkout
+packaged reuse-quickstart: binary=$TMP/tmpierb7s1q/exact-selected-native; python=/opt/homebrew/opt/python@3.14/bin/python3.14; cwd=$TMP/tmpierb7s1q/smoke/research-workflows/reuse-quickstart
+packaged reuse-quickstart: passed outside the checkout
+packaged researcher-quickstart: binary=$TMP/tmp2r6odp26/exact-selected-native; python=$TMP/tmp2r6odp26/smoke/research-workflows/venv/bin/python; cwd=$TMP/tmp2r6odp26/smoke/research-workflows/researcher-quickstart
+packaged researcher-quickstart: passed outside the checkout
+packaged reuse-quickstart: binary=$TMP/tmp2r6odp26/exact-selected-native; python=$TMP/tmp2r6odp26/smoke/research-workflows/venv/bin/python; cwd=$TMP/tmp2r6odp26/smoke/research-workflows/reuse-quickstart
+packaged reuse-quickstart: passed outside the checkout
+.................................
+----------------------------------------------------------------------
+Ran 44 tests in 3.478s
+
+OK
+Synchronized 1 roadmap tasks and 1 milestones
