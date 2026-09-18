@@ -5,8 +5,9 @@
 uses only existing single-sample `analyze evidence`, `dataset` and reuse commands.
 There is no cohort runtime, public cohort schema or `open_cohort` implementation.
 It does not establish partner validation, biological accuracy or representative
-performance. Feature implementation remains behind the roadmap's release and
-partner gates.
+performance. Feature implementation may proceed on an isolated next-minor line
+while 0.5 release closure and partner recruitment continue; neither publication
+nor participant availability is a prerequisite for that development.
 
 All inputs are authored synthetic data, redistributable under this repository's
 MIT OR Apache-2.0 license. There are no human sequences, participant identities,

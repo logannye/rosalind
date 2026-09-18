@@ -3,8 +3,10 @@
 **Design and fixture proposal, not a shipped feature.** Current Rosalind has
 single-sample evidence and portable datasets; it has no `cohort` command or
 `open_cohort` Python API. This document prepares roadmap C01 while release work
-continues. Implementing/merging cohort APIs remains gated on stable evidence
-release closure and the two recurring-workflow partners in R06/U02. No partner
+continues. Cohort implementation can proceed on an isolated next-minor development
+line while 0.5 release closure and partner recruitment continue. U02 informs
+product priorities and adoption evidence; it is not an implementation or shipping
+prerequisite. Keep cohort changes out of the frozen 0.5 candidate. No partner
 validation, representative cohort performance or clinical interpretation is claimed.
 
 The first outcome is repeat candidate-SNV questions across explicitly identified

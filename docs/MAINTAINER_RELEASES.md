@@ -106,12 +106,12 @@ and every restored input is re-hashed by `prepare.sh`.
 ## RC and stable release
 
 ```sh
-cargo xtask rc plan --version 0.5.0 --number 1 --ref FULL_CANDIDATE_SHA \
+cargo xtask rc plan --version 0.5.0 --number 2 --ref FULL_CANDIDATE_SHA \
   --output /tmp/rosalind-rc-plan.json --json
 cargo xtask rc dispatch --plan /tmp/rosalind-rc-plan.json --confirm PLAN_ID
-cargo xtask rc status --tag v0.5.0-rc.1 --json
+cargo xtask rc status --tag v0.5.0-rc.2 --json
 
-cargo xtask release plan --version 0.5.0 --rc-tag v0.5.0-rc.1 \
+cargo xtask release plan --version 0.5.0 --rc-tag v0.5.0-rc.2 \
   --ref FULL_CANDIDATE_SHA --output /tmp/rosalind-release-plan.json --json
 cargo xtask release dispatch --plan /tmp/rosalind-release-plan.json --confirm PLAN_ID
 ```
@@ -135,9 +135,10 @@ Python must be 3.9 or newer. Existing schema-1 snapshots remain readable, but on
 without this component cannot match a new fingerprint and needs a fresh RC.
 
 The feature-bearing evidence-engine candidate uses the 0.5.0 release sequence.
-The server-timestamped seven-day soak and three partner personas apply at 0.5.0
-and later. The soak begins when the GitHub prerelease is published, after its
-TestPyPI wheels and OCI image pass their protected jobs. The historical 0.4.0
+The server-timestamped seven-day soak applies at 0.5.0 and later. Independent
+partner feedback is advisory and can be collected after release; it is not an
+eligibility prerequisite. The soak begins when the GitHub prerelease is published,
+after its TestPyPI wheels and OCI image pass their protected jobs. The historical 0.4.0
 stabilization exemption does not justify relabeling the evidence-engine release.
 Changed caller/shared-processing source additionally requires the reviewed GIAB
 baseline described below before stable promotion. Missing crate credentials or
@@ -149,7 +150,7 @@ skipped. A mismatch is permanent integrity failure. The stable tag and GitHub
 Release are created only after Linux and macOS install the published crate into an
 empty `CARGO_HOME`, run the demo, build a scaffold, and pass conformance.
 
-## Design-partner gate
+## Advisory design-partner feedback
 
 Generate private interview packets locally:
 
@@ -162,18 +163,27 @@ cargo xtask partners init --persona constrained-offline --output release/private
 Only copy the finalized anonymized `feedback.json` records into
 `release/design-partners/`. Validation requires exact persona scenarios, a full
 tested commit, the frozen contract fingerprint, consent to publish the sanitized
-record, and no unresolved release-blocking finding. At promotion time the tested
-commit must be an ancestor of the candidate and its fingerprint must equal the RC.
-Names, contact details, organizations, credentials, genomic data, and raw notes are
-rejected or kept outside the repository.
+record, and no unresolved release-blocking finding before a record is accepted
+as completed validation. `partners validate` and `partners report` continue to
+reject invalid or incomplete records. Stable planning and RC status still check
+submitted records against the candidate ancestry and contract, report accepted
+counts and every missing/invalid finding, and label these findings advisory.
+Absent feedback does not establish independent validation and does not block
+shipping. A parsed schema-1 record explicitly marked `blocker_severity:
+release-blocking` remains a separate technical release blocker until resolved,
+even if that participant has not completed every scenario. Clearing that flag
+requires a real resolution; incomplete success evidence remains advisory. Other
+known technical defects must still satisfy the applicable correctness gates. Names, contact details, organizations, credentials, genomic data, and raw
+notes are rejected or kept outside the repository.
 
 ## What remains intentionally human
 
 Automation narrows but does not counterfeit external evidence. A maintainer must
 provide the crates.io token, approve protected environments, make the GHCR package
-public, provide benchmark compute, wait the full server-timestamped seven days, and
-conduct three real partner engagements. The CLI reports those as blockers rather
-than silently weakening them.
+public, provide benchmark compute, and wait the full server-timestamped seven
+days. Three real partner engagements remain an adoption objective, which can
+continue after release. The CLI reports absent or invalid feedback honestly
+without making other people's participation a shipping prerequisite.
 
 ## Candidate publication and evaluator readiness
 
@@ -210,14 +220,19 @@ HG002 execution still requires the reviewed published image and prepared data.
 Python 2.7 is required by pinned hap.py 0.3.15; compatible bx-python/six wheels are
 hash-locked rather than resolved from floating dependencies.
 
-Read-only prerequisite inspection on 2026-09-06 found no repository, rc, or release
-secrets: CARGO_REGISTRY_TOKEN is absent. Both protected environments have the owner
-as required reviewer, but custom deployment policies contain zero allowed
-branch/tag rules. Configure the intended release workflow refs before dispatch.
-PyPI/TestPyPI trusted publishers must be configured with the top-level caller and
-protected environment listed above; GitHub secret-name inspection cannot establish
-that external state. The public PyPI/TestPyPI project APIs returned 404, which does
-not rule out a pending publisher. GitHub's setting for Actions to create/approve
-pull requests was disabled, so automatic evaluator-lock/baseline PR creation also
-needs explicit maintainer handling. No secret values were read and no settings
-were changed by that inspection.
+Publication setup was updated on 2026-09-18: both protected environments now
+allow only the dispatch branch `main`; their existing required-reviewer rules
+were retained. The maintainer confirms that the TestPyPI trusted publisher is
+configured; the first protected OIDC upload will verify that mapping in practice.
+The read-only secret-name inventory still contains no `CARGO_REGISTRY_TOKEN`,
+which is required for stable crate publication, not RC preparation. PyPI stable
+publisher setup and GHCR visibility remain to be verified. No credential values
+were read or recorded. The Actions setting for automatic PR creation remains
+disabled; evaluator-lock and baseline evidence can be reviewed through an ordinary
+maintainer-created PR without broadening that setting.
+
+Keep 0.5 release closure separate from cohort changes. Isolated next-minor cohort
+development can proceed during release and adoption work; it does not depend on
+participant recruitment or stable publication. Cohort features belong to the
+next minor preview and must meet their own scientific, resource and compatibility
+checks before publication.

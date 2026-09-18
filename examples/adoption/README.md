@@ -1,7 +1,7 @@
 # Blank adoption session record
 
 Use [the validation kit](../../docs/adoption-validation.md) for the three task
-protocols, measurement definitions, privacy rules, and existing release-gate mapping.
+protocols, measurement definitions, privacy rules, and advisory release-persona mapping.
 
 Copy [session.template.json](session.template.json) to a private location for each
 participant/task attempt. It conforms to [session.schema.json](session.schema.json).
@@ -11,7 +11,8 @@ null. The committed template describes no participant, run, success, or return.
 `attempts` starts empty because zero attempts have been collected here.
 
 This is supplemental research information. It is not a `feedback.json` accepted by
-the existing release partner gate, and it adds no release requirement. The schema
+the advisory release-persona validator, and it adds no release requirement.
+Participant completion and missing feedback do not block implementation or shipping. The schema
 allows anonymized summaries, not identity or genomic-data fields; schema validation
 cannot establish that free text is anonymous. Review consent and content before
 sharing. Raw logs/receipts and the participant-to-pseudonym mapping stay private.

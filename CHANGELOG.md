@@ -6,9 +6,19 @@ All notable changes to Rosalind are recorded here. Versions follow Semantic Vers
 
 ### Evidence-engine candidate track (0.5.0)
 
-The feature-bearing evidence engine is being prepared as `0.5.0-rc.1`. No 0.4
-release was published. The existing seven-day RC soak, independent-user gates,
-protected publication review, and change-based caller evidence requirements apply.
+The feature-bearing evidence engine is being prepared as a fresh `0.5.0-rc.2`;
+the older unpublished RC attempt was superseded. No 0.4 release was published.
+The seven-day RC soak, protected publication review, and change-based caller
+evidence requirements apply. Independent-user feedback remains advisory and
+can continue after release; missing participants do not block shipping.
+
+- Release planning and RC status retain submitted-feedback validation, accepted
+  counts, and missing/invalid adoption findings without making participation an
+  eligibility blocker. Explicit unresolved release-blocking defects still block
+  technical eligibility.
+- Cohort work can proceed on an isolated next-minor line during 0.5 closure;
+  independent partner recruitment is an adoption objective, not an implementation
+  dependency.
 
 - Indexed exact SNV evidence and panel QC, bounded Rust/Python batches, verified
   partition cache/resume, canonical workers, and dataset comparison are implemented.

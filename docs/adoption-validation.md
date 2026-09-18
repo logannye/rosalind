@@ -10,7 +10,8 @@ The [session template and schema](../examples/adoption/) are blank measurement
 forms. No participants, successful sessions, time savings, or return visits have
 been recorded by creating this kit. The acceptance target remains
 [three non-authors completing tasks and two teams returning after 30 days](ADOPTION_ROADMAP.md#acceptance).
-This kit adds no publication gate.
+This kit adds no publication gate. Independent participants and persona feedback
+are advisory adoption objectives; development and publication do not wait for their completion.
 
 ## Before a session
 
@@ -183,12 +184,16 @@ contacts nobody; the follow-up fields start `not-scheduled` and null.
 The [release partner schema](../release/schemas/design-partner-v1.schema.json)
 accepts only its existing fields and persona-specific scenarios. Generate that
 packet with `cargo xtask partners init`, as documented in
-[maintainer releases](MAINTAINER_RELEASES.md#design-partner-gate), and validate the
+[maintainer releases](MAINTAINER_RELEASES.md#advisory-design-partner-feedback), and validate the
 completed sanitized feedback with `cargo xtask partners validate --input feedback.json --json`.
 These three task categories do not replace the existing analyzer-builder,
-workflow-hpc, or constrained-offline scenario lists. Link the same anonymous partner
-ID where appropriate; keep supplemental session metrics outside the release gate.
-Only consented, reviewed, anonymized records belong in `release/design-partners/`.
+workflow-hpc, or constrained-offline scenario lists. All are advisory adoption
+evidence, not prerequisites for shipping. Link the same anonymous partner ID where
+appropriate; keep supplemental session metrics separate from the feedback schema.
+The release planner validates submitted records and reports missing/invalid
+feedback without blocking eligibility on participation. Explicit unresolved
+release-blocking defects remain technical blockers until resolved. Only consented, reviewed,
+anonymized records belong in `release/design-partners/`.
 
 Use the [unfilled report template](../examples/adoption/report.template.md):
 **who was eligible** (anonymous non-author/team

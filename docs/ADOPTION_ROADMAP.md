@@ -8,17 +8,19 @@ implementation PR.
 
 The current product sequence is truthful GitHub entry points, executable
 researcher/builder onboarding, corrected CRAM validation, an immutable 0.5 RC,
-independent persona feedback and stable promotion, then local cohort reanalysis
-on the next minor line. Existing exact evidence, panel QC, cache/resume, physical
-projection, variant annotation, portable datasets/Parquet and managed SDK work
+the seven-day soak and technical stable-promotion gates, with local cohort
+reanalysis developed separately on the next minor line. Independent persona
+feedback is advisory and can continue after publication. Existing exact evidence,
+panel QC, cache/resume, physical projection, variant annotation, portable datasets/Parquet and managed SDK work
 are foundations, not new backlog items.
 
 Use the [researcher and builder validation kit](adoption-validation.md) to record
 real tasks, assistance, failed attempts, first-result time and work avoided.
-Stable release retains its existing analyzer-builder, workflow-HPC and
-constrained/offline scenarios. Researcher/builder/workflow adoption categories do
-not replace those release requirements. Real return use after at least 30days is
-an adoption measure, not an added first-release gate.
+The analyzer-builder, workflow-HPC and constrained/offline scenarios remain useful
+feedback protocols. They and the researcher/builder/workflow sessions are adoption
+objectives, not implementation or publication prerequisites. Real return use after
+at least 30 days is an adoption measure. Preserve failed attempts and unknown
+outcomes rather than treating release eligibility as evidence of user success.
 
 ## Acceptance
 

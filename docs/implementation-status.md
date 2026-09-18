@@ -100,21 +100,25 @@ cannot undo their original filtering. See [semantics](SEMANTICS.md).
 
 ## Release and adoption gates
 
-The September 18 read-only GitHub inspection still found required reviewers but
-zero allowed deployment refs in the protected RC/release environments and no
-listed repository/environment secrets. Publisher mappings in PyPI/TestPyPI
-remain unverified. R02 records configuration work separately from code completion;
-never place credentials in this document.
+The September 18 configuration update allows `main` in both protected RC/release
+environments and preserves their required reviewers. The maintainer confirms
+TestPyPI setup; a successful protected upload still needs to verify that mapping.
+The Cargo credential for stable crates is absent from the secret-name inventory;
+PyPI stable publishing and GHCR visibility remain to be verified. R02 records
+configuration work separately from code completion; never place credentials here.
 
-Use the existing release policy: a real immutable prerelease starts the seven-day
-soak, accepted feedback must cover its three named personas and matching contract,
-and watched caller/shared-source changes require reviewed evidence. Candidate
+A real immutable prerelease starts the seven-day soak, and changes to watched
+caller or shared source require reviewed evidence. Independent feedback is advisory:
+submitted records are validated and their absence remains visible, but missing
+participants do not block publication or isolated next-minor development. Explicit
+unresolved release-blocking defects in submitted feedback still block technical
+eligibility. Candidate
 SDK source patches do not establish registry installation. Stable promotion must
 pass fresh registry-only smoke.
 
 The [adoption kit](adoption-validation.md) distinguishes researcher/builder/workflow
-tasks from those release personas. Three non-authors, one independent analyzer,
-one integrated workflow and two teams returning after 30 days are targets, not
+tasks from the advisory release-persona scenarios. Three non-authors, one
+independent analyzer, one integrated workflow and two teams returning after 30 days are targets, not
 completed achievements. The 30-day return milestone does not block the first
 stable release. No whole-genome speedup, universal hard RAM bound, competitive
 caller accuracy or commercial purchase is claimed here.
