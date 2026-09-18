@@ -60,6 +60,10 @@ excludes unavailable qualities, and never downsamples. See
 [SEMANTICS.md](../docs/SEMANTICS.md). Errors expose native exit codes through
 `EvidenceProcessError`. Cache/resume and workers are explicit execution options;
 all genomic processing stays local.
+CRAM follows the native [supported decoder profile](../docs/SEMANTICS.md#cram-decoder-admission)
+and performs one complete file-validation pass before yielding evidence, including
+on native cache resume. This work is included in run setup and recorded separately
+from indexed record visits. `open_dataset()` avoids the original alignment inputs.
 
 Maintainers run `scripts/smoke-wheel.sh path/to/candidate.whl --candidate-source
 /absolute/path/to/rosalind` to install into a fresh environment, check exact

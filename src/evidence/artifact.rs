@@ -1268,6 +1268,11 @@ fn publish(
             .measurements
             .insert("resource.os_limit_bytes".into(), limit.to_string());
     }
+    if let Opened::Native { engine, .. } = opened {
+        receipt
+            .measurements
+            .extend(engine.plan().decoder_measurements());
+    }
     receipt.measurements.extend([
         ("predicted_peak_rss_bytes".into(), predicted.to_string()),
         ("peak_rss_bytes".into(), rss().to_string()),
@@ -1280,6 +1285,14 @@ fn publish(
             stats.record_visits.to_string(),
         ),
         ("execution.microtiles".into(), stats.microtiles.to_string()),
+        (
+            "execution.max_returned_record_bytes".into(),
+            stats.max_record_bytes.to_string(),
+        ),
+        (
+            "execution.max_returned_read_length".into(),
+            stats.max_read_length.to_string(),
+        ),
     ]);
     let declared = receipt
         .params

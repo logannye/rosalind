@@ -105,6 +105,7 @@ def audit(report_path, manifest_path, binary=None, harness_dir=None):
                       "After-run hashes detect changed final bytes; they do not prove files never changed and reverted between invocations.",
                       "Receipt verification is the retained timed native verification, not independently reimplemented here.",
                       "Microtile counts and record visits corroborate work changes; admitted widths and worker counts do not prove actual worker utilization.",
+                      "Indexed record visits exclude any separate CRAM whole-file validation pass; absent historical validation counters are unknown, not zero.",
                       "Retained storage sizes are current logical/allocated file bytes, not physical I/O traffic or peak temporary disk use.",
                       "Prediction underestimates are reported separately; only exceeding an admitted budget is a budget breach."])
     started = time.perf_counter()
@@ -233,18 +234,33 @@ def audit(report_path, manifest_path, binary=None, harness_dir=None):
                     checked["issues"].append("retained verification output changed")
                 verification[(row["workload"], row["kind"], row.get("case"), row.get("phase"))].append(verified["wall_seconds"])
                 if row["kind"] == "rosalind":
-                    execution[row["workload"]].append(dict(label=row["label"], phase=row.get("phase"),
+                    observation = dict(label=row["label"], phase=row.get("phase"),
                         case=row.get("case"), repeat=row.get("repeat"), loci=count,
                         admitted_tile_bases=integer(values["execution.microtile_bases"], "tile width"),
                         admitted_workers=integer(values.get("execution.worker_count", 1), "worker count"),
                         actual_microtiles=integer(values["execution.microtiles"], "microtiles"),
-                        alignment_record_visits=integer(values["execution.record_visits"], "record visits")))
+                        indexed_alignment_record_visits=integer(values["execution.record_visits"], "record visits"))
+                    if "execution.decoder_model" in values:
+                        observation["decoder_model"] = values["execution.decoder_model"]
+                    if "execution.decoder_bytes" in values:
+                        observation["decoder_bytes"] = integer(values["execution.decoder_bytes"], "decoder bytes")
+                    cram = {key.removeprefix("execution.cram."): value for key, value in values.items()
+                            if key.startswith("execution.cram.")}
+                    if cram:
+                        observation["cram_decoder_measurements"] = cram
+                    if "validated_records" in cram:
+                        observation["cram_validation_records"] = integer(cram["validated_records"], "validated records")
+                    if "validated_bases" in cram:
+                        observation["cram_validation_bases"] = integer(cram["validated_bases"], "validated bases")
+                    if "validation_wall_micros" in cram:
+                        observation["cram_validation_wall_seconds"] = integer(cram["validation_wall_micros"], "validation time") / 1000000
+                    execution[row["workload"]].append(observation)
             except (OSError, ValueError, KeyError, TypeError) as error:
                 checked["issues"].append(str(error))
             result["issues"].extend(f"{row['label']}: {issue}" for issue in checked["issues"])
         for workload, observations in sorted(execution.items()):
             computed = [row for row in observations if row["phase"] != "resumed"]
-            signatures = {(row["actual_microtiles"], row["alignment_record_visits"]) for row in computed}
+            signatures = {(row["actual_microtiles"], row["indexed_alignment_record_visits"]) for row in computed}
             result["execution"].append(dict(workload=workload, observations=observations,
                 distinct_observed_work_signatures=len(signatures), observed_execution_changed=len(signatures) > 1,
                 denominator_consistent=len({row["loci"] for row in observations}) == 1))

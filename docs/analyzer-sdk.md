@@ -30,6 +30,9 @@ requirements, admits the complete working set, checks cancellation and immutable
 inputs, finalizes the analyzer, and publishes the output and receipt together.
 
 `EvidenceArtifactSource::Native` reads indexed BAM/CRAM plus a local reference.
+CRAM uses the [checked decoder profile](SEMANTICS.md#cram-decoder-admission),
+including one complete cooperative validation pass before indexed extraction.
+Its cost and decoder envelope are recorded separately from queried record visits.
 `EvidenceArtifactSource::Dataset` reads a verified portable dataset without reopening
 its original BAM/reference. Both feed canonical batches to the same analyzer. Dataset
 queries require complete locus coverage and available fields; stored profile/sample

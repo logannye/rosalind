@@ -249,7 +249,7 @@ enum Commands {
         /// Indexed local FASTA for exact evidence; also accepted: .rref or .idx.
         #[arg(long)]
         reference: Option<PathBuf>,
-        /// Coordinate-sorted alignments (BAM; CRAM for evidence/panel-qc).
+        /// Coordinate-sorted alignments (BAM; supported CRAM 3.0 for evidence/panel-qc).
         #[arg(long)]
         alignments: PathBuf,
         /// Minimum MAPQ required for a read to be considered.

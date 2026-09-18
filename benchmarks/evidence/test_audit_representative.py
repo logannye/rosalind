@@ -66,9 +66,25 @@ class AuditTests(unittest.TestCase):
         result = self.audit()
         self.assertEqual(result["status"], "passed", result["issues"])
         self.assertEqual(len(result["identities"]), 4)
-        self.assertEqual(result["execution"][0]["observations"][0]["alignment_record_visits"], 3)
+        observation = result["execution"][0]["observations"][0]
+        self.assertEqual(observation["indexed_alignment_record_visits"], 3)
+        self.assertNotIn("cram_validation_records", observation)
         self.assertEqual(result["retained_storage"][0]["logical_bytes"], 5)
         self.assertEqual(result["verification_summaries"][0]["wall_seconds"]["median"], 0.2)
+
+    def test_cram_validation_work_is_distinct_from_resumed_indexed_work(self):
+        self.row["phase"] = "resumed"
+        self.values.update({"execution.record_visits": "0", "execution.microtiles": "0",
+                            "execution.cram.validated_records": "500", "execution.cram.validated_bases": "75000",
+                            "execution.cram.validation_wall_micros": "1250000", "execution.decoder_model": "cram-container-envelope-v1"})
+        self.write_receipt()
+        result = self.audit()
+        self.assertEqual(result["status"], "passed", result["issues"])
+        observed = result["execution"][0]["observations"][0]
+        self.assertEqual(observed["indexed_alignment_record_visits"], 0)
+        self.assertEqual(observed["cram_validation_records"], 500)
+        self.assertEqual(observed["cram_validation_bases"], 75000)
+        self.assertEqual(observed["cram_validation_wall_seconds"], 1.25)
 
     def test_changed_startup_files_fail_individually(self):
         for path in (self.source, self.binary, self.driver, self.manifest):

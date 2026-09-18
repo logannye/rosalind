@@ -1,8 +1,10 @@
+use super::cram::CramPreflight;
+use super::indexed_reader::IndexedAlignmentReader;
 use super::*;
 use crate::core::ContigSet;
 use crate::selection::GenomicInterval;
+use rust_htslib::bam;
 use rust_htslib::bam::record::Cigar;
-use rust_htslib::bam::{self, Read};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -36,6 +38,73 @@ pub struct EvidencePlan {
     pub selection_bytes: u64,
     /// Conservative retained sample scope, read-group header, and worker setup bytes.
     pub sample_scope_bytes: u64,
+    /// Codec-specific decoder reservation, included in fixed_bytes.
+    pub decoder_bytes: u64,
+    /// Codec-specific admission contract.
+    pub decoder_model: &'static str,
+    /// Checked CRAM container maxima; absent for BAM.
+    pub cram_envelope: Option<CramEnvelope>,
+}
+impl EvidencePlan {
+    /// Additive execution diagnostics; these do not change scientific identity.
+    pub fn decoder_measurements(&self) -> BTreeMap<String, String> {
+        let mut values = BTreeMap::from([
+            ("execution.decoder_model".into(), self.decoder_model.into()),
+            (
+                "execution.decoder_bytes".into(),
+                self.decoder_bytes.to_string(),
+            ),
+        ]);
+        if let Some(cram) = &self.cram_envelope {
+            for (key, value) in [
+                ("containers", cram.containers),
+                ("max_container_records", cram.max_container_records),
+                ("max_container_bases", cram.max_container_bases),
+                (
+                    "base_reservation_bases",
+                    cram.max_container_records
+                        .saturating_mul(cram.validated_max_read_length)
+                        .max(cram.max_container_bases),
+                ),
+                ("max_container_slices", cram.max_container_slices),
+                ("max_container_blocks", cram.max_container_blocks),
+                ("max_compressed_bytes", cram.max_compressed_bytes),
+                ("max_uncompressed_bytes", cram.max_uncompressed_bytes),
+                (
+                    "max_compression_header_bytes",
+                    cram.max_compression_header_bytes,
+                ),
+                ("header_bytes", cram.header_bytes),
+                ("reference_bytes", cram.reference_bytes),
+                ("index_bytes", cram.index_bytes),
+                ("validated_records", cram.validated_records),
+                (
+                    "validated_max_record_bytes",
+                    cram.validated_max_record_bytes,
+                ),
+                ("validated_max_read_length", cram.validated_max_read_length),
+                ("validation_wall_micros", cram.validation_wall_micros),
+                ("validation_peak_rss_bytes", cram.validation_peak_rss_bytes),
+                ("declared_records", cram.declared_records),
+                ("validated_bases", cram.validated_bases),
+                ("declared_bases", cram.declared_bases),
+                ("metadata_cap_bytes", 8 << 20),
+                ("block_cap_bytes", 64 << 20),
+                ("container_cap_bytes", 256 << 20),
+                ("records_cap", 1_000_000),
+                ("blocks_cap", 4096),
+                ("slices_cap", 1024),
+                ("codec_depth_cap", 16),
+            ] {
+                values.insert(format!("execution.cram.{key}"), value.to_string());
+            }
+            values.insert(
+                "execution.cram.profile".into(),
+                "3.0;coordinate;single-reference;RAW,GZIP,rANS4;checked-metadata-v1".into(),
+            );
+        }
+        values
+    }
 }
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 /// Aggregate execution measurements; fetch-level visits may include the same read in multiple windows.
@@ -63,13 +132,14 @@ pub struct EvidenceRunStats {
 pub struct EvidenceEngine {
     request: EvidenceRequest,
     reference: EvidenceReference,
-    reader: bam::IndexedReader,
+    reader: IndexedAlignmentReader,
     contigs: ContigSet,
     tids: Vec<u32>,
     intervals: Vec<GenomicInterval>,
     sites: BTreeMap<(u32, u32), SnvSite>,
     sample_scope: Arc<EvidenceSampleScope>,
     plan: EvidencePlan,
+    cram: Option<Arc<CramPreflight>>,
 }
 impl EvidenceEngine {
     /// Open and validate local inputs, retaining only indexed reference access and metadata.
@@ -87,10 +157,15 @@ impl EvidenceEngine {
                 "quality thresholds must be BQ<=93 and MAPQ<=254".into(),
             ));
         }
-        let opened = match &request.alignment_index {
-            Some(index) => bam::IndexedReader::from_path_and_index(&request.alignments, index),
-            None => bam::IndexedReader::from_path(&request.alignments),
+        let cram = if alignment_is_cram(&request.alignments)? {
+            let checked = CramPreflight::inspect(&request)?;
+            request.alignment_index = Some(checked.index.clone());
+            Some(Arc::new(checked))
+        } else {
+            None
         };
+        let opened =
+            IndexedAlignmentReader::open(&request.alignments, request.alignment_index.as_deref());
         let mut reader = opened.map_err(|error| {
             EvidenceError::InvalidInput(format!(
                 "open indexed BAM/CRAM {} (BAI/CSI/CRAI required): {error}",
@@ -109,7 +184,7 @@ impl EvidenceEngine {
             Some(path) => EvidenceReference::open_with_fai(path, request.reference_fai.as_deref())?,
             None => EvidenceReference::unavailable(alignment_contigs.clone()),
         };
-        let is_cram = alignment_is_cram(&request.alignments)?;
+        let is_cram = cram.is_some();
         if is_cram {
             let cram_fasta: PathBuf = request.cram_reference.clone()
                 .or_else(|| reference.fasta_path().map(PathBuf::from))
@@ -191,6 +266,7 @@ impl EvidenceEngine {
             crate::util::rss::peak_rss_bytes(),
             selection_memory_bytes(&intervals, &sites),
             sample_scope_bytes,
+            cram.as_deref().map(|p| &p.envelope),
         )?;
         Ok(Self {
             request,
@@ -202,6 +278,7 @@ impl EvidenceEngine {
             sites,
             sample_scope,
             plan,
+            cram,
         })
     }
     /// Read the current resource plan; include the consumer before final admission.
@@ -241,6 +318,7 @@ impl EvidenceEngine {
             },
             reference: self.reference.clone(),
             sample_scope: self.sample_scope.clone(),
+            cram: self.cram.clone(),
         }
     }
     /// Stable, explicit coordinate/annotation digest for scientific cache keys.
@@ -298,6 +376,7 @@ impl EvidenceEngine {
             self.plan.baseline_rss_bytes,
             selection_memory_bytes(&intervals, &sites),
             self.plan.sample_scope_bytes,
+            self.cram.as_deref().map(|p| &p.envelope),
         )?;
         self.request.selection = canonical_selection(&selection, &intervals, &sites);
         self.intervals = intervals;
@@ -344,6 +423,7 @@ impl EvidenceEngine {
             self.plan.baseline_rss_bytes,
             self.plan.selection_bytes,
             self.plan.sample_scope_bytes,
+            self.cram.as_deref().map(|p| &p.envelope),
         )?;
         Ok(&self.plan)
     }
@@ -353,6 +433,9 @@ impl EvidenceEngine {
         &mut self,
         analyzer: &mut dyn EvidenceAnalyzer,
     ) -> Result<EvidenceRunStats, EvidenceError> {
+        if let Some(cram) = &self.cram {
+            cram.verify()?;
+        }
         self.plan_for_analyzer(analyzer)?;
         let mut stats = EvidenceRunStats::default();
         let mut record = bam::Record::new();
@@ -381,6 +464,9 @@ impl EvidenceEngine {
         interval_index = 0;
         start = self.intervals.first().map_or(0, |interval| interval.start);
         while interval_index < self.intervals.len() {
+            if let Some(cram) = &self.cram {
+                cram.verify()?;
+            }
             let interval = &self.intervals[interval_index];
             crate::core::governor::checkpoint()?;
             let canonical_start = start / CANONICAL_TILE_BASES * CANONICAL_TILE_BASES;
@@ -490,6 +576,9 @@ impl EvidenceEngine {
             start = window.next_start;
         }
         analyzer.finish()?;
+        if let Some(cram) = &self.cram {
+            cram.verify()?;
+        }
         self.check_budget()?;
         stats.peak_rss_bytes = crate::util::rss::peak_rss_bytes();
         Ok(stats)
@@ -553,6 +642,8 @@ fn coalesced_window(
     }
 }
 
+// Keep independently auditable retained-memory terms explicit at the few callers.
+#[allow(clippy::too_many_arguments)]
 fn make_plan(
     execution: &EvidenceExecution,
     fields: EvidenceFields,
@@ -561,19 +652,27 @@ fn make_plan(
     baseline: u64,
     selection_bytes: u64,
     sample_scope_bytes: u64,
+    cram: Option<&CramEnvelope>,
 ) -> Result<EvidencePlan, EvidenceError> {
     // Two reusable identity vectors coexist while selecting the next window.
     // Reserve two small ALT allocations, reference-window bytes, and alignment
     // slack per coordinate in addition to both identity/vector element layouts.
     let bytes_per_locus =
         fields.storage_bytes_per_locus() + std::mem::size_of::<EvidenceLocus>() as u64 + 48;
-    let fixed = DECODER_SLACK_BYTES
+    let cram_bytes = cram
+        .map(|value| value.additional_bytes(execution))
+        .transpose()?
+        .unwrap_or(0);
+    let decoder_bytes = DECODER_SLACK_BYTES
         .checked_add(
             (execution.max_record_bytes as u64)
                 .checked_mul(3)
                 .ok_or(EvidenceError::CounterOverflow)?,
         )
-        .and_then(|bytes| bytes.checked_add(analyzer_bytes))
+        .and_then(|bytes| bytes.checked_add(cram_bytes))
+        .ok_or(EvidenceError::CounterOverflow)?;
+    let fixed = decoder_bytes
+        .checked_add(analyzer_bytes)
         .and_then(|bytes| bytes.checked_add(selection_bytes))
         .and_then(|bytes| bytes.checked_add(sample_scope_bytes))
         .ok_or(EvidenceError::CounterOverflow)?;
@@ -593,7 +692,7 @@ fn make_plan(
         maximum
     };
     Ok(EvidencePlan {
-        model_id: "exact-summary-tiles-v3",
+        model_id: "exact-summary-tiles-v4",
         baseline_rss_bytes: baseline,
         fixed_bytes: fixed,
         bytes_per_locus,
@@ -606,6 +705,9 @@ fn make_plan(
         analyzer_bytes,
         selection_bytes,
         sample_scope_bytes,
+        decoder_bytes,
+        decoder_model: cram.map_or("bam-record-envelope-v1", |value| value.model),
+        cram_envelope: cram.cloned(),
     })
 }
 
@@ -869,6 +971,7 @@ pub struct EvidenceWorkerFactory {
     request: EvidenceRequest,
     reference: EvidenceReference,
     sample_scope: Arc<EvidenceSampleScope>,
+    cram: Option<Arc<CramPreflight>>,
 }
 impl EvidenceWorkerFactory {
     /// Open a worker for one canonical selection without hashing the reference
@@ -886,11 +989,15 @@ impl EvidenceWorkerFactory {
         let mut request = self.request.clone();
         request.selection = selection;
         request.execution = execution;
-        let mut reader = match &request.alignment_index {
-            Some(index) => bam::IndexedReader::from_path_and_index(&request.alignments, index),
-            None => bam::IndexedReader::from_path(&request.alignments),
+        if let Some(cram) = &self.cram {
+            cram.verify()?;
+            cram.admit_decoder(&request.execution)?;
         }
-        .map_err(|error| EvidenceError::InvalidInput(format!("open worker alignment: {error}")))?;
+        let mut reader =
+            IndexedAlignmentReader::open(&request.alignments, request.alignment_index.as_deref())
+                .map_err(|error| {
+                EvidenceError::InvalidInput(format!("open worker alignment: {error}"))
+            })?;
         let sample_scope =
             EvidenceSampleScope::resolve(reader.header(), &request.sample_selection)?;
         if sample_scope != *self.sample_scope {
@@ -934,6 +1041,7 @@ impl EvidenceWorkerFactory {
             crate::util::rss::peak_rss_bytes(),
             0,
             sample_scope_bytes,
+            self.cram.as_deref().map(|p| &p.envelope),
         )?;
         let mut engine = EvidenceEngine {
             request,
@@ -945,6 +1053,7 @@ impl EvidenceWorkerFactory {
             sites: BTreeMap::new(),
             sample_scope: self.sample_scope.clone(),
             plan,
+            cram: self.cram.clone(),
         };
         engine.set_selection(engine.request.selection.clone())?;
         Ok(engine)
@@ -1165,15 +1274,15 @@ mod projection_tests {
     #[test]
     fn projected_memory_model_admits_larger_windows_without_changing_fields() {
         let mut execution = EvidenceExecution::default();
-        let full = make_plan(&execution, EvidenceFields::ALL, 16_384, 0, 0, 0, 0).unwrap();
+        let full = make_plan(&execution, EvidenceFields::ALL, 16_384, 0, 0, 0, 0, None).unwrap();
         execution.memory_budget_bytes = Some(full.fixed_bytes + full.bytes_per_locus * 128);
-        let full = make_plan(&execution, EvidenceFields::ALL, 16_384, 0, 0, 0, 0).unwrap();
+        let full = make_plan(&execution, EvidenceFields::ALL, 16_384, 0, 0, 0, 0, None).unwrap();
         let fields = EvidenceFields::DEPTHS.union(EvidenceFields::QUALITY_SUMS);
-        let projected = make_plan(&execution, fields, 16_384, 0, 0, 0, 0).unwrap();
+        let projected = make_plan(&execution, fields, 16_384, 0, 0, 0, 0, None).unwrap();
         assert_eq!(full.microtile_bases, 128);
         assert!(projected.microtile_bases > full.microtile_bases * 10);
         assert!(projected.predicted_peak_rss_bytes <= execution.memory_budget_bytes.unwrap());
-        assert_eq!(projected.model_id, "exact-summary-tiles-v3");
+        assert_eq!(projected.model_id, "exact-summary-tiles-v4");
     }
 
     #[test]

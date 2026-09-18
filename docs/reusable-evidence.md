@@ -84,8 +84,12 @@ This rehashes the current alignment, index, and reference inputs once, verifies
 exact compatibility with the persisted source, and computes only missing loci.
 The receipt separates `execution.reused_loci` and `execution.computed_loci` from
 biological evidence counters. Successful output bytes equal fresh extraction with
-the same scientific settings. A fully covered request performs no alignment-record
-decoding, although input verification and preflight still run.
+the same scientific settings. A fully covered request performs no indexed evidence
+extraction. Input verification and preflight still run; for CRAM, the
+[complete record-validation pass](SEMANTICS.md#cram-decoder-admission) decodes the
+file even on cache resume or full reuse. Its counters are separate from indexed
+record visits. Use `dataset extract` or `dataset panel-qc` to query saved evidence
+without opening the original alignments.
 
 The first reuse implementation keeps one projected canonical partition plus a
 source decoder and native extraction state. It supports one worker and refuses

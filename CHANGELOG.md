@@ -73,6 +73,23 @@ protected publication review, and change-based caller evidence requirements appl
 - Fresh downstream dependency resolution preserves Rust 1.83 compatibility;
   generated CI follows the actual candidate version.
 
+### Representative validation and CRAM admission
+
+- Retained 108 HG002 baseline runs, independent observation comparisons, whole-run
+  identity/resource audits and actual Linux cgroup failure evidence. Eight CRAM
+  prediction underestimates are preserved in the baseline findings.
+- CRAM resource planning now checks structural/container/index envelopes and
+  validates all records, including off-target reads, before deriving repeated
+  decoder reservations from the verified payload maximum. Validation remains
+  cooperative; native allocation can precede a detected runtime breach.
+- The preview decoder profile explicitly supports CRAM 3.0, single-reference
+  containers/slices and RAW/GZIP/rANS4 blocks. Unsupported envelopes refuse rather
+  than receive an unsubstantiated plan. Caller record/read defaults are unchanged.
+- Whole-file validation adds CRAM setup work even during cache resume; receipts
+  separate it from indexed extraction. Saved-dataset queries avoid original inputs.
+- Simplified README onboarding and added blank researcher/builder validation forms;
+  authored tests are distinguished from public release and non-author adoption.
+
 ### Analyzer-platform foundation
 
 - Repositioned Rosalind around deterministic per-locus analysis contracts; the
