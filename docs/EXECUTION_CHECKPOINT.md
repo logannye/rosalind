@@ -24,8 +24,10 @@ roadmap is complete.
   on the PR.
 - The evaluator image was successfully published, smoked and attested in
   [run 35378796613](https://github.com/logannye/rosalind/actions/runs/35378796613).
-  Only automatic PR creation failed. Recover its generated lock through an
-  ordinary PR; do not rebuild or republish the image merely to recover that PR.
+  Only automatic PR creation failed. [Draft PR #149](https://github.com/logannye/rosalind/pull/149)
+  recovers the exact generated lock, verified provenance and manual review
+  handoff. Its focused checks passed; broad CI was deliberately not started.
+  Do not rebuild or republish the image merely to recover that PR.
 
 The cohort platform CI at `ba6cd43` passed its ten jobs, including actual Linux
 cgroup extraction, summary and refusal checks. The subsequent `47baf5f` change
@@ -63,9 +65,11 @@ complete. Independent-user feedback is advisory and does not block shipment.
 ## Preview and later value work
 
 Keep the cohort PR reviewable independently of release closure. Paired/longitudinal
-comparison work is checkpointed separately on `codex/cohort-pairs-preview`;
-its exact arithmetic and bounded core tests passed, but its adapter/demo/platform
-validation must be reported separately before promotion.
+comparison work is checkpointed separately in [draft PR #148](https://github.com/logannye/rosalind/pull/148).
+Its 71 core tests, Clippy, two focused CLI tests and native/Python agreement
+passed. Clean integrated provenance, the executable paired demo, full replay/
+workspace/Python checks, MSRV and platform/wheel validation remain explicit in
+that draft's checkpoint; no broad new validation cycle was started.
 
 Independent use, two recurring cohort teams, 30-day return usage, measured
 real-cohort economic value, the next partner-selected reducer, and a molecule
