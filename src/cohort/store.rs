@@ -229,6 +229,198 @@ pub(crate) fn verify_snapshot(
     Ok(snapshot)
 }
 
+#[derive(Debug)]
+pub(crate) struct ExtensionPublication {
+    pub snapshot: SnapshotHandle,
+    /// Bytes read while hashing each unique parent's declared portable inventory
+    /// once. Separate parsing, new-object work and source hashing are excluded.
+    pub verified_existing_bytes: u64,
+}
+
+/// Preserve every parent member/leaf, append fully verified missing-only leaves,
+/// and publish an immutable child last. Existing Arrow bytes are rehashed, never
+/// decoded here. The caller checks retained original-source sessions in the final
+/// callback; returning an error leaves every existing snapshot untouched.
+pub(crate) fn publish_extension(
+    parent: &SnapshotHandle,
+    additions: &[(usize, PathBuf)],
+    limits: CohortLimits,
+    before_publish: impl FnOnce() -> Result<()>,
+) -> Result<ExtensionPublication> {
+    limits.validate()?;
+    parent.verify_unchanged()?;
+    let root = checked_root(&parent.root)?;
+    let ancestry_guards = validate_ancestry(&root, &parent.id, &limits)?;
+    if read_snapshot(&root, &parent.id, &limits)? != parent.descriptor {
+        return Err(CohortError::Corrupt(
+            "parent handle differs from its immutable descriptor".into(),
+        ));
+    }
+    let old_count: usize = parent
+        .descriptor
+        .members
+        .iter()
+        .map(|member| member.leaves.len())
+        .sum();
+    if old_count
+        .checked_add(additions.len())
+        .is_none_or(|count| count > limits.max_leaf_references)
+    {
+        return Err(CohortError::Limit(
+            "extension exceeds leaf-reference envelope".into(),
+        ));
+    }
+    for (member, source) in additions {
+        if *member >= parent.descriptor.members.len() {
+            return Err(CohortError::Incompatible(
+                "extension names an unknown parent member".into(),
+            ));
+        }
+        if source.as_os_str().len() > 4096 {
+            return Err(CohortError::Limit(
+                "extension input path exceeds 4096 bytes".into(),
+            ));
+        }
+    }
+    let parent_bytes = parent.descriptor.to_bytes(&limits)?;
+    limits.admit(
+        (parent_bytes.len() as u64)
+            .saturating_mul(16)
+            .saturating_add((additions.len() as u64).saturating_mul(16_384))
+            .saturating_add((old_count as u64).saturating_mul(256)),
+    )?;
+    let mut guarded_objects = Vec::new();
+    let mut verified_existing_bytes = 0u64;
+    let mut existing = BTreeSet::new();
+    for leaf in parent
+        .descriptor
+        .members
+        .iter()
+        .flat_map(|member| &member.leaves)
+    {
+        if existing.insert(leaf.object_id.clone()) {
+            let (bytes, guards) = verify_object_bytes(&root, leaf, &limits)?;
+            verified_existing_bytes =
+                verified_existing_bytes.checked_add(bytes).ok_or_else(|| {
+                    CohortError::Limit("existing verification byte count overflow".into())
+                })?;
+            guarded_objects.extend(guards);
+        }
+    }
+    if additions.is_empty() {
+        before_publish()?;
+        parent.verify_unchanged()?;
+        verify_guards(&ancestry_guards)?;
+        verify_guards(&guarded_objects)?;
+        return Ok(ExtensionPublication {
+            snapshot: open_snapshot(&root, &parent.id, limits)?,
+            verified_existing_bytes,
+        });
+    }
+    let mut child = parent.descriptor.clone();
+    child.parent = Some(parent.id.clone());
+    let mut imported = Vec::with_capacity(additions.len());
+    for (member_index, manifest) in additions {
+        let leaf = import_object(&root, manifest, &limits)?;
+        child.members[*member_index].leaves.push(leaf.clone());
+        imported.push(leaf);
+    }
+    for member in &mut child.members {
+        member.leaves.sort_by(|a, b| a.object_id.cmp(&b.object_id));
+    }
+    child.validate(&limits)?;
+    // This metadata check enforces the original source key and no overlapping
+    // ownership, while keeping arbitrary mixtures of adequate physical masks.
+    guarded_objects.extend(validate_members(&root, &child, &limits, false)?);
+    for leaf in &imported {
+        // Close the gap after import's full verification and before retaining
+        // this operation's guards, without decoding already validated new rows.
+        let (_, guards) = verify_object_bytes(&root, leaf, &limits)?;
+        guarded_objects.extend(guards);
+    }
+    let bytes = child.to_bytes(&limits)?;
+    let id = blake3::hash(&bytes).to_hex().to_string();
+    let staging = Staging::new(&root.join("snapshots"))?;
+    write_new(&staging.path.join(SNAPSHOT_FILE), &bytes)?;
+    limits.admit((bytes.len() as u64).saturating_mul(16))?;
+    let receipt_bytes = snapshot_receipt(&child, &id).to_canonical_json();
+    if receipt_bytes.len() > limits.max_snapshot_bytes.saturating_mul(4) {
+        return Err(CohortError::Limit(
+            "extension receipt exceeds envelope".into(),
+        ));
+    }
+    write_new(
+        &staging.path.join(SNAPSHOT_RECEIPT),
+        receipt_bytes.as_bytes(),
+    )?;
+    let staged_guard = RetainedGuard::capture(
+        vec![
+            staging.path.join(SNAPSHOT_FILE),
+            staging.path.join(SNAPSHOT_RECEIPT),
+        ],
+        &limits,
+    )?;
+    test_checkpoint("before_snapshot_publication")?;
+    before_publish()?;
+    parent.verify_unchanged()?;
+    verify_guards(&ancestry_guards)?;
+    verify_guards(&guarded_objects)?;
+    staged_guard.verify()?;
+    limits.admit(0)?;
+    match publish_directory(&staging.path, &root.join("snapshots").join(&id)) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {
+            let existing = open_snapshot(&root, &id, limits)?;
+            if existing.descriptor != child {
+                return Err(CohortError::Corrupt(
+                    "existing extension snapshot differs".into(),
+                ));
+            }
+        }
+        Err(error) => return Err(error.into()),
+    }
+    Ok(ExtensionPublication {
+        snapshot: open_snapshot(&root, &id, limits)?,
+        verified_existing_bytes,
+    })
+}
+
+fn verify_object_bytes(
+    root: &Path,
+    leaf: &LeafRef,
+    limits: &CohortLimits,
+) -> Result<(u64, Vec<RetainedGuard>)> {
+    let (dataset, guards) = verify_object(root, leaf, limits, false)?;
+    let files = inventory(&dataset, limits)?;
+    let object = root.join("objects").join(&leaf.object_id);
+    limits.admit(64 << 10)?;
+    let mut buffer = [0u8; 64 << 10];
+    let mut total = 0u64;
+    for artifact in files {
+        let mut file = open_read(&checked_file(&object, &artifact.path)?)?;
+        let mut hash = blake3::Hasher::new();
+        loop {
+            limits.admit(0)?;
+            let count = file.read(&mut buffer)?;
+            if count == 0 {
+                break;
+            }
+            hash.update(&buffer[..count]);
+            total = total
+                .checked_add(count as u64)
+                .ok_or_else(|| CohortError::Limit("verification byte count overflow".into()))?;
+        }
+        if hash.finalize().to_hex().as_str() != artifact.blake3 {
+            return Err(CohortError::Corrupt(
+                "existing cohort inventory hash differs".into(),
+            ));
+        }
+    }
+    dataset.verify_unchanged()?;
+    verify_guards(&guards)?;
+    Ok((total, guards))
+}
+
 fn import_object(root: &Path, manifest: &Path, limits: &CohortLimits) -> Result<LeafRef> {
     if manifest.file_name().and_then(|name| name.to_str()) != Some(EVIDENCE_DATASET_MANIFEST_NAME) {
         return Err(CohortError::Incompatible(
@@ -387,6 +579,7 @@ fn verify_object_at(
     )?;
     metadata_guard.verify()?;
     if payload {
+        test_checkpoint("before_arrow_decode")?;
         let query = DatasetQuery {
             selection: dataset.selection(),
             fields: dataset.fields(),
@@ -905,12 +1098,24 @@ fn publish_directory(source: &Path, destination: &Path) -> std::io::Result<()> {
 struct RetainedGuard {
     snapshot: InputSnapshot,
     paths: Vec<PathBuf>,
+    directories: Vec<DirectoryStamp>,
 }
 impl RetainedGuard {
     fn capture(paths: Vec<PathBuf>, limits: &CohortLimits) -> Result<Self> {
-        limits.admit((paths.len() as u64).saturating_mul(16_384))?;
+        // Inventory membership is immutable too: guard each declared file's
+        // containing directory so late extra entries cannot evade file guards.
+        limits.admit((paths.len() as u64).saturating_mul(3 * 16_384))?;
+        let directory_paths: BTreeSet<_> = paths.iter().filter_map(|path| path.parent()).collect();
+        let directories = directory_paths
+            .into_iter()
+            .map(DirectoryStamp::read)
+            .collect::<Result<Vec<_>>>()?;
         let snapshot = InputSnapshot::capture(paths.iter().cloned())?;
-        let guard = Self { snapshot, paths };
+        let guard = Self {
+            snapshot,
+            paths,
+            directories,
+        };
         guard.verify()?;
         Ok(guard)
     }
@@ -926,8 +1131,51 @@ impl RetainedGuard {
                 }
             }
         }
+        for directory in &self.directories {
+            if DirectoryStamp::read(&directory.path)? != *directory {
+                return Err(CohortError::Corrupt(
+                    "declared inventory directory changed during the operation".into(),
+                ));
+            }
+        }
         self.snapshot.verify()?;
         Ok(())
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct DirectoryStamp {
+    path: PathBuf,
+    modified: Option<std::time::SystemTime>,
+    bytes: u64,
+    #[cfg(unix)]
+    identity: (u64, u64, i64, i64, i64, i64),
+}
+impl DirectoryStamp {
+    fn read(path: &Path) -> Result<Self> {
+        let metadata = fs::symlink_metadata(path)?;
+        if !metadata.is_dir() || metadata.file_type().is_symlink() {
+            return Err(CohortError::Corrupt(
+                "inventory parent is no longer a regular directory".into(),
+            ));
+        }
+        Ok(Self {
+            path: path.to_path_buf(),
+            modified: metadata.modified().ok(),
+            bytes: metadata.len(),
+            #[cfg(unix)]
+            identity: {
+                use std::os::unix::fs::MetadataExt;
+                (
+                    metadata.dev(),
+                    metadata.ino(),
+                    metadata.mtime(),
+                    metadata.mtime_nsec(),
+                    metadata.ctime(),
+                    metadata.ctime_nsec(),
+                )
+            },
+        })
     }
 }
 

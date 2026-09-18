@@ -615,7 +615,13 @@ fn failure_at_each_publication_boundary_never_publishes_a_snapshot() {
 
 #[test]
 fn mutation_after_verification_is_detected_before_snapshot_publication() {
-    for which in ["payload", "descriptor", "staged-snapshot"] {
+    for which in [
+        "payload",
+        "descriptor",
+        "staged-snapshot",
+        "extra-file",
+        "extra-directory",
+    ] {
         let fixture = Fixture::new(FixtureOptions::default());
         let root = Root::new();
         let root_path = root.0.clone();
@@ -634,13 +640,18 @@ fn mutation_after_verification_is_detected_before_snapshot_publication() {
                         .next()
                         .unwrap()?
                         .path()
-                        .join(if which == "payload" {
-                            payload.as_str()
-                        } else {
-                            "dataset.descriptor.json"
+                        .join(match which {
+                            "payload" => payload.as_str(),
+                            "extra-file" => "undeclared.txt",
+                            "extra-directory" => "undeclared-empty",
+                            _ => "dataset.descriptor.json",
                         })
                 };
-                fs::write(path, b"changed after verification")?;
+                if which == "extra-directory" {
+                    fs::create_dir(path)?;
+                } else {
+                    fs::write(path, b"changed after verification")?;
+                }
                 Ok(())
             },
             || {
@@ -733,6 +744,182 @@ fn copied_payload_has_its_own_inode_and_rejects_late_symlink() {
     );
     assert!(result.is_err());
     assert_eq!(fs::read_dir(root.0.join("snapshots")).unwrap().count(), 1);
+}
+
+#[test]
+fn extension_publication_preserves_parent_and_hashes_old_bytes_without_decoding() {
+    let fixture = Fixture::new(FixtureOptions::default());
+    let root = Root::new();
+    let mut member = fixture.member("A");
+    member.metadata.group = Some("group-1".into());
+    member.metadata.subject = Some("asserted-subject".into());
+    let parent = create_snapshot(&root.0, &[member], None, CohortLimits::default()).unwrap();
+    let original_bytes = fs::read(
+        root.0
+            .join("snapshots")
+            .join(&parent.id)
+            .join(SNAPSHOT_FILE),
+    )
+    .unwrap();
+    let expected_bytes = directory_bytes(&root.0.join("objects"));
+    let no_op = with_test_hook(
+        "before_arrow_decode",
+        || Err(std::io::Error::other("must not decode old Arrow").into()),
+        || publish_extension(&parent, &[], CohortLimits::default(), || Ok(())),
+    )
+    .unwrap();
+    assert_eq!(no_op.snapshot.id, parent.id);
+    assert_eq!(no_op.verified_existing_bytes, expected_bytes);
+    let addition = fixture.extra_leaf(4, 9, crate::evidence::EvidenceFields::ALL);
+    let child = publish_extension(
+        &parent,
+        &[(0, addition)],
+        CohortLimits::default(),
+        || Ok(()),
+    )
+    .unwrap();
+    assert_eq!(
+        child.snapshot.descriptor.parent.as_deref(),
+        Some(parent.id.as_str())
+    );
+    assert_eq!(
+        child.snapshot.descriptor.members[0].metadata,
+        parent.descriptor.members[0].metadata
+    );
+    assert_eq!(child.snapshot.descriptor.members[0].leaves.len(), 2);
+    assert!(child.snapshot.descriptor.members[0]
+        .leaves
+        .contains(&parent.descriptor.members[0].leaves[0]));
+    assert_eq!(child.verified_existing_bytes, expected_bytes);
+    assert_eq!(
+        fs::read(
+            root.0
+                .join("snapshots")
+                .join(&parent.id)
+                .join(SNAPSHOT_FILE)
+        )
+        .unwrap(),
+        original_bytes
+    );
+    verify_snapshot(&root.0, &parent.id, CohortLimits::default()).unwrap();
+    verify_snapshot(&root.0, &child.snapshot.id, CohortLimits::default()).unwrap();
+}
+
+#[test]
+fn extension_import_still_fully_decodes_new_leaves() {
+    let fixture = Fixture::new(FixtureOptions::default());
+    let root = Root::new();
+    let parent = create_snapshot(
+        &root.0,
+        &[fixture.member("A")],
+        None,
+        CohortLimits::default(),
+    )
+    .unwrap();
+    let addition = fixture.extra_leaf(4, 9, crate::evidence::EvidenceFields::ALL);
+    let result = with_test_hook(
+        "before_arrow_decode",
+        || Err(std::io::Error::other("new decoding observed").into()),
+        || {
+            publish_extension(
+                &parent,
+                &[(0, addition)],
+                CohortLimits::default(),
+                || Ok(()),
+            )
+        },
+    );
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("new decoding observed"));
+    assert_eq!(fs::read_dir(root.0.join("snapshots")).unwrap().count(), 1);
+    verify_snapshot(&root.0, &parent.id, CohortLimits::default()).unwrap();
+}
+
+#[test]
+fn extension_refuses_overlap_callback_failure_and_changed_parent_without_child() {
+    let fixture = Fixture::new(FixtureOptions::default());
+    let root = Root::new();
+    let parent = create_snapshot(
+        &root.0,
+        &[fixture.member("A")],
+        None,
+        CohortLimits::default(),
+    )
+    .unwrap();
+    let overlap = fixture.extra_leaf(3, 6, crate::evidence::EvidenceFields::ALL);
+    assert!(
+        publish_extension(&parent, &[(0, overlap)], CohortLimits::default(), || Ok(())).is_err()
+    );
+    let addition = fixture.extra_leaf(4, 9, crate::evidence::EvidenceFields::ALL);
+    assert!(publish_extension(
+        &parent,
+        &[(0, addition.clone())],
+        CohortLimits::default(),
+        || Err(std::io::Error::other("changed raw source").into())
+    )
+    .is_err());
+    assert_eq!(fs::read_dir(root.0.join("snapshots")).unwrap().count(), 1);
+    verify_snapshot(&root.0, &parent.id, CohortLimits::default()).unwrap();
+    let parent_path = root
+        .0
+        .join("snapshots")
+        .join(&parent.id)
+        .join(SNAPSHOT_FILE);
+    let result = publish_extension(&parent, &[(0, addition)], CohortLimits::default(), || {
+        fs::write(&parent_path, b"changed in final callback")?;
+        Ok(())
+    });
+    assert!(result.is_err());
+    assert_eq!(fs::read_dir(root.0.join("snapshots")).unwrap().count(), 1);
+}
+
+#[test]
+fn extension_rehash_catches_corruption_without_an_arrow_decode() {
+    let fixture = Fixture::new(FixtureOptions::default());
+    let root = Root::new();
+    let parent = create_snapshot(
+        &root.0,
+        &[fixture.member("A")],
+        None,
+        CohortLimits::default(),
+    )
+    .unwrap();
+    let object = &parent.descriptor.members[0].leaves[0].object_id;
+    let arrow = root
+        .0
+        .join("objects")
+        .join(object)
+        .join(&fixture.descriptor().partitions[0].arrow.path);
+    fs::write(arrow, b"corrupt body").unwrap();
+    // Opening only validates metadata and file kinds, so this handle has fresh
+    // mutation guards; byte hashing must still refuse the corrupt payload.
+    let reopened = open_snapshot(&root.0, &parent.id, CohortLimits::default()).unwrap();
+    let result = with_test_hook(
+        "before_arrow_decode",
+        || Err(std::io::Error::other("unexpected old decoding").into()),
+        || publish_extension(&reopened, &[], CohortLimits::default(), || Ok(())),
+    );
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("inventory hash differs"));
+    assert_eq!(fs::read_dir(root.0.join("snapshots")).unwrap().count(), 1);
+}
+
+fn directory_bytes(root: &Path) -> u64 {
+    fs::read_dir(root)
+        .unwrap()
+        .map(|entry| {
+            let entry = entry.unwrap();
+            if entry.file_type().unwrap().is_dir() {
+                directory_bytes(&entry.path())
+            } else {
+                entry.metadata().unwrap().len()
+            }
+        })
+        .sum()
 }
 
 fn copy_tree(source: &Path, target: &Path) {
