@@ -15,6 +15,7 @@ mod cram;
 pub use cram::CramEnvelope;
 mod encoding;
 mod engine;
+mod indexed_reader;
 mod panel;
 mod reference;
 mod sample;

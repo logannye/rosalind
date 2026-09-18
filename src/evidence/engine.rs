@@ -1,9 +1,10 @@
 use super::cram::CramPreflight;
+use super::indexed_reader::IndexedAlignmentReader;
 use super::*;
 use crate::core::ContigSet;
 use crate::selection::GenomicInterval;
+use rust_htslib::bam;
 use rust_htslib::bam::record::Cigar;
-use rust_htslib::bam::{self, Read};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -131,7 +132,7 @@ pub struct EvidenceRunStats {
 pub struct EvidenceEngine {
     request: EvidenceRequest,
     reference: EvidenceReference,
-    reader: bam::IndexedReader,
+    reader: IndexedAlignmentReader,
     contigs: ContigSet,
     tids: Vec<u32>,
     intervals: Vec<GenomicInterval>,
@@ -163,10 +164,8 @@ impl EvidenceEngine {
         } else {
             None
         };
-        let opened = match &request.alignment_index {
-            Some(index) => bam::IndexedReader::from_path_and_index(&request.alignments, index),
-            None => bam::IndexedReader::from_path(&request.alignments),
-        };
+        let opened =
+            IndexedAlignmentReader::open(&request.alignments, request.alignment_index.as_deref());
         let mut reader = opened.map_err(|error| {
             EvidenceError::InvalidInput(format!(
                 "open indexed BAM/CRAM {} (BAI/CSI/CRAI required): {error}",
@@ -994,11 +993,11 @@ impl EvidenceWorkerFactory {
             cram.verify()?;
             cram.admit_decoder(&request.execution)?;
         }
-        let mut reader = match &request.alignment_index {
-            Some(index) => bam::IndexedReader::from_path_and_index(&request.alignments, index),
-            None => bam::IndexedReader::from_path(&request.alignments),
-        }
-        .map_err(|error| EvidenceError::InvalidInput(format!("open worker alignment: {error}")))?;
+        let mut reader =
+            IndexedAlignmentReader::open(&request.alignments, request.alignment_index.as_deref())
+                .map_err(|error| {
+                EvidenceError::InvalidInput(format!("open worker alignment: {error}"))
+            })?;
         let sample_scope =
             EvidenceSampleScope::resolve(reader.header(), &request.sample_selection)?;
         if sample_scope != *self.sample_scope {

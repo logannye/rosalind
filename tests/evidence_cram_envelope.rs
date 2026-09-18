@@ -215,3 +215,64 @@ fn omitted_index_slice_is_rejected_instead_of_becoming_false_zero_evidence() {
         "{error}"
     );
 }
+
+#[test]
+fn indexed_cram_lifetimes_survive_parallel_reads_and_failed_open() {
+    fn assert_send<T: Send>() {}
+    assert_send::<EvidenceEngine>();
+    // Poison freed native allocations in a fresh process. The old index-after-
+    // file drop order accesses the poisoned CRAM handle; an ordinary successful
+    // read is insufficient to catch this use-after-free reliably.
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "indexed_cram_lifetime_probe", "--nocapture"])
+        .env("ROSALIND_CRAM_LIFETIME_PROBE", "1")
+        .env("MallocScribble", "1")
+        .env("MALLOC_PERTURB_", "165")
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "native lifetime probe failed: {}\n{}\n{}",
+        output.status,
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
+#[test]
+fn indexed_cram_lifetime_probe() {
+    if std::env::var_os("ROSALIND_CRAM_LIFETIME_PROBE").is_none() {
+        return;
+    }
+    let fixture = Fixture::new(200, false);
+    let request = fixture.request();
+    let mut bam_request = request.clone();
+    bam_request.alignments = fixture.bam.clone();
+    let expected = tsv(bam_request);
+    let engine = EvidenceEngine::open(request.clone()).unwrap();
+    let factory = engine.worker_factory();
+    // Workers remain usable after their original engine/file has been closed.
+    drop(engine);
+    std::thread::scope(|scope| {
+        for _ in 0..8 {
+            let factory = &factory;
+            let expected = &expected;
+            let selection = request.selection.clone();
+            scope.spawn(move || {
+                for _ in 0..16 {
+                    let mut worker = factory.open(selection.clone()).unwrap();
+                    let mut bytes = Vec::new();
+                    worker.run(&mut EvidenceTsvWriter::new(&mut bytes)).unwrap();
+                    assert_eq!(&bytes, expected);
+                }
+            });
+        }
+    });
+    // Opening an indexed reader and then rejecting its sample scope must use
+    // the same safe destruction order, even without constructing an engine.
+    for _ in 0..8 {
+        let mut invalid = request.clone();
+        invalid.sample_selection = EvidenceSampleSelection::Named("absent".into());
+        assert!(EvidenceEngine::open(invalid).is_err());
+    }
+}
