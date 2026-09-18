@@ -1,6 +1,15 @@
 # Rosalind — Target Architecture & Rebuild Plan
 
-**Status:** Approved direction — 2026-05-26. Living document.
+> **Historical design proposal — archived.** This May 2026 document preserves
+> the original research direction; its proposed capabilities and universal
+> memory guarantees are not current product commitments. See the
+> [current capability inventory](../../implementation-status.md),
+> [delivery roadmap](../../ROADMAP.md), and
+> [historical context](../../history.md) for implemented behavior, availability,
+> and the relationship between the original motivation and resource scheduling.
+
+**Historical status:** Approved direction — 2026-05-26. Superseded for current
+product scope by the linked capability inventory and delivery roadmap.
 
 **Context.** Rosalind is a Rust genomics engine (alignment + germline/somatic variant
 calling) pitched for *deterministic, bounded-memory, on-prem/edge* genomics, built over a

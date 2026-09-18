@@ -27,45 +27,37 @@ The 30-day return target measures adoption; it is not an additional first-stable
 
 ## G — Coherent GitHub presence
 
-- [ ] **[G01](https://github.com/logannye/rosalind/issues/106) — Establish authoritative capability and release inventory**
+- [x] **[G01](https://github.com/logannye/rosalind/issues/106) — Establish authoritative capability and release inventory**
 
-  Status: **implemented**. Owner: engineering. Dependencies: none.
+  Status: **complete**. Owner: engineering. Dependencies: none.
 
   Done when: Inventory implementation, exact validation source/workload, published version and independent use for every advertised capability.
 
-  Remaining gate: Merge the implementation and link final acceptance evidence.
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143) · [Capability and release inventory](https://github.com/logannye/rosalind/blob/main/docs/implementation-status.md)
 
-  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)
+- [x] **[G02](https://github.com/logannye/rosalind/issues/107) — Reconcile contract, architecture, determinism and contributor guides**
 
-- [ ] **[G02](https://github.com/logannye/rosalind/issues/107) — Reconcile contract, architecture, determinism and contributor guides**
-
-  Status: **implemented**. Owner: engineering. Dependencies: G01.
+  Status: **complete**. Owner: engineering. Dependencies: G01.
 
   Done when: Describe exact-or-fail legacy behavior, evidence tiles, CSI/CRAM, canonical workers, datasets, SDK and cooperative/OS limits consistently with SEMANTICS.
 
-  Remaining gate: Merge the implementation and link final acceptance evidence.
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143) · [Current engine contract](https://github.com/logannye/rosalind/blob/main/CONTRACT.md)
 
-  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)
+- [x] **[G03](https://github.com/logannye/rosalind/issues/108) — Provide researcher and builder README entry paths**
 
-- [ ] **[G03](https://github.com/logannye/rosalind/issues/108) — Provide researcher and builder README entry paths**
-
-  Status: **implemented**. Owner: engineering. Dependencies: G01.
+  Status: **complete**. Owner: engineering. Dependencies: G01.
 
   Done when: Lead with reusable genomic evidence; provide Analyze my data and Build an analyzer paths, working example, availability and limits; reuse PR #104.
 
-  Remaining gate: Merge the implementation and link final acceptance evidence.
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143) · [Researcher and builder entry paths](https://github.com/logannye/rosalind/blob/main/README.md)
 
-  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)
+- [x] **[G04](https://github.com/logannye/rosalind/issues/109) — Align landing page and GitHub metadata**
 
-- [ ] **[G04](https://github.com/logannye/rosalind/issues/109) — Align landing page and GitHub metadata**
-
-  Status: **implemented**. Owner: engineering. Dependencies: G01, G03.
+  Status: **complete**. Owner: engineering. Dependencies: G01, G03.
 
   Done when: Landing root, repository About and README agree; preserve /verify/ and static Pages; advertise only available installation routes.
 
-  Remaining gate: Merge the implementation and link final acceptance evidence.
-
-  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143) · [Landing page](https://github.com/logannye/rosalind/blob/main/web/index.html) · [Successful Pages deployment](https://github.com/logannye/rosalind/actions/runs/35375394358) · [Live landing page](https://logannye.github.io/rosalind/) · [Preserved Receipt Studio](https://logannye.github.io/rosalind/verify/)
 
 - [x] **[G05](https://github.com/logannye/rosalind/issues/110) — Reconcile legacy issues**
 
@@ -75,57 +67,47 @@ The 30-day return target measures adoption; it is not an additional first-stable
 
   Evidence: [Superseded #3](https://github.com/logannye/rosalind/issues/3) · [Reframed Python publication #60](https://github.com/logannye/rosalind/issues/60) · [Stable publication #53](https://github.com/logannye/rosalind/issues/53) · [Arrow/Parquet #59](https://github.com/logannye/rosalind/issues/59) · [Analyzer example #62](https://github.com/logannye/rosalind/issues/62) · [Deferred #57](https://github.com/logannye/rosalind/issues/57) · [Deferred #58](https://github.com/logannye/rosalind/issues/58) · [Deferred #69](https://github.com/logannye/rosalind/issues/69)
 
-- [ ] **[G06](https://github.com/logannye/rosalind/issues/111) — Create linked roadmap issues and contribution templates**
+- [x] **[G06](https://github.com/logannye/rosalind/issues/111) — Create linked roadmap issues and contribution templates**
 
-  Status: **implemented**. Owner: engineering. Dependencies: G01.
+  Status: **complete**. Owner: engineering. Dependencies: G01.
 
   Done when: Each ID has one issue, milestone, outcome, dependencies, acceptance and owner; feature template captures workflow, scale, desired result and work avoided.
 
-  Remaining gate: Merge the implementation and link final acceptance evidence.
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143) · [Feature request template](https://github.com/logannye/rosalind/blob/main/.github/ISSUE_TEMPLATE/feature_request.yml)
 
-  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)
+- [x] **[G07](https://github.com/logannye/rosalind/issues/112) — Separate historical exploration from current commitments**
 
-- [ ] **[G07](https://github.com/logannye/rosalind/issues/112) — Separate historical exploration from current commitments**
-
-  Status: **implemented**. Owner: engineering. Dependencies: G01.
+  Status: **complete**. Owner: engineering. Dependencies: G01.
 
   Done when: Retain archive banners, remove archives from onboarding, explain actual time/memory scheduling without square-root-memory product claims.
 
-  Remaining gate: Merge the implementation and link final acceptance evidence.
-
-  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143) · [Historical context and archive links](https://github.com/logannye/rosalind/blob/main/docs/history.md) · [Archived May architecture proposal](https://github.com/logannye/rosalind/blob/main/docs/superpowers/specs/2026-05-26-rosalind-target-architecture.md)
 
 ## D — Executable documentation
 
-- [ ] **[D01](https://github.com/logannye/rosalind/issues/113) — Provide version-aware installation**
+- [x] **[D01](https://github.com/logannye/rosalind/issues/113) — Provide version-aware installation**
 
-  Status: **implemented**. Owner: engineering. Dependencies: G01.
+  Status: **complete**. Owner: engineering. Dependencies: G01.
 
   Done when: Separate stable/candidate/source; distribution/import names, supported platforms, identity and build prerequisites; installed features match tutorials and installer guidance.
 
-  Remaining gate: Merge the implementation and link final acceptance evidence.
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143) · [Actual v0.1.0 installation check](https://github.com/logannye/rosalind/blob/222b8e1/docs/findings/roadmap-foundation-2026-09-18/public-stable-installer.log) · [Version-aware installation](https://github.com/logannye/rosalind/blob/main/docs/installation.md) · [Python contract and installer correction #144](https://github.com/logannye/rosalind/pull/144)
 
-  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143) · [Actual v0.1.0 installation check](https://github.com/logannye/rosalind/blob/222b8e1/docs/findings/roadmap-foundation-2026-09-18/public-stable-installer.log)
+- [x] **[D02](https://github.com/logannye/rosalind/issues/114) — Deliver researcher candidate-evidence quickstart**
 
-- [ ] **[D02](https://github.com/logannye/rosalind/issues/114) — Deliver researcher candidate-evidence quickstart**
-
-  Status: **implemented**. Owner: engineering. Dependencies: D01.
+  Status: **complete**. Owner: engineering. Dependencies: D01.
 
   Done when: Pinned NA18507 four candidates: prepare, extract, annotate, interpret, verify and replay outside checkout; illustrative screens are not confidence.
 
-  Remaining gate: Merge the implementation and link final acceptance evidence.
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143) · [Researcher tutorial](https://github.com/logannye/rosalind/blob/main/docs/researcher-quickstart.md) · [Clean installed candidate: executed workflows and independent count checks](https://github.com/logannye/rosalind/blob/bc6e9e6e051d233da98573dc40f894f56ccd58b5/docs/findings/roadmap-foundation-2026-09-18/packaged-research-workflows.log)
 
-  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)
+- [x] **[D03](https://github.com/logannye/rosalind/issues/115) — Deliver saved-evidence reuse tutorial**
 
-- [ ] **[D03](https://github.com/logannye/rosalind/issues/115) — Deliver saved-evidence reuse tutorial**
-
-  Status: **implemented**. Owner: engineering. Dependencies: D02.
+  Status: **complete**. Owner: engineering. Dependencies: D02.
 
   Done when: Extract targets, query changed candidates, panel-QC, relocate and remove source access; compare with fresh values and explain irreversible filtering/capability limits.
 
-  Remaining gate: Merge the implementation and link final acceptance evidence.
-
-  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143) · [Saved-evidence reuse tutorial](https://github.com/logannye/rosalind/blob/main/docs/reuse-quickstart.md) · [Clean installed candidate: executed workflows and independent count checks](https://github.com/logannye/rosalind/blob/bc6e9e6e051d233da98573dc40f894f56ccd58b5/docs/findings/roadmap-foundation-2026-09-18/packaged-research-workflows.log)
 
 - [ ] **[D04](https://github.com/logannye/rosalind/issues/116) — Lead builders through managed evidence SDK**
 
@@ -135,27 +117,23 @@ The 30-day return target measures adoption; it is not an additional first-stable
 
   Remaining gate: Maintainer-authored customization passed scientific and conformance checks; independent developer completion remains unobserved.
 
-  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143) · [Builder tutorial and independent completion gate](https://github.com/logannye/rosalind/blob/main/docs/builder-quickstart.md)
 
-- [ ] **[D05](https://github.com/logannye/rosalind/issues/117) — Explain concepts and actionable troubleshooting**
+- [x] **[D05](https://github.com/logannye/rosalind/issues/117) — Explain concepts and actionable troubleshooting**
 
-  Status: **implemented**. Owner: engineering. Dependencies: G02.
+  Status: **complete**. Owner: engineering. Dependencies: G02.
 
   Done when: Explain reads/molecules, zero/missing/low-depth, sample scope, settings, limits and trust; remedies for indexes, references, CRAM, fields, budgets, outputs and versions.
 
-  Remaining gate: Merge the implementation and link final acceptance evidence.
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143) · [Concepts and troubleshooting](https://github.com/logannye/rosalind/blob/main/docs/troubleshooting.md)
 
-  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)
+- [x] **[D06](https://github.com/logannye/rosalind/issues/118) — Clarify workflows and legacy Action**
 
-- [ ] **[D06](https://github.com/logannye/rosalind/issues/118) — Clarify workflows and legacy Action**
-
-  Status: **implemented**. Owner: engineering. Dependencies: D01.
+  Status: **complete**. Owner: engineering. Dependencies: D01.
 
   Done when: Lead exact-evidence Nextflow/Snakemake; scheduler requests differ from OS caps; label Action legacy while preserving defaults; use pinned CLI for new evidence.
 
-  Remaining gate: Merge the implementation and link final acceptance evidence.
-
-  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143) · [Pinned workflow integration](https://github.com/logannye/rosalind/blob/main/docs/workflow-integration.md) · [Nextflow and Snakemake integration checks](https://github.com/logannye/rosalind/actions/runs/35372523949)
 
 - [ ] **[D07](https://github.com/logannye/rosalind/issues/119) — Exercise documentation in onboarding/package smoke**
 
@@ -163,21 +141,19 @@ The 30-day return target measures adoption; it is not an additional first-stable
 
   Done when: Researcher/reuse/builder commands pass clean supported native/wheel environments; link/assets/version checks; exclude big archives; behavior tests rather than prose.
 
-  Remaining gate: Primary workflows pass locally; the final changed package smoke must pass across the supported CI matrix.
+  Remaining gate: Changed onboarding passed Linux x86_64 and macOS arm64/x86_64 wheel smoke on Python 3.9 and 3.11. Actual native tarball staging and clean-install smoke on all supported targets remain required. The existing RC workflow can supply this evidence in its build stage before prerelease publication; D07 does not prohibit dispatching that validation stage.
 
-  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143) · [Executable onboarding and retained validation](https://github.com/logannye/rosalind/blob/main/docs/findings/roadmap-foundation-2026-09-18/README.md) · [Onboarding change: all three platform wheels passed on Python 3.9 and 3.11](https://github.com/logannye/rosalind/actions/runs/35370751606)
 
 ## R — Current evidence-engine release
 
-- [ ] **[R01](https://github.com/logannye/rosalind/issues/120) — Complete representative validation and CRAM correctness**
+- [x] **[R01](https://github.com/logannye/rosalind/issues/120) — Complete representative validation and CRAM correctness**
 
-  Status: **in-progress**. Owner: engineering. Dependencies: none.
+  Status: **complete**. Owner: engineering. Dependencies: none.
 
   Done when: Merge #104/#105, retain original/failed evidence; fix stale-index, decoder accounting and native lifetime defects; corrected packaged matrix and actual Linux cgroup probes pass.
 
-  Remaining gate: Fresh packaged108-run matrix and14 real Linux cgroup scenarios pass with zero output differences/plan underestimates; final corrected candidate CI and #105 merge remain.
-
-  Evidence: [Merged baseline #104](https://github.com/logannye/rosalind/pull/104) · [Corrected CRAM candidate #105](https://github.com/logannye/rosalind/pull/105) · [Frozen 9b8e12f validation report](https://github.com/logannye/rosalind/blob/codex/roadmap-foundation/docs/findings/cram-decoder-validation-2026-09-06/verified-9b8e12f-2026-09-18/README.md)
+  Evidence: [Merged baseline #104](https://github.com/logannye/rosalind/pull/104) · [Corrected CRAM candidate #105](https://github.com/logannye/rosalind/pull/105) · [Frozen 9b8e12f validation report](https://github.com/logannye/rosalind/blob/bc6e9e6e051d233da98573dc40f894f56ccd58b5/docs/findings/cram-decoder-validation-2026-09-06/verified-9b8e12f-2026-09-18/README.md) · [Corrected candidate: all supported wheels and outside-checkout smoke](https://github.com/logannye/rosalind/actions/runs/35369668546)
 
 - [ ] **[R02](https://github.com/logannye/rosalind/issues/121) — Complete protected publication configuration**
 
@@ -189,23 +165,21 @@ The 30-day return target measures adoption; it is not an additional first-stable
 
   Evidence: [Maintainer setup and exact trusted publisher fields](https://github.com/logannye/rosalind/blob/main/docs/MAINTAINER_RELEASES.md) · [Read-only prerequisite inspection](https://github.com/logannye/rosalind/blob/bc6e9e6/docs/findings/cram-decoder-validation-2026-09-06/verified-9b8e12f-2026-09-18/release-prerequisites.json)
 
-- [ ] **[R03](https://github.com/logannye/rosalind/issues/122) — Freeze complete public contract inventory**
+- [x] **[R03](https://github.com/logannye/rosalind/issues/122) — Freeze complete public contract inventory**
 
-  Status: **implemented**. Owner: engineering. Dependencies: R01, G02.
+  Status: **complete**. Owner: engineering. Dependencies: R01, G02.
 
   Done when: Dataset family and evidence analyzer help variants, Python/API/schema/version contracts included; historical verification preserved.
 
-  Remaining gate: Clean exact-source full snapshot passes with 63 components including Python code/packaging and 49 CLI entries; merge and final review remain.
-
-  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143) · [Complete contract snapshot and comparison](https://github.com/logannye/rosalind/blob/codex/python-contract-freeze/docs/findings/python-contract-2026-09-18/README.md)
+  Evidence: [Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143) · [Complete contract snapshot and comparison](https://github.com/logannye/rosalind/blob/4d677dcc5d36ea81581799352cea780989329972/docs/findings/python-contract-2026-09-18/README.md) · [Python contract and installer correction #144](https://github.com/logannye/rosalind/pull/144)
 
 - [ ] **[R04](https://github.com/logannye/rosalind/issues/123) — Publish fresh immutable evidence-engine RC**
 
-  Status: **planned**. Owner: maintainer. Dependencies: R01, R02, R03, D07.
+  Status: **blocked**. Owner: maintainer. Dependencies: R01, R02, R03, D07.
 
   Done when: Next unused 0.5 RC, one source across binaries/wheels/OCI/docs/reports, actual prerelease published and outside-checkout onboarding; candidate SDK patches explicit.
 
-  Remaining gate: Older unpublished rc.1 workflow canceled; no 0.5 tags/prereleases exist. Prepare a fresh immutable RC after R01/R03 and maintainer-owned R02 setup. Use rc.2 to distinguish it from the abandoned attempt, rechecking tags/index filenames before dispatch.
+  Remaining gate: R01 and R03 are merged. Maintainer-owned R02 environment/publisher setup blocks publication. The older unpublished rc.1 workflow was canceled; no 0.5 tags/prereleases exist. Plan rc.2 to distinguish it from the abandoned attempt, rechecking tags/index filenames and running native-bundle validation in the RC build stage before publication.
 
   Evidence: [Superseded older RC attempt](https://github.com/logannye/rosalind/actions/runs/34047733765)
 

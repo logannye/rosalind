@@ -18,13 +18,13 @@
       "depends_on": [],
       "acceptance": "Inventory implementation, exact validation source/workload, published version and independent use for every advertised capability.",
       "owner": "engineering",
-      "status": "implemented",
+      "status": "complete",
       "evidence": [
-        "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)"
+        "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)",
+        "[Capability and release inventory](https://github.com/logannye/rosalind/blob/main/docs/implementation-status.md)"
       ],
       "issue_number": 106,
-      "issue_url": "https://github.com/logannye/rosalind/issues/106",
-      "blocker": "Merge the implementation and link final acceptance evidence."
+      "issue_url": "https://github.com/logannye/rosalind/issues/106"
     },
     {
       "id": "G02",
@@ -34,13 +34,13 @@
       ],
       "acceptance": "Describe exact-or-fail legacy behavior, evidence tiles, CSI/CRAM, canonical workers, datasets, SDK and cooperative/OS limits consistently with SEMANTICS.",
       "owner": "engineering",
-      "status": "implemented",
+      "status": "complete",
       "evidence": [
-        "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)"
+        "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)",
+        "[Current engine contract](https://github.com/logannye/rosalind/blob/main/CONTRACT.md)"
       ],
       "issue_number": 107,
-      "issue_url": "https://github.com/logannye/rosalind/issues/107",
-      "blocker": "Merge the implementation and link final acceptance evidence."
+      "issue_url": "https://github.com/logannye/rosalind/issues/107"
     },
     {
       "id": "G03",
@@ -50,13 +50,13 @@
       ],
       "acceptance": "Lead with reusable genomic evidence; provide Analyze my data and Build an analyzer paths, working example, availability and limits; reuse PR #104.",
       "owner": "engineering",
-      "status": "implemented",
+      "status": "complete",
       "evidence": [
-        "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)"
+        "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)",
+        "[Researcher and builder entry paths](https://github.com/logannye/rosalind/blob/main/README.md)"
       ],
       "issue_number": 108,
-      "issue_url": "https://github.com/logannye/rosalind/issues/108",
-      "blocker": "Merge the implementation and link final acceptance evidence."
+      "issue_url": "https://github.com/logannye/rosalind/issues/108"
     },
     {
       "id": "G04",
@@ -67,13 +67,16 @@
       ],
       "acceptance": "Landing root, repository About and README agree; preserve /verify/ and static Pages; advertise only available installation routes.",
       "owner": "engineering",
-      "status": "implemented",
+      "status": "complete",
       "evidence": [
-        "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)"
+        "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)",
+        "[Landing page](https://github.com/logannye/rosalind/blob/main/web/index.html)",
+        "[Successful Pages deployment](https://github.com/logannye/rosalind/actions/runs/35375394358)",
+        "[Live landing page](https://logannye.github.io/rosalind/)",
+        "[Preserved Receipt Studio](https://logannye.github.io/rosalind/verify/)"
       ],
       "issue_number": 109,
-      "issue_url": "https://github.com/logannye/rosalind/issues/109",
-      "blocker": "Merge the implementation and link final acceptance evidence."
+      "issue_url": "https://github.com/logannye/rosalind/issues/109"
     },
     {
       "id": "G05",
@@ -105,13 +108,13 @@
       ],
       "acceptance": "Each ID has one issue, milestone, outcome, dependencies, acceptance and owner; feature template captures workflow, scale, desired result and work avoided.",
       "owner": "engineering",
-      "status": "implemented",
+      "status": "complete",
       "evidence": [
-        "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)"
+        "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)",
+        "[Feature request template](https://github.com/logannye/rosalind/blob/main/.github/ISSUE_TEMPLATE/feature_request.yml)"
       ],
       "issue_number": 111,
-      "issue_url": "https://github.com/logannye/rosalind/issues/111",
-      "blocker": "Merge the implementation and link final acceptance evidence."
+      "issue_url": "https://github.com/logannye/rosalind/issues/111"
     },
     {
       "id": "G07",
@@ -121,13 +124,14 @@
       ],
       "acceptance": "Retain archive banners, remove archives from onboarding, explain actual time/memory scheduling without square-root-memory product claims.",
       "owner": "engineering",
-      "status": "implemented",
+      "status": "complete",
       "evidence": [
-        "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)"
+        "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)",
+        "[Historical context and archive links](https://github.com/logannye/rosalind/blob/main/docs/history.md)",
+        "[Archived May architecture proposal](https://github.com/logannye/rosalind/blob/main/docs/superpowers/specs/2026-05-26-rosalind-target-architecture.md)"
       ],
       "issue_number": 112,
-      "issue_url": "https://github.com/logannye/rosalind/issues/112",
-      "blocker": "Merge the implementation and link final acceptance evidence."
+      "issue_url": "https://github.com/logannye/rosalind/issues/112"
     },
     {
       "id": "D01",
@@ -137,14 +141,15 @@
       ],
       "acceptance": "Separate stable/candidate/source; distribution/import names, supported platforms, identity and build prerequisites; installed features match tutorials and installer guidance.",
       "owner": "engineering",
-      "status": "implemented",
+      "status": "complete",
       "evidence": [
         "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)",
-        "[Actual v0.1.0 installation check](https://github.com/logannye/rosalind/blob/222b8e1/docs/findings/roadmap-foundation-2026-09-18/public-stable-installer.log)"
+        "[Actual v0.1.0 installation check](https://github.com/logannye/rosalind/blob/222b8e1/docs/findings/roadmap-foundation-2026-09-18/public-stable-installer.log)",
+        "[Version-aware installation](https://github.com/logannye/rosalind/blob/main/docs/installation.md)",
+        "[Python contract and installer correction #144](https://github.com/logannye/rosalind/pull/144)"
       ],
       "issue_number": 113,
-      "issue_url": "https://github.com/logannye/rosalind/issues/113",
-      "blocker": "Merge the implementation and link final acceptance evidence."
+      "issue_url": "https://github.com/logannye/rosalind/issues/113"
     },
     {
       "id": "D02",
@@ -154,13 +159,14 @@
       ],
       "acceptance": "Pinned NA18507 four candidates: prepare, extract, annotate, interpret, verify and replay outside checkout; illustrative screens are not confidence.",
       "owner": "engineering",
-      "status": "implemented",
+      "status": "complete",
       "evidence": [
-        "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)"
+        "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)",
+        "[Researcher tutorial](https://github.com/logannye/rosalind/blob/main/docs/researcher-quickstart.md)",
+        "[Clean installed candidate: executed workflows and independent count checks](https://github.com/logannye/rosalind/blob/bc6e9e6e051d233da98573dc40f894f56ccd58b5/docs/findings/roadmap-foundation-2026-09-18/packaged-research-workflows.log)"
       ],
       "issue_number": 114,
-      "issue_url": "https://github.com/logannye/rosalind/issues/114",
-      "blocker": "Merge the implementation and link final acceptance evidence."
+      "issue_url": "https://github.com/logannye/rosalind/issues/114"
     },
     {
       "id": "D03",
@@ -170,13 +176,14 @@
       ],
       "acceptance": "Extract targets, query changed candidates, panel-QC, relocate and remove source access; compare with fresh values and explain irreversible filtering/capability limits.",
       "owner": "engineering",
-      "status": "implemented",
+      "status": "complete",
       "evidence": [
-        "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)"
+        "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)",
+        "[Saved-evidence reuse tutorial](https://github.com/logannye/rosalind/blob/main/docs/reuse-quickstart.md)",
+        "[Clean installed candidate: executed workflows and independent count checks](https://github.com/logannye/rosalind/blob/bc6e9e6e051d233da98573dc40f894f56ccd58b5/docs/findings/roadmap-foundation-2026-09-18/packaged-research-workflows.log)"
       ],
       "issue_number": 115,
-      "issue_url": "https://github.com/logannye/rosalind/issues/115",
-      "blocker": "Merge the implementation and link final acceptance evidence."
+      "issue_url": "https://github.com/logannye/rosalind/issues/115"
     },
     {
       "id": "D04",
@@ -189,7 +196,8 @@
       "owner": "engineering",
       "status": "implemented",
       "evidence": [
-        "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)"
+        "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)",
+        "[Builder tutorial and independent completion gate](https://github.com/logannye/rosalind/blob/main/docs/builder-quickstart.md)"
       ],
       "issue_number": 116,
       "issue_url": "https://github.com/logannye/rosalind/issues/116",
@@ -203,13 +211,13 @@
       ],
       "acceptance": "Explain reads/molecules, zero/missing/low-depth, sample scope, settings, limits and trust; remedies for indexes, references, CRAM, fields, budgets, outputs and versions.",
       "owner": "engineering",
-      "status": "implemented",
+      "status": "complete",
       "evidence": [
-        "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)"
+        "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)",
+        "[Concepts and troubleshooting](https://github.com/logannye/rosalind/blob/main/docs/troubleshooting.md)"
       ],
       "issue_number": 117,
-      "issue_url": "https://github.com/logannye/rosalind/issues/117",
-      "blocker": "Merge the implementation and link final acceptance evidence."
+      "issue_url": "https://github.com/logannye/rosalind/issues/117"
     },
     {
       "id": "D06",
@@ -219,13 +227,14 @@
       ],
       "acceptance": "Lead exact-evidence Nextflow/Snakemake; scheduler requests differ from OS caps; label Action legacy while preserving defaults; use pinned CLI for new evidence.",
       "owner": "engineering",
-      "status": "implemented",
+      "status": "complete",
       "evidence": [
-        "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)"
+        "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)",
+        "[Pinned workflow integration](https://github.com/logannye/rosalind/blob/main/docs/workflow-integration.md)",
+        "[Nextflow and Snakemake integration checks](https://github.com/logannye/rosalind/actions/runs/35372523949)"
       ],
       "issue_number": 118,
-      "issue_url": "https://github.com/logannye/rosalind/issues/118",
-      "blocker": "Merge the implementation and link final acceptance evidence."
+      "issue_url": "https://github.com/logannye/rosalind/issues/118"
     },
     {
       "id": "D07",
@@ -241,11 +250,13 @@
       "owner": "engineering",
       "status": "implemented",
       "evidence": [
-        "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)"
+        "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)",
+        "[Executable onboarding and retained validation](https://github.com/logannye/rosalind/blob/main/docs/findings/roadmap-foundation-2026-09-18/README.md)",
+        "[Onboarding change: all three platform wheels passed on Python 3.9 and 3.11](https://github.com/logannye/rosalind/actions/runs/35370751606)"
       ],
       "issue_number": 119,
       "issue_url": "https://github.com/logannye/rosalind/issues/119",
-      "blocker": "Primary workflows pass locally; the final changed package smoke must pass across the supported CI matrix."
+      "blocker": "Changed onboarding passed Linux x86_64 and macOS arm64/x86_64 wheel smoke on Python 3.9 and 3.11. Actual native tarball staging and clean-install smoke on all supported targets remain required. The existing RC workflow can supply this evidence in its build stage before prerelease publication; D07 does not prohibit dispatching that validation stage."
     },
     {
       "id": "R01",
@@ -253,15 +264,15 @@
       "depends_on": [],
       "acceptance": "Merge #104/#105, retain original/failed evidence; fix stale-index, decoder accounting and native lifetime defects; corrected packaged matrix and actual Linux cgroup probes pass.",
       "owner": "engineering",
-      "status": "in-progress",
+      "status": "complete",
       "evidence": [
         "[Merged baseline #104](https://github.com/logannye/rosalind/pull/104)",
         "[Corrected CRAM candidate #105](https://github.com/logannye/rosalind/pull/105)",
-        "[Frozen 9b8e12f validation report](https://github.com/logannye/rosalind/blob/codex/roadmap-foundation/docs/findings/cram-decoder-validation-2026-09-06/verified-9b8e12f-2026-09-18/README.md)"
+        "[Frozen 9b8e12f validation report](https://github.com/logannye/rosalind/blob/bc6e9e6e051d233da98573dc40f894f56ccd58b5/docs/findings/cram-decoder-validation-2026-09-06/verified-9b8e12f-2026-09-18/README.md)",
+        "[Corrected candidate: all supported wheels and outside-checkout smoke](https://github.com/logannye/rosalind/actions/runs/35369668546)"
       ],
       "issue_number": 120,
-      "issue_url": "https://github.com/logannye/rosalind/issues/120",
-      "blocker": "Fresh packaged108-run matrix and14 real Linux cgroup scenarios pass with zero output differences/plan underestimates; final corrected candidate CI and #105 merge remain."
+      "issue_url": "https://github.com/logannye/rosalind/issues/120"
     },
     {
       "id": "R02",
@@ -287,14 +298,14 @@
       ],
       "acceptance": "Dataset family and evidence analyzer help variants, Python/API/schema/version contracts included; historical verification preserved.",
       "owner": "engineering",
-      "status": "implemented",
+      "status": "complete",
       "evidence": [
         "[Implementation and validation PR #143](https://github.com/logannye/rosalind/pull/143)",
-        "[Complete contract snapshot and comparison](https://github.com/logannye/rosalind/blob/codex/python-contract-freeze/docs/findings/python-contract-2026-09-18/README.md)"
+        "[Complete contract snapshot and comparison](https://github.com/logannye/rosalind/blob/4d677dcc5d36ea81581799352cea780989329972/docs/findings/python-contract-2026-09-18/README.md)",
+        "[Python contract and installer correction #144](https://github.com/logannye/rosalind/pull/144)"
       ],
       "issue_number": 122,
-      "issue_url": "https://github.com/logannye/rosalind/issues/122",
-      "blocker": "Clean exact-source full snapshot passes with 63 components including Python code/packaging and 49 CLI entries; merge and final review remain."
+      "issue_url": "https://github.com/logannye/rosalind/issues/122"
     },
     {
       "id": "R04",
@@ -307,13 +318,13 @@
       ],
       "acceptance": "Next unused 0.5 RC, one source across binaries/wheels/OCI/docs/reports, actual prerelease published and outside-checkout onboarding; candidate SDK patches explicit.",
       "owner": "maintainer",
-      "status": "planned",
+      "status": "blocked",
       "evidence": [
         "[Superseded older RC attempt](https://github.com/logannye/rosalind/actions/runs/34047733765)"
       ],
       "issue_number": 123,
       "issue_url": "https://github.com/logannye/rosalind/issues/123",
-      "blocker": "Older unpublished rc.1 workflow canceled; no 0.5 tags/prereleases exist. Prepare a fresh immutable RC after R01/R03 and maintainer-owned R02 setup. Use rc.2 to distinguish it from the abandoned attempt, rechecking tags/index filenames before dispatch."
+      "blocker": "R01 and R03 are merged. Maintainer-owned R02 environment/publisher setup blocks publication. The older unpublished rc.1 workflow was canceled; no 0.5 tags/prereleases exist. Plan rc.2 to distinguish it from the abandoned attempt, rechecking tags/index filenames and running native-bundle validation in the RC build stage before publication."
     },
     {
       "id": "R05",
