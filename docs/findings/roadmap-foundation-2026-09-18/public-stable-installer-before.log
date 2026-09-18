@@ -1,0 +1,12 @@
+Rosalind installer: detected Darwin/arm64 -> aarch64-apple-darwin (version: v0.1.0)
+Downloading via gh (works for private repos)…
+Verifying checksum…
+rosalind-aarch64-apple-darwin.tar.gz: OK
+
+Installed: ./rosalind-aarch64-apple-darwin/rosalind
+
+error: unexpected argument '--version' found
+
+Usage: rosalind <COMMAND>
+
+For more information, try '--help'.

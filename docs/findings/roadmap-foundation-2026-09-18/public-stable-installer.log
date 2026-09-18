@@ -1,0 +1,13 @@
+Rosalind installer: detected Darwin/arm64 -> aarch64-apple-darwin (version: v0.1.0)
+Downloading via gh (works for private repos)…
+Verifying checksum…
+rosalind-aarch64-apple-darwin.tar.gz: OK
+
+Installed: ./rosalind-aarch64-apple-darwin/rosalind
+
+This historical binary does not expose --version (release selector: v0.1.0).
+Retain the release tag and verified download checksum to identify it.
+  cd rosalind-aarch64-apple-darwin
+This is a legacy release; it does not provide the current exact-evidence/dataset APIs.
+Use this release's own documentation. For current evidence APIs, follow the source installation guide.
+Version-aware installation: https://github.com/logannye/rosalind/blob/main/docs/installation.md

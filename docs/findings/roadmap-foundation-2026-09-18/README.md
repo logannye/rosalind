@@ -51,6 +51,14 @@ onboarding-harness changes are identified by the commit containing this report.
 
 ## Outstanding gates
 
+The public v0.1.0 macOS/arm64 installer was also executed from a fresh directory.
+Its binary predates `--version`: the initial new completion probe failed after
+a successful checksum-verified download. The probe now handles that historical
+interface, and the fresh retry exits successfully with explicit legacy/source
+guidance. Both the [failed attempt](public-stable-installer-before.log) and
+[corrected result](public-stable-installer.log) are retained. A regression check
+exercises historical and current CLI interfaces without network downloads.
+
 Additional retained checks bind the updated harness to the clean installed
 `9b8e12f` wheel/runtime: [workflow log](packaged-research-workflows.log) and
 [identities and command record](packaged-research-workflows.metadata.json).

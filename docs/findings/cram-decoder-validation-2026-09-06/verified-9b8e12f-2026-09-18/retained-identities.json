@@ -3,8 +3,18 @@
   "files": [
     {
       "path": "README.md",
-      "bytes": 7314,
-      "sha256": "fe4932c516e7a488c9e37d6abce624bbd1a6096ae4ac4bdc20c95f464ea6dff0"
+      "bytes": 8426,
+      "sha256": "e0dc8bec4189c5730e01394d85c4422a924d502a87f6be55ffa81220d093ff90"
+    },
+    {
+      "path": "actionlint-1.7.12-provenance.json",
+      "bytes": 4515,
+      "sha256": "c716bdd69509703c76277a16608683d5257aad9ff9410831510b8c1a43c3214a"
+    },
+    {
+      "path": "actionlint-1.7.12.log",
+      "bytes": 360,
+      "sha256": "91800586363b18c80522bdcf8855dd662676cb20064f4c850bc4a21368704cbc"
     },
     {
       "path": "audit.json",
@@ -62,6 +72,11 @@
       "sha256": "43d69de28f29d995df634c6f6347732c45834431eeca27b2d2aa357235b0fd56"
     },
     {
+      "path": "colima-stop.log",
+      "bytes": 1633,
+      "sha256": "a7c9ed2b802dae85efc569d0f2403df260bf7ad770b22e60940f0b9e6fbb390e"
+    },
+    {
       "path": "lifetime-before.log",
       "bytes": 7116,
       "sha256": "a9bdfc83b902ebe79ca431ef19734b0f1de53704fde0f7dc1cfdd6d051ee0488"
@@ -85,6 +100,11 @@
       "path": "linux-tests.log",
       "bytes": 4756,
       "sha256": "a2dacdd2a8db0b537192a2d76a207f1198dae0bee03ce77467654c0dd3db4a26"
+    },
+    {
+      "path": "local-environment-restoration.json",
+      "bytes": 524,
+      "sha256": "971743dfddf71423b484c2c4b782c437adc6f08cd93903eac71d986d0fd5c6b9"
     },
     {
       "path": "matrix-raw.tar.xz",
@@ -130,6 +150,11 @@
       "path": "release-doctor-colima.json",
       "bytes": 3991,
       "sha256": "782d84dd4cf3925dd3e5910dca6b38087dee93acbf97eb1d861e99c2a855ac6f"
+    },
+    {
+      "path": "release-doctor-private-tools.json",
+      "bytes": 3870,
+      "sha256": "a0412573ad068bbede56868c8efdd1c2a6976e26b28ab7c8a29ea2746b61e6a8"
     },
     {
       "path": "release-doctor.json",

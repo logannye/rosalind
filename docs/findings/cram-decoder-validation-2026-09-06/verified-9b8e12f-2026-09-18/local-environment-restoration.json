@@ -1,0 +1,18 @@
+{
+  "recorded_at": "2026-09-18T16:50:26.657194+00:00",
+  "pre_task_vm_status": "Stopped",
+  "post_validation_vm": {
+    "name": "rosalind-ci",
+    "status": "Stopped",
+    "arch": "aarch64",
+    "cpus": 4,
+    "memory": 4294967296,
+    "disk": 21474836480
+  },
+  "default_docker_context_before": "desktop-linux",
+  "default_docker_context_after": "desktop-linux",
+  "default_context_changed": false,
+  "global_actionlint_replaced": false,
+  "credentials_or_remote_settings_changed": false,
+  "stop_log": "colima-stop.log"
+}
