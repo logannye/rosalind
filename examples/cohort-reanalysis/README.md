@@ -176,3 +176,24 @@ This older validator establishes single-sample primitives on a deliberately tiny
 fixture. Use `run_cohort.py` above for the cohort demonstration. Broader resource,
 cancellation, compatibility and adversarial cases are covered separately by the
 native regression suite; neither fixture validator establishes independent usage.
+
+
+## Explicit paired follow-up (paired development branch)
+
+After a successful cohort demonstration, the separate
+`codex/cohort-pairs-preview` branch can compare the supplied `pairs.tsv`: A→B,
+B→A, and A→C. This ordering is explicit and does not infer biological pairing.
+
+```sh
+python3 examples/cohort-reanalysis/run_pairs.py \
+  --demo-report /path/to/prepared/cohort-validation/report.json \
+  --binary /absolute/path/to/rosalind \
+  --output /new/path/to/pairs-validation
+```
+
+The runner checks every paired row against authored depths/ALT counts and Python
+`fractions.Fraction`, including missingness, zero denominators, swapped direction
+and low-depth eligibility, then verifies the native receipt. Reports retain full
+commands and failures. The [paired contract](../../docs/cohort-pairs-contract.md)
+explains the exact decimal-string difference columns. These synthetic examples
+establish neither independent partner adoption nor biological interpretation.

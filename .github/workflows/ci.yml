@@ -140,6 +140,12 @@ jobs:
         run: |
           python3 examples/cohort-reanalysis/run_cohort.py "$RUNNER_TEMP/cohort-preview" \
             --binary "$PWD/target/release/rosalind" --budget-mb 512
+      - name: Check explicit pair directions against independent fraction arithmetic
+        run: |
+          python3 examples/cohort-reanalysis/run_pairs.py \
+            --demo-report "$RUNNER_TEMP/cohort-preview/cohort-validation/report.json" \
+            --binary "$PWD/target/release/rosalind" \
+            --output "$RUNNER_TEMP/cohort-preview/pairs-validation"
       - name: Verify saved-only cohort reports under a real Linux cgroup
         run: |
           python3 benchmarks/cohort/cgroup_probe.py \

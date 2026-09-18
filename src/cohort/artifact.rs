@@ -5,7 +5,11 @@ use super::descriptor::{CohortLimits, SNAPSHOT_FILE, SNAPSHOT_RECEIPT};
 use super::encoding::{
     memory_bytes, summary_memory_bytes, CohortOutputFormat, ExtractEncoder, SummaryEncoder,
 };
+use super::pair_encoding::{pair_memory_bytes, PairEncoder};
+use super::pair_table::{read_pairs, PairInput};
+use super::pairs::{plan_pairs, PairPlan};
 use super::query::{plan_query, CohortQuery, CohortQueryLimits, CohortQueryPlan};
+use super::runtime::visit_pairs;
 use super::runtime::{visit_rows, visit_windows, CohortRunStats};
 use super::store::open_snapshot;
 use super::summary::required_fields;
@@ -32,6 +36,7 @@ use std::time::{Duration, Instant};
 pub(crate) enum CohortOperation {
     Extract,
     Summarize,
+    ComparePairs,
 }
 
 #[derive(Debug, Clone)]
@@ -41,6 +46,7 @@ pub(crate) struct CohortArtifactSpec {
     pub query: CohortQuery,
     /// A bounded VCF/VCF.gz/BCF selection parsed inside this managed lifetime.
     pub sites: Option<(PathBuf, VariantLimits)>,
+    pub pairs: Option<PairInput>,
     /// Explicit content-located replay operands; each must match a consumed input.
     pub artifacts: Vec<PathBuf>,
     pub execution: EvidenceExecution,
@@ -63,6 +69,7 @@ pub(crate) struct CohortArtifactOutcome {
     pub manifest: PathBuf,
     pub claim_hash: String,
     pub stats: CohortRunStats,
+    pub paired_candidate_rows: Option<u64>,
     pub peak_rss_bytes: u64,
 }
 
@@ -76,15 +83,26 @@ pub(crate) fn run_cohort_artifact(spec: CohortArtifactSpec) -> Result<CohortArti
     }
 }
 
-pub(crate) fn plan_cohort_artifact(spec: CohortArtifactSpec) -> Result<CohortQueryPlan> {
+pub(crate) fn plan_cohort_artifact(spec: CohortArtifactSpec) -> Result<CohortArtifactPlan> {
     match execute(spec, true)? {
         ArtifactExecution::Planned(plan) => Ok(plan),
         ArtifactExecution::Completed(_) => unreachable!("plan requested"),
     }
 }
 
+pub(crate) struct CohortArtifactPlan {
+    pub query: CohortQueryPlan,
+    pub pairs: Option<PairPlan>,
+}
+impl std::ops::Deref for CohortArtifactPlan {
+    type Target = CohortQueryPlan;
+    fn deref(&self) -> &Self::Target {
+        &self.query
+    }
+}
+
 enum ArtifactExecution {
-    Planned(CohortQueryPlan),
+    Planned(CohortArtifactPlan),
     Completed(CohortArtifactOutcome),
 }
 
@@ -168,6 +186,58 @@ fn execute(mut spec: CohortArtifactSpec, plan_only: bool) -> Result<ArtifactExec
         .collect::<std::io::Result<_>>()?;
     let replay_guard = InputSnapshot::capture(spec.artifacts.iter().cloned())?;
     let snapshot = open_snapshot(&spec.root, &spec.snapshot_id, limits)?;
+    let pair_input = match (&spec.operation, &spec.pairs) {
+        (CohortOperation::ComparePairs, Some(input)) => Some(read_pairs(input, limits)?),
+        (CohortOperation::ComparePairs, None) => {
+            return Err(CohortError::Incompatible(
+                "paired comparison requires an explicit pair table".into(),
+            ))
+        }
+        (_, Some(_)) => {
+            return Err(CohortError::Incompatible(
+                "pair table applies only to compare-pairs".into(),
+            ))
+        }
+        (_, None) => None,
+    };
+    if let Some(input) = &pair_input {
+        if spec.query.fields != required_fields() {
+            return Err(CohortError::Incompatible(
+                "paired reports support depths,alleles fields only".into(),
+            ));
+        }
+        limits.admit(input.limits.max_metadata_bytes)?;
+        let scope: Vec<String> = spec.query.member_ids.clone().unwrap_or_else(|| {
+            snapshot
+                .descriptor
+                .members
+                .iter()
+                .map(|member| member.metadata.id.clone())
+                .collect()
+        });
+        // Validate even unused selected IDs without quadratic membership scans.
+        let available: std::collections::BTreeSet<_> = snapshot
+            .descriptor
+            .members
+            .iter()
+            .map(|member| member.metadata.id.as_str())
+            .collect();
+        for id in &scope {
+            if !available.contains(id.as_str()) {
+                return Err(CohortError::Incompatible(
+                    "selected pair-scope member is absent from snapshot".into(),
+                ));
+            }
+        }
+        plan_pairs(&input.pairs, &scope, input.limits)?;
+        let used: std::collections::BTreeSet<_> = input
+            .pairs
+            .iter()
+            .flat_map(|pair| [&pair.left, &pair.right])
+            .cloned()
+            .collect();
+        spec.query.member_ids = Some(used.into_iter().collect());
+    }
     spec.query.requirements.fields = required_fields();
     spec.query.requirements.requires_reference = true;
     spec.query.requirements.context_bases = 0;
@@ -216,6 +286,25 @@ fn execute(mut spec: CohortArtifactSpec, plan_only: bool) -> Result<ArtifactExec
     if !plan_only {
         plan.ensure_executable()?;
     }
+    let pair_plan = pair_input
+        .as_ref()
+        .map(|input| {
+            plan_pairs(
+                &input.pairs,
+                &plan
+                    .members
+                    .iter()
+                    .map(|member| member.member_id.clone())
+                    .collect::<Vec<_>>(),
+                input.limits,
+            )
+        })
+        .transpose()?;
+    if let Some(pairs) = &pair_plan {
+        plan.candidate_rows
+            .checked_mul(pairs.pairs.len() as u64)
+            .ok_or_else(|| CohortError::Limit("paired output row count overflow".into()))?;
+    }
     let max_text = plan
         .contigs
         .iter()
@@ -235,6 +324,7 @@ fn execute(mut spec: CohortArtifactSpec, plan_only: bool) -> Result<ArtifactExec
     let encoder_bytes = match spec.operation {
         CohortOperation::Extract => memory_bytes(plan.fields, max_text),
         CohortOperation::Summarize => summary_memory_bytes(max_window_candidates, max_text),
+        CohortOperation::ComparePairs => pair_memory_bytes(max_window_candidates, max_text),
     };
     let leaf_count = plan.members.iter().try_fold(0u64, |sum, member| {
         sum.checked_add(member.leaves.len() as u64)
@@ -249,8 +339,11 @@ fn execute(mut spec: CohortArtifactSpec, plan_only: bool) -> Result<ArtifactExec
         .saturating_add(leaf_count.saturating_mul(16_384))
         .saturating_add((plan.members.len() as u64).saturating_mul(4096))
         .saturating_add(2 << 20);
+    let pair_bytes = pair_plan
+        .as_ref()
+        .map_or(0, |pairs| pairs.metadata_bytes.saturating_mul(4));
     let reserve = encoder_bytes
-        .checked_add(receipt_reserve)
+        .checked_add(receipt_reserve.saturating_add(pair_bytes))
         .ok_or_else(|| CohortError::Limit("encoder/receipt reservation overflow".into()))?;
     limits.admit(reserve)?;
     spec.query.requirements.retained_bytes = Some(reserve);
@@ -259,7 +352,13 @@ fn execute(mut spec: CohortArtifactSpec, plan_only: bool) -> Result<ArtifactExec
         if let Some((_, _, guard)) = &candidate_input {
             guard.verify()?;
         }
-        return Ok(ArtifactExecution::Planned(plan));
+        if let Some(input) = &pair_input {
+            input.guard.verify()?;
+        }
+        return Ok(ArtifactExecution::Planned(CohortArtifactPlan {
+            query: plan,
+            pairs: pair_plan,
+        }));
     }
     plan.ensure_executable()?;
     let receipt_path = spec
@@ -275,6 +374,9 @@ fn execute(mut spec: CohortArtifactSpec, plan_only: bool) -> Result<ArtifactExec
         || candidate_input
             .as_ref()
             .is_some_and(|(path, _, _)| path == &output || path == &manifest)
+        || pair_input
+            .as_ref()
+            .is_some_and(|input| input.path == output || input.path == manifest)
         || spec
             .artifacts
             .iter()
@@ -310,15 +412,45 @@ fn execute(mut spec: CohortArtifactSpec, plan_only: bool) -> Result<ArtifactExec
     let operation = match spec.operation {
         CohortOperation::Extract => "extract",
         CohortOperation::Summarize => "summarize",
+        CohortOperation::ComparePairs => "compare-pairs",
     };
     let format = match spec.format {
         CohortOutputFormat::Arrow => "arrow-ipc",
         CohortOutputFormat::Tsv => "tsv",
     };
     let mut receipt = RunManifest::new(format!("cohort {operation}"));
+    if let Some(input) = &pair_input {
+        let ordered: Vec<_> = input
+            .pairs
+            .iter()
+            .map(|pair| serde_json::json!({"id":pair.id,"left":pair.left,"right":pair.right}))
+            .collect();
+        let normalized_pairs = serde_json::to_string(&ordered)
+            .map_err(|error| CohortError::Corrupt(error.to_string()))?;
+        receipt
+            .params
+            .insert("cohort.pairs".into(), normalized_pairs.clone());
+        receipt.params.insert(
+            "cohort.pairs_blake3".into(),
+            blake3::hash(normalized_pairs.as_bytes())
+                .to_hex()
+                .to_string(),
+        );
+        receipt
+            .params
+            .insert("cohort.pair_direction".into(), "right-minus-left".into());
+    }
     for (key, value) in [
         ("run_status", "completed".into()),
-        ("cohort.result_semantics", "cohort-candidate-v1".into()),
+        (
+            "cohort.result_semantics",
+            if pair_input.is_some() {
+                "cohort-pairs-v1"
+            } else {
+                "cohort-candidate-v1"
+            }
+            .into(),
+        ),
         ("cohort.snapshot_blake3", snapshot.id.clone()),
         (
             "cohort.comparison_blake3",
@@ -369,6 +501,10 @@ fn execute(mut spec: CohortArtifactSpec, plan_only: bool) -> Result<ArtifactExec
             .insert("memory_budget_bytes".into(), bytes.to_string());
     }
     let mut lineage = BTreeMap::new();
+    if let Some(input) = &pair_input {
+        input.guard.verify()?;
+        lineage.insert(input.path.clone(), input.blake3.clone());
+    }
     if let Some((path, hash, guard)) = &candidate_input {
         guard.verify()?;
         lineage.insert(path.clone(), hash.clone());
@@ -443,6 +579,24 @@ fn execute(mut spec: CohortArtifactSpec, plan_only: bool) -> Result<ArtifactExec
                 )?;
                 visit_windows(&snapshot, &plan, &spec.execution, limits, &mut encoder)?
             }
+            CohortOperation::ComparePairs => {
+                let pairs = pair_plan.as_ref().expect("pair input validated");
+                let mut encoder = PairEncoder::new(
+                    &mut writer,
+                    spec.format,
+                    &plan.contigs,
+                    spec.min_callable_depth,
+                    max_window_candidates,
+                )?;
+                visit_pairs(
+                    &snapshot,
+                    &plan,
+                    pairs,
+                    &spec.execution,
+                    limits,
+                    &mut encoder,
+                )?
+            }
         };
         writer.flush()?;
         stats
@@ -476,6 +630,11 @@ fn execute(mut spec: CohortArtifactSpec, plan_only: bool) -> Result<ArtifactExec
             .is_some_and(|(path, _, _)| Path::new(&input.path) == path)
         {
             "--sites"
+        } else if pair_input
+            .as_ref()
+            .is_some_and(|pair| Path::new(&input.path) == pair.path.as_path())
+        {
+            "--pairs"
         } else {
             "--cohort-artifact"
         };
@@ -522,6 +681,11 @@ fn execute(mut spec: CohortArtifactSpec, plan_only: bool) -> Result<ArtifactExec
                 variant_limits.max_record_bytes,
             );
     }
+    if let Some(pairs) = &spec.pairs {
+        capture
+            .opt("--max-pair-table-bytes", pairs.max_table_bytes)
+            .opt("--max-pairs", pairs.limits.max_pairs);
+    }
     if let Some(bytes) = declared {
         capture.opt("--memory-budget-bytes", bytes);
     }
@@ -565,6 +729,14 @@ fn execute(mut spec: CohortArtifactSpec, plan_only: bool) -> Result<ArtifactExec
             .measurements
             .insert("resource.os_limit_bytes".into(), limit.to_string());
     }
+    let paired_candidate_rows = pair_plan
+        .as_ref()
+        .map(|pairs| plan.candidate_rows * pairs.pairs.len() as u64);
+    if let Some(rows) = paired_candidate_rows {
+        receipt
+            .measurements
+            .insert("outcome.pair_candidate_rows".into(), rows.to_string());
+    }
     receipt.finalize();
     let claim_hash = receipt.params["manifest_blake3"].clone();
     let mut bytes = receipt.to_canonical_json();
@@ -582,6 +754,9 @@ fn execute(mut spec: CohortArtifactSpec, plan_only: bool) -> Result<ArtifactExec
     if let Some((_, _, guard)) = &candidate_input {
         guard.verify()?;
     }
+    if let Some(input) = &pair_input {
+        input.guard.verify()?;
+    }
     limits.admit(0)?;
     let peak = peak_rss_bytes();
     crate::evidence::reseal_observed_measurements(&mut bytes, peak, declared)?;
@@ -596,6 +771,9 @@ fn execute(mut spec: CohortArtifactSpec, plan_only: bool) -> Result<ArtifactExec
     }
     limits.admit(0)?;
     token.check().map_err(EvidenceError::from)?;
+    if let Some(input) = &pair_input {
+        input.guard.verify()?;
+    }
     replay_guard.verify()?;
     commit_group(
         vec![
@@ -609,6 +787,7 @@ fn execute(mut spec: CohortArtifactSpec, plan_only: bool) -> Result<ArtifactExec
         manifest,
         claim_hash,
         stats,
+        paired_candidate_rows,
         peak_rss_bytes: peak,
     }))
 }
@@ -685,6 +864,7 @@ mod tests {
             snapshot_id: snapshot.into(),
             query,
             sites: None,
+            pairs: None,
             artifacts: Vec::new(),
             execution: EvidenceExecution {
                 memory_budget_bytes: Some(512 << 20),
@@ -898,6 +1078,32 @@ mod tests {
             }))
         });
         assert!(run_cohort_artifact(file_spec).is_err());
+        assert!(!output.exists());
+        assert!(!suffix(&output, ".manifest.json").exists());
+
+        let pair_table = temporary.path().join("pairs.tsv");
+        let pair_bytes = "id\tleft\tright\ndirected\ta\tb\n";
+        fs::write(&pair_table, pair_bytes).unwrap();
+        let mut paired = specification(&store, &snapshot.id, &output);
+        paired.operation = CohortOperation::ComparePairs;
+        paired.pairs = Some(PairInput {
+            path: pair_table.clone(),
+            max_table_bytes: 8 << 20,
+            limits: super::super::pairs::PairLimits::default(),
+        });
+        let mut pair_overwrite = paired.clone();
+        pair_overwrite.output = pair_table.clone();
+        pair_overwrite.output_policy = OutputPolicy::ReplaceAtomic;
+        assert!(run_cohort_artifact(pair_overwrite).is_err());
+        assert_eq!(fs::read_to_string(&pair_table).unwrap(), pair_bytes);
+        let mutate_pair = pair_table.clone();
+        BEFORE_PUBLICATION.with(|hook| {
+            *hook.borrow_mut() = Some(Box::new(move || {
+                fs::write(mutate_pair, "id\tleft\tright\ndirected\tb\ta\n")?;
+                Ok(())
+            }))
+        });
+        assert!(run_cohort_artifact(paired).is_err());
         assert!(!output.exists());
         assert!(!suffix(&output, ".manifest.json").exists());
 

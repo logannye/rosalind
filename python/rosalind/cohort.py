@@ -166,8 +166,9 @@ class EvidenceCohort:
 
     def plan(self, *, sites: PathLike, operation: str = "extract",
              sources: Optional[PathLike] = None, workdir: Optional[PathLike] = None,
-             **options) -> dict:
-        """Plan extract/summarize/extend without publishing or opening raw sources.
+             pairs: Optional[PathLike] = None, max_pairs: int = 65_536,
+             max_pair_table_bytes: int = 8_388_608, **options) -> dict:
+        """Plan extract/summarize/extend/compare-pairs without publishing or opening raw sources.
 
         Query options shared by all methods: members (None=all, []=none), fields,
         missing (strict/partial), min_callable_depth (default technical screen 10),
@@ -176,9 +177,13 @@ class EvidenceCohort:
         and max_receipt_bytes. Scientific incompatibilities remain native errors
         or structured blocking plan issues; partial only permits unmeasured loci.
         """
-        if operation not in ("extract", "summarize", "extend"):
-            raise ValueError("operation must be extract, summarize or extend")
+        if operation not in ("extract", "summarize", "extend", "compare-pairs"):
+            raise ValueError("operation must be extract, summarize, extend or compare-pairs")
         command = self._query(operation, sites, **options)
+        if operation == "compare-pairs":
+            command += _pairs(pairs, max_pairs, max_pair_table_bytes)
+        elif pairs is not None:
+            raise ValueError("pairs applies only to compare-pairs")
         if operation == "extend":
             command += _extension(sources, workdir)
         elif sources is not None or workdir is not None:
@@ -207,6 +212,24 @@ class EvidenceCohort:
         """
         _format(format)
         return _materialize(self._query("summarize", sites, **options) + ["--format", format], output, force)
+
+    def compare_pairs(self, output: PathLike, *, pairs: PathLike, sites: PathLike,
+                      format: str = "arrow-ipc", force: bool = False,
+                      max_pairs: int = 65_536, max_pair_table_bytes: int = 8_388_608,
+                      **options) -> EvidenceResult:
+        """Persist explicit pair comparisons, in table order then candidate order.
+
+        ``pairs`` is a TSV with exactly id, left, right columns. Direction is
+        right-minus-left observed ALT fraction. Both sides retain exact uint64
+        counts, missingness and technical eligibility. Difference magnitude and
+        denominator are decimal strings (uint128); zero-depth or unmeasured
+        sides yield null differences. Names/metadata never imply pairing.
+        ``fields`` must be depths and alleles; see ``plan`` for shared options.
+        """
+        _format(format)
+        command = self._query("compare-pairs", sites, **options)
+        command += _pairs(pairs, max_pairs, max_pair_table_bytes)
+        return _materialize(command + ["--format", format], output, force)
 
     def batches(self, *, sites: PathLike, workdir: Optional[PathLike] = None,
                 **options) -> CohortRun:
@@ -243,6 +266,15 @@ def open_cohort(directory: PathLike, snapshot: str, *, binary: Optional[PathLike
     _positive(max_dataset_metadata_bytes, "max_dataset_metadata_bytes")
     return EvidenceCohort(Path(directory), snapshot, binary, allow_version_mismatch,
                           max_snapshot_bytes, max_dataset_metadata_bytes)
+
+
+def _pairs(path: Optional[PathLike], max_pairs: int, max_table_bytes: int) -> list[str]:
+    if path is None:
+        raise ValueError("compare-pairs requires an explicit pair table")
+    _positive(max_pairs, "max_pairs")
+    _positive(max_table_bytes, "max_pair_table_bytes")
+    return ["--pairs", str(path), "--max-pairs", str(max_pairs),
+            "--max-pair-table-bytes", str(max_table_bytes)]
 
 
 def _extension(sources: Optional[PathLike], workdir: Optional[PathLike]) -> list[str]:
@@ -288,8 +320,8 @@ class _CommandTransport:
     def prepare(self) -> list[str]:
         if sum(len(token.encode("utf-8")) + 1 for token in self.command) <= self.argv_bytes:
             return self.command
-        if self.command[1:3] not in (["cohort", "extract"], ["cohort", "summarize"]):
-            raise ValueError("large explicit member selections are supported for extract/summarize only; extension can select all members and use its bounded source table")
+        if self.command[1:3] not in (["cohort", "extract"], ["cohort", "summarize"], ["cohort", "compare-pairs"]):
+            raise ValueError("large explicit member selections are supported for extract/summarize/compare-pairs only; extension can select all members and use its bounded source table")
         payload = json.dumps(self.command[1:], ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         if len(payload) > self.request_bytes:
             raise ValueError("cohort argument request exceeds the native 32 MiB envelope")

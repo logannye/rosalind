@@ -214,3 +214,14 @@ multi-sample expectations. Binary integration coverage in
 [`tests/cohort_cli.rs`](../tests/cohort_cli.rs) exercises exact missingness/counts,
 compressed variants, explicit extension, portability, and relocated replay. These
 are engineering checks, not design-partner sessions or performance benchmarks.
+
+
+## Explicit paired comparisons
+
+The separate `codex/cohort-pairs-preview` development branch adds
+[`cohort compare-pairs` and Python `compare_pairs()`](cohort-pairs-contract.md).
+Supply an ordered `id`, `left`, `right` TSV: pairings are never inferred from
+member metadata. Reports preserve each side's measurements and missingness, with
+an exact right-minus-left observed ALT-fraction difference. Its uint128 numerator
+magnitude and denominator are decimal strings in Arrow/TSV. This is unpublished
+source functionality; authored checks do not establish independent paired use.
