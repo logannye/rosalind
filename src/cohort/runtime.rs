@@ -10,6 +10,7 @@ use crate::evidence::{
     EvidenceBatch, EvidenceCallback, EvidenceExecution, EvidenceRowRef, EvidenceSelection, SnvSite,
     CANONICAL_TILE_BASES,
 };
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct CohortRow<'a> {
@@ -48,6 +49,8 @@ pub(crate) struct CohortRunStats {
     pub execution_window_bases: u32,
     pub largest_window_loci: usize,
     pub predicted_peak_rss_bytes: u64,
+    /// Only partition files actually verified by this execution, in path order.
+    pub consumed_inputs: BTreeMap<String, String>,
 }
 
 /// Canonical long-form order: member, reference dictionary, position, ALT.
@@ -96,6 +99,7 @@ fn visit(
         execution_window_bases: admitted.width,
         largest_window_loci: 0,
         predicted_peak_rss_bytes: admitted.predicted,
+        consumed_inputs: BTreeMap::new(),
     };
     let active_limits = CohortLimits {
         memory_budget_bytes: admitted.budget,
@@ -156,7 +160,7 @@ struct RuntimePlan {
     width: u32,
     budget: Option<u64>,
     collector_bytes: u64,
-    consumer_bytes: u64,
+    retained_bytes: u64,
     predicted: u64,
 }
 
@@ -190,24 +194,39 @@ fn runtime_plan(
         ));
     }
     let mut width = execution.max_microtile_bases.min(CANONICAL_TILE_BASES);
-    // Reader plans include physical-source decoding even when projection is
-    // smaller. Use the maximum serial reader, not the sum over samples.
+    // Reader working space includes physical-source decoding even when projection
+    // is smaller. Exclude analyzer_bytes: the query planner put the entire outer
+    // retention reservation there, and we account for that once below.
     let reader = plan
         .members
         .iter()
         .flat_map(|member| &member.leaves)
         .filter_map(|leaf| leaf.read_plan.as_ref())
         .map(|read| {
-            read.predicted_peak_rss_bytes
-                .saturating_sub(read.baseline_rss_bytes)
+            read.metadata_bytes
+                .saturating_add(read.source_decoder_bytes)
+                .saturating_add(read.projection_bytes)
         })
         .max()
         .unwrap_or(0);
     let baseline = crate::util::rss::peak_rss_bytes();
+    // The planned consumer reserve can include finalization buffers beyond this
+    // row consumer. Keep that promise, while honoring a larger actual consumer
+    // declaration or execution reserve supplied when the plan is run.
+    let retained_bytes = plan
+        .reservations
+        .query_bytes
+        .saturating_add(plan.reservations.plan_bytes)
+        .saturating_add(plan.reservations.lineage_bytes)
+        .saturating_add(
+            plan.reservations
+                .consumer_bytes
+                .max(consumer_bytes)
+                .max(execution.analyzer_bytes),
+        );
     let fixed = baseline
         .saturating_add(reader)
-        .saturating_add(plan.reservations.retained_bytes())
-        .saturating_add(consumer_bytes);
+        .saturating_add(retained_bytes);
     let per_locus = plan.fields.storage_bytes_per_locus().saturating_add(256);
     loop {
         let loci = Windows::new(&plan.sites, width)
@@ -223,7 +242,7 @@ fn runtime_plan(
                 width,
                 budget,
                 collector_bytes,
-                consumer_bytes,
+                retained_bytes,
                 predicted,
             });
         }
@@ -305,7 +324,7 @@ fn visit_member_window(
             },
             admitted
                 .collector_bytes
-                .saturating_add(admitted.consumer_bytes),
+                .saturating_add(admitted.retained_bytes),
             plan.fields,
         );
         let reader_execution = EvidenceExecution {
@@ -314,6 +333,19 @@ fn visit_member_window(
         };
         dataset.visit_batches(&query, &mut callback, &reader_execution)?;
         dataset.verify_unchanged()?;
+        limits.admit(plan.reservations.lineage_bytes)?;
+        for input in dataset.verified_partition_hashes()? {
+            if let Some(previous) = stats
+                .consumed_inputs
+                .insert(input.path, input.blake3.clone())
+            {
+                if previous != input.blake3 {
+                    return Err(CohortError::Corrupt(
+                        "consumed partition identity changed between windows".into(),
+                    ));
+                }
+            }
+        }
     }
     let mut order: Vec<_> = batch
         .loci()
@@ -651,6 +683,76 @@ mod tests {
         )
         .is_err());
         assert_eq!(collect.begins, 0);
+    }
+
+    #[test]
+    fn serial_admission_counts_outer_retention_once_and_honors_larger_runtime_consumers() {
+        let setup = Setup::new();
+        let selection = setup.plan(MissingPolicy::Partial).sites;
+        let mut query = CohortQuery::new(EvidenceSelection::Sites(selection));
+        query.missing_policy = MissingPolicy::Partial;
+        // A real reader plan includes this future encoder/finalization promise
+        // in analyzer_bytes. It must not become a second reader allocation.
+        const RESERVED: u64 = 64 << 20;
+        query.requirements.retained_bytes = Some(RESERVED);
+        let plan = plan_query(
+            &setup.snapshot,
+            &query,
+            &EvidenceExecution::default(),
+            CohortQueryLimits::default(),
+        )
+        .unwrap();
+        let readers: Vec<_> = plan
+            .members
+            .iter()
+            .flat_map(|member| &member.leaves)
+            .filter_map(|leaf| leaf.read_plan.as_ref())
+            .collect();
+        assert!(readers.iter().all(|read| read.analyzer_bytes >= RESERVED));
+        let serial_workspace = readers
+            .iter()
+            .map(|read| read.metadata_bytes + read.source_decoder_bytes + read.projection_bytes)
+            .max()
+            .unwrap();
+        let execution = EvidenceExecution {
+            max_microtile_bases: 1,
+            memory_budget_bytes: Some(
+                crate::util::rss::peak_rss_bytes()
+                    + serial_workspace
+                    + plan.reservations.retained_bytes()
+                    + (8 << 20),
+            ),
+            ..EvidenceExecution::default()
+        };
+        let mut collect = Collect::default();
+        let stats = visit_rows(
+            &setup.snapshot,
+            &plan,
+            &execution,
+            CohortLimits::default(),
+            &mut collect,
+        )
+        .unwrap();
+        assert_eq!(stats.emitted_rows, plan.output_rows);
+        assert!(collect.finished);
+        assert!(runtime_plan(
+            &plan,
+            &execution,
+            CohortLimits::default(),
+            Some(RESERVED * 2),
+        )
+        .is_err());
+        let larger_execution = EvidenceExecution {
+            analyzer_bytes: RESERVED * 2,
+            ..execution
+        };
+        assert!(runtime_plan(
+            &plan,
+            &larger_execution,
+            CohortLimits::default(),
+            collect.retained_bytes(),
+        )
+        .is_err());
     }
 
     struct Summaries {
