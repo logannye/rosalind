@@ -1,8 +1,10 @@
 //! Internal next-minor cohort storage preparation. No CLI or public SDK yet.
 #![allow(dead_code)]
 
+pub(crate) mod artifact;
 pub(crate) mod comparison;
 pub(crate) mod descriptor;
+pub(crate) mod encoding;
 pub(crate) mod query;
 pub(crate) mod runtime;
 pub(crate) mod store;
@@ -25,6 +27,8 @@ pub(crate) enum CohortError {
     Dataset(#[from] crate::dataset::DatasetError),
     #[error(transparent)]
     Evidence(#[from] crate::evidence::EvidenceError),
+    #[error(transparent)]
+    Artifact(#[from] crate::evidence::EvidenceArtifactError),
 }
 
 pub(crate) type Result<T> = std::result::Result<T, CohortError>;

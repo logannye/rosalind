@@ -1426,7 +1426,7 @@ fn write_staged_receipt(file: &mut AtomicFile, bytes: &str) -> Result<(), Eviden
 // All edits retain or shorten the existing String; hashing borrows its slices.
 // Measurement hashes omit their own entry, exactly as RunManifest does. Claim
 // bytes are untouched because measurements are excluded from schema-3+ claims.
-fn reseal_observed_measurements(
+pub(crate) fn reseal_observed_measurements(
     json: &mut String,
     peak: u64,
     declared: Option<u64>,

@@ -5,6 +5,7 @@
 //! intentionally count overlapping mates separately and do not collapse UMIs.
 
 mod artifact;
+pub(crate) use artifact::reseal_observed_measurements;
 pub use artifact::{
     parse_artifact_query, run_evidence_artifact, ArtifactSelection, EvidenceArtifactError,
     EvidenceArtifactFactory, EvidenceArtifactOutcome, EvidenceArtifactSource, EvidenceArtifactSpec,
