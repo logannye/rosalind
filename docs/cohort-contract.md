@@ -1,8 +1,9 @@
 # Proposed contract: local cohort candidate reanalysis
 
 **Internal next-minor foundation, not a shipped feature.** This isolated
-development branch contains crate-private snapshot import/verification and
-comparison contracts. It has no `cohort` command or `open_cohort` Python API.
+development branch contains crate-private snapshot import/verification, comparison
+contracts, metadata query planning, exact candidate reducers and a serial saved-only
+window runtime. It has no `cohort` command or `open_cohort` Python API.
 The implementation stays out of the 0.5 release candidate and its frozen public
 contract. Engineering can progress while publication and adoption work continue.
 Independent participants and design partners inform usability and product decisions;
@@ -318,6 +319,12 @@ schemas, goldens and conformance must remain valid.
 
 The accompanying fixture checks **existing extraction/reuse primitives only**.
 It cannot establish a future snapshot implementation, cohort runtime bound, real
-assay performance, user demand or partner acceptance. Storage/comparison tests now exercise the internal C02/C03 foundation on this
-branch. CLI/Python querying, managed reducers, extension and replay remain C04–C11
-work; fixture arithmetic is not partner acceptance or a performance measurement.
+assay performance, user demand or partner acceptance. Internal tests exercise snapshot storage, comparison, metadata planning, exact
+reducers and saved-only streaming on this branch. Streaming tests distinguish
+unmeasured from observed zero, accept new ALTs at stored positions, cross canonical
+partition boundaries, retain output bytes across three admitted budgets/window
+widths, and refuse strict gaps, changed inputs and cancellation. These small local
+tests are not a representative resource benchmark or Linux cgroup study.
+CLI/Python exposure, complete managed artifact publication, extension and replay
+remain later work; fixture arithmetic is not partner acceptance or a performance
+measurement.

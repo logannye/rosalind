@@ -3,6 +3,8 @@
 
 pub(crate) mod comparison;
 pub(crate) mod descriptor;
+pub(crate) mod query;
+pub(crate) mod runtime;
 pub(crate) mod store;
 pub(crate) mod summary;
 

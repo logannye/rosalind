@@ -50,23 +50,26 @@ impl CohortLimits {
     pub fn admit(&self, additional: u64) -> Result<()> {
         crate::core::governor::checkpoint().map_err(crate::evidence::EvidenceError::from)?;
         let needed = crate::util::rss::peak_rss_bytes().saturating_add(additional);
-        if self
-            .memory_budget_bytes
-            .is_some_and(|budget| needed > budget)
-        {
+        let budget = self.effective_budget();
+        if budget.is_some_and(|budget| needed > budget) {
             return Err(CohortError::Limit(format!(
                 "needs at least {needed} process bytes; budget is {}",
-                self.memory_budget_bytes.unwrap()
+                budget.unwrap()
             )));
         }
         Ok(())
     }
 
+    pub fn effective_budget(&self) -> Option<u64> {
+        [self.memory_budget_bytes, self.dataset.memory_budget_bytes]
+            .into_iter()
+            .flatten()
+            .min()
+    }
+
     pub fn dataset_limits(&self) -> DatasetReadLimits {
         DatasetReadLimits {
-            memory_budget_bytes: self
-                .memory_budget_bytes
-                .or(self.dataset.memory_budget_bytes),
+            memory_budget_bytes: self.effective_budget(),
             ..self.dataset
         }
     }

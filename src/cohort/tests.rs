@@ -26,6 +26,7 @@ pub(crate) struct FixtureOptions {
     pub fields: EvidenceFields,
     pub profile: EvidenceProfile,
     pub reference_base: u8,
+    pub reference_length: u32,
     pub cram: bool,
     pub cram_reference_only: bool,
 }
@@ -36,6 +37,7 @@ impl Default for FixtureOptions {
             fields: EvidenceFields::DEPTHS.union(EvidenceFields::ALLELES),
             profile: EvidenceProfile::default(),
             reference_base: b'A',
+            reference_length: 32,
             cram: false,
             cram_reference_only: false,
         }
@@ -58,12 +60,23 @@ impl Fixture {
             &reference,
             format!(
                 ">chr1\n{}\n",
-                (options.reference_base as char).to_string().repeat(32)
+                (options.reference_base as char)
+                    .to_string()
+                    .repeat(options.reference_length as usize)
             ),
         )
         .unwrap();
         let fai = root.join("reference.fa.fai");
-        fs::write(&fai, "chr1\t32\t6\t32\t33\n").unwrap();
+        fs::write(
+            &fai,
+            format!(
+                "chr1\t{}\t6\t{}\t{}\n",
+                options.reference_length,
+                options.reference_length,
+                options.reference_length + 1
+            ),
+        )
+        .unwrap();
         let alignment = root.join(if options.cram {
             "reads.cram"
         } else {
@@ -74,7 +87,7 @@ impl Fixture {
         header.push_record(
             HeaderRecord::new(b"SQ")
                 .push_tag(b"SN", "chr1")
-                .push_tag(b"LN", 32),
+                .push_tag(b"LN", options.reference_length),
         );
         if let Some(sample) = &options.sample {
             header.push_record(
@@ -411,6 +424,33 @@ fn metadata_and_budget_envelopes_refuse_without_success() {
     };
     assert!(create_snapshot(&root.0, &[fixture.member("A")], None, limits).is_err());
     assert_eq!(fs::read_dir(root.0.join("snapshots")).unwrap().count(), 0);
+}
+
+#[test]
+fn nested_dataset_budget_never_weakens_storage_admission() {
+    for (outer, inner, expected) in [
+        (None, Some(1), Some(1)),
+        (Some(1), None, Some(1)),
+        (Some(100), Some(1), Some(1)),
+        (Some(1), Some(100), Some(1)),
+        (None, None, None),
+    ] {
+        let limits = CohortLimits {
+            memory_budget_bytes: outer,
+            dataset: DatasetReadLimits {
+                memory_budget_bytes: inner,
+                ..DatasetReadLimits::default()
+            },
+            ..CohortLimits::default()
+        };
+        assert_eq!(limits.dataset_limits().memory_budget_bytes, expected);
+        if expected.is_some() {
+            let fixture = Fixture::new(FixtureOptions::default());
+            let root = Root::new();
+            assert!(create_snapshot(&root.0, &[fixture.member("A")], None, limits).is_err());
+            assert!(!root.0.exists());
+        }
+    }
 }
 
 #[cfg(unix)]
