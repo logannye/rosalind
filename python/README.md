@@ -1,5 +1,11 @@
 # rosalind-bio for Python
 
+For version selection and the current source workflow, start with
+[installation](../docs/installation.md). The public stable release is 0.1.0;
+an unqualified registry install is not evidence that this preview is installed.
+The [documentation index](../docs/index.md) connects this interface to the
+researcher and saved-dataset quickstarts.
+
 The mixed Maturin wheel bundles the matching `rosalind` executable. The distribution
 is `rosalind-bio`; import `rosalind`. Python 3.9+ is declared and tested by candidate
 wheel CI. The source version is 0.5.0; these changes are unpublished until the

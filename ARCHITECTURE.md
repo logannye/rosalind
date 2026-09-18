@@ -1,57 +1,100 @@
 # Rosalind architecture
 
-Rosalind separates analysis references, the bounded computation kernel, analyzer
-logic, and the execution contract. Search indexing is an adjacent workload, not a
-dependency of per-locus analysis.
+Current source turns indexed short-read alignments into exact per-locus summaries,
+persists those summaries, and supplies the same evidence to bounded reducers.
+Scientific selection and filtering are separate from execution tiling. These APIs
+are an unpublished candidate; public stable v0.1.0 predates them.
+[Implementation status](docs/implementation-status.md) separates implementation,
+validation, publication and adoption.
 
 ```text
-FASTA ── reference build ──> .rref ──┐
-legacy .idx ── compatibility ────────┤
-                                     ├─> bounded pileup walk ─> ColumnAnalyzer
-coordinate-sorted BAM ───────────────┘              │
-                                                    v
-plan/refuse ── governor ── transactional output ── receipt/replay/diff
-
-BAM + BAI ── normalized region/BED or reference-span shard ──┐
-                                                              ├─> same bounded kernel
-complete shard receipts ── strict canonical merge ───────────> merged artifact + receipt
+indexed BAM / supported CRAM + local reference + SNV sites / BED
+                  |
+       sample scope + scientific profile + fields
+                  |
+       admitted aggregate microtiles --> canonical evidence batches
+                  |                              |
+       verified partition datasets --------------+
+                                                 |
+                              EvidenceAnalyzer / panel QC / encoders
+                                                 |
+                       managed admission + cancellation + publication
+                                                 |
+                             artifact + receipt + verification/replay
 ```
 
-## Layers
+## Evidence layers
 
 | Layer | Code | Responsibility |
 |---|---|---|
-| Coordinates and budgets | `src/core/` | Contigs, loci, reads, memory budgets, process-wide governor, typed errors |
-| Analysis reference | `src/genomics/reference_pack.rs` | `.rref`, streaming builder, mmap reader, `ReferenceSequence` and `ReferenceProvider` |
-| Legacy search index | `src/genomics/index/` | `.idx`, FM-index lookup, compatible embedded reference provider |
-| Selection | `src/selection.rs` | Region/BED normalization and `reference-span-v1` ownership |
-| Alignment input | `src/io/bam.rs` | Sequential BAM stream or bounded indexed interval fetch |
-| Bounded kernel | `src/pileup/` | Filtered/depth-capped CIGAR-aware pileup columns |
-| Analyzer SDK | `src/call/columnkit.rs` | `ColumnAnalyzer` and maintained feature/coverage analyzers |
-| Execution contract | `src/contract.rs` | Prediction, refusal, enforcement, output lifetime, measurements, receipt sealing |
-| Canonical merge | `src/merge.rs` | Parent evidence validation and first-party TSV/Arrow/VCF/gVCF merge codecs |
-| Trust and replay | `crates/receipt/`, `src/reproduce.rs`, `src/receipt_tools.rs` | Canonical claims, verification, replay, certificates, diff and inspection |
-| CLI adapter | `src/main.rs` | User-facing argument validation and stable exit-code mapping |
+| Scientific request | `src/evidence/mod.rs`, `sample.rs`, `selection.rs` | Loci, sample scope, filters, fields and consumer requirements |
+| Reference access | `src/evidence/reference.rs`, `src/genomics/reference_pack.rs` | Indexed FASTA, `.rref` and compatible `.idx` windows |
+| Decoder admission | `src/evidence/cram.rs`, `engine.rs` | Indexed input, CRAM metadata envelopes and whole-file record validation |
+| Exact aggregation | `src/evidence/engine.rs`, `batch.rs` | Budget-selected microtiles, checked summaries and physical field projection |
+| Encoding and consumers | `src/evidence/encoding.rs`, `panel.rs` | Canonical Arrow/TSV, full target denominators and fused consumers |
+| Managed SDK | `src/evidence/artifact.rs` | Native/persisted sources, admission, cancellation, atomic artifacts, receipts and replay |
+| Saved evidence | `src/dataset.rs`, `src/dataset/` | Partition workers, cache/resume, portable datasets, offline queries, partial reuse and Parquet |
+| Trust and replay | `crates/receipt/`, `src/reproduce.rs`, `src/receipt_tools.rs` | Claims, byte verification, tokenized replay and inspection |
+| Adapters | `src/evidence_cli.rs`, `src/dataset_cli.rs`, `python/rosalind/` | CLI/Python interfaces over the same scientific semantics |
 
-## Invariants
+BAM accepts BAI or CSI indexes; the supported CRAM profile requires CRAI and an
+explicit local FASTA with adjacent FAI. CRAM performs complete cooperative record
+validation before indexed extraction.
 
-1. An analyzer cannot require an FM-index merely to read reference bases.
-2. Reference and BAM contig dictionaries must agree before output creation.
-3. Bounded analyzers stream columns and declare any additional memory bound.
-4. Enforced refusal happens before the destination exists.
-5. Successful artifacts publish atomically; breaches never take the successful name.
-6. Identical inputs, parameters, analyzer, and Rosalind release produce identical bytes.
-7. Output-affecting choices are claim-protected; host measurements remain separate.
-8. Replay is tokenized and allowlisted. A receipt is tamper-evident, not proof of authorship.
+Canonical ownership tiles span 16,384 bases. Budget-selected microtiles can be
+smaller and revisit indexed reads. Managed/encoded batches contain at most 1,024
+rows independently of computation width. Workers produce first-party partitions;
+reducers consume them serially in canonical order. Eligible observations are never
+discarded to fit a successful exact-evidence run.
 
-## Compatibility
+Saved datasets retain profile, sample scope, selection, fields and source identity.
+Queries can project available fields, select stored loci and request new SNV ALT
+annotations from A/C/G/T counts. They cannot reconstruct filtered observations or
+invent absent loci. Partial-overlap reuse checks unchanged original inputs and
+computes missing loci. Its current one-worker path emits a materialized artifact,
+not an expanded portable cache.
 
-`AnalysisReference` opens `.rref` or legacy `.idx` by magic. `ReferenceSequence`
-keeps existing borrowed `ReferenceView` callers source-compatible, while
-`ReferenceProvider` adds contig metadata and source identity for complete analysis
-artifacts. Receipt schemas 1–5 and legacy `.idx` replay remain supported.
+## Invariants and boundaries
 
-The RSS governor is process-wide; enforced runs must be serialized within a process.
-Deterministic sharding, rather than nondeterministic internal threading, is the
-parallel execution model. Indexed reads may contribute on both sides of a shard
-boundary, but each output locus is owned exactly once by its reference span.
+1. Loci, filters, sample scope and counting unit determine scientific meaning.
+   Admitted budgets, microtiles and workers do not change successful evidence bytes.
+2. Alignment/reference dictionaries agree before successful output creation.
+   Analysis does not require building an FM-index.
+3. Consumers declare capabilities and retained memory. Unknown bounds cannot
+   support enforcement. Absent groups do not mean zero.
+4. Native/persisted sources feed the same reducer contract. Query lineage represents
+   only consumed partitions as locally verified.
+5. Refusal, failure and cancellation do not publish a successful artifact pair.
+6. Scientific identity, full receipt claim and measurements are distinct. Receipts
+   are tamper-evident records, not signatures or biological validation.
+7. Inputs remain immutable. Content hashes establish identity; metadata/inode
+   guards detect ordinary subsequent changes.
+8. Checks are cooperative. Native decoding, including CRAM validation, can allocate
+   before a checkpoint. A Linux cgroup supplies separately recorded OS assurance.
+
+See [semantics](docs/SEMANTICS.md), [the contract](CONTRACT.md),
+[reusable evidence](docs/reusable-evidence.md) and [the SDK](docs/analyzer-sdk.md).
+
+## Legacy analysis and search
+
+```text
+.rref / compatible .idx + coordinate-sorted BAM
+                  |
+         exact-or-fail pileup columns --> ColumnAnalyzer
+                  |
+  whole-genome / selected interval / reference-span shard
+                  |
+       contract runner --> artifact + receipt
+       complete shards --> strict canonical merge
+```
+
+`src/pileup/`, `src/call/columnkit.rs`, `src/contract.rs`, `src/selection.rs` and
+`src/merge.rs` maintain this compatibility path. Current runs fail at declared
+capacities rather than downsampling; their defaults differ from the evidence
+profile. `src/genomics/index/` retains FM-index search as an adjacent workload.
+
+Historical receipt and legacy `.idx` verification remain supported; replaying old
+behavior requires its matching producer. Serialize managed runs within a process
+or use separate processes because the governor/cancellation scope is process-wide.
+Evidence partition workers and legacy reference-span shards are distinct parallel
+execution paths.

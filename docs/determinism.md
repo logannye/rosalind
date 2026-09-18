@@ -1,87 +1,73 @@
-## Determinism Contract
+# Determinism contract
 
-Rosalind’s primary product guarantee is **bit-for-bit reproducibility**: given identical inputs and configuration, Rosalind produces identical outputs across runs.
+For the same scientific inputs, reducer and producer, successful exact-evidence
+artifacts have deterministic bytes. Admitted budgets, microtiles and workers do
+not change those bytes. This describes the unpublished evidence source/candidate;
+it does not retrofit its semantics into public stable v0.1.0 or old receipts.
 
-This document defines what is (and is not) covered by that guarantee, and the engineering constraints required to preserve it.
+## Scientific and execution identity
 
-### Definitions
+Scientific inputs include alignment/reference content, normalized loci, requested
+ALT annotations, sample scope, quality/flag profile, fields, schema and scientific
+analyzer parameters. Original variant-record identity also matters for
+record-preserving annotation. Offline queries retain their stored extraction profile.
 
-- **Deterministic output**: the emitted bytes of primary artifacts (BAM/VCF/JSON manifests) are identical across repeated runs with the same inputs and configuration, on the same Rosalind version and target platform.
-- **Canonicalization**: where file formats permit multiple equivalent encodings (e.g., header ordering), Rosalind defines and emits a canonical form.
-- **Stable ordering**: when results are produced from unordered collections or parallel execution, Rosalind explicitly defines a stable sort order and uses it everywhere.
+Execution settings include budget, microtiles, workers and cache state. Smaller
+tiles can repeat indexed reads, without sampling. Canonical ownership and fixed
+encoding batches separate scheduling from successful evidence bytes. Verification
+and CRAM whole-file validation still perform real work, including on reused paths.
 
-### Covered inputs
+Keep three identities distinct:
 
-Determinism is guaranteed with respect to:
+- **Scientific identity** describes what is counted and reduced.
+- **Receipt claim** also binds outputs, producer/build identity and replay
+  declarations. A resource declaration can change this full claim while the
+  scientific output stays identical.
+- **Measurements** describe host-local time, memory and work. Their separately
+  protected values can differ. Whole receipt JSON is not promised to match across
+  machines.
 
-- **Reference**: the exact FASTA bytes (including contig names and sequences) used for indexing and calling.
-- **Reads**: the exact FASTQ bytes (including read names and base qualities).
-- **Configuration**: all CLI flags / config file values, including thread count and memory limits.
-- **Rosalind version**: the exact crate version and build profile.
+Recorded paths are relocatable metadata in supported schemas. Verification/replay
+still require the relevant file bytes. Claims are tamper-evident, not signatures.
 
-### Covered outputs (v1 target)
+## Covered artifacts and limits
 
-Rosalind aims to guarantee deterministic bytes for:
+Maintained equality checks cover evidence Arrow/TSV, panel summaries,
+record-preserving annotation and managed deterministic reducer outputs. Legacy
+feature/caller outputs retain their own defaults and fixtures. The evidence path
+consumes BAM/CRAM; it does not claim deterministic alignment from FASTQ.
 
-- **BAM/CRAM**: alignment records and headers emitted by Rosalind.
-- **VCF**: variant records and headers emitted by Rosalind.
-- **Receipt claim**: a canonical, path-portable content address over inputs, parameters,
-  identities, replay tokens, and outputs. The on-disk receipt's machine-local
-  measurement block can differ without changing the claim.
+Replay uses the matching producer. Historical sampling, changed scientific profiles
+and different encoders are not implicitly equivalent. Cross-platform checks are
+evidence for tested builds, not every compiler, library or hardware combination.
+Parquet exports preserve integer values and lineage; native byte replay of a
+Parquet directory is unsupported. Use materialized Arrow/TSV for byte replay.
 
-### Not covered (unless explicitly stated)
+Failed/cancelled runs are not successful scientific artifacts. Breach timing may
+vary and partials have no success-byte guarantee. Native allocation can precede a
+checkpoint, including during CRAM validation. See [the contract](../CONTRACT.md).
 
-- **Wall-clock timestamps** in logs or headers (Rosalind should avoid emitting them into primary artifacts).
-- **Recorded paths** in schema-3+ receipts. They are relocatable lookup metadata and
-  are deliberately excluded from the claim hash; artifact bytes remain covered.
-- **Nondeterministic hardware behavior** outside our control (e.g., bit flips, kernel bugs).
+## Implementation rules
 
-### Engineering rules (hard requirements)
+1. Use dictionary, coordinate and documented allele/target order. Sort unordered
+   keys before output and define tie-breakers.
+2. Reduce checked integers in canonical order. For floating-point calculations,
+   specify reduction order, missingness and serialization.
+3. Keep timestamps, random IDs and host measurements out of scientific output.
+   Absent loci/fields never become zeros.
+4. Separate worker scheduling from output ownership and reducer order. Custom
+   reducers receive canonical batches independent of computation tiles.
+5. Record all scientific parameters in metadata and replay. Declare retained
+   state, including copies kept beyond a borrowed callback.
 
-To preserve determinism, core pipeline code must follow these rules:
+## Verification
 
-1. **No unordered iteration in output-critical paths**:
-   - Do not rely on iteration order of `HashMap`/`HashSet`.
-   - Prefer `BTreeMap`/`BTreeSet` or sort keys before emitting results.
-2. **Explicit tie-breakers**:
-   - Whenever two candidates have the same primary score, define secondary keys (position, strand, read name, etc.).
-3. **Deterministic sorting**:
-   - Use stable sorts where key collisions are possible.
-   - Define a single canonical ordering for records (e.g., coordinate sort with full tie-break key).
-4. **Deterministic parallelism**:
-   - Parallel execution is allowed only when results are combined via an explicitly ordered reduction.
-   - Otherwise, default to single-threaded execution for output-critical stages.
-5. **Numerics**:
-   - Avoid `f32` for ranking/tie-breaks in persisted outputs.
-   - When floating point is necessary, use `f64` and ensure reductions are performed in a stable order.
-6. **Canonical output emission**:
-   - Canonicalize headers and record ordering.
-   - Do not emit run-dependent data (timestamps, randomized IDs) into primary artifacts.
+Maintain scientific oracles and repeat-run checks, plus budget/tile/worker,
+projection and native/persisted equality for affected paths. Refusal/corruption
+must leave no successful artifact. External analyzer conformance tests the runner;
+the analyzer author supplies a scientific oracle for a new statistic.
 
-### Determinism testing
-
-Rosalind should maintain:
-
-- **Repeat-run tests**: run the same pipeline twice and compare output bytes.
-- **Thread-count invariance tests** (when multithreading is added): `--threads 1` vs `--threads N` must match.
-
-### The memory governor and determinism
-
-Under `--enforce`, a background governor thread reads process RSS and, on a breach,
-cooperatively aborts the run (exit 4). This does **not** weaken determinism: the guard
-never touches output bytes, and a run that fits never fires it — identical inputs still
-produce a byte-identical VCF/feature table. A *breach* is a non-deterministic abort
-(which locus trips depends on timing), but a breach exits non-zero and is a failure, not
-a reproducible artifact, so no determinism guarantee is affected. (The receipt's
-`peak_rss_bytes` / `baseline_rss_bytes` / `rss_residual_bytes` are machine-dependent
-measurements, like any realized-memory field — the primary output stays byte-identical.)
-
-### Replay determinism
-
-New schema-5 receipts record both a legacy display command and `command_argv`, a
-canonical JSON argv array. Replay passes these tokens directly to a selected binary;
-it never invokes a shell. Option values and relocated paths containing spaces therefore
-retain their exact token boundaries. `rosalind reproduce --binary PATH` is the explicit
-mechanism for replaying a third-party analyzer; recorded executable paths are never
-trusted as execution targets.
-
+Replay passes tokenized `command_argv` directly without a shell. External receipts
+require an explicit `--binary`; receipts cannot implicitly choose executables.
+See [the SDK](analyzer-sdk.md), [receipt schema](receipt-schema.md) and
+[receipt trust](receipts-and-trust.md).

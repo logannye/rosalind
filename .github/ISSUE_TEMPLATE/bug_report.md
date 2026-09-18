@@ -15,10 +15,11 @@ rosalind ...
 
 **Inputs** (sizes + how to obtain them; a tiny fixture that reproduces it is ideal)
 
-**Receipt** — paste the run's `manifest_blake3` (and `contract_verdict`) from the `.manifest.json`, or
-attach the manifest.
+**Receipt** — share the claim hash and a sanitized diagnostic if available. Receipts can
+contain private paths, sample identifiers and parameters. Do not upload private receipts,
+genomic data, patient information or credentials; prefer a minimal public/synthetic fixture.
 
 **Environment**
 - `rosalind --version`:
 - OS / arch:
-- Installed via (release tarball / `cargo build` / Action):
+- Installed via (stable/candidate wheel, native bundle, source, or legacy Action), exact version/source:

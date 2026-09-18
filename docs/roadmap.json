@@ -1,0 +1,573 @@
+{
+  "version": 1,
+  "repository": "logannye/rosalind",
+  "updated": "2026-09-18",
+  "objective": "Make Rosalind understandable, installable and useful for recurring candidate-SNV research, then build local cohort reanalysis on verified saved evidence.",
+  "milestones": {
+    "G": "G \u2014 Coherent GitHub presence",
+    "D": "D \u2014 Executable documentation",
+    "R": "R \u2014 Current evidence-engine release",
+    "U": "U \u2014 Independent user value",
+    "C": "C \u2014 Local cohort candidate reanalysis",
+    "F": "F \u2014 Expand demonstrated value"
+  },
+  "tasks": [
+    {
+      "id": "G01",
+      "title": "Establish authoritative capability and release inventory",
+      "depends_on": [],
+      "acceptance": "Inventory implementation, exact validation source/workload, published version and independent use for every advertised capability.",
+      "owner": "engineering",
+      "status": "implemented",
+      "evidence": [],
+      "issue_number": 106,
+      "issue_url": "https://github.com/logannye/rosalind/issues/106",
+      "blocker": "Merge the implementation and link final acceptance evidence."
+    },
+    {
+      "id": "G02",
+      "title": "Reconcile contract, architecture, determinism and contributor guides",
+      "depends_on": [
+        "G01"
+      ],
+      "acceptance": "Describe exact-or-fail legacy behavior, evidence tiles, CSI/CRAM, canonical workers, datasets, SDK and cooperative/OS limits consistently with SEMANTICS.",
+      "owner": "engineering",
+      "status": "implemented",
+      "evidence": [],
+      "issue_number": 107,
+      "issue_url": "https://github.com/logannye/rosalind/issues/107",
+      "blocker": "Merge the implementation and link final acceptance evidence."
+    },
+    {
+      "id": "G03",
+      "title": "Provide researcher and builder README entry paths",
+      "depends_on": [
+        "G01"
+      ],
+      "acceptance": "Lead with reusable genomic evidence; provide Analyze my data and Build an analyzer paths, working example, availability and limits; reuse PR #104.",
+      "owner": "engineering",
+      "status": "implemented",
+      "evidence": [],
+      "issue_number": 108,
+      "issue_url": "https://github.com/logannye/rosalind/issues/108",
+      "blocker": "Merge the implementation and link final acceptance evidence."
+    },
+    {
+      "id": "G04",
+      "title": "Align landing page and GitHub metadata",
+      "depends_on": [
+        "G01",
+        "G03"
+      ],
+      "acceptance": "Landing root, repository About and README agree; preserve /verify/ and static Pages; advertise only available installation routes.",
+      "owner": "engineering",
+      "status": "implemented",
+      "evidence": [],
+      "issue_number": 109,
+      "issue_url": "https://github.com/logannye/rosalind/issues/109",
+      "blocker": "Merge the implementation and link final acceptance evidence."
+    },
+    {
+      "id": "G05",
+      "title": "Reconcile legacy issues",
+      "depends_on": [
+        "G01"
+      ],
+      "acceptance": "Supersede #3, #59 and #62; rewrite #53/#60 for remaining publication; retain #55; defer #57/#58/#69; remove misleading implementation backlog.",
+      "owner": "engineering",
+      "status": "complete",
+      "evidence": [
+        "[Superseded #3](https://github.com/logannye/rosalind/issues/3)",
+        "[Reframed Python publication #60](https://github.com/logannye/rosalind/issues/60)",
+        "[Stable publication #53](https://github.com/logannye/rosalind/issues/53)",
+        "[Arrow/Parquet #59](https://github.com/logannye/rosalind/issues/59)",
+        "[Analyzer example #62](https://github.com/logannye/rosalind/issues/62)",
+        "[Deferred #57](https://github.com/logannye/rosalind/issues/57)",
+        "[Deferred #58](https://github.com/logannye/rosalind/issues/58)",
+        "[Deferred #69](https://github.com/logannye/rosalind/issues/69)"
+      ],
+      "issue_number": 110,
+      "issue_url": "https://github.com/logannye/rosalind/issues/110"
+    },
+    {
+      "id": "G06",
+      "title": "Create linked roadmap issues and contribution templates",
+      "depends_on": [
+        "G01"
+      ],
+      "acceptance": "Each ID has one issue, milestone, outcome, dependencies, acceptance and owner; feature template captures workflow, scale, desired result and work avoided.",
+      "owner": "engineering",
+      "status": "implemented",
+      "evidence": [],
+      "issue_number": 111,
+      "issue_url": "https://github.com/logannye/rosalind/issues/111",
+      "blocker": "Merge the implementation and link final acceptance evidence."
+    },
+    {
+      "id": "G07",
+      "title": "Separate historical exploration from current commitments",
+      "depends_on": [
+        "G01"
+      ],
+      "acceptance": "Retain archive banners, remove archives from onboarding, explain actual time/memory scheduling without square-root-memory product claims.",
+      "owner": "engineering",
+      "status": "implemented",
+      "evidence": [],
+      "issue_number": 112,
+      "issue_url": "https://github.com/logannye/rosalind/issues/112",
+      "blocker": "Merge the implementation and link final acceptance evidence."
+    },
+    {
+      "id": "D01",
+      "title": "Provide version-aware installation",
+      "depends_on": [
+        "G01"
+      ],
+      "acceptance": "Separate stable/candidate/source; distribution/import names, supported platforms, identity and build prerequisites; installed features match tutorials and installer guidance.",
+      "owner": "engineering",
+      "status": "implemented",
+      "evidence": [],
+      "issue_number": 113,
+      "issue_url": "https://github.com/logannye/rosalind/issues/113",
+      "blocker": "Merge the implementation and link final acceptance evidence."
+    },
+    {
+      "id": "D02",
+      "title": "Deliver researcher candidate-evidence quickstart",
+      "depends_on": [
+        "D01"
+      ],
+      "acceptance": "Pinned NA18507 four candidates: prepare, extract, annotate, interpret, verify and replay outside checkout; illustrative screens are not confidence.",
+      "owner": "engineering",
+      "status": "implemented",
+      "evidence": [],
+      "issue_number": 114,
+      "issue_url": "https://github.com/logannye/rosalind/issues/114",
+      "blocker": "Merge the implementation and link final acceptance evidence."
+    },
+    {
+      "id": "D03",
+      "title": "Deliver saved-evidence reuse tutorial",
+      "depends_on": [
+        "D02"
+      ],
+      "acceptance": "Extract targets, query changed candidates, panel-QC, relocate and remove source access; compare with fresh values and explain irreversible filtering/capability limits.",
+      "owner": "engineering",
+      "status": "implemented",
+      "evidence": [],
+      "issue_number": 115,
+      "issue_url": "https://github.com/logannye/rosalind/issues/115",
+      "blocker": "Merge the implementation and link final acceptance evidence."
+    },
+    {
+      "id": "D04",
+      "title": "Lead builders through managed evidence SDK",
+      "depends_on": [
+        "D01",
+        "G02"
+      ],
+      "acceptance": "Scaffold evidence API, modify useful statistic, declare fields/memory/params, scientific test and conformance, native/saved inputs and explicit-binary replay; retain legacy route.",
+      "owner": "engineering",
+      "status": "implemented",
+      "evidence": [],
+      "issue_number": 116,
+      "issue_url": "https://github.com/logannye/rosalind/issues/116",
+      "blocker": "Maintainer-authored customization passed scientific and conformance checks; independent developer completion remains unobserved."
+    },
+    {
+      "id": "D05",
+      "title": "Explain concepts and actionable troubleshooting",
+      "depends_on": [
+        "G02"
+      ],
+      "acceptance": "Explain reads/molecules, zero/missing/low-depth, sample scope, settings, limits and trust; remedies for indexes, references, CRAM, fields, budgets, outputs and versions.",
+      "owner": "engineering",
+      "status": "implemented",
+      "evidence": [],
+      "issue_number": 117,
+      "issue_url": "https://github.com/logannye/rosalind/issues/117",
+      "blocker": "Merge the implementation and link final acceptance evidence."
+    },
+    {
+      "id": "D06",
+      "title": "Clarify workflows and legacy Action",
+      "depends_on": [
+        "D01"
+      ],
+      "acceptance": "Lead exact-evidence Nextflow/Snakemake; scheduler requests differ from OS caps; label Action legacy while preserving defaults; use pinned CLI for new evidence.",
+      "owner": "engineering",
+      "status": "implemented",
+      "evidence": [],
+      "issue_number": 118,
+      "issue_url": "https://github.com/logannye/rosalind/issues/118",
+      "blocker": "Merge the implementation and link final acceptance evidence."
+    },
+    {
+      "id": "D07",
+      "title": "Exercise documentation in onboarding/package smoke",
+      "depends_on": [
+        "D02",
+        "D03",
+        "D04",
+        "D05",
+        "D06"
+      ],
+      "acceptance": "Researcher/reuse/builder commands pass clean supported native/wheel environments; link/assets/version checks; exclude big archives; behavior tests rather than prose.",
+      "owner": "engineering",
+      "status": "implemented",
+      "evidence": [],
+      "issue_number": 119,
+      "issue_url": "https://github.com/logannye/rosalind/issues/119",
+      "blocker": "Primary workflows pass locally; the final changed package smoke must pass across the supported CI matrix."
+    },
+    {
+      "id": "R01",
+      "title": "Complete representative validation and CRAM correctness",
+      "depends_on": [],
+      "acceptance": "Merge #104/#105, retain original/failed evidence; fix stale-index, decoder accounting and native lifetime defects; corrected packaged matrix and actual Linux cgroup probes pass.",
+      "owner": "engineering",
+      "status": "in-progress",
+      "evidence": [
+        "[Merged baseline #104](https://github.com/logannye/rosalind/pull/104)",
+        "[Corrected CRAM candidate #105](https://github.com/logannye/rosalind/pull/105)"
+      ],
+      "issue_number": 120,
+      "issue_url": "https://github.com/logannye/rosalind/issues/120",
+      "blocker": "Complete fresh packaged matrix/cgroup validation and corrected candidate CI before merging #105."
+    },
+    {
+      "id": "R02",
+      "title": "Complete protected publication configuration",
+      "depends_on": [],
+      "acceptance": "Maintainer configures allowed refs with reviewers, exact publishers, GHCR visibility and crates credentials; inspect names only and never expose secrets.",
+      "owner": "maintainer",
+      "status": "blocked",
+      "evidence": [],
+      "issue_number": 121,
+      "issue_url": "https://github.com/logannye/rosalind/issues/121",
+      "blocker": "2026-09-18 inspection: rc/release custom deployment policies allow no refs; CARGO_REGISTRY_TOKEN absent from repository/environment secret inventories; TestPyPI/PyPI private publisher state unverified. Maintainer account configuration and protected approvals remain required."
+    },
+    {
+      "id": "R03",
+      "title": "Freeze complete public contract inventory",
+      "depends_on": [
+        "R01",
+        "G02"
+      ],
+      "acceptance": "Dataset family and evidence analyzer help variants, Python/API/schema/version contracts included; historical verification preserved.",
+      "owner": "engineering",
+      "status": "implemented",
+      "evidence": [],
+      "issue_number": 122,
+      "issue_url": "https://github.com/logannye/rosalind/issues/122",
+      "blocker": "Merge the implementation and link final acceptance evidence."
+    },
+    {
+      "id": "R04",
+      "title": "Publish fresh immutable evidence-engine RC",
+      "depends_on": [
+        "R01",
+        "R02",
+        "R03",
+        "D07"
+      ],
+      "acceptance": "Next unused 0.5 RC, one source across binaries/wheels/OCI/docs/reports, actual prerelease published and outside-checkout onboarding; candidate SDK patches explicit.",
+      "owner": "maintainer",
+      "status": "planned",
+      "evidence": [],
+      "issue_number": 123,
+      "issue_url": "https://github.com/logannye/rosalind/issues/123",
+      "blocker": "R01/R03 final candidate and maintainer-owned R02 publisher/environment configuration; no new prerelease is published yet."
+    },
+    {
+      "id": "R05",
+      "title": "Complete stable soak and persona gates",
+      "depends_on": [
+        "R04"
+      ],
+      "acceptance": "Seven days after actual prerelease, accepted analyzer-builder/workflow-HPC/constrained-offline feedback with matching contract/ancestry and relevant reviewed GIAB; changed contract gets new RC.",
+      "owner": "maintainer and independent participants",
+      "status": "planned",
+      "evidence": [],
+      "issue_number": 124,
+      "issue_url": "https://github.com/logannye/rosalind/issues/124"
+    },
+    {
+      "id": "R06",
+      "title": "Publish stable with registry-only verification",
+      "depends_on": [
+        "R05"
+      ],
+      "acceptance": "Existing workflow publishes build-info, receipt, then Rosalind; clean registry SDK and native/Python smoke, wheels/OCI and final release before changing stable guidance.",
+      "owner": "maintainer",
+      "status": "planned",
+      "evidence": [],
+      "issue_number": 53,
+      "issue_url": "https://github.com/logannye/rosalind/issues/53"
+    },
+    {
+      "id": "R07",
+      "title": "Publish version-pinned reuse demonstration",
+      "depends_on": [
+        "R04",
+        "D03"
+      ],
+      "acceptance": "Recording and executable transcript show candidate evidence, second saved question, verify, version/data provenance and measured validation scope.",
+      "owner": "engineering",
+      "status": "planned",
+      "evidence": [],
+      "issue_number": 55,
+      "issue_url": "https://github.com/logannye/rosalind/issues/55"
+    },
+    {
+      "id": "U01",
+      "title": "Run three independent task sessions",
+      "depends_on": [
+        "R04",
+        "D07"
+      ],
+      "acceptance": "Three non-authors complete researcher/builder/workflow tasks; record timing, assistance, failures, own-task completion; task categories do not replace release personas.",
+      "owner": "maintainer and independent participants",
+      "status": "planned",
+      "evidence": [],
+      "issue_number": 125,
+      "issue_url": "https://github.com/logannye/rosalind/issues/125"
+    },
+    {
+      "id": "U02",
+      "title": "Establish two recurring candidate-reanalysis partners",
+      "depends_on": [
+        "D02",
+        "D03"
+      ],
+      "acceptance": "Two teams document recurring SNV questions, scale, formats, fields, outputs and baseline; private data/identities stay outside GitHub.",
+      "owner": "maintainer and independent participants",
+      "status": "planned",
+      "evidence": [],
+      "issue_number": 126,
+      "issue_url": "https://github.com/logannye/rosalind/issues/126"
+    },
+    {
+      "id": "U03",
+      "title": "Resolve observed onboarding failures",
+      "depends_on": [
+        "U01"
+      ],
+      "acceptance": "Fix actual installation, interpretation, reuse and integration friction in executable guides; independent repeat without undocumented assistance.",
+      "owner": "maintainer and independent participants",
+      "status": "planned",
+      "evidence": [],
+      "issue_number": 127,
+      "issue_url": "https://github.com/logannye/rosalind/issues/127"
+    },
+    {
+      "id": "U04",
+      "title": "Observe 30-day return and supported-integration value",
+      "depends_on": [
+        "U01",
+        "U02"
+      ],
+      "acceptance": "Two teams return for useful work or negative/unknown outcomes recorded; paid-support hypothesis grounded in measured work avoided; not new stable gate.",
+      "owner": "maintainer and independent participants",
+      "status": "planned",
+      "evidence": [],
+      "issue_number": 128,
+      "issue_url": "https://github.com/logannye/rosalind/issues/128"
+    },
+    {
+      "id": "C01",
+      "title": "Define cohort contract and independent fixtures",
+      "depends_on": [
+        "R06",
+        "U02"
+      ],
+      "acceptance": "Unique asserted member IDs, optional group/subject/timepoint metadata, one analysis sample; named-sample summaries, exact missingness and independently checked public fixtures.",
+      "owner": "engineering",
+      "status": "in-progress",
+      "evidence": [],
+      "issue_number": 129,
+      "issue_url": "https://github.com/logannye/rosalind/issues/129",
+      "blocker": "Preparing proposed contract and synthetic oracle fixtures; partner scientific review and stable-release dependency remain open."
+    },
+    {
+      "id": "C02",
+      "title": "Compose immutable cohort snapshots",
+      "depends_on": [
+        "C01"
+      ],
+      "acceptance": "Copy intact verified datasets once into objects keyed by manifest-byte hash; staging/verification/atomic publication, no symlinks; relative snapshot objects and parent identity; relocate unchanged schemas.",
+      "owner": "engineering",
+      "status": "planned",
+      "evidence": [],
+      "issue_number": 130,
+      "issue_url": "https://github.com/logannye/rosalind/issues/130"
+    },
+    {
+      "id": "C03",
+      "title": "Separate comparison from same-source reuse identity",
+      "depends_on": [
+        "C01"
+      ],
+      "acceptance": "Keep source-bound identity; separate semantics/counting/filter/reference comparison; different samples pass; incompatible reference/profile fails; adequate differing masks pass.",
+      "owner": "engineering",
+      "status": "planned",
+      "evidence": [],
+      "issue_number": 131,
+      "issue_url": "https://github.com/logannye/rosalind/issues/131"
+    },
+    {
+      "id": "C04",
+      "title": "Plan and extract saved cohort evidence",
+      "depends_on": [
+        "C02",
+        "C03"
+      ],
+      "acceptance": "Inspect/verify/plan members, fields, gaps and memory; supported SNV VCF encodings; no original source opening; per-sample oracle agreement.",
+      "owner": "engineering",
+      "status": "planned",
+      "evidence": [],
+      "issue_number": 132,
+      "issue_url": "https://github.com/logannye/rosalind/issues/132"
+    },
+    {
+      "id": "C05",
+      "title": "Preserve cohort missingness",
+      "depends_on": [
+        "C04"
+      ],
+      "acceptance": "Strict default; explicit partial status/nulls for unmeasured; keep measured zero/low depth; missing fields and incompatible semantics fail, never fabricate zeros.",
+      "owner": "engineering",
+      "status": "planned",
+      "evidence": [],
+      "issue_number": 133,
+      "issue_url": "https://github.com/logannye/rosalind/issues/133"
+    },
+    {
+      "id": "C06",
+      "title": "Summarize exact candidate support",
+      "depends_on": [
+        "C05"
+      ],
+      "acceptance": "Requested/observed/depth-eligible/ALT-supported denominators, exact counts; configurable technical depth 10; zero denominator undefined; not genotype frequency/confidence.",
+      "owner": "engineering",
+      "status": "planned",
+      "evidence": [],
+      "issue_number": 134,
+      "issue_url": "https://github.com/logannye/rosalind/issues/134"
+    },
+    {
+      "id": "C07",
+      "title": "Govern one bounded cohort artifact lifecycle",
+      "depends_on": [
+        "C04"
+      ],
+      "acceptance": "Serial bounded tiles/canonical batches, no dense cohort matrix; one outer cancellation/governor scope; account metadata/decoder/reducer/encoder/finalization; failures publish no success.",
+      "owner": "engineering",
+      "status": "planned",
+      "evidence": [],
+      "issue_number": 135,
+      "issue_url": "https://github.com/logannye/rosalind/issues/135"
+    },
+    {
+      "id": "C08",
+      "title": "Extend only missing loci with explicit sources",
+      "depends_on": [
+        "C02",
+        "C04",
+        "C07"
+      ],
+      "acceptance": "Verify original source identities, create missing-only intact leaves then new snapshot last; retain originals, reject overlaps and missing-field backfill; equal fresh extraction.",
+      "owner": "engineering",
+      "status": "planned",
+      "evidence": [],
+      "issue_number": 136,
+      "issue_url": "https://github.com/logannye/rosalind/issues/136"
+    },
+    {
+      "id": "C09",
+      "title": "Expose matching cohort CLI and Python",
+      "depends_on": [
+        "C05",
+        "C06",
+        "C07",
+        "C08"
+      ],
+      "acceptance": "create/inspect/verify/extract/summarize/extend and execution --plan; lazy open_cohort, bounded batches/materialize; native error/lifecycle parity; Arrow/TSV; generic plugin stays internal.",
+      "owner": "engineering",
+      "status": "planned",
+      "evidence": [],
+      "issue_number": 137,
+      "issue_url": "https://github.com/logannye/rosalind/issues/137"
+    },
+    {
+      "id": "C10",
+      "title": "Verify and replay complete cohort lineage",
+      "depends_on": [
+        "C07",
+        "C09"
+      ],
+      "acceptance": "Bind snapshot/query/sample selection/consumed leaves/reducer/output; additive tokenized replay relocates Arrow/TSV; preserve explicit external binary and Parquet limits.",
+      "owner": "engineering",
+      "status": "planned",
+      "evidence": [],
+      "issue_number": 138,
+      "issue_url": "https://github.com/logannye/rosalind/issues/138"
+    },
+    {
+      "id": "C11",
+      "title": "Demonstrate recurring cohort questions and total costs",
+      "depends_on": [
+        "C09",
+        "C10",
+        "U02"
+      ],
+      "acceptance": "Two partners complete first/second lists and explicit extension with readable report/Python and independent correctness; include copy, storage, hash, verification and extraction costs.",
+      "owner": "engineering",
+      "status": "planned",
+      "evidence": [],
+      "issue_number": 139,
+      "issue_url": "https://github.com/logannye/rosalind/issues/139"
+    },
+    {
+      "id": "F01",
+      "title": "Add explicit paired and longitudinal comparisons",
+      "depends_on": [
+        "C11"
+      ],
+      "acceptance": "Ordered pair input and direction, counts/depth/eligibility/missingness/fractions; no inferred pairs or biological-response claim; independent oracle and partner task.",
+      "owner": "engineering",
+      "status": "planned",
+      "evidence": [],
+      "issue_number": 140,
+      "issue_url": "https://github.com/logannye/rosalind/issues/140"
+    },
+    {
+      "id": "F02",
+      "title": "Select next reducer from demonstrated recurring work",
+      "depends_on": [
+        "C11",
+        "U04"
+      ],
+      "acceptance": "Partner-led target/batch QC or artifact summary gets explicit inputs/output/baseline/acceptance before implementation; preserve evidence contracts.",
+      "owner": "maintainer and independent participants",
+      "status": "planned",
+      "evidence": [],
+      "issue_number": 141,
+      "issue_url": "https://github.com/logannye/rosalind/issues/141"
+    },
+    {
+      "id": "F03",
+      "title": "Evaluate molecule-aware evidence with assay partner",
+      "depends_on": [
+        "C11",
+        "U04"
+      ],
+      "acceptance": "Only after demonstrated molecule need: consensus interoperability, UMI/fragment provenance, family boundaries, resources, validation; measured prototype and go/no-go, separate production plan.",
+      "owner": "maintainer and independent participants",
+      "status": "planned",
+      "evidence": [],
+      "issue_number": 142,
+      "issue_url": "https://github.com/logannye/rosalind/issues/142"
+    }
+  ]
+}
