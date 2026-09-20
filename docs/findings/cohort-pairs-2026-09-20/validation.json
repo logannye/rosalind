@@ -8,6 +8,14 @@
       "bytes": 69856,
       "sha256": "7351891e135846a70178fec0d7e5bc83bbaee92cb848ce80bbb0a4d307e2f6cd"
     },
+    "installed-cohort.log": {
+      "bytes": 106,
+      "sha256": "e5cfe4943d9c78ac73c999845e3199aca64041e581a8bbdd52df12d09cfe0643"
+    },
+    "installed-identity.json": {
+      "bytes": 143,
+      "sha256": "501e1d89a84a50441d2877a04177df82cef845911036add1d9158b0ce5b2b9b5"
+    },
     "linux-cgroup.json": {
       "bytes": 25991,
       "sha256": "dd99f8d964226304e5b45b0013ad663e8e854f4c685116d5baaffeac04d15532"
@@ -43,9 +51,40 @@
     "staged-pairs.json": {
       "bytes": 4409,
       "sha256": "39de7072f11b15d38babe63bf8ae128823cead05883085ca9ea692fbba84dd7e"
+    },
+    "wheel-build-aarch64-apple-darwin.json": {
+      "bytes": 603,
+      "sha256": "f398dd7cb917a64df9f4906eb2f086517264af8386d24aa32451d5b33ae84905"
     }
   },
   "common_source_tree": "fa48c5946d3c01f081c0f09620ac9166df51c909",
+  "installed_wheel_check": {
+    "command": "env -u PYTHONPATH ROSALIND_BINARY=<fresh wheel binary> <fresh wheel python> -m unittest discover -s <source>/python/tests -p test_cohort.py",
+    "cwd": "/tmp (outside checkout)",
+    "import_identity": {
+      "imported_module": "/tmp/rosalind-pairs-validation-20260920/installed/lib/python3.11/site-packages/rosalind/__init__.py",
+      "version": "0.6.0"
+    },
+    "log": "installed-cohort.log",
+    "status": "passed",
+    "tests": 8,
+    "wheel_identity": {
+      "cargo_lock_sha256": "987eee9e926226b7dda1f0384ebb22143c83e632489a4f4523551d46416350b9",
+      "cargo_toml_sha256": "39759b78db1ee65af773dabda7b1451e1bc50262339024af16e2b6835f8f2bd0",
+      "derived_manifest": false,
+      "python_version": "0.6.0",
+      "rust_version": "0.6.0",
+      "schema": 1,
+      "source_commit": "3e75ca0101daff70c744fe407297a333051e1b16",
+      "source_version": "0.6.0",
+      "target": "aarch64-apple-darwin",
+      "wheel": {
+        "bytes": 4392767,
+        "filename": "rosalind_bio-0.6.0-py3-none-macosx_11_0_arm64.whl",
+        "sha256": "5670216a644dc25c19161dc885764c4e33e548bf9b30847b7e6d55465ada3452"
+      }
+    }
+  },
   "linux_ci_merge_sha": "4cc38df76ff2f6996af4cd41630aa1a72f2b0630",
   "local_checks": [
     {
@@ -130,7 +169,7 @@
   },
   "remote_runs": {
     "ci": {
-      "conclusion": "",
+      "conclusion": "success",
       "head_sha": "3e75ca0101daff70c744fe407297a333051e1b16",
       "jobs": [
         {
@@ -179,13 +218,13 @@
           "status": "completed"
         },
         {
-          "conclusion": "",
+          "conclusion": "success",
           "name": "cli-e2e",
-          "status": "in_progress"
+          "status": "completed"
         }
       ],
       "run_id": 35545019393,
-      "status": "in_progress",
+      "status": "completed",
       "url": "https://github.com/logannye/rosalind/actions/runs/35545019393"
     },
     "wheels": {
@@ -193,14 +232,14 @@
       "head_sha": "3e75ca0101daff70c744fe407297a333051e1b16",
       "jobs": [
         {
-          "conclusion": "",
+          "conclusion": "success",
           "name": "build (ubuntu-latest, x86_64-unknown-linux-gnu, 2_28)",
-          "status": "in_progress"
+          "status": "completed"
         },
         {
-          "conclusion": "",
+          "conclusion": "success",
           "name": "build (macos-14, aarch64-apple-darwin, off)",
-          "status": "in_progress"
+          "status": "completed"
         },
         {
           "conclusion": "",

@@ -1,0 +1,16 @@
+{
+  "cargo_lock_sha256": "987eee9e926226b7dda1f0384ebb22143c83e632489a4f4523551d46416350b9",
+  "cargo_toml_sha256": "39759b78db1ee65af773dabda7b1451e1bc50262339024af16e2b6835f8f2bd0",
+  "derived_manifest": false,
+  "python_version": "0.6.0",
+  "rust_version": "0.6.0",
+  "schema": 1,
+  "source_commit": "3e75ca0101daff70c744fe407297a333051e1b16",
+  "source_version": "0.6.0",
+  "target": "aarch64-apple-darwin",
+  "wheel": {
+    "bytes": 4392767,
+    "filename": "rosalind_bio-0.6.0-py3-none-macosx_11_0_arm64.whl",
+    "sha256": "5670216a644dc25c19161dc885764c4e33e548bf9b30847b7e6d55465ada3452"
+  }
+}

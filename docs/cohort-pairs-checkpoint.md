@@ -26,6 +26,8 @@ native or Python runtime code.
 - Six cgroup harness tests, 12 onboarding tests, seven roadmap tests, actionlint
   and formatting passed. The complete staged cohort/paired example passed from
   its copied tutorial assets using the clean tested native binary.
+- The CI-built Apple Silicon wheel passed all eight cohort Python tests after
+  fresh installation outside the checkout with `PYTHONPATH` unset.
 
 The [retained evidence](https://github.com/logannye/rosalind/blob/codex/cohort-pairs-preview/docs/findings/cohort-pairs-2026-09-20/README.md)
 contains exact source identities, reports, failures, log hashes and remote run
@@ -35,7 +37,11 @@ native code; they are not represented as independently CI-tested source.
 
 ## Next decisions
 
-1. Review the paired contract and retained platform results, then integrate the
+1. Inspect the existing [wheel run](https://github.com/logannye/rosalind/actions/runs/35545019389):
+   Linux and Apple Silicon passed both Python versions; Intel Mac installation
+   checks remain running at this checkpoint. All ten CI jobs and both workflow
+   integrations passed. Record the remaining result without launching duplicate
+   builds. Then review the paired contract and retained platform results and integrate the
    0.6 previews in their intended release sequence. Keep them outside 0.5.
 2. Merge the reviewed 0.5 fixes #146/#147 after explicit approval. Automatic
    approval review blocked those main-branch merges; both remain open. Their CI

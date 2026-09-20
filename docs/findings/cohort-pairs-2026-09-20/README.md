@@ -30,6 +30,13 @@ The saved-only query records zero original alignment records decoded.
 - [Native paired receipt](pairs.tsv.manifest.json)
 - [Validation inventory and log hashes](validation.json)
 
+A fresh installation of the actual CI-built Apple Silicon wheel passed all
+eight Python cohort tests from outside the checkout, including native/Python
+paired-byte agreement. `PYTHONPATH` was unset and imports resolved to the new
+environment's installed package. The [test log](installed-cohort.log),
+[import identity](installed-identity.json), and
+[wheel provenance](wheel-build-aarch64-apple-darwin.json) are retained.
+
 The small synthetic demonstration is author-run engineering evidence. It does
 not establish real-cohort economics, independent use, biological response,
 molecule counts, rare-variant sensitivity or clinical validity.
@@ -61,6 +68,13 @@ Remote runs for the tested implementation:
 - [Linux CI, cohort demonstration and cgroup cases](https://github.com/logannye/rosalind/actions/runs/35545019393)
 - [Linux x86_64 and macOS arm64/x86_64 wheels](https://github.com/logannye/rosalind/actions/runs/35545019389)
 - [Nextflow and Snakemake integrations](https://github.com/logannye/rosalind/actions/runs/35545019399)
+
+At this checkpoint, all ten CI jobs and both workflow integrations passed.
+Linux x86_64 and macOS arm64 wheels passed fresh Python 3.11 and 3.9 installation
+checks. The macOS Intel wheel built successfully, but its installation checks
+are still running in the existing job. It is **pending**, not passed. Keep the PR
+draft until that job finishes; inspect the existing run rather than starting
+another build cycle.
 
 Commands, completed outcomes and any outstanding checks are recorded in the
 validation inventory. The local binary is a development build, not a release
