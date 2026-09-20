@@ -357,7 +357,7 @@ fn read_replay_action(args: ReplayArgs) -> Result<CohortAction> {
     }
     // The request file carries only already-resolved argument values. Start no
     // second managed scope: reserve expansion before parsing, then let the actual
-    // extract/summarize runner own cancellation, inputs and publication.
+    // query runner own cancellation, inputs and publication.
     limits.admit((length as u64).saturating_mul(24).saturating_add(2 << 20))?;
     let mut bytes = Vec::with_capacity(length);
     File::open(&path)?
@@ -371,7 +371,7 @@ fn read_replay_action(args: ReplayArgs) -> Result<CohortAction> {
     impl<'de> serde::de::Visitor<'de> for TokensVisitor {
         type Value = Vec<String>;
         fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            formatter.write_str("a bounded array of cohort extract/summarize arguments")
+            formatter.write_str("a bounded array of cohort query arguments")
         }
         fn visit_seq<A: serde::de::SeqAccess<'de>>(
             self,

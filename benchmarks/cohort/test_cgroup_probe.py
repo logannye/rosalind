@@ -82,6 +82,20 @@ class CohortProbeTests(unittest.TestCase):
         self.assertEqual(refused[refused.index("--memory-budget-mb") + 1], "1")
         self.assertIn("--enforce", refused)
 
+    def test_pairs_use_only_an_explicit_readonly_table_and_preserve_direction(self):
+        argv = probe.command("binary", "compare-pairs", "cohort", "id", "sites", "result",
+                             os_limit=True, pairs="/inputs/pairs.tsv")
+        self.assertEqual(argv[argv.index("--pairs") + 1], "/inputs/pairs.tsv")
+        self.assertIn("--require-os-limit", argv)
+        container = probe.container_arguments("unique", probe.DEFAULT_IMAGE, "/binary", "/saved-cohort",
+            "/candidates", "/result", argv, pairs="/ordered-pairs.tsv")
+        mounts = [container[index + 1] for index, value in enumerate(container) if value == "--mount"]
+        self.assertIn("type=bind,src=/ordered-pairs.tsv,dst=/inputs/pairs.tsv,readonly", mounts)
+        self.assertEqual(len(mounts), 5)
+        for operation, pairs in [("compare-pairs", None), ("extract", "/table")]:
+            with self.assertRaisesRegex(ValueError, "explicit pair table"):
+                probe.command("binary", operation, "cohort", "id", "sites", "result", pairs=pairs)
+
 
 if __name__ == "__main__":
     unittest.main()

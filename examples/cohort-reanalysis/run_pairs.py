@@ -24,6 +24,46 @@ def require(condition, message):
         raise ValueError(message)
 
 
+def readable_report(rows):
+    """Render validated fixture rows without turning missing evidence into zero."""
+    def side(row, prefix):
+        if row[prefix + "_status"] == "unmeasured":
+            return "unmeasured"
+        depth = int(row[prefix + "_callable_depth"])
+        counts = f"{row[prefix + '_alt_count']}/{depth}"
+        if depth == 0:
+            return counts + " (observed; fraction undefined)"
+        if row[prefix + "_depth_eligible"] == "false":
+            return counts + " (below depth screen)"
+        return counts
+
+    lines = ["# Synthetic paired candidate comparisons", "",
+             "Direction: **right minus left** observed ALT/read-depth fraction. "
+             "Pairs are explicitly supplied; metadata never infers pairing.", "",
+             "The depth screen is 10 callable reads. It is a technical screen, "
+             "not confidence or a biological response classification.", "",
+             "| Pair (left → right) | Position / ALT | Left ALT/depth | Right ALT/depth | Exact difference | Both pass depth screen |",
+             "|---|---|---|---|---|---|"]
+    for row in rows:
+        if row["difference_numerator"] == ".":
+            difference = "undefined"
+        else:
+            difference = Fraction(int(row["difference_numerator"]), int(row["difference_denominator"]))
+            if row["difference_negative"] == "true":
+                difference = -difference
+        eligible = {"true": "yes", "false": "no", ".": "unknown"}[row["both_depth_eligible"]]
+        lines.append(f"| {row['pair_id']} ({row['left_member_id']} → {row['right_member_id']}) "
+                     f"| {row['pos']} / {row['alt']} | {side(row, 'left')} | {side(row, 'right')} "
+                     f"| {difference} | {eligible} |")
+    lines += ["", "Unmeasured means no saved observation. Observed zero depth is measured, "
+              "but has no defined ALT fraction. Positive low-depth fractions remain mathematically defined.", "",
+              "The native TSV and its receipt preserve original integer counts and unreduced difference "
+              "components. Fractions above are simplified exactly, without floating-point rounding.", "",
+              "[Native paired rows](pairs.tsv) · [Verification and source identity](report.json)", "",
+              "These are authored synthetic inputs, not independent research use or clinical validation."]
+    return "\n".join(lines) + "\n"
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--demo-report", required=True, type=Path)
@@ -83,6 +123,9 @@ def main():
                 require(row[side + "_alt_count"] == (str(alt) if measured else "."), "side ALT count differs")
                 eligible = depth >= 10 if measured else None
                 require(row[side + "_depth_eligible"] == (str(eligible).lower() if measured else "."), "side eligibility differs")
+                require(row[side + "_alt_supported"] == (str(eligible and alt > 0).lower() if measured else "."), "side support differs")
+                require(row[side + "_alt_fraction_numerator"] == (str(alt) if measured and depth else "."), "side fraction numerator differs")
+                require(row[side + "_alt_fraction_denominator"] == (str(depth) if measured and depth else "."), "side fraction denominator differs")
                 fractions.append(Fraction(alt, depth) if measured and depth else None)
                 eligibilities.append(eligible)
                 depths.append(depth)
@@ -107,8 +150,13 @@ def main():
         report["commands"].append({"argv": verify, "exit_code": result.returncode, "stdout": result.stdout, "stderr": result.stderr})
         require(result.returncode == 0 and json.loads(result.stdout)["ok"], "paired receipt verification failed")
         require(digest(binary) == binary_hash, "binary changed during paired demonstration")
+        readable = args.output / "REPORT.md"
+        readable.write_text(readable_report(actual))
         report.update(status="passed", compared_rows=len(actual), output_sha256=digest(output),
-                      receipt_sha256=digest(receipt_path), snapshot_id=snapshot)
+                      receipt_sha256=digest(receipt_path), snapshot_id=snapshot,
+                      readable_report_sha256=digest(readable),
+                      source_build={key: receipt["params"].get(key) for key in
+                                    ("code_git_sha", "code_dirty", "deps_lock_blake3", "target_triple")})
     except BaseException as error:
         report.update(status="failed", failure=f"{type(error).__name__}: {error}")
         raise

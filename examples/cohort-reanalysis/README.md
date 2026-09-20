@@ -193,7 +193,9 @@ python3 examples/cohort-reanalysis/run_pairs.py \
 
 The runner checks every paired row against authored depths/ALT counts and Python
 `fractions.Fraction`, including missingness, zero denominators, swapped direction
-and low-depth eligibility, then verifies the native receipt. Reports retain full
-commands and failures. The [paired contract](../../docs/cohort-pairs-contract.md)
+and low-depth eligibility, then verifies the native receipt. Open `REPORT.md` in
+the output directory for the comparison table, exact simplified differences,
+and readable coverage/missingness labels. `report.json` retains full commands,
+failures, source build identity and output hashes. The [paired contract](../../docs/cohort-pairs-contract.md)
 explains the exact decimal-string difference columns. These synthetic examples
 establish neither independent partner adoption nor biological interpretation.

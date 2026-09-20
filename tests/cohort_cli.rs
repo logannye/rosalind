@@ -645,7 +645,9 @@ fn replay_transport_only_accepts_bounded_matching_cohort_requests() {
             &["cohort", "replay", "--request", "request.json"],
         );
         assert!(!result.status.success());
-        assert!(String::from_utf8_lossy(&result.stderr).contains("extract or cohort summarize"));
+        assert!(
+            String::from_utf8_lossy(&result.stderr).contains("cohort replay request must select")
+        );
     }
     fs::File::create(&path)
         .unwrap()

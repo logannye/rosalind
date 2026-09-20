@@ -152,6 +152,7 @@ jobs:
           python3 benchmarks/cohort/cgroup_probe.py \
             --binary "$PWD/target/release/rosalind" \
             --demo-report "$RUNNER_TEMP/cohort-preview/cohort-validation/report.json" \
+            --pairs examples/cohort-reanalysis/pairs.tsv \
             --output "$RUNNER_TEMP/cohort-cgroup" --docker-context default
       - name: Retain cohort demonstration and cgroup evidence, including failures
         if: always()

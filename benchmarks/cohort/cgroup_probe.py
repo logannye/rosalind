@@ -30,25 +30,30 @@ def require(condition, message):
         raise ValueError(message)
 
 
-def command(binary, operation, cohort, snapshot, sites, output, *, budget=512, os_limit=False):
+def command(binary, operation, cohort, snapshot, sites, output, *, budget=512, os_limit=False, pairs=None):
+    require((operation == "compare-pairs") == (pairs is not None), "compare-pairs requires an explicit pair table; other operations do not")
     argv = [str(binary), "cohort", operation, "--cohort", str(cohort), "--snapshot", snapshot,
             "--sites", str(sites), "--missing", "partial", "--fields", "depths,alleles",
             "--format", "tsv", "--output", str(output), "--memory-budget-mb", str(budget), "--enforce"]
     if os_limit:
         argv.append("--require-os-limit")
+    if pairs is not None:
+        argv += ["--pairs", str(pairs)]
     return argv
 
 
-def container_arguments(name, image, binary, cohort, sites, destination, argv):
-    return ["create", "--name", name, "--platform", "linux/amd64", "--network", "none",
+def container_arguments(name, image, binary, cohort, sites, destination, argv, *, pairs=None):
+    arguments = ["create", "--name", name, "--platform", "linux/amd64", "--network", "none",
             "--memory", "512m", "--memory-swap", "512m", "--cpus", "2", "--pids-limit", "64",
             "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--read-only",
             "--user", f"{os.getuid()}:{os.getgid()}",
             "--mount", f"type=bind,src={binary},dst=/inputs/rosalind,readonly",
             "--mount", f"type=bind,src={cohort},dst=/cohort,readonly",
             "--mount", f"type=bind,src={sites},dst=/inputs/candidates.vcf,readonly",
-            "--mount", f"type=bind,src={destination},dst=/output",
-            image, "/bin/sh", "-c", evidence.CONTROLLER, "cohort-cgroup-controller", *argv]
+            "--mount", f"type=bind,src={destination},dst=/output"]
+    if pairs is not None:
+        arguments += ["--mount", f"type=bind,src={pairs},dst=/inputs/pairs.tsv,readonly"]
+    return arguments + [image, "/bin/sh", "-c", evidence.CONTROLLER, "cohort-cgroup-controller", *argv]
 
 
 def validate_case(item, expected_sha256):
@@ -76,6 +81,7 @@ def main(argv=None):
     parser.add_argument("--binary", required=True, type=Path)
     parser.add_argument("--demo-report", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--pairs", type=Path, help="Also exercise explicit pairs, including tiny-budget refusal")
     parser.add_argument("--docker-context", default="default")
     parser.add_argument("--image", default=DEFAULT_IMAGE)
     parser.add_argument("--timeout", default=180, type=int)
@@ -116,18 +122,24 @@ def main(argv=None):
         snapshot = demonstration["parent_snapshot"]
         require(re.fullmatch(r"[0-9a-f]{64}", snapshot), "invalid snapshot identity")
         sites = (args.demo_report.resolve().parent / "first.vcf").resolve(strict=True)
+        pairs = args.pairs.resolve(strict=True) if args.pairs is not None else None
         require(binary.is_file() and cohort.is_dir() and sites.is_file(), "required inputs are absent")
-        for path in (binary, cohort, sites, output):
+        for path in (binary, cohort, sites, output, *((pairs,) if pairs is not None else ())):
             require("," not in str(path), "Docker bind paths containing commas are unsupported")
         report["inputs"] = {"binary_sha256": evidence.sha256(binary), "snapshot_id": snapshot,
                             "candidate_sha256": evidence.sha256(sites),
                             "demo_report_sha256": evidence.sha256(args.demo_report)}
+        if pairs is not None:
+            require(pairs.is_file(), "pair table must be a file")
+            report["inputs"]["pairs_sha256"] = evidence.sha256(pairs)
         report["binary_version"] = subprocess.check_output([str(binary), "--version"], text=True, timeout=args.timeout).strip()
-        for operation in ("extract", "summarize"):
+        operations = ["extract", "summarize"] + (["compare-pairs"] if pairs is not None else [])
+        for operation in operations:
             baseline = output / f"baseline-{operation}"
             baseline.mkdir()
             result_path = baseline / "result.tsv"
-            invocation = command(binary, operation, cohort, snapshot, sites, result_path)
+            invocation = command(binary, operation, cohort, snapshot, sites, result_path,
+                                 pairs=pairs if operation == "compare-pairs" else None)
             (baseline / "argv.json").write_text(json.dumps(invocation, indent=2) + "\n")
             started = time.monotonic()
             with (baseline / "stdout").open("wb") as stdout, (baseline / "stderr").open("wb") as stderr:
@@ -152,6 +164,11 @@ def main(argv=None):
             {"name": "summarize-os-limit", "operation": "summarize", "expected": "completed", "budget_mib": 512, "require_os_limit": True},
             {"name": "tiny-budget-refusal", "operation": "extract", "expected": "refused", "budget_mib": 1},
         ]
+        if pairs is not None:
+            cases += [
+                {"name": "pairs-os-limit", "operation": "compare-pairs", "expected": "completed", "budget_mib": 512, "require_os_limit": True},
+                {"name": "pairs-tiny-budget-refusal", "operation": "compare-pairs", "expected": "refused", "budget_mib": 1},
+            ]
         for case in cases:
             case["hard_limit_bytes"] = HARD_LIMIT_BYTES
             destination = output / case["name"]
@@ -159,9 +176,11 @@ def main(argv=None):
             name = f"rosalind-cohort-{identity}-{case['name']}"
             invocation = command("/inputs/rosalind", case["operation"], "/cohort", snapshot,
                                  "/inputs/candidates.vcf", "/output/result.tsv", budget=case["budget_mib"],
-                                 os_limit=case.get("require_os_limit", False))
+                                 os_limit=case.get("require_os_limit", False),
+                                 pairs="/inputs/pairs.tsv" if case["operation"] == "compare-pairs" else None)
             case["argv"] = invocation
-            docker.call(container_arguments(name, args.image, binary, cohort, sites, destination, invocation))
+            docker.call(container_arguments(name, args.image, binary, cohort, sites, destination, invocation,
+                                            pairs=pairs if case["operation"] == "compare-pairs" else None))
             created.append(name)
             timed_out = False
             started = time.monotonic()
