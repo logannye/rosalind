@@ -133,12 +133,13 @@ jobs:
         run: python3 -m unittest discover -s benchmarks/cohort -p 'test_*.py'
       - name: Prepare authored cohort inputs
         run: |
-          python3 examples/cohort-reanalysis/prepare.py "$RUNNER_TEMP/cohort-preview"
+          python3 scripts/onboarding.py stage . "$RUNNER_TEMP/cohort-guides"
+          python3 "$RUNNER_TEMP/cohort-guides/examples/cohort-reanalysis/prepare.py" "$RUNNER_TEMP/cohort-preview"
       - name: Exercise candidate reanalysis, extension and relocated replay
         env:
           PYTHONPATH: python
         run: |
-          python3 examples/cohort-reanalysis/run_cohort.py "$RUNNER_TEMP/cohort-preview" \
+          python3 "$RUNNER_TEMP/cohort-guides/examples/cohort-reanalysis/run_cohort.py" "$RUNNER_TEMP/cohort-preview" \
             --binary "$PWD/target/release/rosalind" --budget-mb 512
       - name: Check explicit pair directions against independent fraction arithmetic
         run: |

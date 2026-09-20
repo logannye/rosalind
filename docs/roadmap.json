@@ -432,7 +432,8 @@
       "owner": "engineering",
       "status": "implemented",
       "evidence": [
-        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)"
+        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)",
+        "[Retained source-bound validation and failures](https://github.com/logannye/rosalind/blob/codex/cohort-preview/docs/findings/cohort-preview-2026-09-18/README.md)"
       ],
       "issue_number": 129,
       "issue_url": "https://github.com/logannye/rosalind/issues/129",
@@ -448,7 +449,8 @@
       "owner": "engineering",
       "status": "implemented",
       "evidence": [
-        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)"
+        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)",
+        "[Retained source-bound validation and failures](https://github.com/logannye/rosalind/blob/codex/cohort-preview/docs/findings/cohort-preview-2026-09-18/README.md)"
       ],
       "issue_number": 130,
       "issue_url": "https://github.com/logannye/rosalind/issues/130",
@@ -464,7 +466,8 @@
       "owner": "engineering",
       "status": "implemented",
       "evidence": [
-        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)"
+        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)",
+        "[Retained source-bound validation and failures](https://github.com/logannye/rosalind/blob/codex/cohort-preview/docs/findings/cohort-preview-2026-09-18/README.md)"
       ],
       "issue_number": 131,
       "issue_url": "https://github.com/logannye/rosalind/issues/131",
@@ -481,7 +484,8 @@
       "owner": "engineering",
       "status": "implemented",
       "evidence": [
-        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)"
+        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)",
+        "[Retained source-bound validation and failures](https://github.com/logannye/rosalind/blob/codex/cohort-preview/docs/findings/cohort-preview-2026-09-18/README.md)"
       ],
       "issue_number": 132,
       "issue_url": "https://github.com/logannye/rosalind/issues/132",
@@ -497,7 +501,8 @@
       "owner": "engineering",
       "status": "implemented",
       "evidence": [
-        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)"
+        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)",
+        "[Retained source-bound validation and failures](https://github.com/logannye/rosalind/blob/codex/cohort-preview/docs/findings/cohort-preview-2026-09-18/README.md)"
       ],
       "issue_number": 133,
       "issue_url": "https://github.com/logannye/rosalind/issues/133",
@@ -513,7 +518,8 @@
       "owner": "engineering",
       "status": "implemented",
       "evidence": [
-        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)"
+        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)",
+        "[Retained source-bound validation and failures](https://github.com/logannye/rosalind/blob/codex/cohort-preview/docs/findings/cohort-preview-2026-09-18/README.md)"
       ],
       "issue_number": 134,
       "issue_url": "https://github.com/logannye/rosalind/issues/134",
@@ -529,7 +535,8 @@
       "owner": "engineering",
       "status": "implemented",
       "evidence": [
-        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)"
+        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)",
+        "[Retained source-bound validation and failures](https://github.com/logannye/rosalind/blob/codex/cohort-preview/docs/findings/cohort-preview-2026-09-18/README.md)"
       ],
       "issue_number": 135,
       "issue_url": "https://github.com/logannye/rosalind/issues/135",
@@ -547,7 +554,8 @@
       "owner": "engineering",
       "status": "implemented",
       "evidence": [
-        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)"
+        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)",
+        "[Retained source-bound validation and failures](https://github.com/logannye/rosalind/blob/codex/cohort-preview/docs/findings/cohort-preview-2026-09-18/README.md)"
       ],
       "issue_number": 136,
       "issue_url": "https://github.com/logannye/rosalind/issues/136",
@@ -566,7 +574,8 @@
       "owner": "engineering",
       "status": "implemented",
       "evidence": [
-        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)"
+        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)",
+        "[Retained source-bound validation and failures](https://github.com/logannye/rosalind/blob/codex/cohort-preview/docs/findings/cohort-preview-2026-09-18/README.md)"
       ],
       "issue_number": 137,
       "issue_url": "https://github.com/logannye/rosalind/issues/137",
@@ -583,7 +592,8 @@
       "owner": "engineering",
       "status": "implemented",
       "evidence": [
-        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)"
+        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)",
+        "[Retained source-bound validation and failures](https://github.com/logannye/rosalind/blob/codex/cohort-preview/docs/findings/cohort-preview-2026-09-18/README.md)"
       ],
       "issue_number": 138,
       "issue_url": "https://github.com/logannye/rosalind/issues/138",
@@ -600,7 +610,8 @@
       "owner": "engineering",
       "status": "implemented",
       "evidence": [
-        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)"
+        "[0.6 source preview, tests and executable workflow](https://github.com/logannye/rosalind/pull/145)",
+        "[Retained source-bound validation and failures](https://github.com/logannye/rosalind/blob/codex/cohort-preview/docs/findings/cohort-preview-2026-09-18/README.md)"
       ],
       "issue_number": 139,
       "issue_url": "https://github.com/logannye/rosalind/issues/139",

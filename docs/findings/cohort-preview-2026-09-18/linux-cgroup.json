@@ -1,0 +1,485 @@
+{
+  "baselines": {
+    "extract": {
+      "elapsed_seconds": 0.03183142099999259,
+      "exit_code": 0,
+      "tsv_sha256": "9b1ff6b0d5e94967329a9c7f64ea7c447d01c99d2b0a4228cdb40f967580cd65"
+    },
+    "summarize": {
+      "elapsed_seconds": 0.03182047100000318,
+      "exit_code": 0,
+      "tsv_sha256": "928648c6cd3ad34c7c00c2480699051021d0193df5581f7d21b412ac61d5b884"
+    }
+  },
+  "binary_version": "rosalind 0.6.0",
+  "cases": [
+    {
+      "analysis_exit_code": 0,
+      "analysis_exit_source": "controller",
+      "assurance": "cgroup-v2",
+      "capacity_preflight_reported": false,
+      "case": {
+        "argv": [
+          "/inputs/rosalind",
+          "cohort",
+          "extract",
+          "--cohort",
+          "/cohort",
+          "--snapshot",
+          "cda79d0fbe3a5dc3755ddbb37790ceb9f384362d406eac888ee0b866de12b436",
+          "--sites",
+          "/inputs/candidates.vcf",
+          "--missing",
+          "partial",
+          "--fields",
+          "depths,alleles",
+          "--format",
+          "tsv",
+          "--output",
+          "/output/result.tsv",
+          "--memory-budget-mb",
+          "512",
+          "--enforce",
+          "--require-os-limit"
+        ],
+        "budget_mib": 512,
+        "expected": "completed",
+        "hard_limit_bytes": 536870912,
+        "name": "extract-os-limit",
+        "operation": "extract",
+        "require_os_limit": true
+      },
+      "claim_hash": "e6239901a629a399a2f695619be0da4f5026d8d4dda78136dfc49e50e5356150",
+      "container_exit_code": 0,
+      "docker_oom_killed": false,
+      "errors": [],
+      "events_after": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "events_before": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "files": {
+        "analysis.exit_code": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "analysis.stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "analysis.stdout": {
+          "bytes": 319,
+          "sha256": "196a36bc545e0b8a6ba9285556666871d8f70229ecdd462a9f2872fb3619b0f4"
+        },
+        "docker-inspect.json": {
+          "bytes": 13533,
+          "sha256": "7e12af148af648b984d457f1c764dbefd9a288255ee28f77c597bb5d0e21bc52"
+        },
+        "memory.events.after": {
+          "bytes": 53,
+          "sha256": "28fe05a1d7b8467a03fb54454f7b6a130fab752864d0454f5f6c4a4b6ce307f2"
+        },
+        "memory.events.before": {
+          "bytes": 53,
+          "sha256": "28fe05a1d7b8467a03fb54454f7b6a130fab752864d0454f5f6c4a4b6ce307f2"
+        },
+        "memory.max.after": {
+          "bytes": 10,
+          "sha256": "0be2ad7435fd88ddcce418aa053f6e472d9f792fc972f4211202bdba076bb4c7"
+        },
+        "memory.max.before": {
+          "bytes": 10,
+          "sha256": "0be2ad7435fd88ddcce418aa053f6e472d9f792fc972f4211202bdba076bb4c7"
+        },
+        "memory.peak.after": {
+          "bytes": 8,
+          "sha256": "72a058b0803a83dab191635a833c10125cc8218bd819a1e639873de4cfe541ac"
+        },
+        "memory.peak.before": {
+          "bytes": 8,
+          "sha256": "72a058b0803a83dab191635a833c10125cc8218bd819a1e639873de4cfe541ac"
+        },
+        "memory.swap.max.after": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "memory.swap.max.before": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "result.tsv": {
+          "bytes": 1504,
+          "sha256": "9b1ff6b0d5e94967329a9c7f64ea7c447d01c99d2b0a4228cdb40f967580cd65"
+        },
+        "result.tsv.manifest.json": {
+          "bytes": 9885,
+          "sha256": "2f3cd10627ff79e85f61ffdcea96408d1a139bcce4311e10bbd37451f2dad397"
+        },
+        "result.tsv.manifest.json.verify.exit_code": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "result.tsv.manifest.json.verify.json": {
+          "bytes": 1238,
+          "sha256": "5b74fbbe1eb15081b2b02e34ff8f975dcc1ec61bf7e4731b86eead03d1228e0c"
+        },
+        "result.tsv.manifest.json.verify.stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "integrity": true,
+      "measurements": {
+        "contract_verdict": "within",
+        "elapsed_ms": "23",
+        "execution.original_alignment_records_decoded": "0",
+        "execution.predicted_peak_rss_bytes": "30479208",
+        "execution.window_bases": "16384",
+        "measurement_blake3": "5f52b826f1a9a495e8b2beb20f657f38e52a6f36111c8c9c6bf0e816be1d0daa",
+        "outcome.observed_rows": "10",
+        "outcome.sample_candidate_rows": "12",
+        "outcome.unmeasured_rows": "2",
+        "peak_rss_bytes": "00000000000009031680",
+        "resource.os_limit_bytes": "536870912"
+      },
+      "memory_max_bytes": 536870912,
+      "memory_peak_bytes": 4861952,
+      "partial_artifact": false,
+      "partial_receipt": false,
+      "passed": true,
+      "producer": {
+        "code_dirty": "false",
+        "code_git_sha": "769d5f071508abbfe1181c38a9f713baad13e24e",
+        "deps_lock_blake3": "c8910c13e1109b46250e4aa9625bc09591e6f65087ea098ad87f721f3c68ca8c",
+        "rustc_version": "rustc 1.98.1 (48a229cea 2026-09-01)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "receipt_path": "result.tsv.manifest.json",
+      "receipt_status": "completed",
+      "success_artifact": true,
+      "success_receipt": true,
+      "swap_max_bytes": 0,
+      "timed_out": false,
+      "verified": true,
+      "wall_seconds": 0.248707023999998
+    },
+    {
+      "analysis_exit_code": 0,
+      "analysis_exit_source": "controller",
+      "assurance": "cgroup-v2",
+      "capacity_preflight_reported": false,
+      "case": {
+        "argv": [
+          "/inputs/rosalind",
+          "cohort",
+          "summarize",
+          "--cohort",
+          "/cohort",
+          "--snapshot",
+          "cda79d0fbe3a5dc3755ddbb37790ceb9f384362d406eac888ee0b866de12b436",
+          "--sites",
+          "/inputs/candidates.vcf",
+          "--missing",
+          "partial",
+          "--fields",
+          "depths,alleles",
+          "--format",
+          "tsv",
+          "--output",
+          "/output/result.tsv",
+          "--memory-budget-mb",
+          "512",
+          "--enforce",
+          "--require-os-limit"
+        ],
+        "budget_mib": 512,
+        "expected": "completed",
+        "hard_limit_bytes": 536870912,
+        "name": "summarize-os-limit",
+        "operation": "summarize",
+        "require_os_limit": true
+      },
+      "claim_hash": "ee6dd4c2442161d48d2d809d45f13f9fe9df8f2aaa818c60a22d98b4dd09209a",
+      "container_exit_code": 0,
+      "docker_oom_killed": false,
+      "errors": [],
+      "events_after": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "events_before": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "files": {
+        "analysis.exit_code": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "analysis.stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "analysis.stdout": {
+          "bytes": 319,
+          "sha256": "7d895a3cb3208dee62529f1cd92a7eca625be9474d105a5c82a6ada6a59f2ff4"
+        },
+        "docker-inspect.json": {
+          "bytes": 13543,
+          "sha256": "81ce6f45a5d963d9a9429b069fb3cff93cf65199b712943a7b92ba02d20990ed"
+        },
+        "memory.events.after": {
+          "bytes": 53,
+          "sha256": "28fe05a1d7b8467a03fb54454f7b6a130fab752864d0454f5f6c4a4b6ce307f2"
+        },
+        "memory.events.before": {
+          "bytes": 53,
+          "sha256": "28fe05a1d7b8467a03fb54454f7b6a130fab752864d0454f5f6c4a4b6ce307f2"
+        },
+        "memory.max.after": {
+          "bytes": 10,
+          "sha256": "0be2ad7435fd88ddcce418aa053f6e472d9f792fc972f4211202bdba076bb4c7"
+        },
+        "memory.max.before": {
+          "bytes": 10,
+          "sha256": "0be2ad7435fd88ddcce418aa053f6e472d9f792fc972f4211202bdba076bb4c7"
+        },
+        "memory.peak.after": {
+          "bytes": 8,
+          "sha256": "fb579d4038a1305e9d5d4e5e19adb24f805ce91cdab7c233a83d2603d715d771"
+        },
+        "memory.peak.before": {
+          "bytes": 8,
+          "sha256": "fb579d4038a1305e9d5d4e5e19adb24f805ce91cdab7c233a83d2603d715d771"
+        },
+        "memory.swap.max.after": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "memory.swap.max.before": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "result.tsv": {
+          "bytes": 588,
+          "sha256": "928648c6cd3ad34c7c00c2480699051021d0193df5581f7d21b412ac61d5b884"
+        },
+        "result.tsv.manifest.json": {
+          "bytes": 9893,
+          "sha256": "eb18732f30ee8c8353c74bb6f17c9f98d31366606f2b0a409418c2fad19cfaef"
+        },
+        "result.tsv.manifest.json.verify.exit_code": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "result.tsv.manifest.json.verify.json": {
+          "bytes": 1238,
+          "sha256": "f95793a11d46eebb7f9c7b8ae46617139b8b5fd485549abad77ce26eb7c0bb0e"
+        },
+        "result.tsv.manifest.json.verify.stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "integrity": true,
+      "measurements": {
+        "contract_verdict": "within",
+        "elapsed_ms": "23",
+        "execution.original_alignment_records_decoded": "0",
+        "execution.predicted_peak_rss_bytes": "51434344",
+        "execution.window_bases": "16384",
+        "measurement_blake3": "bd68d05c783af2432304c13da16ebad475198e05439076921a8f56fb0163c8a8",
+        "outcome.observed_rows": "10",
+        "outcome.sample_candidate_rows": "12",
+        "outcome.unmeasured_rows": "2",
+        "peak_rss_bytes": "00000000000008949760",
+        "resource.os_limit_bytes": "536870912"
+      },
+      "memory_max_bytes": 536870912,
+      "memory_peak_bytes": 4358144,
+      "partial_artifact": false,
+      "partial_receipt": false,
+      "passed": true,
+      "producer": {
+        "code_dirty": "false",
+        "code_git_sha": "769d5f071508abbfe1181c38a9f713baad13e24e",
+        "deps_lock_blake3": "c8910c13e1109b46250e4aa9625bc09591e6f65087ea098ad87f721f3c68ca8c",
+        "rustc_version": "rustc 1.98.1 (48a229cea 2026-09-01)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "receipt_path": "result.tsv.manifest.json",
+      "receipt_status": "completed",
+      "success_artifact": true,
+      "success_receipt": true,
+      "swap_max_bytes": 0,
+      "timed_out": false,
+      "verified": true,
+      "wall_seconds": 0.19848702000001595
+    },
+    {
+      "analysis_exit_code": 3,
+      "analysis_exit_source": "controller",
+      "capacity_preflight_reported": false,
+      "case": {
+        "argv": [
+          "/inputs/rosalind",
+          "cohort",
+          "extract",
+          "--cohort",
+          "/cohort",
+          "--snapshot",
+          "cda79d0fbe3a5dc3755ddbb37790ceb9f384362d406eac888ee0b866de12b436",
+          "--sites",
+          "/inputs/candidates.vcf",
+          "--missing",
+          "partial",
+          "--fields",
+          "depths,alleles",
+          "--format",
+          "tsv",
+          "--output",
+          "/output/result.tsv",
+          "--memory-budget-mb",
+          "1",
+          "--enforce"
+        ],
+        "budget_mib": 1,
+        "expected": "refused",
+        "hard_limit_bytes": 536870912,
+        "name": "tiny-budget-refusal",
+        "operation": "extract"
+      },
+      "container_exit_code": 3,
+      "docker_oom_killed": false,
+      "errors": [],
+      "events_after": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "events_before": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "files": {
+        "analysis.exit_code": {
+          "bytes": 2,
+          "sha256": "1121cfccd5913f0a63fec40a6ffd44ea64f9dc135c66634ba001d10bcf4302a2"
+        },
+        "analysis.stderr": {
+          "bytes": 94,
+          "sha256": "d65a1680bb53f79757adb349a3934d8e2dd22b4950b26a26a63d11a8b6ede5e2"
+        },
+        "analysis.stdout": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "docker-inspect.json": {
+          "bytes": 13466,
+          "sha256": "4cecd0742df205a514d768304503d046d0294c6e3dbcfb23fd029e460906e2ae"
+        },
+        "memory.events.after": {
+          "bytes": 53,
+          "sha256": "28fe05a1d7b8467a03fb54454f7b6a130fab752864d0454f5f6c4a4b6ce307f2"
+        },
+        "memory.events.before": {
+          "bytes": 53,
+          "sha256": "28fe05a1d7b8467a03fb54454f7b6a130fab752864d0454f5f6c4a4b6ce307f2"
+        },
+        "memory.max.after": {
+          "bytes": 10,
+          "sha256": "0be2ad7435fd88ddcce418aa053f6e472d9f792fc972f4211202bdba076bb4c7"
+        },
+        "memory.max.before": {
+          "bytes": 10,
+          "sha256": "0be2ad7435fd88ddcce418aa053f6e472d9f792fc972f4211202bdba076bb4c7"
+        },
+        "memory.peak.after": {
+          "bytes": 8,
+          "sha256": "042b9bbe51b9209ea5bbf2ff44220975abee56ee2dcbb15122dd0e151c68422d"
+        },
+        "memory.peak.before": {
+          "bytes": 8,
+          "sha256": "042b9bbe51b9209ea5bbf2ff44220975abee56ee2dcbb15122dd0e151c68422d"
+        },
+        "memory.swap.max.after": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "memory.swap.max.before": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      },
+      "memory_max_bytes": 536870912,
+      "memory_peak_bytes": 4292608,
+      "partial_artifact": false,
+      "partial_receipt": false,
+      "passed": true,
+      "success_artifact": false,
+      "success_receipt": false,
+      "swap_max_bytes": 0,
+      "timed_out": false,
+      "wall_seconds": 0.19822552499999802
+    }
+  ],
+  "docker_context": "default",
+  "docker_daemon": {
+    "architecture": "x86_64",
+    "cgroup_version": "2",
+    "kernel": "6.8.0-1064-azure",
+    "os": "Ubuntu 22.04.5 LTS"
+  },
+  "harness_sha256": "97070bc7707db45a86750a8aaead3353454bc212ccfe9e6e5951f5805c7cfe22",
+  "helper_sha256": "32112344e33b2ef6996e9dc6cdb2843c5395f3ec5536fe133a606d63b8701b46",
+  "image": {
+    "Architecture": "amd64",
+    "Id": "sha256:d617f1b5c2a18778ba357ba0528e973bd24992b0dd18000dfbca059f4a15ebda",
+    "Os": "linux",
+    "RepoDigests": [
+      "rust@sha256:6258907abe69656e41cd992e0b705cdcfabcbbe3db374f92ed2d47121282d4a1"
+    ]
+  },
+  "inputs": {
+    "binary_sha256": "495fec4b6bb35e841126f76a417f9d02bac9fa26ea7a6b3338a15eb00d8b3689",
+    "candidate_sha256": "428590b0bed84fc678db68f58716223a674525bdee7501f21d559ceb36e31a51",
+    "demo_report_sha256": "8b014ebd624b177af7f4d0d2a2c2f68887127f1fae6c0762b83b9107580c9377",
+    "snapshot_id": "cda79d0fbe3a5dc3755ddbb37790ceb9f384362d406eac888ee0b866de12b436"
+  },
+  "kind": "rosalind-cohort-cgroup-probe",
+  "limitations": [
+    "Three authored synthetic members; not a scalability or performance claim.",
+    "Cgroup memory includes page cache and the controller; receipt peak is process RSS.",
+    "Only saved cohort objects, candidates and the binary are mounted; no original sources.",
+    "The baseline runs on the CI host outside these probe containers, not on an uncapped OS."
+  ],
+  "runtime_image": "rust:1.95-bookworm@sha256:6258907abe69656e41cd992e0b705cdcfabcbbe3db374f92ed2d47121282d4a1",
+  "schema": 1,
+  "status": "passed"
+}

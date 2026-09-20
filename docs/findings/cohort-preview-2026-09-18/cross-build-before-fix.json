@@ -1,0 +1,19 @@
+{
+  "argv": [
+    "<LOCAL>/target/debug/rosalind",
+    "cohort",
+    "inspect",
+    "--cohort",
+    "/private<LOCAL>/rosalind-cohort-c11-n76eef_y/cohort-validation/relocated-cohort",
+    "--snapshot",
+    "566a11af414c3f99013a3c3baf5dddf0568c9213cec9f7b9df065620b1b17bd0"
+  ],
+  "binary_sha256": "908fa3dc94e3b8958528ff23cceae1539de4d4955ec114b1122d5112698c2026",
+  "exit_code": 5,
+  "retention": {
+    "original_report_sha256": "09ff03394e5d9e6bb99224651566e2a6ec40e7d07a0def50835c8b859449599f",
+    "path_redaction": "Machine-local path prefixes replaced; commands, outcomes, hashes, and measurements otherwise preserved."
+  },
+  "stderr": "invalid cohort: snapshot receipt lineage differs\n",
+  "stdout": ""
+}
