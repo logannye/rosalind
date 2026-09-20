@@ -1,15 +1,15 @@
 {
   "version": 1,
   "repository": "logannye/rosalind",
-  "updated": "2026-09-18",
+  "updated": "2026-09-20",
   "objective": "Make Rosalind understandable, installable and useful for recurring candidate-SNV research, then build local cohort reanalysis on verified saved evidence.",
   "milestones": {
-    "G": "G \u2014 Coherent GitHub presence",
-    "D": "D \u2014 Executable documentation",
-    "R": "R \u2014 Current evidence-engine release",
-    "U": "U \u2014 Independent user value",
-    "C": "C \u2014 Local cohort candidate reanalysis",
-    "F": "F \u2014 Expand demonstrated value"
+    "G": "G — Coherent GitHub presence",
+    "D": "D — Executable documentation",
+    "R": "R — Current evidence-engine release",
+    "U": "U — Independent user value",
+    "C": "C — Local cohort candidate reanalysis",
+    "F": "F — Expand demonstrated value"
   },
   "tasks": [
     {
@@ -319,11 +319,12 @@
       "owner": "maintainer",
       "status": "planned",
       "evidence": [
-        "[Superseded older RC attempt](https://github.com/logannye/rosalind/actions/runs/34047733765)"
+        "[Superseded older RC attempt](https://github.com/logannye/rosalind/actions/runs/34047733765)",
+        "[RC2 container failure and correction](https://github.com/logannye/rosalind/pull/146)"
       ],
       "issue_number": 123,
       "issue_url": "https://github.com/logannye/rosalind/issues/123",
-      "blocker": "R01 and R03 are merged; main is allowed in protected environments and TestPyPI setup is maintainer-confirmed. Recompute the fresh rc.2 plan at the selected source, run native-bundle validation and protected wheel/container publication, and verify actual public artifacts. No 0.5 prerelease exists yet; the old unpublished rc.1 attempt was canceled."
+      "blocker": "RC2 was canceled after the container build failure. Reviewed fixes #146/#147 have passing CI but await merge approval. Prepare the next unused rc.3 from integrated 0.5 main, preserving protected publication approvals; no prerelease or seven-day soak has begun."
     },
     {
       "id": "R05",
@@ -625,10 +626,14 @@
       ],
       "acceptance": "Ordered pair input and direction, counts/depth/eligibility/missingness/fractions; no inferred pairs or biological-response claim; results match an independent oracle. Real partner outcomes remain adoption evidence, not a shipping prerequisite.",
       "owner": "engineering",
-      "status": "planned",
-      "evidence": [],
+      "status": "implemented",
+      "evidence": [
+        "[Explicit paired CLI/Python preview](https://github.com/logannye/rosalind/pull/148)",
+        "[Source-bound paired validation and readable report](https://github.com/logannye/rosalind/blob/codex/cohort-pairs-preview/docs/findings/cohort-pairs-2026-09-20/README.md)"
+      ],
       "issue_number": 140,
-      "issue_url": "https://github.com/logannye/rosalind/issues/140"
+      "issue_url": "https://github.com/logannye/rosalind/issues/140",
+      "blocker": "Implemented on the isolated 0.6 preview branch. Source-bound authored oracles, replay, Python agreement and platform checks are retained separately from publication. Technical review and preview integration remain; independent research outcomes are unestablished and advisory."
     },
     {
       "id": "F02",

@@ -2,6 +2,7 @@
 //! separate work; callbacks can observe earlier rows before a later failure.
 
 use super::descriptor::CohortLimits;
+use super::pairs::PairPlan;
 use super::query::{CohortQueryPlan, MemberQueryPlan, MissingPolicy};
 use super::store::SnapshotHandle;
 use super::{CohortError, Result};
@@ -41,6 +42,21 @@ pub(crate) trait CohortConsumer {
     }
 }
 
+/// Explicit ordered comparison. Indices name snapshot members; names or other
+/// metadata never choose a direction or imply a pairing.
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct PairWindow<'a> {
+    pub pair_id: &'a str,
+    pub left_member_id: &'a str,
+    pub right_member_id: &'a str,
+    pub left_member_index: usize,
+    pub right_member_index: usize,
+}
+
+pub(crate) trait PairConsumer: CohortConsumer {
+    fn begin_pair_window(&mut self, pair: PairWindow<'_>, sites: &[SnvSite]) -> Result<()>;
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CohortRunStats {
     pub emitted_rows: u64,
@@ -74,6 +90,97 @@ pub(crate) fn visit_windows(
     consumer: &mut dyn CohortConsumer,
 ) -> Result<CohortRunStats> {
     visit(snapshot, plan, execution, limits, consumer, true)
+}
+
+/// Pair-table order, then canonical candidate order. Only one pair's window is
+/// retained; left and right datasets open serially through the ordinary reader.
+pub(crate) fn visit_pairs<C: PairConsumer + ?Sized>(
+    snapshot: &SnapshotHandle,
+    plan: &CohortQueryPlan,
+    pairs: &PairPlan,
+    execution: &EvidenceExecution,
+    limits: CohortLimits,
+    consumer: &mut C,
+) -> Result<CohortRunStats> {
+    plan.ensure_executable()?;
+    if plan.snapshot_id != snapshot.id {
+        return Err(CohortError::Incompatible(
+            "query plan names another snapshot".into(),
+        ));
+    }
+    // Validate all resolved references before the first callback/output.
+    for pair in &pairs.pairs {
+        if pair.left_member_index == pair.right_member_index
+            || pair.left_member_index >= plan.members.len()
+            || pair.right_member_index >= plan.members.len()
+        {
+            return Err(CohortError::Corrupt("invalid resolved pair member".into()));
+        }
+    }
+    let expected = plan
+        .candidate_rows
+        .checked_mul(pairs.pairs.len() as u64)
+        .and_then(|count| count.checked_mul(2))
+        .ok_or_else(|| CohortError::Limit("pair side observation count overflow".into()))?;
+    snapshot.verify_unchanged()?;
+    let retained = consumer
+        .retained_bytes()
+        .map(|bytes| bytes.saturating_add(pairs.metadata_bytes));
+    let admitted = runtime_plan(plan, execution, limits, retained)?;
+    let active_limits = CohortLimits {
+        memory_budget_bytes: admitted.budget,
+        ..limits
+    };
+    let mut stats = CohortRunStats {
+        emitted_rows: 0,
+        observed_rows: 0,
+        unmeasured_rows: 0,
+        execution_window_bases: admitted.width,
+        largest_window_loci: 0,
+        predicted_peak_rss_bytes: admitted.predicted,
+        consumed_inputs: BTreeMap::new(),
+    };
+    for pair in &pairs.pairs {
+        let left = &plan.members[pair.left_member_index];
+        let right = &plan.members[pair.right_member_index];
+        for sites in Windows::new(&plan.sites, admitted.width) {
+            active_limits.admit(0)?;
+            consumer.begin_pair_window(
+                PairWindow {
+                    pair_id: &pair.id,
+                    left_member_id: &left.member_id,
+                    right_member_id: &right.member_id,
+                    left_member_index: left.member_index,
+                    right_member_index: right.member_index,
+                },
+                sites,
+            )?;
+            for member in [left, right] {
+                visit_member_window(
+                    snapshot,
+                    plan,
+                    member,
+                    sites,
+                    &admitted,
+                    active_limits,
+                    consumer,
+                    &mut stats,
+                )?;
+            }
+            consumer.end_window()?;
+        }
+    }
+    if stats.emitted_rows != expected {
+        return Err(CohortError::Corrupt(
+            "paired side count differs from requested comparisons".into(),
+        ));
+    }
+    snapshot.verify_unchanged()?;
+    active_limits.admit(0)?;
+    consumer.finish()?;
+    snapshot.verify_unchanged()?;
+    active_limits.admit(0)?;
+    Ok(stats)
 }
 
 fn visit(
@@ -257,14 +364,14 @@ fn runtime_plan(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn visit_member_window(
+fn visit_member_window<C: CohortConsumer + ?Sized>(
     snapshot: &SnapshotHandle,
     plan: &CohortQueryPlan,
     member_plan: &MemberQueryPlan,
     sites: &[SnvSite],
     admitted: &RuntimePlan,
     limits: CohortLimits,
-    consumer: &mut dyn CohortConsumer,
+    consumer: &mut C,
     stats: &mut CohortRunStats,
 ) -> Result<()> {
     if sites.is_empty() {
@@ -600,6 +707,119 @@ mod tests {
             (8, 4, 4)
         );
         assert!(collect.finished);
+    }
+
+    #[test]
+    fn pair_traversal_preserves_explicit_order_missingness_and_saved_only_bytes_across_budgets() {
+        use crate::cohort::encoding::CohortOutputFormat;
+        use crate::cohort::pair_encoding::PairEncoder;
+        use crate::cohort::pairs::{plan_pairs, PairLimits, PairSpec};
+        let mut setup = Setup::new();
+        let plan = setup.plan(MissingPolicy::Partial);
+        let pairs = plan_pairs(
+            &[
+                PairSpec {
+                    id: "first-B-to-A".into(),
+                    left: "B".into(),
+                    right: "A".into(),
+                },
+                PairSpec {
+                    id: "second-A-to-B".into(),
+                    left: "A".into(),
+                    right: "B".into(),
+                },
+            ],
+            &plan
+                .members
+                .iter()
+                .map(|member| member.member_id.clone())
+                .collect::<Vec<_>>(),
+            PairLimits::default(),
+        )
+        .unwrap();
+        // Neither native sources nor original leaf directories remain available.
+        drop(setup.a.take());
+        drop(setup.b.take());
+        let baseline =
+            crate::util::rss::peak_rss_bytes().max(plan.reservations.predicted_peak_rss_bytes);
+        for format in [CohortOutputFormat::Arrow, CohortOutputFormat::Tsv] {
+            let mut expected = None;
+            for (width, extra) in [(1, 192u64), (4, 256), (CANONICAL_TILE_BASES, 320)] {
+                let execution = EvidenceExecution {
+                    max_microtile_bases: width,
+                    memory_budget_bytes: Some(baseline + (extra << 20)),
+                    ..EvidenceExecution::default()
+                };
+                let mut encoder =
+                    PairEncoder::new(Vec::new(), format, &plan.contigs, 10, 4).unwrap();
+                let stats = visit_pairs(
+                    &setup.snapshot,
+                    &plan,
+                    &pairs,
+                    &execution,
+                    CohortLimits::default(),
+                    &mut encoder,
+                )
+                .unwrap();
+                assert_eq!(
+                    (
+                        stats.emitted_rows,
+                        stats.observed_rows,
+                        stats.unmeasured_rows
+                    ),
+                    (16, 8, 8)
+                );
+                assert!(stats.largest_window_loci <= width as usize);
+                // Two leaves, each Arrow payload plus its receipt; shared use in
+                // the reversed pair must not duplicate consumed identities.
+                assert_eq!(stats.consumed_inputs.len(), 4);
+                let output = encoder.into_inner().unwrap();
+                if let Some(previous) = &expected {
+                    assert_eq!(previous, &output);
+                } else {
+                    expected = Some(output);
+                }
+            }
+            if format == CohortOutputFormat::Tsv {
+                let text = String::from_utf8(expected.unwrap()).unwrap();
+                let rows: Vec<_> = text
+                    .lines()
+                    .map(|line| line.split('\t').collect::<Vec<_>>())
+                    .collect();
+                let column = |name| rows[0].iter().position(|value| *value == name).unwrap();
+                assert_eq!(rows.len(), 9);
+                assert_eq!(rows[1][column("pair_id")], "first-B-to-A");
+                assert_eq!(rows[5][column("pair_id")], "second-A-to-B");
+                assert_eq!(rows[1][column("left_status")], "unmeasured");
+                assert_eq!(rows[1][column("right_alt_count")], "1");
+                assert_eq!(rows[2][column("right_alt_count")], "0");
+                assert_eq!(rows[3][column("right_callable_depth")], "0");
+                assert_eq!(rows[3][column("difference_numerator")], ".");
+                assert_eq!(rows[4][column("left_alt_count")], "1");
+                assert_eq!(rows[4][column("right_status")], "unmeasured");
+            }
+        }
+        let mut encoder =
+            PairEncoder::new(Vec::new(), CohortOutputFormat::Tsv, &plan.contigs, 10, 4).unwrap();
+        assert!(visit_pairs(
+            &setup.snapshot,
+            &plan,
+            &pairs,
+            &EvidenceExecution {
+                memory_budget_bytes: Some(1),
+                ..EvidenceExecution::default()
+            },
+            CohortLimits::default(),
+            &mut encoder
+        )
+        .is_err());
+        assert!(
+            String::from_utf8(encoder.into_inner().unwrap())
+                .unwrap()
+                .lines()
+                .count()
+                == 1
+        );
     }
 
     #[test]

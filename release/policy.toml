@@ -54,6 +54,7 @@ cli_help = [
   "cohort verify",
   "cohort extract",
   "cohort summarize",
+  "cohort compare-pairs",
   "cohort extend",
   "sort",
   "somatic",

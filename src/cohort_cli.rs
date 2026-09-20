@@ -7,6 +7,8 @@ use crate::cohort::artifact::{
 };
 use crate::cohort::descriptor::{CohortLimits, MemberMetadata};
 use crate::cohort::encoding::CohortOutputFormat;
+use crate::cohort::pair_table::PairInput;
+use crate::cohort::pairs::PairLimits;
 use crate::cohort::query::{
     plan_query, CohortQuery, CohortQueryLimits, CohortQueryPlan, MissingPolicy,
 };
@@ -47,6 +49,8 @@ pub enum CohortAction {
     Extract(QueryArgs),
     /// Summarize observed, depth-eligible and ALT-supported samples for supplied SNVs.
     Summarize(QueryArgs),
+    /// Compare explicitly ordered sample pairs; report exact right-minus-left read fractions.
+    ComparePairs(ComparePairsArgs),
     /// Explicitly extend missing loci using local source mappings (preview).
     Extend(ExtendArgs),
 }
@@ -254,6 +258,21 @@ pub struct QueryArgs {
 }
 
 #[derive(Args, Debug)]
+pub struct ComparePairsArgs {
+    #[command(flatten)]
+    query: QueryArgs,
+    /// Explicit ordered TSV with exactly id, left, right columns. Never inferred from metadata.
+    #[arg(long)]
+    pairs: PathBuf,
+    /// Maximum serialized pair-table bytes.
+    #[arg(long, default_value_t = 8_388_608)]
+    max_pair_table_bytes: usize,
+    /// Maximum explicit pair records; also limited by the metadata envelope.
+    #[arg(long, default_value_t = 65_536)]
+    max_pairs: usize,
+}
+
+#[derive(Args, Debug)]
 pub struct ExtendArgs {
     #[command(flatten)]
     candidate: CandidateArgs,
@@ -301,8 +320,20 @@ fn run_inner(action: CohortAction) -> Result<()> {
         CohortAction::Create(args) => create(args),
         CohortAction::Inspect(args) => inspect(args, false),
         CohortAction::Verify(args) => inspect(args, true),
-        CohortAction::Extract(args) => query(args, CohortOperation::Extract),
-        CohortAction::Summarize(args) => query(args, CohortOperation::Summarize),
+        CohortAction::Extract(args) => query(args, CohortOperation::Extract, None),
+        CohortAction::Summarize(args) => query(args, CohortOperation::Summarize, None),
+        CohortAction::ComparePairs(args) => query(
+            args.query,
+            CohortOperation::ComparePairs,
+            Some(PairInput {
+                path: args.pairs,
+                max_table_bytes: args.max_pair_table_bytes,
+                limits: PairLimits {
+                    max_pairs: args.max_pairs,
+                    ..PairLimits::default()
+                },
+            }),
+        ),
         CohortAction::Extend(args) => extend(args),
     }
 }
@@ -326,7 +357,7 @@ fn read_replay_action(args: ReplayArgs) -> Result<CohortAction> {
     }
     // The request file carries only already-resolved argument values. Start no
     // second managed scope: reserve expansion before parsing, then let the actual
-    // extract/summarize runner own cancellation, inputs and publication.
+    // query runner own cancellation, inputs and publication.
     limits.admit((length as u64).saturating_mul(24).saturating_add(2 << 20))?;
     let mut bytes = Vec::with_capacity(length);
     File::open(&path)?
@@ -340,7 +371,7 @@ fn read_replay_action(args: ReplayArgs) -> Result<CohortAction> {
     impl<'de> serde::de::Visitor<'de> for TokensVisitor {
         type Value = Vec<String>;
         fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            formatter.write_str("a bounded array of cohort extract/summarize arguments")
+            formatter.write_str("a bounded array of cohort query arguments")
         }
         fn visit_seq<A: serde::de::SeqAccess<'de>>(
             self,
@@ -371,16 +402,17 @@ fn read_replay_action(args: ReplayArgs) -> Result<CohortAction> {
     if tokens.first().map(String::as_str) != Some("cohort")
         || !matches!(
             tokens.get(1).map(String::as_str),
-            Some("extract" | "summarize")
+            Some("extract" | "summarize" | "compare-pairs")
         )
     {
-        bail!("cohort replay request must select cohort extract or cohort summarize");
+        bail!("cohort replay request must select cohort extract, summarize or compare-pairs");
     }
     let invocation = CohortInvocation::try_parse_from(tokens)?;
     let target = match &invocation.action {
         CohortAction::Extract(query) | CohortAction::Summarize(query) => {
             &query.candidate.input.resources
         }
+        CohortAction::ComparePairs(args) => &args.query.candidate.input.resources,
         _ => bail!("nested or unrelated replay commands are forbidden"),
     };
     if target.declared_budget()? != args.memory_budget_bytes
@@ -485,19 +517,43 @@ fn inspect(args: SnapshotArgs, verify: bool) -> Result<()> {
         }))
     })
 }
-fn query(args: QueryArgs, operation: CohortOperation) -> Result<()> {
+fn query(args: QueryArgs, operation: CohortOperation, pairs: Option<PairInput>) -> Result<()> {
     let planning = args.candidate.plan;
-    let spec = artifact_spec(args, operation)?;
+    let mut spec = artifact_spec(args, operation)?;
+    spec.pairs = pairs;
     if planning {
         let plan = plan_cohort_artifact(spec)?;
-        print_json(&plan_json(&plan))?;
+        let mut report = plan_json(&plan.query);
+        if let Some(pairs) = &plan.pairs {
+            let output_rows = plan
+                .candidate_rows
+                .checked_mul(pairs.pairs.len() as u64)
+                .ok_or_else(|| anyhow!("paired row count overflow"))?;
+            report["source_member_candidate_rows"] = json!(plan.output_rows);
+            report["output_rows"] = json!(output_rows);
+            report["paired_candidate_rows"] = json!(output_rows);
+            report["pair_direction"] = json!("right-minus-left");
+            report["pairs"] = json!(pairs
+                .pairs
+                .iter()
+                .map(|pair| json!({
+                    "id":pair.id,"left":plan.members[pair.left_member_index].member_id,
+                    "right":plan.members[pair.right_member_index].member_id
+                }))
+                .collect::<Vec<_>>());
+            report["resources"]["pair_metadata_bytes"] = json!(pairs.metadata_bytes);
+        }
+        print_json(&report)?;
     } else {
         let outcome = run_cohort_artifact(spec)?;
-        print_json(
-            &json!({"status":"completed","output":outcome.output,"manifest":outcome.manifest,"claim_blake3":outcome.claim_hash,
+        let mut report = json!({"status":"completed","output":outcome.output,"manifest":outcome.manifest,"claim_blake3":outcome.claim_hash,
             "sample_candidate_rows":outcome.stats.emitted_rows,"observed_rows":outcome.stats.observed_rows,
-            "unmeasured_rows":outcome.stats.unmeasured_rows,"original_alignment_records_decoded":0}),
-        )?;
+            "unmeasured_rows":outcome.stats.unmeasured_rows,"original_alignment_records_decoded":0});
+        if let Some(rows) = outcome.paired_candidate_rows {
+            report["paired_candidate_rows"] = json!(rows);
+            report["pair_direction"] = json!("right-minus-left");
+        }
+        print_json(&report)?;
     }
     Ok(())
 }
@@ -633,6 +689,7 @@ fn artifact_spec(args: QueryArgs, operation: CohortOperation) -> Result<CohortAr
                 },
             )
         }),
+        pairs: None,
         artifacts: args.artifacts,
         execution: EvidenceExecution {
             memory_budget_bytes: budget,

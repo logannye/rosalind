@@ -1,0 +1,277 @@
+{
+  "artifacts": {
+    "REPORT.md": {
+      "bytes": 2098,
+      "sha256": "101cf73c5e9a28e1160929e6e3c991561dac69b9596b68c8365e83dabea0cb14"
+    },
+    "cohort-demo.json": {
+      "bytes": 69856,
+      "sha256": "7351891e135846a70178fec0d7e5bc83bbaee92cb848ce80bbb0a4d307e2f6cd"
+    },
+    "installed-cohort.log": {
+      "bytes": 106,
+      "sha256": "e5cfe4943d9c78ac73c999845e3199aca64041e581a8bbdd52df12d09cfe0643"
+    },
+    "installed-identity.json": {
+      "bytes": 143,
+      "sha256": "501e1d89a84a50441d2877a04177df82cef845911036add1d9158b0ce5b2b9b5"
+    },
+    "linux-cgroup.json": {
+      "bytes": 25991,
+      "sha256": "dd99f8d964226304e5b45b0013ad663e8e854f4c685116d5baaffeac04d15532"
+    },
+    "linux-ci-evidence.tar.gz": {
+      "bytes": 112014,
+      "sha256": "ee38e490d77e704c64927e4b1a5d15586565ceed15853d49f03fc82f2931935c"
+    },
+    "linux-merge-commit.json": {
+      "bytes": 2650,
+      "sha256": "2d50d0587e04f16ec8cc3174bf534ace7201260b8c6d5c4e97b179921e00417d"
+    },
+    "linux-pairs.json": {
+      "bytes": 4270,
+      "sha256": "75dc092025a7060e3769b54465d07df60320124a98c7fec27793c95a77a54476"
+    },
+    "local-logs.tar.gz": {
+      "bytes": 56132,
+      "sha256": "499431a2aa2f4e77e6a7d7555a46a4fb291245d583492fa93990a9b8a7e74fa2"
+    },
+    "pairs.tsv": {
+      "bytes": 1882,
+      "sha256": "5804e2c1a2b5dbae34573af9841e35ba0d835b74d54a4edc880cdac006f9d8c0"
+    },
+    "pairs.tsv.manifest.json": {
+      "bytes": 12037,
+      "sha256": "b00d828f72dfe1a1014f7249154ae900833466fdc267603b98d7976b5c89dd00"
+    },
+    "report.json": {
+      "bytes": 4381,
+      "sha256": "afb78375e7fa37583f4d2f940873e7e49f613bd17e907cb05d634eee15a6e7d7"
+    },
+    "staged-pairs.json": {
+      "bytes": 4409,
+      "sha256": "39de7072f11b15d38babe63bf8ae128823cead05883085ca9ea692fbba84dd7e"
+    },
+    "wheel-build-aarch64-apple-darwin.json": {
+      "bytes": 603,
+      "sha256": "f398dd7cb917a64df9f4906eb2f086517264af8386d24aa32451d5b33ae84905"
+    }
+  },
+  "common_source_tree": "fa48c5946d3c01f081c0f09620ac9166df51c909",
+  "installed_wheel_check": {
+    "command": "env -u PYTHONPATH ROSALIND_BINARY=<fresh wheel binary> <fresh wheel python> -m unittest discover -s <source>/python/tests -p test_cohort.py",
+    "cwd": "/tmp (outside checkout)",
+    "import_identity": {
+      "imported_module": "/tmp/rosalind-pairs-validation-20260920/installed/lib/python3.11/site-packages/rosalind/__init__.py",
+      "version": "0.6.0"
+    },
+    "log": "installed-cohort.log",
+    "status": "passed",
+    "tests": 8,
+    "wheel_identity": {
+      "cargo_lock_sha256": "987eee9e926226b7dda1f0384ebb22143c83e632489a4f4523551d46416350b9",
+      "cargo_toml_sha256": "39759b78db1ee65af773dabda7b1451e1bc50262339024af16e2b6835f8f2bd0",
+      "derived_manifest": false,
+      "python_version": "0.6.0",
+      "rust_version": "0.6.0",
+      "schema": 1,
+      "source_commit": "3e75ca0101daff70c744fe407297a333051e1b16",
+      "source_version": "0.6.0",
+      "target": "aarch64-apple-darwin",
+      "wheel": {
+        "bytes": 4392767,
+        "filename": "rosalind_bio-0.6.0-py3-none-macosx_11_0_arm64.whl",
+        "sha256": "5670216a644dc25c19161dc885764c4e33e548bf9b30847b7e6d55465ada3452"
+      }
+    }
+  },
+  "linux_ci_merge_sha": "4cc38df76ff2f6996af4cd41630aa1a72f2b0630",
+  "local_checks": [
+    {
+      "command_or_outcome": "cargo test --workspace --locked --offline (localhost socket access enabled)",
+      "log": "workspace-unsandboxed.log",
+      "sha256": "3e6ae5068c044114a4fff3106c7e8f7981cc45a3c1f5326417ad237bee5f1fad",
+      "status": "passed"
+    },
+    {
+      "command_or_outcome": "PYTHONPATH=python ROSALIND_BINARY=<stable copy of 3e75ca0> python -m unittest discover -s python/tests",
+      "log": "python-final.log",
+      "sha256": "af3dc1f4575910a63d662a7009602ed6befeecfe9b2557c536b6d0d908d68536",
+      "status": "passed"
+    },
+    {
+      "command_or_outcome": "python3 -m unittest discover -s benchmarks/cohort",
+      "log": "cgroup-harness.log",
+      "sha256": "805a63c048f2901cfed1661fb8c861dc7e276271bdb988c115db61a14f456fb0",
+      "status": "passed"
+    },
+    {
+      "command_or_outcome": "python3 -m unittest discover -s scripts -p test_onboarding.py",
+      "log": "onboarding.log",
+      "sha256": "e73850ae583b13a712b69b4be1cd0fee6c7ebc0858da9a41edf6d8ca058d38c8",
+      "status": "passed"
+    },
+    {
+      "command_or_outcome": "python3 -m unittest discover -s scripts -p test_roadmap.py",
+      "log": "roadmap.log",
+      "sha256": "cae271308541b5784cd47bb432b7e1fe92dce86adca2034a92240d4bddf4edd8",
+      "status": "passed"
+    },
+    {
+      "command_or_outcome": "actionlint .github/workflows/ci.yml",
+      "log": "actionlint.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": "passed"
+    },
+    {
+      "command_or_outcome": "cargo fmt --all -- --check",
+      "log": "fmt.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": "passed"
+    },
+    {
+      "command_or_outcome": "initial integrated workspace: obsolete replay error assertion",
+      "log": "workspace.log",
+      "sha256": "d5e7ced58415eb335ae90ae108c32286da61b8743d2c2276ecfe92284212c721",
+      "status": "failed"
+    },
+    {
+      "command_or_outcome": "reference build setup failure in partition_arrow_merge; isolated rerun passed; cause undetermined",
+      "log": "workspace-corrected.log",
+      "sha256": "dfbdac499ccd8a17546b895928f9c02e2195930fe0d43c47e15467991dac499c",
+      "status": "failed"
+    },
+    {
+      "command_or_outcome": "cargo test --locked --offline --test partition_arrow_merge",
+      "log": "partition-rerun.log",
+      "sha256": "3d62cc1f082595fa6c6d19536e233c19d7e71f6ff047023bfa08f2a6150e573b",
+      "status": "passed"
+    },
+    {
+      "command_or_outcome": "sandboxed workspace: Receipt Studio loopback server startup failed",
+      "log": "workspace-final.log",
+      "sha256": "9544117ae89bea2d63d926288905cd8848d45131e94a9a9b53336ffd617293ec",
+      "status": "failed"
+    }
+  ],
+  "local_platform": "macOS aarch64",
+  "native_build_profile": "dev",
+  "native_source": "3e75ca0101daff70c744fe407297a333051e1b16",
+  "offline_bundle_fix": "9c485c4",
+  "release_inspection": {
+    "cargo_registry_token_present": false,
+    "date": "2026-09-20",
+    "public_stable": "v0.1.0",
+    "pypi_trusted_publisher": "unverified",
+    "release_and_rc_required_reviewers_preserved": true,
+    "release_environment_secret_names": [],
+    "repository_secret_names": []
+  },
+  "remote_runs": {
+    "ci": {
+      "conclusion": "success",
+      "head_sha": "3e75ca0101daff70c744fe407297a333051e1b16",
+      "jobs": [
+        {
+          "conclusion": "success",
+          "name": "Rust advisory audit",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "MSRV (1.83)",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Receipt Studio generated assets",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "python",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Maintainer automation dry run",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "macOS smoke",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Clippy (-D warnings)",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "Claims harness",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "rust",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "cli-e2e",
+          "status": "completed"
+        }
+      ],
+      "run_id": 35545019393,
+      "status": "completed",
+      "url": "https://github.com/logannye/rosalind/actions/runs/35545019393"
+    },
+    "wheels": {
+      "conclusion": "",
+      "head_sha": "3e75ca0101daff70c744fe407297a333051e1b16",
+      "jobs": [
+        {
+          "conclusion": "success",
+          "name": "build (ubuntu-latest, x86_64-unknown-linux-gnu, 2_28)",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "build (macos-14, aarch64-apple-darwin, off)",
+          "status": "completed"
+        },
+        {
+          "conclusion": "",
+          "name": "build (macos-15-intel, x86_64-apple-darwin, off)",
+          "status": "in_progress"
+        }
+      ],
+      "run_id": 35545019389,
+      "status": "in_progress",
+      "url": "https://github.com/logannye/rosalind/actions/runs/35545019389"
+    },
+    "workflows": {
+      "conclusion": "success",
+      "head_sha": "3e75ca0101daff70c744fe407297a333051e1b16",
+      "jobs": [
+        {
+          "conclusion": "success",
+          "name": "nextflow",
+          "status": "completed"
+        },
+        {
+          "conclusion": "success",
+          "name": "snakemake",
+          "status": "completed"
+        }
+      ],
+      "run_id": 35545019399,
+      "status": "completed",
+      "url": "https://github.com/logannye/rosalind/actions/runs/35545019399"
+    }
+  },
+  "schema": 1,
+  "scope": "authored paired preview engineering evidence; no independent adoption claim",
+  "updated": "2026-09-20"
+}

@@ -312,12 +312,13 @@ fn artifact_is_byte_comparable(manifest: &RunManifest, index: usize) -> bool {
     if output_is_byte_comparable(path) {
         return true;
     }
-    if manifest
-        .params
-        .get("cohort.result_semantics")
-        .map(String::as_str)
-        == Some("cohort-candidate-v1")
-        && manifest.params.get("replay.kind").map(String::as_str) == Some("rosalind")
+    if matches!(
+        manifest
+            .params
+            .get("cohort.result_semantics")
+            .map(String::as_str),
+        Some("cohort-candidate-v1" | "cohort-pairs-v1")
+    ) && manifest.params.get("replay.kind").map(String::as_str) == Some("rosalind")
         && manifest.params.get("run_status").map(String::as_str) == Some("completed")
         && manifest
             .params
@@ -812,7 +813,7 @@ fn built_in_prefix_allowed(prefix: &[String]) -> bool {
         || (prefix.first().map(String::as_str) == Some("cohort")
             && matches!(
                 prefix.get(1).map(String::as_str),
-                Some("extract" | "summarize")
+                Some("extract" | "summarize" | "compare-pairs")
             ))
 }
 
@@ -1127,7 +1128,7 @@ pub fn execute_reproduction(plan: ReproductionPlan) -> Result<ReproReport> {
 
 /// Transport a validated first-party cohort recipe without making the number of
 /// consumed partitions subject to execve's aggregate argument limit. The child
-/// accepts only cohort extract/summarize through this bounded hidden adapter;
+/// accepts only cohort extract/summarize/compare-pairs through this bounded adapter;
 /// external analyzers keep their explicit executable and original argv.
 fn prepare_execution_argv(
     argv: &[String],
@@ -1138,7 +1139,7 @@ fn prepare_execution_argv(
         || argv.first().map(String::as_str) != Some("cohort")
         || !matches!(
             argv.get(1).map(String::as_str),
-            Some("extract" | "summarize")
+            Some("extract" | "summarize" | "compare-pairs")
         )
     {
         return Ok(argv.to_vec());

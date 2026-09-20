@@ -89,6 +89,43 @@ class CohortTest(unittest.TestCase):
         with pa.ipc.open_stream(artifact) as reader:
             return reader.read_all()
 
+    def test_explicit_pair_comparison_matches_native_and_keeps_exact_direction(self):
+        pairs = self.root / "pairs.tsv"
+        pairs.write_text("id\tleft\tright\nforward\tA\tB\nreverse\tB\tA\n")
+        plan = self.cohort.plan(sites=self.second, operation="compare-pairs", pairs=pairs)
+        self.assertEqual(plan["status"], "blocked")
+        self.assertEqual(plan["paired_candidate_rows"], 6)
+        self.assertEqual(plan["pairs"][0], {"id": "forward", "left": "A", "right": "B"})
+        result = self.cohort.compare_pairs(self.root / "pairs.arrow", pairs=pairs,
+            sites=self.second, missing="partial", memory_budget_mb=512)
+        native = self.root / "native-pairs.arrow"
+        self.native("compare-pairs", "--cohort", self.directory, "--snapshot", self.snapshot,
+            "--pairs", pairs, "--sites", self.second, "--missing", "partial", "--format", "arrow-ipc",
+            "--memory-budget-mb", "512", "--enforce", "-o", native)
+        self.assertEqual(result.artifact_path.read_bytes(), native.read_bytes())
+        table = self.table(native)
+        values = table.to_pylist()
+        first, reverse = values[0], values[3]
+        self.assertEqual(first["left_callable_depth"], 12)
+        self.assertEqual(first["left_alt_count"], 4)
+        self.assertEqual(first["right_callable_depth"], 8)
+        self.assertEqual(first["right_alt_count"], 1)
+        self.assertTrue(first["left_depth_eligible"])
+        self.assertFalse(first["right_depth_eligible"])
+        self.assertFalse(first["both_depth_eligible"])
+        self.assertEqual((first["difference_negative"], first["difference_numerator"], first["difference_denominator"]),
+            (True, "20", "96"))
+        self.assertEqual((reverse["difference_negative"], reverse["difference_numerator"], reverse["difference_denominator"]),
+            (False, "20", "96"))
+        self.assertEqual(values[1]["left_status"], "unmeasured")
+        self.assertIsNone(values[1]["difference_numerator"])
+        self.assertEqual(table.schema.field("left_callable_depth").type, pa.uint64())
+        self.assertEqual(table.schema.field("difference_numerator").type, pa.string())
+        with self.assertRaises(ValueError):
+            self.cohort.plan(sites=self.sites, operation="compare-pairs")
+        with self.assertRaises(ValueError):
+            self.cohort.plan(sites=self.sites, pairs=pairs)
+
     def test_extract_matches_cli_and_preserves_null_zero_and_uint64(self):
         self.assertEqual(self.cohort.inspect()["snapshot_id"], self.snapshot)
         self.assertEqual(self.cohort.verify()["status"], "verified")

@@ -1,0 +1,770 @@
+{
+  "baselines": {
+    "compare-pairs": {
+      "elapsed_seconds": 0.031612113999926805,
+      "exit_code": 0,
+      "tsv_sha256": "5804e2c1a2b5dbae34573af9841e35ba0d835b74d54a4edc880cdac006f9d8c0"
+    },
+    "extract": {
+      "elapsed_seconds": 0.015653423000003386,
+      "exit_code": 0,
+      "tsv_sha256": "9b1ff6b0d5e94967329a9c7f64ea7c447d01c99d2b0a4228cdb40f967580cd65"
+    },
+    "summarize": {
+      "elapsed_seconds": 0.015505387999951381,
+      "exit_code": 0,
+      "tsv_sha256": "928648c6cd3ad34c7c00c2480699051021d0193df5581f7d21b412ac61d5b884"
+    }
+  },
+  "binary_version": "rosalind 0.6.0",
+  "cases": [
+    {
+      "analysis_exit_code": 0,
+      "analysis_exit_source": "controller",
+      "assurance": "cgroup-v2",
+      "capacity_preflight_reported": false,
+      "case": {
+        "argv": [
+          "/inputs/rosalind",
+          "cohort",
+          "extract",
+          "--cohort",
+          "/cohort",
+          "--snapshot",
+          "70d41faeee26fa5507b4b6815c57010f77a87ce20acfe9ac2f1cd89a8ffca608",
+          "--sites",
+          "/inputs/candidates.vcf",
+          "--missing",
+          "partial",
+          "--fields",
+          "depths,alleles",
+          "--format",
+          "tsv",
+          "--output",
+          "/output/result.tsv",
+          "--memory-budget-mb",
+          "512",
+          "--enforce",
+          "--require-os-limit"
+        ],
+        "budget_mib": 512,
+        "expected": "completed",
+        "hard_limit_bytes": 536870912,
+        "name": "extract-os-limit",
+        "operation": "extract",
+        "require_os_limit": true
+      },
+      "claim_hash": "a24428d0ca15d85255d0591973ef9a063a2362412f77f375bd7a0a6b5e118e11",
+      "container_exit_code": 0,
+      "docker_oom_killed": false,
+      "errors": [],
+      "events_after": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "events_before": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "files": {
+        "analysis.exit_code": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "analysis.stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "analysis.stdout": {
+          "bytes": 319,
+          "sha256": "4ab95d7e43556ddd03704822c9d65230c3331134c3f275f10e39c874b92da70e"
+        },
+        "docker-inspect.json": {
+          "bytes": 13533,
+          "sha256": "dd84fdb07f664a26c8336309a267e3b0c7fa5ef1ac14be3876e1ee20ded5bf76"
+        },
+        "memory.events.after": {
+          "bytes": 53,
+          "sha256": "28fe05a1d7b8467a03fb54454f7b6a130fab752864d0454f5f6c4a4b6ce307f2"
+        },
+        "memory.events.before": {
+          "bytes": 53,
+          "sha256": "28fe05a1d7b8467a03fb54454f7b6a130fab752864d0454f5f6c4a4b6ce307f2"
+        },
+        "memory.max.after": {
+          "bytes": 10,
+          "sha256": "0be2ad7435fd88ddcce418aa053f6e472d9f792fc972f4211202bdba076bb4c7"
+        },
+        "memory.max.before": {
+          "bytes": 10,
+          "sha256": "0be2ad7435fd88ddcce418aa053f6e472d9f792fc972f4211202bdba076bb4c7"
+        },
+        "memory.peak.after": {
+          "bytes": 8,
+          "sha256": "b4cd89401ae44221e71e9878ce403043f965a28731b913fbb8e52b705486d2dd"
+        },
+        "memory.peak.before": {
+          "bytes": 8,
+          "sha256": "b4cd89401ae44221e71e9878ce403043f965a28731b913fbb8e52b705486d2dd"
+        },
+        "memory.swap.max.after": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "memory.swap.max.before": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "result.tsv": {
+          "bytes": 1504,
+          "sha256": "9b1ff6b0d5e94967329a9c7f64ea7c447d01c99d2b0a4228cdb40f967580cd65"
+        },
+        "result.tsv.manifest.json": {
+          "bytes": 9885,
+          "sha256": "a792e2d94bd899e55dbb8921a27cd024533109133def716371521283ab67270e"
+        },
+        "result.tsv.manifest.json.verify.exit_code": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "result.tsv.manifest.json.verify.json": {
+          "bytes": 1238,
+          "sha256": "7ca24b9136def913b42887d584ae35185364ee2e5b3a133ea9e9b3567798cfbc"
+        },
+        "result.tsv.manifest.json.verify.stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "integrity": true,
+      "measurements": {
+        "contract_verdict": "within",
+        "elapsed_ms": "13",
+        "execution.original_alignment_records_decoded": "0",
+        "execution.predicted_peak_rss_bytes": "30774184",
+        "execution.window_bases": "16384",
+        "measurement_blake3": "2472046c87628bf709c7bf4e95681b6ed6ac922e95f16d023c0ff207403d18ba",
+        "outcome.observed_rows": "10",
+        "outcome.sample_candidate_rows": "12",
+        "outcome.unmeasured_rows": "2",
+        "peak_rss_bytes": "00000000000009330688",
+        "resource.os_limit_bytes": "536870912"
+      },
+      "memory_max_bytes": 536870912,
+      "memory_peak_bytes": 4898816,
+      "partial_artifact": false,
+      "partial_receipt": false,
+      "passed": true,
+      "producer": {
+        "code_dirty": "false",
+        "code_git_sha": "4cc38df76ff2f6996af4cd41630aa1a72f2b0630",
+        "deps_lock_blake3": "c8910c13e1109b46250e4aa9625bc09591e6f65087ea098ad87f721f3c68ca8c",
+        "rustc_version": "rustc 1.98.1 (48a229cea 2026-09-01)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "receipt_path": "result.tsv.manifest.json",
+      "receipt_status": "completed",
+      "success_artifact": true,
+      "success_receipt": true,
+      "swap_max_bytes": 0,
+      "timed_out": false,
+      "verified": true,
+      "wall_seconds": 0.2316093169999931
+    },
+    {
+      "analysis_exit_code": 0,
+      "analysis_exit_source": "controller",
+      "assurance": "cgroup-v2",
+      "capacity_preflight_reported": false,
+      "case": {
+        "argv": [
+          "/inputs/rosalind",
+          "cohort",
+          "summarize",
+          "--cohort",
+          "/cohort",
+          "--snapshot",
+          "70d41faeee26fa5507b4b6815c57010f77a87ce20acfe9ac2f1cd89a8ffca608",
+          "--sites",
+          "/inputs/candidates.vcf",
+          "--missing",
+          "partial",
+          "--fields",
+          "depths,alleles",
+          "--format",
+          "tsv",
+          "--output",
+          "/output/result.tsv",
+          "--memory-budget-mb",
+          "512",
+          "--enforce",
+          "--require-os-limit"
+        ],
+        "budget_mib": 512,
+        "expected": "completed",
+        "hard_limit_bytes": 536870912,
+        "name": "summarize-os-limit",
+        "operation": "summarize",
+        "require_os_limit": true
+      },
+      "claim_hash": "333727667afc06972e43f2c5067970cb7cbd03f259e55d1f26e1079370fe7260",
+      "container_exit_code": 0,
+      "docker_oom_killed": false,
+      "errors": [],
+      "events_after": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "events_before": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "files": {
+        "analysis.exit_code": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "analysis.stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "analysis.stdout": {
+          "bytes": 319,
+          "sha256": "df8052224695e59f65461657b73522cf25a7deca065d08de6c8a459cf0d5b971"
+        },
+        "docker-inspect.json": {
+          "bytes": 13543,
+          "sha256": "2353afe309759c52f7a0437fe38c2974d90f23c11de1d169355ed215cf499d2d"
+        },
+        "memory.events.after": {
+          "bytes": 53,
+          "sha256": "28fe05a1d7b8467a03fb54454f7b6a130fab752864d0454f5f6c4a4b6ce307f2"
+        },
+        "memory.events.before": {
+          "bytes": 53,
+          "sha256": "28fe05a1d7b8467a03fb54454f7b6a130fab752864d0454f5f6c4a4b6ce307f2"
+        },
+        "memory.max.after": {
+          "bytes": 10,
+          "sha256": "0be2ad7435fd88ddcce418aa053f6e472d9f792fc972f4211202bdba076bb4c7"
+        },
+        "memory.max.before": {
+          "bytes": 10,
+          "sha256": "0be2ad7435fd88ddcce418aa053f6e472d9f792fc972f4211202bdba076bb4c7"
+        },
+        "memory.peak.after": {
+          "bytes": 8,
+          "sha256": "69e8021925849a35dd6dba9abd2a8d17be0ee53728b758ce5e0d2969f28c40a1"
+        },
+        "memory.peak.before": {
+          "bytes": 8,
+          "sha256": "69e8021925849a35dd6dba9abd2a8d17be0ee53728b758ce5e0d2969f28c40a1"
+        },
+        "memory.swap.max.after": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "memory.swap.max.before": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "result.tsv": {
+          "bytes": 588,
+          "sha256": "928648c6cd3ad34c7c00c2480699051021d0193df5581f7d21b412ac61d5b884"
+        },
+        "result.tsv.manifest.json": {
+          "bytes": 9893,
+          "sha256": "ca1d86a47f3b34acec805887d0d41eced7c8846a08b05df98d5240a962ce078c"
+        },
+        "result.tsv.manifest.json.verify.exit_code": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "result.tsv.manifest.json.verify.json": {
+          "bytes": 1238,
+          "sha256": "07f20501b127d105ba2d86de2a23c4b745b7eb5dbfae070e6d5bc415718d987f"
+        },
+        "result.tsv.manifest.json.verify.stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "integrity": true,
+      "measurements": {
+        "contract_verdict": "within",
+        "elapsed_ms": "11",
+        "execution.original_alignment_records_decoded": "0",
+        "execution.predicted_peak_rss_bytes": "51610536",
+        "execution.window_bases": "16384",
+        "measurement_blake3": "cc1dd6b8be31ebd9a9d2ffd8197a2089358ccc8587ce8a1044af6c53edf02271",
+        "outcome.observed_rows": "10",
+        "outcome.sample_candidate_rows": "12",
+        "outcome.unmeasured_rows": "2",
+        "peak_rss_bytes": "00000000000009261056",
+        "resource.os_limit_bytes": "536870912"
+      },
+      "memory_max_bytes": 536870912,
+      "memory_peak_bytes": 4820992,
+      "partial_artifact": false,
+      "partial_receipt": false,
+      "passed": true,
+      "producer": {
+        "code_dirty": "false",
+        "code_git_sha": "4cc38df76ff2f6996af4cd41630aa1a72f2b0630",
+        "deps_lock_blake3": "c8910c13e1109b46250e4aa9625bc09591e6f65087ea098ad87f721f3c68ca8c",
+        "rustc_version": "rustc 1.98.1 (48a229cea 2026-09-01)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "receipt_path": "result.tsv.manifest.json",
+      "receipt_status": "completed",
+      "success_artifact": true,
+      "success_receipt": true,
+      "swap_max_bytes": 0,
+      "timed_out": false,
+      "verified": true,
+      "wall_seconds": 0.18125004999990324
+    },
+    {
+      "analysis_exit_code": 3,
+      "analysis_exit_source": "controller",
+      "capacity_preflight_reported": false,
+      "case": {
+        "argv": [
+          "/inputs/rosalind",
+          "cohort",
+          "extract",
+          "--cohort",
+          "/cohort",
+          "--snapshot",
+          "70d41faeee26fa5507b4b6815c57010f77a87ce20acfe9ac2f1cd89a8ffca608",
+          "--sites",
+          "/inputs/candidates.vcf",
+          "--missing",
+          "partial",
+          "--fields",
+          "depths,alleles",
+          "--format",
+          "tsv",
+          "--output",
+          "/output/result.tsv",
+          "--memory-budget-mb",
+          "1",
+          "--enforce"
+        ],
+        "budget_mib": 1,
+        "expected": "refused",
+        "hard_limit_bytes": 536870912,
+        "name": "tiny-budget-refusal",
+        "operation": "extract"
+      },
+      "container_exit_code": 3,
+      "docker_oom_killed": false,
+      "errors": [],
+      "events_after": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "events_before": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "files": {
+        "analysis.exit_code": {
+          "bytes": 2,
+          "sha256": "1121cfccd5913f0a63fec40a6ffd44ea64f9dc135c66634ba001d10bcf4302a2"
+        },
+        "analysis.stderr": {
+          "bytes": 94,
+          "sha256": "b90121547bd6694d48ab20a4254ef9ede81fbb21ed61638c13f78305ce59896f"
+        },
+        "analysis.stdout": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "docker-inspect.json": {
+          "bytes": 13465,
+          "sha256": "361dfde58f7c8b16fc07aee08ebc87c769d6192f6b1b4ad64e4c0b1b04bfb4ac"
+        },
+        "memory.events.after": {
+          "bytes": 53,
+          "sha256": "28fe05a1d7b8467a03fb54454f7b6a130fab752864d0454f5f6c4a4b6ce307f2"
+        },
+        "memory.events.before": {
+          "bytes": 53,
+          "sha256": "28fe05a1d7b8467a03fb54454f7b6a130fab752864d0454f5f6c4a4b6ce307f2"
+        },
+        "memory.max.after": {
+          "bytes": 10,
+          "sha256": "0be2ad7435fd88ddcce418aa053f6e472d9f792fc972f4211202bdba076bb4c7"
+        },
+        "memory.max.before": {
+          "bytes": 10,
+          "sha256": "0be2ad7435fd88ddcce418aa053f6e472d9f792fc972f4211202bdba076bb4c7"
+        },
+        "memory.peak.after": {
+          "bytes": 8,
+          "sha256": "3e9c37b07e54cc05ebaa579ad8ec22cbe3e14ccd8efb2758ed91c65c53a96d83"
+        },
+        "memory.peak.before": {
+          "bytes": 8,
+          "sha256": "3e9c37b07e54cc05ebaa579ad8ec22cbe3e14ccd8efb2758ed91c65c53a96d83"
+        },
+        "memory.swap.max.after": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "memory.swap.max.before": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      },
+      "memory_max_bytes": 536870912,
+      "memory_peak_bytes": 4595712,
+      "partial_artifact": false,
+      "partial_receipt": false,
+      "passed": true,
+      "success_artifact": false,
+      "success_receipt": false,
+      "swap_max_bytes": 0,
+      "timed_out": false,
+      "wall_seconds": 0.18088285499993617
+    },
+    {
+      "analysis_exit_code": 0,
+      "analysis_exit_source": "controller",
+      "assurance": "cgroup-v2",
+      "capacity_preflight_reported": false,
+      "case": {
+        "argv": [
+          "/inputs/rosalind",
+          "cohort",
+          "compare-pairs",
+          "--cohort",
+          "/cohort",
+          "--snapshot",
+          "70d41faeee26fa5507b4b6815c57010f77a87ce20acfe9ac2f1cd89a8ffca608",
+          "--sites",
+          "/inputs/candidates.vcf",
+          "--missing",
+          "partial",
+          "--fields",
+          "depths,alleles",
+          "--format",
+          "tsv",
+          "--output",
+          "/output/result.tsv",
+          "--memory-budget-mb",
+          "512",
+          "--enforce",
+          "--require-os-limit",
+          "--pairs",
+          "/inputs/pairs.tsv"
+        ],
+        "budget_mib": 512,
+        "expected": "completed",
+        "hard_limit_bytes": 536870912,
+        "name": "pairs-os-limit",
+        "operation": "compare-pairs",
+        "require_os_limit": true
+      },
+      "claim_hash": "bb4823d898008f91d689e0d8539cbc19da6b320ada0be44466ce25f7aaf22b87",
+      "container_exit_code": 0,
+      "docker_oom_killed": false,
+      "errors": [],
+      "events_after": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "events_before": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "files": {
+        "analysis.exit_code": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "analysis.stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "analysis.stdout": {
+          "bytes": 390,
+          "sha256": "01706bcc754fb09e75b4f2374ef012ef42e6f439732bde20ed91498faae1cc58"
+        },
+        "docker-inspect.json": {
+          "bytes": 14240,
+          "sha256": "c22117336424eaa9a642046fea7ab3561a166dabe759f0b8fe3971f8b0cb93fb"
+        },
+        "memory.events.after": {
+          "bytes": 53,
+          "sha256": "28fe05a1d7b8467a03fb54454f7b6a130fab752864d0454f5f6c4a4b6ce307f2"
+        },
+        "memory.events.before": {
+          "bytes": 53,
+          "sha256": "28fe05a1d7b8467a03fb54454f7b6a130fab752864d0454f5f6c4a4b6ce307f2"
+        },
+        "memory.max.after": {
+          "bytes": 10,
+          "sha256": "0be2ad7435fd88ddcce418aa053f6e472d9f792fc972f4211202bdba076bb4c7"
+        },
+        "memory.max.before": {
+          "bytes": 10,
+          "sha256": "0be2ad7435fd88ddcce418aa053f6e472d9f792fc972f4211202bdba076bb4c7"
+        },
+        "memory.peak.after": {
+          "bytes": 8,
+          "sha256": "e203fac0020147d071b432cd165fed887db8732fe573d6ca2fcf191d4318313c"
+        },
+        "memory.peak.before": {
+          "bytes": 8,
+          "sha256": "e203fac0020147d071b432cd165fed887db8732fe573d6ca2fcf191d4318313c"
+        },
+        "memory.swap.max.after": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "memory.swap.max.before": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "result.tsv": {
+          "bytes": 1882,
+          "sha256": "5804e2c1a2b5dbae34573af9841e35ba0d835b74d54a4edc880cdac006f9d8c0"
+        },
+        "result.tsv.manifest.json": {
+          "bytes": 10732,
+          "sha256": "804fb97b23c85a1c04bb3f8f7cc6ada6c731ca85d1f574ef77d870dbaaf2c273"
+        },
+        "result.tsv.manifest.json.verify.exit_code": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "result.tsv.manifest.json.verify.json": {
+          "bytes": 1238,
+          "sha256": "eb37ad9de725c7ce6ec4191686e066d7b475a2fcf0c6d76a86f8172aa81c1617"
+        },
+        "result.tsv.manifest.json.verify.stderr": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        }
+      },
+      "integrity": true,
+      "measurements": {
+        "contract_verdict": "within",
+        "elapsed_ms": "12",
+        "execution.original_alignment_records_decoded": "0",
+        "execution.predicted_peak_rss_bytes": "59961960",
+        "execution.window_bases": "16384",
+        "measurement_blake3": "e568844187f9b1331ea42d2339052539630df609a6586bc5f969732ef2a40067",
+        "outcome.observed_rows": "21",
+        "outcome.pair_candidate_rows": "12",
+        "outcome.sample_candidate_rows": "24",
+        "outcome.unmeasured_rows": "3",
+        "peak_rss_bytes": "00000000000008990720",
+        "resource.os_limit_bytes": "536870912"
+      },
+      "memory_max_bytes": 536870912,
+      "memory_peak_bytes": 4853760,
+      "partial_artifact": false,
+      "partial_receipt": false,
+      "passed": true,
+      "producer": {
+        "code_dirty": "false",
+        "code_git_sha": "4cc38df76ff2f6996af4cd41630aa1a72f2b0630",
+        "deps_lock_blake3": "c8910c13e1109b46250e4aa9625bc09591e6f65087ea098ad87f721f3c68ca8c",
+        "rustc_version": "rustc 1.98.1 (48a229cea 2026-09-01)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "receipt_path": "result.tsv.manifest.json",
+      "receipt_status": "completed",
+      "success_artifact": true,
+      "success_receipt": true,
+      "swap_max_bytes": 0,
+      "timed_out": false,
+      "verified": true,
+      "wall_seconds": 0.18133036400001856
+    },
+    {
+      "analysis_exit_code": 3,
+      "analysis_exit_source": "controller",
+      "capacity_preflight_reported": false,
+      "case": {
+        "argv": [
+          "/inputs/rosalind",
+          "cohort",
+          "compare-pairs",
+          "--cohort",
+          "/cohort",
+          "--snapshot",
+          "70d41faeee26fa5507b4b6815c57010f77a87ce20acfe9ac2f1cd89a8ffca608",
+          "--sites",
+          "/inputs/candidates.vcf",
+          "--missing",
+          "partial",
+          "--fields",
+          "depths,alleles",
+          "--format",
+          "tsv",
+          "--output",
+          "/output/result.tsv",
+          "--memory-budget-mb",
+          "1",
+          "--enforce",
+          "--pairs",
+          "/inputs/pairs.tsv"
+        ],
+        "budget_mib": 1,
+        "expected": "refused",
+        "hard_limit_bytes": 536870912,
+        "name": "pairs-tiny-budget-refusal",
+        "operation": "compare-pairs"
+      },
+      "container_exit_code": 3,
+      "docker_oom_killed": false,
+      "errors": [],
+      "events_after": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "events_before": {
+        "high": 0,
+        "low": 0,
+        "max": 0,
+        "oom": 0,
+        "oom_group_kill": 0,
+        "oom_kill": 0
+      },
+      "files": {
+        "analysis.exit_code": {
+          "bytes": 2,
+          "sha256": "1121cfccd5913f0a63fec40a6ffd44ea64f9dc135c66634ba001d10bcf4302a2"
+        },
+        "analysis.stderr": {
+          "bytes": 94,
+          "sha256": "5476a7f04168b3b1917980121ed567f2bf58177a135fed3c29e4fc9e7e1f14aa"
+        },
+        "analysis.stdout": {
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "docker-inspect.json": {
+          "bytes": 14196,
+          "sha256": "a3a6a7965839b870a38c46f7051e98110ab56d9dd1b497b17dd5f141ea0eb2d8"
+        },
+        "memory.events.after": {
+          "bytes": 53,
+          "sha256": "28fe05a1d7b8467a03fb54454f7b6a130fab752864d0454f5f6c4a4b6ce307f2"
+        },
+        "memory.events.before": {
+          "bytes": 53,
+          "sha256": "28fe05a1d7b8467a03fb54454f7b6a130fab752864d0454f5f6c4a4b6ce307f2"
+        },
+        "memory.max.after": {
+          "bytes": 10,
+          "sha256": "0be2ad7435fd88ddcce418aa053f6e472d9f792fc972f4211202bdba076bb4c7"
+        },
+        "memory.max.before": {
+          "bytes": 10,
+          "sha256": "0be2ad7435fd88ddcce418aa053f6e472d9f792fc972f4211202bdba076bb4c7"
+        },
+        "memory.peak.after": {
+          "bytes": 8,
+          "sha256": "8eaa72a2e712d834c3b954e4aceff2d3b4069ded8c6fa0fb0f09db87076a1ffe"
+        },
+        "memory.peak.before": {
+          "bytes": 8,
+          "sha256": "8eaa72a2e712d834c3b954e4aceff2d3b4069ded8c6fa0fb0f09db87076a1ffe"
+        },
+        "memory.swap.max.after": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        },
+        "memory.swap.max.before": {
+          "bytes": 2,
+          "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa"
+        }
+      },
+      "memory_max_bytes": 536870912,
+      "memory_peak_bytes": 4808704,
+      "partial_artifact": false,
+      "partial_receipt": false,
+      "passed": true,
+      "success_artifact": false,
+      "success_receipt": false,
+      "swap_max_bytes": 0,
+      "timed_out": false,
+      "wall_seconds": 0.18095370100002128
+    }
+  ],
+  "docker_context": "default",
+  "docker_daemon": {
+    "architecture": "x86_64",
+    "cgroup_version": "2",
+    "kernel": "6.8.0-1064-azure",
+    "os": "Ubuntu 22.04.5 LTS"
+  },
+  "harness_sha256": "afd776b2534056a09313ea6dba41e9859b95134734cc047e2e7498a5f75a705c",
+  "helper_sha256": "32112344e33b2ef6996e9dc6cdb2843c5395f3ec5536fe133a606d63b8701b46",
+  "image": {
+    "Architecture": "amd64",
+    "Id": "sha256:d617f1b5c2a18778ba357ba0528e973bd24992b0dd18000dfbca059f4a15ebda",
+    "Os": "linux",
+    "RepoDigests": [
+      "rust@sha256:6258907abe69656e41cd992e0b705cdcfabcbbe3db374f92ed2d47121282d4a1"
+    ]
+  },
+  "inputs": {
+    "binary_sha256": "5bbe490c3201ca4ae9bc491644fe17d781974d1e1afa11bc479c21a9a9be29dd",
+    "candidate_sha256": "428590b0bed84fc678db68f58716223a674525bdee7501f21d559ceb36e31a51",
+    "demo_report_sha256": "1d84091861babcb79bf3b28498b5a0defdc29e3033c1ed6d126d2b6139328c8c",
+    "pairs_sha256": "0e27e3addf44244156cd2ceb146ef95fdc078f33ca10f7ba7e22bb409d02885a",
+    "snapshot_id": "70d41faeee26fa5507b4b6815c57010f77a87ce20acfe9ac2f1cd89a8ffca608"
+  },
+  "kind": "rosalind-cohort-cgroup-probe",
+  "limitations": [
+    "Three authored synthetic members; not a scalability or performance claim.",
+    "Cgroup memory includes page cache and the controller; receipt peak is process RSS.",
+    "Only saved cohort objects, candidates and the binary are mounted; no original sources.",
+    "The baseline runs on the CI host outside these probe containers, not on an uncapped OS."
+  ],
+  "runtime_image": "rust:1.95-bookworm@sha256:6258907abe69656e41cd992e0b705cdcfabcbbe3db374f92ed2d47121282d4a1",
+  "schema": 1,
+  "status": "passed"
+}

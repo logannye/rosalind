@@ -34,6 +34,7 @@ CODE_FILES = (
     "scripts/reproduce_demo.sh", "scripts/reproduce_demo.py",
     "examples/cohort-reanalysis/prepare.py", "examples/cohort-reanalysis/validate.py",
     "examples/cohort-reanalysis/run_cohort.py", "examples/cohort-reanalysis/reads.tsv",
+    "examples/cohort-reanalysis/run_pairs.py", "examples/cohort-reanalysis/pairs.tsv",
     "examples/cohort-reanalysis/members.tsv", "examples/cohort-reanalysis/expected.json",
     "examples/cohort-reanalysis/reference.fa", "examples/cohort-reanalysis/candidates.vcf",
     "examples/cohort-reanalysis/specimen-a.bed", "examples/cohort-reanalysis/specimen-b.bed",

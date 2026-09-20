@@ -1,5 +1,13 @@
 # Engineering checkpoint — 2026-09-18
 
+**Resumed September 20:** paired comparison work continues in
+[PR #148](https://github.com/logannye/rosalind/pull/148), with the reviewed build
+identity fix integrated locally, a clean-source demonstration, readable paired
+reports and expanded Linux checks. See the
+[current checkpoint](cohort-pairs-checkpoint.md). Release fixes #146/#147 passed
+their checks and await explicit merge approval; no 0.5 RC has been published.
+The remainder of this page preserves the September 18 stopping point.
+
 Work is paused at a reviewable checkpoint at the maintainer's request to conserve
 compute. This is not a claim that stable publication or the entire adoption
 roadmap is complete.

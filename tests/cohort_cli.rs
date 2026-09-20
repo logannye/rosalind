@@ -31,6 +31,9 @@ impl Fixture {
         Self::with_length(32)
     }
     fn with_length(length: u32) -> Self {
+        Self::with_length_and_ref_reads(length, false)
+    }
+    fn with_length_and_ref_reads(length: u32, paired: bool) -> Self {
         static NEXT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
         let root = std::env::temp_dir().join(format!(
             "rosalind-cohort-cli-{}-{}",
@@ -76,7 +79,11 @@ impl Fixture {
                     record.set(
                         format!("read-{position}-{read}").as_bytes(),
                         Some(&CigarString(vec![Cigar::Match(1)])),
-                        b"C",
+                        if paired && sample == "B" && read == 1 {
+                            b"A"
+                        } else {
+                            b"C"
+                        },
                         &[35],
                     );
                     record.set_tid(0);
@@ -638,7 +645,9 @@ fn replay_transport_only_accepts_bounded_matching_cohort_requests() {
             &["cohort", "replay", "--request", "request.json"],
         );
         assert!(!result.status.success());
-        assert!(String::from_utf8_lossy(&result.stderr).contains("extract or cohort summarize"));
+        assert!(
+            String::from_utf8_lossy(&result.stderr).contains("cohort replay request must select")
+        );
     }
     fs::File::create(&path)
         .unwrap()
@@ -716,4 +725,223 @@ fn file_based_replay_supports_normalized_candidate_queries_larger_than_inline_en
         String::from_utf8_lossy(&result.stderr)
     );
     assert!(String::from_utf8_lossy(&result.stdout).contains("REPRODUCED"));
+}
+
+#[test]
+fn paired_reports_preserve_direction_missingness_and_budget_invariance() {
+    let fixture = Fixture::with_length_and_ref_reads(32, true);
+    fs::write(
+        fixture.root.join("pairs.tsv"),
+        "id\tleft\tright\nreverse-first\tB\tA\nforward-second\tA\tB\n",
+    )
+    .unwrap();
+    let plan = json_ok(fixture.query("compare-pairs", &["--pairs", "pairs.tsv", "--plan"]));
+    assert_eq!(plan["status"], "blocked");
+    assert_eq!(plan["paired_candidate_rows"], 8);
+    assert_eq!(plan["pairs"][0]["id"], "reverse-first");
+    assert_eq!(plan["pairs"][0]["left"], "B");
+    assert_eq!(plan["pair_direction"], "right-minus-left");
+    assert!(!fixture
+        .query(
+            "compare-pairs",
+            &["--pairs", "pairs.tsv", "-o", "strict.tsv"]
+        )
+        .status
+        .success());
+    assert!(!fixture.root.join("strict.tsv").exists());
+    for format in ["tsv", "arrow-ipc"] {
+        let mut expected = None;
+        for (index, budget, tile) in [(0, "256", "1"), (1, "512", "2"), (2, "1024", "16384")] {
+            let filename = format!("pairs-{format}-{index}");
+            let result = json_ok(fixture.query(
+                "compare-pairs",
+                &[
+                    "--pairs",
+                    "pairs.tsv",
+                    "--missing",
+                    "partial",
+                    "--format",
+                    format,
+                    "--memory-budget-mb",
+                    budget,
+                    "--enforce",
+                    "--tile-bases",
+                    tile,
+                    "-o",
+                    &filename,
+                ],
+            ));
+            assert_eq!(result["paired_candidate_rows"], 8);
+            let bytes = fs::read(fixture.root.join(&filename)).unwrap();
+            if let Some(expected) = &expected {
+                assert_eq!(&bytes, expected);
+            } else {
+                expected = Some(bytes);
+            }
+        }
+    }
+    let parsed = rows(&fixture.root.join("pairs-tsv-0"));
+    let column = |name: &str| parsed[0].iter().position(|value| value == name).unwrap();
+    let cell = |row: usize, name: &str| parsed[row][column(name)].as_str();
+    assert_eq!(cell(1, "pair_id"), "reverse-first");
+    assert_eq!(cell(1, "left_callable_depth"), "2");
+    assert_eq!(cell(1, "left_alt_count"), "1");
+    assert_eq!(cell(1, "right_callable_depth"), "1");
+    assert_eq!(cell(1, "difference_negative"), "false");
+    assert_eq!(cell(1, "difference_numerator"), "1");
+    assert_eq!(cell(1, "difference_denominator"), "2");
+    assert_eq!(cell(1, "both_depth_eligible"), "false");
+    assert_eq!(cell(3, "left_status"), "observed");
+    assert_eq!(cell(3, "left_callable_depth"), "0");
+    assert_eq!(cell(3, "difference_numerator"), ".");
+    assert_eq!(cell(4, "left_status"), "unmeasured");
+    assert_eq!(cell(4, "left_callable_depth"), ".");
+    assert_eq!(cell(4, "both_depth_eligible"), ".");
+    assert_eq!(cell(5, "pair_id"), "forward-second");
+    assert_eq!(cell(5, "difference_negative"), "true");
+    assert_eq!(cell(5, "difference_numerator"), "1");
+    let receipt: Value =
+        serde_json::from_slice(&fs::read(fixture.root.join("pairs-tsv-0.manifest.json")).unwrap())
+            .unwrap();
+    assert_eq!(
+        receipt["params"]["cohort.result_semantics"],
+        "cohort-pairs-v1"
+    );
+    assert_eq!(
+        receipt["params"]["cohort.pair_direction"],
+        "right-minus-left"
+    );
+    assert!(receipt["params"]["command_argv"]
+        .as_str()
+        .unwrap()
+        .contains("--pairs"));
+}
+
+#[test]
+fn pair_tables_refuse_ambiguity_and_replay_after_relocation() {
+    let fixture = Fixture::with_length_and_ref_reads(32, true);
+    for invalid in [
+        "id\tleft\tright\nx\tA\tA\n",
+        "id\tleft\tright\nx\tA\tB\nx\tB\tA\n",
+        "id\tleft\tright\nx\tA\tunknown\n",
+        "left\tright\nA\tB\n",
+        "id\tleft\tright\nx\tA\tB\textra\n",
+        "id\tleft\tright\n\tA\tB\n",
+    ] {
+        fs::write(fixture.root.join("bad.tsv"), invalid).unwrap();
+        assert!(!fixture
+            .query(
+                "compare-pairs",
+                &[
+                    "--pairs",
+                    "bad.tsv",
+                    "--missing",
+                    "partial",
+                    "-o",
+                    "bad-result.tsv"
+                ]
+            )
+            .status
+            .success());
+        assert!(!fixture.root.join("bad-result.tsv").exists());
+    }
+    fs::write(
+        fixture.root.join("pairs.tsv"),
+        "id\tleft\tright\nexplicit\tA\tB\n",
+    )
+    .unwrap();
+    assert!(!fixture
+        .query(
+            "compare-pairs",
+            &["--pairs", "pairs.tsv", "--member", "A", "--plan"]
+        )
+        .status
+        .success());
+    assert!(!fixture
+        .query(
+            "compare-pairs",
+            &[
+                "--pairs",
+                "pairs.tsv",
+                "--max-pair-table-bytes",
+                "1",
+                "--plan"
+            ]
+        )
+        .status
+        .success());
+    for format in ["tsv", "arrow-ipc"] {
+        json_ok(fixture.query(
+            "compare-pairs",
+            &[
+                "--pairs",
+                "pairs.tsv",
+                "--missing",
+                "partial",
+                "--format",
+                format,
+                "-o",
+                &format!("paired-{format}"),
+            ],
+        ));
+    }
+    let relocated = fixture.root.join("relocated-inputs");
+    fs::create_dir(&relocated).unwrap();
+    fs::rename(&fixture.cohort, relocated.join("cohort")).unwrap();
+    for name in ["pairs.tsv", "candidates.vcf"] {
+        fs::rename(fixture.root.join(name), relocated.join(name)).unwrap();
+    }
+    for name in [
+        "A.bam",
+        "A.bam.bai",
+        "B.bam",
+        "B.bam.bai",
+        "reference.fa",
+        "reference.fa.fai",
+    ] {
+        fs::remove_file(fixture.root.join(name)).unwrap();
+    }
+    for format in ["tsv", "arrow-ipc"] {
+        let output = run(
+            &fixture.root,
+            &[
+                "reproduce",
+                "--manifest",
+                &format!("paired-{format}.manifest.json"),
+                "--inputs",
+                "relocated-inputs",
+                "--binary",
+                env!("CARGO_BIN_EXE_rosalind"),
+                "--no-attest",
+            ],
+        );
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(String::from_utf8_lossy(&output.stdout).contains("REPRODUCED"));
+    }
+    fs::write(
+        relocated.join("pairs.tsv"),
+        "id\tleft\tright\nexplicit\tB\tA\n",
+    )
+    .unwrap();
+    let changed = run(
+        &fixture.root,
+        &[
+            "reproduce",
+            "--manifest",
+            "paired-tsv.manifest.json",
+            "--inputs",
+            "relocated-inputs",
+            "--binary",
+            env!("CARGO_BIN_EXE_rosalind"),
+            "--no-attest",
+        ],
+    );
+    assert!(
+        !changed.status.success(),
+        "changed pair direction must not replay under the original identity"
+    );
 }
