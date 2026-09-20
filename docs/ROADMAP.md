@@ -177,9 +177,9 @@ Independent persona feedback, design-partner recruitment and the 30-day return t
 
   Done when: Next unused 0.5 RC, one source across binaries/wheels/OCI/docs/reports, actual prerelease published and outside-checkout onboarding; candidate SDK patches explicit. Require the RC-specific protected refs, TestPyPI and GHCR setup; remaining stable-only credentials in R02 do not block RC preparation.
 
-  Remaining gate: R01 and R03 are merged; main is allowed in protected environments and TestPyPI setup is maintainer-confirmed. Recompute the fresh rc.2 plan at the selected source, run native-bundle validation and protected wheel/container publication, and verify actual public artifacts. No 0.5 prerelease exists yet; the old unpublished rc.1 attempt was canceled.
+  Remaining gate: RC2 was canceled after the container build failure. Reviewed fixes #146/#147 have passing CI but await merge approval. Prepare the next unused rc.3 from integrated 0.5 main, preserving protected publication approvals; no prerelease or seven-day soak has begun.
 
-  Evidence: [Superseded older RC attempt](https://github.com/logannye/rosalind/actions/runs/34047733765)
+  Evidence: [Superseded older RC attempt](https://github.com/logannye/rosalind/actions/runs/34047733765) · [RC2 container failure and correction](https://github.com/logannye/rosalind/pull/146)
 
 - [ ] **[R05](https://github.com/logannye/rosalind/issues/124) — Complete stable soak and technical evidence gates**
 
@@ -341,9 +341,13 @@ Independent persona feedback, design-partner recruitment and the 30-day return t
 
 - [ ] **[F01](https://github.com/logannye/rosalind/issues/140) — Add explicit paired and longitudinal comparisons**
 
-  Status: **planned**. Owner: engineering. Dependencies: C11.
+  Status: **implemented**. Owner: engineering. Dependencies: C11.
 
   Done when: Ordered pair input and direction, counts/depth/eligibility/missingness/fractions; no inferred pairs or biological-response claim; results match an independent oracle. Real partner outcomes remain adoption evidence, not a shipping prerequisite.
+
+  Remaining gate: Implemented on the isolated 0.6 preview branch. Source-bound authored oracles, replay, Python agreement and platform checks are retained separately from publication. Technical review and preview integration remain; independent research outcomes are unestablished and advisory.
+
+  Evidence: [Explicit paired CLI/Python preview](https://github.com/logannye/rosalind/pull/148) · [Source-bound paired validation and readable report](https://github.com/logannye/rosalind/blob/codex/cohort-pairs-preview/docs/findings/cohort-pairs-2026-09-20/README.md)
 
 - [ ] **[F02](https://github.com/logannye/rosalind/issues/141) — Select next reducer from demonstrated recurring work**
 

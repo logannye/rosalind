@@ -4,10 +4,23 @@ All notable changes to Rosalind are recorded here. Versions follow Semantic Vers
 
 ## [Unreleased]
 
+### Paired cohort research preview (0.6 development branch)
+
+- Explicit `cohort compare-pairs` and Python `compare_pairs()` preserve ordered
+  pairing, per-side counts, missingness and technical depth screens. Exact
+  right-minus-left read-fraction differences use unsigned-128-bit components;
+  zero-depth or unmeasured sides remain undefined. Pairing is never inferred.
+- Canonical Arrow/TSV reports retain guarded pair inputs, complete consumed
+  lineage and relocated saved-only replay. The authored tutorial now produces
+  a readable comparison report and ships its paired assets in offline bundles.
+- Retained source-bound validation covers independent fraction arithmetic,
+  native/Python agreement and real Linux cgroup completion/refusal. These are
+  engineering checks, not independent research adoption or clinical validation.
+
 ### Evidence-engine candidate track (0.5.0)
 
-The feature-bearing evidence engine is being prepared as a fresh `0.5.0-rc.2`;
-the older unpublished RC attempt was superseded. No 0.4 release was published.
+The next unused candidate for the feature-bearing evidence engine is `0.5.0-rc.3`;
+RC2 was canceled after a container build failure. No 0.4 release was published.
 The seven-day RC soak, protected publication review, and change-based caller
 evidence requirements apply. Independent-user feedback remains advisory and
 can continue after release; missing participants do not block shipping.

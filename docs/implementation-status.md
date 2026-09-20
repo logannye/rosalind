@@ -1,6 +1,6 @@
 # Capability and release status
 
-Updated **2026-09-18**. This is the authoritative availability inventory. The
+Updated **2026-09-20**. This is the authoritative availability inventory. The
 [roadmap](ROADMAP.md) tracks delivery tasks; retained reports establish only the
 source, workload and platform they actually tested.
 
@@ -131,3 +131,10 @@ Python method above saved cohort evidence. The [paired contract](cohort-pairs-co
 records direction, exact arithmetic, missingness, limits and lineage. It remains
 unpublished, with authored engineering validation rather than independent partner
 use; the separate 0.5 release is unchanged.
+
+The [September 20 validation record](https://github.com/logannye/rosalind/blob/codex/cohort-pairs-preview/docs/findings/cohort-pairs-2026-09-20/README.md)
+binds the paired demonstration to clean source `3e75ca0`, including exact
+Python arithmetic, readable paired output, native/Python agreement, replay and
+the platform checks. Failed local attempts are retained separately. The current
+release fixes #146/#147 have passing CI but await explicit merge approval;
+0.5.0-rc.3 remains the next unused candidate and no soak has begun.

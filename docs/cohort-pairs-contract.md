@@ -6,6 +6,22 @@ samples. This interface belongs to the separate 0.6 development line; it is not
 part of the current 0.5 release. Engineering fixtures do not establish independent
 partner use or clinical validity.
 
+Build this paired preview from its own branch with the
+[native source prerequisites](analyzer-sdk.md#build-prerequisites):
+
+```sh
+git clone --branch codex/cohort-pairs-preview https://github.com/logannye/rosalind.git rosalind-pairs
+cd rosalind-pairs
+cargo build --locked --bin rosalind
+export PATH="$PWD/target/debug:$PATH"
+rosalind cohort compare-pairs --help
+```
+
+The parent `codex/cohort-preview` branch supports cohort queries but does not
+include `compare-pairs`. A matching Python installation must also come from this
+paired branch. Start with the [authored tutorial](../examples/cohort-reanalysis/README.md)
+to create a cohort, then run its paired follow-up and open the generated `REPORT.md`.
+
 The input table has exactly these tab-separated columns, in this order:
 
 ```tsv

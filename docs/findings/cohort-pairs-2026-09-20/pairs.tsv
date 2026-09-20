@@ -1,0 +1,13 @@
+pair_id	left_member_id	right_member_id	contig	pos	ref	alt	left_status	left_callable_depth	left_alt_count	left_depth_eligible	left_alt_supported	left_alt_fraction_numerator	left_alt_fraction_denominator	right_status	right_callable_depth	right_alt_count	right_depth_eligible	right_alt_supported	right_alt_fraction_numerator	right_alt_fraction_denominator	min_callable_depth	both_depth_eligible	difference_negative	difference_numerator	difference_denominator
+a-to-b	specimen-a	specimen-b	synthetic	10	A	C	observed	10	4	true	true	4	10	observed	9	1	false	false	1	9	10	false	true	26	90
+a-to-b	specimen-a	specimen-b	synthetic	20	A	G	observed	0	0	false	false	.	.	observed	12	4	true	true	4	12	10	false	.	.	.
+a-to-b	specimen-a	specimen-b	synthetic	30	A	T	observed	10	1	true	true	1	10	observed	10	5	true	true	5	10	10	true	false	40	100
+a-to-b	specimen-a	specimen-b	synthetic	40	A	C	observed	12	2	true	true	2	12	unmeasured	.	.	.	.	.	.	10	.	.	.	.
+b-to-a	specimen-b	specimen-a	synthetic	10	A	C	observed	9	1	false	false	1	9	observed	10	4	true	true	4	10	10	false	false	26	90
+b-to-a	specimen-b	specimen-a	synthetic	20	A	G	observed	12	4	true	true	4	12	observed	0	0	false	false	.	.	10	false	.	.	.
+b-to-a	specimen-b	specimen-a	synthetic	30	A	T	observed	10	5	true	true	5	10	observed	10	1	true	true	1	10	10	true	true	40	100
+b-to-a	specimen-b	specimen-a	synthetic	40	A	C	unmeasured	.	.	.	.	.	.	observed	12	2	true	true	2	12	10	.	.	.	.
+a-to-c	specimen-a	specimen-c	synthetic	10	A	C	observed	10	4	true	true	4	10	observed	10	0	true	false	0	10	10	true	true	40	100
+a-to-c	specimen-a	specimen-c	synthetic	20	A	G	observed	0	0	false	false	.	.	observed	3	0	false	false	0	3	10	false	.	.	.
+a-to-c	specimen-a	specimen-c	synthetic	30	A	T	observed	10	1	true	true	1	10	unmeasured	.	.	.	.	.	.	10	.	.	.	.
+a-to-c	specimen-a	specimen-c	synthetic	40	A	C	observed	12	2	true	true	2	12	observed	0	0	false	false	.	.	10	false	.	.	.

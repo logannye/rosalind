@@ -1,0 +1,61 @@
+{
+  "binary_sha256": "e7d9253f22400807a4f61d7c324eb8884cdee89b0afcecf7418c8a5c2fe72563",
+  "commands": [
+    {
+      "argv": [
+        "/private/tmp/rosalind-pairs-validation-20260920/rosalind-3e75ca0",
+        "cohort",
+        "compare-pairs",
+        "--cohort",
+        "/private/tmp/rosalind-pairs-validation-20260920/final-demo/cohort-validation/relocated-cohort",
+        "--snapshot",
+        "8db8cbfd6136d1230964ad0396c073d04e6e732e9a5bee3b27b9b7ea233eb5c2",
+        "--pairs",
+        "/private/tmp/rosalind-cohort-pairs-20260918/examples/cohort-reanalysis/pairs.tsv",
+        "--sites",
+        "/tmp/rosalind-pairs-validation-20260920/final-demo/cohort-validation/first.vcf",
+        "--missing",
+        "partial",
+        "--memory-budget-mb",
+        "512",
+        "--enforce",
+        "--format",
+        "tsv",
+        "--output",
+        "/tmp/rosalind-pairs-validation-20260920/final-demo/pairs-validation/pairs.tsv"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "{\n  \"claim_blake3\": \"70479a340f2612678a4ecc8e0b4972bbcd13714137c1df64d530533c4d3d0da3\",\n  \"manifest\": \"/private/tmp/rosalind-pairs-validation-20260920/final-demo/pairs-validation/pairs.tsv.manifest.json\",\n  \"observed_rows\": 21,\n  \"original_alignment_records_decoded\": 0,\n  \"output\": \"/private/tmp/rosalind-pairs-validation-20260920/final-demo/pairs-validation/pairs.tsv\",\n  \"pair_direction\": \"right-minus-left\",\n  \"paired_candidate_rows\": 12,\n  \"sample_candidate_rows\": 24,\n  \"status\": \"completed\",\n  \"unmeasured_rows\": 3\n}\n"
+    },
+    {
+      "argv": [
+        "/private/tmp/rosalind-pairs-validation-20260920/rosalind-3e75ca0",
+        "verify",
+        "--manifest",
+        "/tmp/rosalind-pairs-validation-20260920/final-demo/pairs-validation/pairs.tsv.manifest.json",
+        "--json"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "stdout": "{\"schema\":2,\"ok\":true,\"claim\":\"70479a340f2612678a4ecc8e0b4972bbcd13714137c1df64d530533c4d3d0da3\",\"inputs\":16,\"outputs\":1,\"notes\":[\"peak 18 MiB within budget 512 MiB\",\"no predicted_working_set_bytes to re-check (a pre-soundness-check receipt)\"],\"problems\":[],\"trust\":{\"claim_id\":\"70479a340f2612678a4ecc8e0b4972bbcd13714137c1df64d530533c4d3d0da3\",\"receipt_integrity\":{\"status\":\"intact\",\"state\":\"satisfied\",\"explanation\":\"The claim hash and every present measurement hash re-derive and match.\"},\"artifact_completeness\":{\"status\":\"complete\",\"state\":\"satisfied\",\"explanation\":\"Every recorded input and output was supplied and matched by content hash.\"},\"resource_contract\":{\"status\":\"within-budget\",\"state\":\"satisfied\",\"explanation\":\"The recorded peak fits the 536870912 byte budget; enforcement assurance is declared-bound-cooperative.\"},\"reproduction_evidence\":{\"status\":\"not-supplied\",\"state\":\"missing\",\"explanation\":\"No reproduction certificate was supplied; this does not mean the run is unreproducible.\"},\"signature\":{\"status\":\"not-supplied\",\"state\":\"missing\",\"explanation\":\"Native schema 5 carries no signature; receipt integrity is hash-based, not identity-authenticated.\"},\"enforcement_assurance\":\"declared-bound-cooperative\",\"budget_mb\":512,\"budget_bytes\":536870912}}\n"
+    }
+  ],
+  "compared_rows": 12,
+  "demo_report_sha256": "7351891e135846a70178fec0d7e5bc83bbaee92cb848ce80bbb0a4d307e2f6cd",
+  "expected_sha256": "c69e822c613b279636ced4b805889835ac05ccdadd030612d63357b70fd129fe",
+  "output_sha256": "5804e2c1a2b5dbae34573af9841e35ba0d835b74d54a4edc880cdac006f9d8c0",
+  "pair_table_sha256": "0e27e3addf44244156cd2ceb146ef95fdc078f33ca10f7ba7e22bb409d02885a",
+  "readable_report_sha256": "101cf73c5e9a28e1160929e6e3c991561dac69b9596b68c8365e83dabea0cb14",
+  "receipt_sha256": "b00d828f72dfe1a1014f7249154ae900833466fdc267603b98d7976b5c89dd00",
+  "scope": "authored synthetic pairs; no adoption or clinical claim",
+  "script_sha256": "915854575c915512fe5247cd21e0d1d40723d5ad23b10a6cd858f66bfebe5cbf",
+  "snapshot_id": "8db8cbfd6136d1230964ad0396c073d04e6e732e9a5bee3b27b9b7ea233eb5c2",
+  "source_build": {
+    "code_dirty": "false",
+    "code_git_sha": "3e75ca0101daff70c744fe407297a333051e1b16",
+    "deps_lock_blake3": "c8910c13e1109b46250e4aa9625bc09591e6f65087ea098ad87f721f3c68ca8c",
+    "target_triple": "aarch64-apple-darwin"
+  },
+  "status": "passed"
+}

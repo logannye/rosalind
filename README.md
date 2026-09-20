@@ -22,9 +22,10 @@ Indexed BAM/CRAM + reference + candidate sites or target regions
 public stable release is **v0.1.0**, which predates this evidence engine. Start with
 [installation](docs/installation.md); current examples require a source build.
 [Implementation status](docs/implementation-status.md) distinguishes implemented,
-validated, published, and independently used capabilities. This separate
-`codex/cohort-preview` branch adds an **unpublished 0.6.0 cohort preview**;
-see the [cohort guide](docs/cohort-cli-preview.md). It is not part of the 0.5 release.
+validated, published, and independently used capabilities. The separate
+**unpublished 0.6.0 previews** add [cohort reanalysis](docs/cohort-cli-preview.md)
+and [explicit paired comparisons](docs/cohort-pairs-contract.md). Follow each
+guide's branch-specific source instructions; these APIs are not part of 0.5.
 
 ## Choose your starting point
 
@@ -41,6 +42,7 @@ prepares four supplied candidate SNVs from 118 KB of pinned public inputs.
 | Candidate-review report | Researchers revisiting supplied SNVs; developers building review tools | Exact allele and strand counts, quality summaries, and optional record-preserving VCF/BCF annotation |
 | Reusable panel analysis | Workflow maintainers and developers answering new questions over the same target regions | Saved evidence for another candidate list, panel QC, bounded Python batches, or a custom Rust reducer |
 | Cohort candidate reanalysis (0.6 preview branch) | Researchers and builders revisiting candidate lists across archived samples | Immutable local snapshots, explicit missingness, exact sample summaries, and requested missing-locus extension |
+| Explicit paired review (0.6 paired preview branch) | Research teams comparing baseline/follow-up or control/treated samples they explicitly pair | Each side's read counts and coverage, exact ALT-fraction differences, readable example reports, and replay without original alignments |
 
 The useful boundary is **save evidence once, then reuse the measured loci and fields**.
 A later query can select different stored positions or SNV alleles and compute

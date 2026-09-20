@@ -1,57 +1,54 @@
-# Paired comparison preview checkpoint
+# Paired comparison preview checkpoint — September 20, 2026
 
-This is an engineering checkpoint on `codex/cohort-pairs-preview`, stacked above
-`codex/cohort-preview`. It does not change 0.5 or establish independent paired
-research use. The branch is deliberately a draft, with `[skip ci]` commits to
-avoid starting broad platform/wheel jobs at this stopping point.
+Progress is committed and pushed to [PR #148](https://github.com/logannye/rosalind/pull/148),
+stacked above the isolated 0.6 cohort preview. The tested native implementation is
+`3e75ca0101daff70c744fe407297a333051e1b16`. The follow-up `9c485c4` includes the
+paired script and input table in offline tutorial bundles; it does not change
+native or Python runtime code.
 
-Implemented: explicit ordered pair TSV parsing and scope validation; saved-only
-serial pair/window execution; exact side counts, missingness and technical depth
-screens; right-minus-left sign/magnitude fractions with uint128 decimal-string
-components; bounded canonical Arrow/TSV batches; CLI/Python plans and reports;
-guarded pair input and complete consumed lineage; tokenized relocated replay;
-user contract, examples and a recurring synthetic Fraction-oracle demonstration.
-The single-sample interfaces remain unchanged.
+## Implemented and exercised
 
-Completed local checks for this checkpoint:
+- Explicit ordered pairs; exact counts and right-minus-left fractions;
+  missing/zero/low-depth distinctions; bounded canonical Arrow/TSV output;
+  CLI/Python planning and reports; guarded inputs and relocated saved-only replay.
+- Reviewed build identity correction #147 integrated locally. The clean local
+  binary records the correct source SHA and `code_dirty=false`.
+- Readable paired reports with exactly simplified fractions and explicit
+  coverage labels. All 12 synthetic comparisons match authored counts and
+  independent `Fraction` arithmetic, including side fraction/support fields.
+- Complete local Rust workspace tests and all 31 Python tests passed. The
+  obsolete replay-error assertion was corrected; other failed local attempts
+  remain separately retained rather than relabeled as passes.
+- Linux CI's paired demo and all five actual cgroup cases passed, including
+  paired completion under a 512 MiB OS cap and refusal with a 1 MiB budget.
+  Linux CI tests GitHub merge commit `4cc38df`; its tree is byte-identical to
+  the tested head. This small fixture is not a scalability claim.
+- Six cgroup harness tests, 12 onboarding tests, seven roadmap tests, actionlint
+  and formatting passed. The complete staged cohort/paired example passed from
+  its copied tutorial assets using the clean tested native binary.
 
-- All 71 cohort library tests passed, including the managed artifact failure and
-  pair-table mutation/overwrite guards. The core implementation commit is
-  `1988363`.
-- All-target Clippy passed with warnings denied.
-- Both new CLI integration tests passed: explicit direction, missing/zero/low
-  observations, three admitted budgets and window widths, byte equality in
-  Arrow/TSV, invalid tables/scope, relocated replay without original alignments,
-  and refusal after changing the pair table.
-- The Python paired test passed against the actual development binary in the
-  existing isolated 0.6 environment: native/Python Arrow bytes match, uint64
-  counts and string differences retain exact arithmetic and true nulls.
-- Python syntax, actionlint and whitespace checks passed.
+The [retained evidence](https://github.com/logannye/rosalind/blob/codex/cohort-pairs-preview/docs/findings/cohort-pairs-2026-09-20/README.md)
+contains exact source identities, reports, failures, log hashes and remote run
+links. Use its validation inventory for the final platform/wheel outcomes.
+Subsequent evidence-only commits use `[skip ci]` to avoid rebuilding identical
+native code; they are not represented as independently CI-tested source.
 
-The integration tests reused compiled dependencies and linked only the development
-binary/test target. No new release binary, platform build or wheel was produced.
-The current source build is a development test artifact; it is not immutable
-commit-bound release evidence.
+## Next decisions
 
-Resume with these bounded remaining tasks:
+1. Review the paired contract and retained platform results, then integrate the
+   0.6 previews in their intended release sequence. Keep them outside 0.5.
+2. Merge the reviewed 0.5 fixes #146/#147 after explicit approval. Automatic
+   approval review blocked those main-branch merges; both remain open. Their CI
+   passed. #147's local integration here does not mean it is merged on main.
+3. Follow the release continuation in `docs/EXECUTION_CHECKPOINT.md`: recover the
+   already-published evaluator with #149, prepare immutable 0.5.0-rc.3 from
+   corrected main, verify actual public artifacts, complete the technical
+   benchmark/account prerequisites and observe the seven-day soak.
+4. Measure recurring research use and total costs when users are available.
+   Independent participation remains advisory. Do not claim biological response,
+   molecular evidence, clinical validity or real-cohort economic savings from
+   the authored demonstration.
 
-1. Refresh the stacked base with the reviewed Git-worktree build-info correction
-   from PR #147 (or its merged successor). Rebuild from a clean committed tree,
-   verify its producer SHA/dirty fields and retain source identity with results.
-2. Execute `run_cohort.py` followed by `run_pairs.py` using a stable copy of that
-   binary. Retain the passed or failed reports. The new paired demonstration is
-   wired into CI but has not yet been executed locally or on Linux CI.
-3. Run the affected replay/unit regressions and full workspace/Python suites on
-   that final integrated source. No full workspace or full Python rerun was made
-   for this stopping checkpoint; the focused paired paths above did pass.
-4. Exercise the supported compiler/platform matrix and matching-wheel install.
-   The code avoids trait upcasting to preserve the existing MSRV, but a separate
-   MSRV build and clean wheel validation have not been run for these additions.
-5. Obtain technical/scientific review before removing draft status. Record real
-   paired research use if it occurs; absent external participation is advisory,
-   and authored examples must never be counted as independent user value.
-
-The [paired contract and tutorial](cohort-pairs-contract.md) describe the exact
-interpretation. Nothing in this checkpoint expands Parquet replay, infers pairing
-from metadata, introduces a new biological counting model, or declares an OS
-memory guarantee without measured Linux evidence.
+The [paired contract](cohort-pairs-contract.md) defines interpretation and limits.
+No source discovery, inferred pairing, production caller or molecule model is
+introduced by this work.
