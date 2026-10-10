@@ -11,4 +11,4 @@ keywords = ["reproducibility", "provenance", "blake3", "receipt", "genomics"]
 categories = ["science::bioinformatics", "cryptography"]
 
 [dependencies]
-blake3 = "=1.8.2"
+blake3 = "=1.8.5"
