@@ -108,6 +108,7 @@ def _stream(prepared, index, window, child_directory, metrics):
         if run.result is None or run.result.returncode != 0:
             raise ValueError("native stream did not complete successfully")
         receipt = load_json(run.result.manifest_path, 2 * MIB)
+        prepared.ledger.pin(run.result.manifest_path)
         if receipt.get("params", {}).get("run_status") != "completed" or receipt.get("outputs"):
             raise ValueError("invalid completion/scope for streamed native receipt")
         if int(receipt.get("measurements", {}).get("execution.emitted_loci", -1)) != expected_loci:
@@ -207,7 +208,8 @@ def run_analysis(args, *, after_child=None):
             if metrics["summary_rows"] != prepared.plan["limits"]["output_rows"]:
                 raise ValueError("canonical output cardinality mismatch")
             prepared.ledger.recheck()
-            if source_identity(ROOT) != source:
+            current_source = source_identity(ROOT)
+            if any(current_source[key] != source[key] for key in ("git_revision", "python_sources_sha256")):
                 raise ValueError("analyzer source changed during execution")
             write_json(staging / "input-identities.json", prepared.ledger.as_list())
             metrics["unique_consumed_partitions"] = len(metrics["partition_visit_counts"])

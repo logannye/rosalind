@@ -227,10 +227,12 @@ def counter_rows(request, members):
 
 
 def add(counters, request, row):
-    position = int(row["pos"])
+    position = row["pos"]
     alt = request["alt"]
-    depth, allele = int(row["callable_depth"]), int(row[alt.lower()])
-    if depth < allele or depth < 0 or depth > (1 << 64) - 1:
+    depth, allele = row["callable_depth"], row[alt.lower()]
+    if (type(position) is not int or position <= 0
+            or type(depth) is not int or type(allele) is not int
+            or not 0 <= allele <= depth <= (1 << 64) - 1):
         raise ValueError("invalid exact count")
     for threshold in request["thresholds"]:
         key = (position, alt, threshold)
@@ -268,7 +270,12 @@ def saved_request(state, binary, request, output):
     members = json.loads((Path(state["root"]) / "native/members.json").read_text())["members"]
     counters = counter_rows(request, members)
     launches = 0
-    for member, source in zip(members, state["members"]):
+    sources = {source["specimen_id"]: source for source in state["members"]}
+    if (len(sources) != len(state["members"]) or len(members) != len(sources)
+            or {member["specimen_id"] for member in members} != set(sources)):
+        raise ValueError("saved baseline member identities differ from the original masks")
+    for member in members:
+        source = sources[member["specimen_id"]]
         covered = [(pos, alt) for pos, alt in request["candidates"] if pos in source["stored"]]
         if not covered:
             continue
@@ -293,7 +300,7 @@ def columnar_request(state, request, output, integrity):
     import pyarrow.dataset as ds
     root = Path(state["root"]) / "columnar"
     inventory_path = root / "inventory.json"
-    before_inventory = sha256(inventory_path)
+    before_inventory = sha256(inventory_path) if integrity else None
     inventory = json.loads(inventory_path.read_text())
     counters = counter_rows(request, state["members"])
     selected = sorted({pos for pos, _ in request["candidates"]})
@@ -325,7 +332,7 @@ def columnar_request(state, request, output, integrity):
         if sha256(inventory_path) != before_inventory:
             raise ValueError("columnar inventory changed")
     return finish(counters, len(state["members"])), {"native_process_launches": 0, "rows_read": rows_read,
-        "consumed_files": len(consumed), "bytes_hashed": 2 * sum(Path(p["path"]).stat().st_size for p in consumed) if integrity else 0,
+        "consumed_files": len(consumed), "bytes_hashed": 2 * (sum(Path(p["path"]).stat().st_size for p in consumed) + inventory_path.stat().st_size) if integrity else 0,
         "integrity_scope": "consumed SHA256 before/after and inventory identity" if integrity else "performance-only; no content hashing"}
 
 
@@ -339,6 +346,9 @@ def worker(args):
         return
     args.output.mkdir()
     answers, metrics = [], []
+    # The harness knows the frozen family; individual reducers receive only the
+    # current request. They cannot coalesce or prefetch a later query.
+    visible_state = {key: value for key, value in state.items() if key != "requests"}
     for index, request in enumerate(state["requests"][:args.prefix]):
         destination = args.output / f"request-{index:02d}"
         if args.worker == "analyzer":
@@ -355,9 +365,9 @@ def worker(args):
         else:
             destination.mkdir()
             if args.worker == "saved":
-                answer, metric = saved_request(state, args.binary, request, destination)
+                answer, metric = saved_request(visible_state, args.binary, request, destination)
             else:
-                answer, metric = columnar_request(state, request, destination, args.integrity)
+                answer, metric = columnar_request(visible_state, request, destination, args.integrity)
         answers.append(answer)
         metrics.append(metric)
     write_json(args.output / "answers.json", answers)

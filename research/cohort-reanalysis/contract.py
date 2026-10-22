@@ -16,7 +16,7 @@ from typing import Any, Iterable, Mapping, Sequence
 UINT64_MAX = (1 << 64) - 1
 MAX_MEMBERS = 128
 MAX_CANDIDATES = 100_000
-MAX_THRESHOLDS = 16
+MAX_THRESHOLDS = 8
 REQUIRED_FIELDS = 3
 REQUIRED_FIELD_NAMES = ("depths", "alleles")
 

@@ -79,6 +79,9 @@ impl CancellationScope {
         if active.is_some() {
             return Err(CancellationScopeActive);
         }
+        // Keep the Rust 1.83-compatible name; newer toolchains rename this
+        // operation to try_update, which is unavailable at our declared MSRV.
+        #[allow(deprecated)]
         let generation = NEXT_GENERATION
             .fetch_update(Ordering::AcqRel, Ordering::Acquire, |value| {
                 value.checked_add(1)

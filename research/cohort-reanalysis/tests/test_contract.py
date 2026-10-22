@@ -181,7 +181,7 @@ class NativeCandidateTests(unittest.TestCase):
 
     def test_thresholds_are_exact_positive_and_bounded(self):
         self.assertEqual(normalize_thresholds([20, 10, 5, 10]), (5, 10, 20))
-        for values in ([], [0], [-1], [True], [10.0], [(1 << 64)], list(range(1, 18))):
+        for values in ([], [0], [-1], [True], [10.0], [(1 << 64)], list(range(1, 10))):
             with self.subTest(values=values), self.assertRaises(ContractError):
                 normalize_thresholds(values)
 

@@ -207,7 +207,7 @@ class CohortIntegration(unittest.TestCase):
                 part.write_bytes(before + b"changed-after-successful-child")
 
         try:
-            with self.assertRaises(Exception):
+            with self.assertRaisesRegex(ValueError, "input changed before publication"):
                 analyze.run_analysis(args, after_child=mutate)
             self.assertTrue(changed, "must mutate after a successful child, not fail before execution")
             self.assertFalse((output / "run-manifest.json").exists())

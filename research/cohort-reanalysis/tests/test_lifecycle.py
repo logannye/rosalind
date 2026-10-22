@@ -168,13 +168,13 @@ class PublicationAndVerificationTests(TemporaryFiles):
         with self.assertRaisesRegex(ValueError, "output envelope"):
             output_inventory(directory, max_files=1, max_bytes=100)
         (directory / "link").symlink_to(directory / "first")
-        with self.assertRaisesRegex(ValueError, "symlinks"):
+        with self.assertRaisesRegex(ValueError, "symlink"):
             output_inventory(directory, max_files=10, max_bytes=100)
         (directory / "link").unlink()
         subdirectory = self.root / "outside-directory"
         subdirectory.mkdir()
         (directory / "directory-link").symlink_to(subdirectory, target_is_directory=True)
-        with self.assertRaisesRegex(ValueError, "symlinks"):
+        with self.assertRaisesRegex(ValueError, "symlink"):
             output_inventory(directory, max_files=10, max_bytes=100)
 
     def test_metadata_parser_is_byte_bounded_and_write_is_create_new(self):
