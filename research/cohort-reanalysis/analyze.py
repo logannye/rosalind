@@ -113,7 +113,9 @@ def _stream(prepared, index, window, child_directory, metrics):
         if int(receipt.get("measurements", {}).get("execution.emitted_loci", -1)) != expected_loci:
             raise ValueError("native completed row count differs from covered selection")
         native_query = json.loads(receipt["params"]["dataset.query"])
-        if normalized_candidates(native_query["selection"], prepared.plan["contigs"]) != covered:
+        normalized = normalized_candidates(native_query["selection"], prepared.plan["contigs"])
+        if (native_query.get("version") != 1 or native_query.get("fields") != 3
+                or [c.as_dict() for c in normalized] != [c.as_dict() for c in covered]):
             raise ValueError("native receipt query differs from the consumed window")
         consumed = _receipt_dependencies(prepared, index, sites, receipt)
         for path in consumed:
