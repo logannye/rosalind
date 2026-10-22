@@ -1,0 +1,1 @@
+{"original_manifest_sha256":"b80a666df8cf60d3710ce0e5ad8fa178015548ce612711195567ac123c45abd3","replayed_manifest_sha256":"fcd4e1358c2f3905bc559226d765b2b5abc93e90297056d40e81c9327e83ead6","schema":"rosalind-cohort-replay-v1","scope":"canonical summary and scientific metadata; timings and execution settings excluded","verdict":"reproduced"}

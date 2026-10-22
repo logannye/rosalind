@@ -1,0 +1,152 @@
+{
+  "comparison_scope": {
+    "A": "not measured: no compatible raw HG002 resources present; no fresh-vs-saved crossover claim",
+    "B": "strict native covered saved queries and straightforward independent exact reducer; native per-child verification",
+    "C": "complete research analyzer, bounded admission, exact reduction, final consumed-input union checks and publication",
+    "D_checked": "same Parquet path plus consumed-file SHA256 checks before/after and inventory identity; not native receipts",
+    "D_performance": "independent simple-1M BAM counts; bounded Parquet projection/predicate scans; no query content hashing"
+  },
+  "decision_rule": "If C has no material total-time or memory advantage over applicable B/D baselines, retain correctness implementation and stop extension optimization. Do not select a favorable retrospective speed threshold.",
+  "fairness_corrections_before_repeat": [
+    "All paths use one persistent Python worker per measured K prefix; C does not pay an additional Python interpreter per request.",
+    "D projects only pos, callable_depth and requested ALT; batch and fragment readahead are one, threads disabled.",
+    "Every path sees only the current sequential request. No coalescing or future-query knowledge.",
+    "Original per-member stored-locus masks apply to every path; no missing observation filled from raw data.",
+    "Telemetry parser follows native decimal-string measurements; absent peaks stay null. Failed pre-repeat remains retained separately."
+  ],
+  "held_back": "workloads/held-back-v1.json remains unexecuted if the G2 stop rule applies; not used for tuning",
+  "not_measured": [
+    "cold-cache behavior",
+    "p99",
+    "peak temporary disk occupancy",
+    "raw A extraction",
+    "representative multi-specimen biology",
+    "hard OS memory enforcement"
+  ],
+  "real_saved_validation": {
+    "loci": 1000,
+    "sample": "HG002",
+    "scope": "current saved-only reader/reducer against retained historical independent CIGAR oracle; not new raw extraction or new oracle execution",
+    "thresholds": [
+      5,
+      10,
+      20
+    ],
+    "windows": [
+      128,
+      512
+    ]
+  },
+  "schema": "rosalind-cohort-diagnostic-protocol-v1",
+  "source_free_demo": {
+    "candidate_loci": 4,
+    "members": 3,
+    "scope": "unchanged authored fixture, portable leaf verification, research manifest verification and replay with generated raw paths hidden",
+    "windows": [
+      2,
+      1
+    ]
+  },
+  "source_head": "9627c936c5e84121c97b5167cc694df3f78d3bce",
+  "status": "frozen diagnostic repeat; no final performance ambition selected",
+  "workload": {
+    "baseline": {
+      "batch_readahead": 1,
+      "batch_size": 1024,
+      "format": "parquet",
+      "fragment_readahead": 1,
+      "use_threads": false
+    },
+    "cache_condition": "No OS cache eviction; reused files; counterbalanced order; never described as cold",
+    "limits": {
+      "max_loci": 8192,
+      "max_members": 32,
+      "max_output_bytes": 536870912,
+      "max_requests": 20
+    },
+    "loci": 1024,
+    "members": 3,
+    "memory_measurement": {
+      "is_os_enforced_limit": false,
+      "method": "sampled simultaneous worker-and-descendant RSS",
+      "sample_interval_ms": 10
+    },
+    "missing_modulus": 17,
+    "native_memory_budget_mb": 256,
+    "parent_memory_budget_mb": 128,
+    "prefixes": [
+      1,
+      2,
+      3
+    ],
+    "prohibited_claims": [
+      "biological independence",
+      "clinical validity",
+      "real-read performance",
+      "universal speedup",
+      "guarantee-equivalent baseline receipts"
+    ],
+    "purpose": "G2 diagnostic only; entirely synthetic; not a final performance claim",
+    "reference_length": 65536,
+    "repetitions": 3,
+    "requests": [
+      {
+        "alt": "C",
+        "id": "clustered-one-shot",
+        "indices": [
+          [
+            0,
+            128
+          ]
+        ],
+        "thresholds": [
+          10
+        ]
+      },
+      {
+        "alt": "G",
+        "id": "overlap-new-alt",
+        "indices": [
+          [
+            64,
+            192
+          ],
+          [
+            512,
+            640
+          ]
+        ],
+        "thresholds": [
+          5,
+          10,
+          20
+        ]
+      },
+      {
+        "alt": "T",
+        "id": "revisit-disjoint-partitions",
+        "indices": [
+          [
+            0,
+            32
+          ],
+          [
+            768,
+            896
+          ]
+        ],
+        "thresholds": [
+          10
+        ]
+      }
+    ],
+    "spacing": 64,
+    "version": 1,
+    "windows": [
+      64,
+      256
+    ]
+  },
+  "workload_original_commit": "1185419852d5e4158035f4ccff216d2dd542a0f5",
+  "workload_sha256": "e8ca2c3390b2553b936f015972a9a723d9297e94703a66333ca0e2914102062d"
+}

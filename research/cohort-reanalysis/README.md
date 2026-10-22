@@ -6,11 +6,14 @@ specimens have a stored observation, meet a depth threshold, and have eligible A
 support. Missing observations remain distinct from stored zero-depth observations.
 It never reopens original alignments or references to fill missing coverage.
 
-**Status:** implementation and pure Python tests are available. The new native
-coverage adapter, end-to-end analyzer, failure/replay paths, and diagnostic pilot
-require a hosted build of the exact changed revision before integration or
-performance claims. No new benchmark result or representative cohort performance
-is established by this README. See [IMPLEMENTATION.md](IMPLEMENTATION.md) for gates.
+**Status:** the exact-source hosted validation and synthetic diagnostic passed.
+The run includes 58 research tests, the unchanged fixture, source-free replay,
+and saved-only HG002 agreement against retained historical oracle outputs.
+The 45-trial pilot found no material performance advantage over the existing
+saved-query reducer or competent Parquet baseline; optional optimization stops
+at the G2 decision gate. See the [dated report](../../docs/findings/bounded-cohort-reanalysis-2026-10-22/README.md)
+for the tested merge/source/binary, all timings, failures and limitations, and
+[IMPLEMENTATION.md](IMPLEMENTATION.md) for completed and unclaimed gates.
 This directory does not establish a public `cohort` command or `open_cohort` API,
 and does not complete roadmap C02–C11.
 
@@ -240,8 +243,9 @@ checked modes; neither claims native receipt semantics. Initial native/cache set
 all trials/failures, exact agreement, sampled memory and logical storage are retained.
 No cache eviction, cold-cache claim, p99 estimate or general speedup is implied.
 
-This pilot does not implement the final real-read fresh-extraction comparison (A),
-prove an amortization crossover, establish a final resource target, or select an
-optimization automatically. A useful next decision depends on observed full costs.
-Preserve losses and stop extending the wrapper if the strongest fair baseline
-reveals no meaningful operational advantage.
+The completed pilot does not implement the final real-read fresh-extraction
+comparison (A), prove raw-versus-saved amortization, or establish a final resource
+target. Its measured costs justify stopping optional extension optimization.
+The reserved held-back configuration remains unexecuted, and the report retains
+observed losses. The research artifact is useful for exact masked summaries and
+replay; it is not a new public cohort product or speedup result.

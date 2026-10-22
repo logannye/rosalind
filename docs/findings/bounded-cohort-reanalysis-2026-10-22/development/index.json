@@ -1,0 +1,30 @@
+[
+  {
+    "run_id": 39813358266,
+    "run_url": "https://github.com/logannye/rosalind/actions/runs/39813358266",
+    "branch_head": "e9fa4c245e13098c052b8bfc1311ecba00491053",
+    "artifact_id": 12441651276,
+    "artifact_sha256": "78df1e84817747e662b29d1797bf44b0f203178bdca28f92fb60c6b863c542b2",
+    "measured_source": "a1aba54c07e34f6cf8a3d09ce3d590f708913f0c",
+    "use": "development diagnostic only; superseded by final frozen implementation and corrected baseline"
+  },
+  {
+    "run_id": 39814541120,
+    "run_url": "https://github.com/logannye/rosalind/actions/runs/39814541120",
+    "branch_head": "8da8a7525521be598d8822a4ee2967b8cbe4ffec",
+    "artifact_id": 12441108667,
+    "artifact_sha256": "6e31271f6256e17babe12562fcf4ee53a316d7da63faf33d4b1e7f40bfb0e86e",
+    "measured_source": "60a86ae1eee9cea2d532b788dec5ac9ba845f362",
+    "use": "development diagnostic only; superseded by final frozen implementation and corrected baseline"
+  },
+  {
+    "run_id": 39815498177,
+    "run_url": "https://github.com/logannye/rosalind/actions/runs/39815498177",
+    "branch_head": "6e7d9e198c22301c92e3f2397d3929e14f52f59f",
+    "measured_source": "2e98785a3389ee9c6b3e399d1c51ed02d732b5e4",
+    "artifact_id": 12441623245,
+    "artifact_sha256": "427af63129cec0bffc1374cb902e9c9838faa9a9bd2fb7c04f4bf66a715f572b",
+    "status": "failed",
+    "reason": "New optional memory metric check expected JSON integer; native receipt measurements are decimal strings. Demo refused publication; later research/HG002/pilot steps skipped."
+  }
+]

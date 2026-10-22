@@ -1,0 +1,109 @@
+{
+  "commands": [
+    {
+      "argv": [
+        "/home/runner/work/rosalind/rosalind/target/release/rosalind",
+        "dataset",
+        "verify",
+        "--dataset",
+        "/home/runner/work/rosalind/rosalind/validation-results/archived-hg002/leaf/evidence-dataset.manifest.json",
+        "--memory-budget-mb",
+        "256"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "/opt/hostedtoolcache/Python/3.11.17/x64/bin/python",
+        "/home/runner/work/rosalind/rosalind/research/cohort-reanalysis/analyze.py",
+        "--binary",
+        "/home/runner/work/rosalind/rosalind/target/release/rosalind",
+        "--members",
+        "/home/runner/work/rosalind/rosalind/validation-results/archived-hg002/members.json",
+        "--sites",
+        "/home/runner/work/rosalind/rosalind/validation-results/archived-hg002/candidates.vcf",
+        "--output",
+        "/home/runner/work/rosalind/rosalind/validation-results/archived-hg002/window-128",
+        "--missingness",
+        "strict",
+        "--window-size",
+        "128",
+        "--native-memory-budget-mb",
+        "256",
+        "--parent-memory-budget-mb",
+        "128",
+        "--min-callable-depth",
+        "5",
+        "--min-callable-depth",
+        "10",
+        "--min-callable-depth",
+        "20"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "/opt/hostedtoolcache/Python/3.11.17/x64/bin/python",
+        "/home/runner/work/rosalind/rosalind/research/cohort-reanalysis/analyze.py",
+        "--binary",
+        "/home/runner/work/rosalind/rosalind/target/release/rosalind",
+        "--members",
+        "/home/runner/work/rosalind/rosalind/validation-results/archived-hg002/members.json",
+        "--sites",
+        "/home/runner/work/rosalind/rosalind/validation-results/archived-hg002/candidates.vcf",
+        "--output",
+        "/home/runner/work/rosalind/rosalind/validation-results/archived-hg002/window-512",
+        "--missingness",
+        "strict",
+        "--window-size",
+        "512",
+        "--native-memory-budget-mb",
+        "256",
+        "--parent-memory-budget-mb",
+        "128",
+        "--min-callable-depth",
+        "5",
+        "--min-callable-depth",
+        "10",
+        "--min-callable-depth",
+        "20"
+      ],
+      "exit_code": 0
+    }
+  ],
+  "configurations": [
+    {
+      "exact_historical_oracle_agreement": true,
+      "outer_wall_seconds": 0.628878516000043,
+      "rows": 3000,
+      "summary_sha256": "f8c045cca2ca312b7a9963554ad6b4e1763f2616fcf93682e815b7b6e487666a",
+      "timing_scope": "single correctness run including oracle comparison; not a performance benchmark",
+      "window_size": 128
+    },
+    {
+      "exact_historical_oracle_agreement": true,
+      "outer_wall_seconds": 0.4703044249999948,
+      "rows": 3000,
+      "summary_sha256": "f8c045cca2ca312b7a9963554ad6b4e1763f2616fcf93682e815b7b6e487666a",
+      "timing_scope": "single correctness run including oracle comparison; not a performance benchmark",
+      "window_size": 512
+    }
+  ],
+  "current_binary_sha256": "b2638ccc3b5e734f2c15dacbdf1b4e223cd2c71d778c877aabc2acfeb4e320ce",
+  "current_binary_version": "rosalind 0.5.0",
+  "current_source_revision": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+  "historical_extraction": {
+    "code_dirty": "false",
+    "code_git_sha": "9b8e12f3b6e802d2103c5ebeb5ff89a08c8d85ce",
+    "producer.version": "0.5.0"
+  },
+  "input_archive_sha256": "13a56da1d4281c24dfba1833d41336ec623c470e86a87aabe69feb34d91db464",
+  "not_established": [
+    "fresh-versus-saved amortization",
+    "representative throughput",
+    "multiple biological specimens"
+  ],
+  "scope": "Current saved-only reanalysis of one historical HG002 leaf against retained independent CIGAR oracle outputs; oracle and raw extraction were not rerun.",
+  "status": "passed",
+  "version": 1
+}

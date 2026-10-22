@@ -1,0 +1,19 @@
+{
+  "binary_sha256": "20cb7b9f9eda8724a44b937b906b03509bd4dab7ab7609a1993d01a17292aa72",
+  "binary_version": "rosalind 0.5.0",
+  "cargo_lock_sha256": "383d5ae6af6e9f4f09372d659b323d291777721356be87b76dd4da072e118ba5",
+  "dependencies": {
+    "blake3": "1.0.5",
+    "numpy": "2.2.6",
+    "psutil": "6.1.1",
+    "pyarrow": "20.0.0",
+    "pysam": "0.23.3"
+  },
+  "github_sha": "60a86ae1eee9cea2d532b788dec5ac9ba845f362",
+  "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+  "python": "3.11.17 (main, Oct  1 2026, 14:32:31) [GCC 13.3.0]",
+  "run_id": "39814541120",
+  "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)\nbinary: rustc\ncommit-hash: 58cf8f9c35b355199727627d07ae34a4e2846d67\ncommit-date: 2026-10-13\nhost: x86_64-unknown-linux-gnu\nrelease: 1.99.1\nLLVM version: 23.1.1\n",
+  "source_revision": "60a86ae1eee9cea2d532b788dec5ac9ba845f362",
+  "source_status": ""
+}

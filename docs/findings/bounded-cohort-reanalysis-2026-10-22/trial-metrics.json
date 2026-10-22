@@ -1,0 +1,1658 @@
+{
+  "r0-k1-B-saved": [
+    {
+      "integrity_scope": "native verified consumed inputs per invocation; no outer union recheck",
+      "native_process_launches": 6,
+      "native_query_invocations": 3,
+      "native_version_probes": 3
+    }
+  ],
+  "r0-k1-C-window-256": [
+    {
+      "final_union_recheck_bytes": 14925923,
+      "largest_native_reported_peak_rss_bytes": 9338880,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 26,
+      "native_query_invocations": 3,
+      "native_version_probes": 14,
+      "parent_bytes_hashed_before_finalization": 30914190,
+      "partition_decode_visits": 3,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 1
+      },
+      "planning_wall_seconds": 0.12670873399997618,
+      "repeated_partition_decodes": 0,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 10,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 106827776,
+      "summary_rows": 128,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 3,
+      "wall_seconds_before_finalization": 0.18147086499999432
+    }
+  ],
+  "r0-k1-C-window-64": [
+    {
+      "final_union_recheck_bytes": 14940392,
+      "largest_native_reported_peak_rss_bytes": 9371648,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 32,
+      "native_query_invocations": 6,
+      "native_version_probes": 17,
+      "parent_bytes_hashed_before_finalization": 31316654,
+      "partition_decode_visits": 6,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 2
+      },
+      "planning_wall_seconds": 0.11377028100002917,
+      "repeated_partition_decodes": 3,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 12,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 113590272,
+      "summary_rows": 128,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 3,
+      "wall_seconds_before_finalization": 0.19182112200002166
+    }
+  ],
+  "r0-k1-D-content-checked": [
+    {
+      "bytes_hashed": 27438,
+      "consumed_files": 3,
+      "integrity_scope": "consumed SHA256 before/after and inventory identity",
+      "native_process_launches": 0,
+      "rows_read": 370
+    }
+  ],
+  "r0-k1-D-performance-only": [
+    {
+      "bytes_hashed": 0,
+      "consumed_files": 3,
+      "integrity_scope": "performance-only; no content hashing",
+      "native_process_launches": 0,
+      "rows_read": 370
+    }
+  ],
+  "r0-k2-B-saved": [
+    {
+      "integrity_scope": "native verified consumed inputs per invocation; no outer union recheck",
+      "native_process_launches": 6,
+      "native_query_invocations": 3,
+      "native_version_probes": 3
+    },
+    {
+      "integrity_scope": "native verified consumed inputs per invocation; no outer union recheck",
+      "native_process_launches": 6,
+      "native_query_invocations": 3,
+      "native_version_probes": 3
+    }
+  ],
+  "r0-k2-C-window-256": [
+    {
+      "final_union_recheck_bytes": 14925923,
+      "largest_native_reported_peak_rss_bytes": 9359360,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 26,
+      "native_query_invocations": 3,
+      "native_version_probes": 14,
+      "parent_bytes_hashed_before_finalization": 30914190,
+      "partition_decode_visits": 3,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 1
+      },
+      "planning_wall_seconds": 0.12194385100002592,
+      "repeated_partition_decodes": 0,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 9,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 106831872,
+      "summary_rows": 128,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 3,
+      "wall_seconds_before_finalization": 0.17371419900001683
+    },
+    {
+      "final_union_recheck_bytes": 15191931,
+      "largest_native_reported_peak_rss_bytes": 9506816,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 26,
+      "native_query_invocations": 3,
+      "native_version_probes": 14,
+      "parent_bytes_hashed_before_finalization": 31529154,
+      "partition_decode_visits": 6,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000032768/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000032768/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000032768/evidence.arrow": 1
+      },
+      "planning_wall_seconds": 0.093752540999958,
+      "repeated_partition_decodes": 0,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 10,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 107634688,
+      "summary_rows": 768,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 6,
+      "wall_seconds_before_finalization": 0.18334930999998278
+    }
+  ],
+  "r0-k2-C-window-64": [
+    {
+      "final_union_recheck_bytes": 14940392,
+      "largest_native_reported_peak_rss_bytes": 9043968,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 32,
+      "native_query_invocations": 6,
+      "native_version_probes": 17,
+      "parent_bytes_hashed_before_finalization": 31316654,
+      "partition_decode_visits": 6,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 2
+      },
+      "planning_wall_seconds": 0.11583464099999219,
+      "repeated_partition_decodes": 3,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 12,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 112246784,
+      "summary_rows": 128,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 3,
+      "wall_seconds_before_finalization": 0.19454700000000003
+    },
+    {
+      "final_union_recheck_bytes": 15232593,
+      "largest_native_reported_peak_rss_bytes": 9347072,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 44,
+      "native_query_invocations": 12,
+      "native_version_probes": 23,
+      "parent_bytes_hashed_before_finalization": 32604411,
+      "partition_decode_visits": 12,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000032768/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000032768/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000032768/evidence.arrow": 2
+      },
+      "planning_wall_seconds": 0.09766317499997967,
+      "repeated_partition_decodes": 6,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 15,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 114540544,
+      "summary_rows": 768,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 6,
+      "wall_seconds_before_finalization": 0.247289195999997
+    }
+  ],
+  "r0-k2-D-content-checked": [
+    {
+      "bytes_hashed": 27438,
+      "consumed_files": 3,
+      "integrity_scope": "consumed SHA256 before/after and inventory identity",
+      "native_process_launches": 0,
+      "rows_read": 370
+    },
+    {
+      "bytes_hashed": 43042,
+      "consumed_files": 6,
+      "integrity_scope": "consumed SHA256 before/after and inventory identity",
+      "native_process_launches": 0,
+      "rows_read": 738
+    }
+  ],
+  "r0-k2-D-performance-only": [
+    {
+      "bytes_hashed": 0,
+      "consumed_files": 3,
+      "integrity_scope": "performance-only; no content hashing",
+      "native_process_launches": 0,
+      "rows_read": 370
+    },
+    {
+      "bytes_hashed": 0,
+      "consumed_files": 6,
+      "integrity_scope": "performance-only; no content hashing",
+      "native_process_launches": 0,
+      "rows_read": 738
+    }
+  ],
+  "r0-k3-B-saved": [
+    {
+      "integrity_scope": "native verified consumed inputs per invocation; no outer union recheck",
+      "native_process_launches": 6,
+      "native_query_invocations": 3,
+      "native_version_probes": 3
+    },
+    {
+      "integrity_scope": "native verified consumed inputs per invocation; no outer union recheck",
+      "native_process_launches": 6,
+      "native_query_invocations": 3,
+      "native_version_probes": 3
+    },
+    {
+      "integrity_scope": "native verified consumed inputs per invocation; no outer union recheck",
+      "native_process_launches": 6,
+      "native_query_invocations": 3,
+      "native_version_probes": 3
+    }
+  ],
+  "r0-k3-C-window-256": [
+    {
+      "final_union_recheck_bytes": 14925923,
+      "largest_native_reported_peak_rss_bytes": 9228288,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 26,
+      "native_query_invocations": 3,
+      "native_version_probes": 14,
+      "parent_bytes_hashed_before_finalization": 30914190,
+      "partition_decode_visits": 3,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 1
+      },
+      "planning_wall_seconds": 0.12158964299999298,
+      "repeated_partition_decodes": 0,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 11,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 107216896,
+      "summary_rows": 128,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 3,
+      "wall_seconds_before_finalization": 0.17683194299996785
+    },
+    {
+      "final_union_recheck_bytes": 15191931,
+      "largest_native_reported_peak_rss_bytes": 9506816,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 26,
+      "native_query_invocations": 3,
+      "native_version_probes": 14,
+      "parent_bytes_hashed_before_finalization": 31529154,
+      "partition_decode_visits": 6,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000032768/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000032768/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000032768/evidence.arrow": 1
+      },
+      "planning_wall_seconds": 0.09683753299998443,
+      "repeated_partition_decodes": 0,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 10,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 107610112,
+      "summary_rows": 768,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 6,
+      "wall_seconds_before_finalization": 0.18473554500002365
+    },
+    {
+      "final_union_recheck_bytes": 15092299,
+      "largest_native_reported_peak_rss_bytes": 9359360,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 26,
+      "native_query_invocations": 3,
+      "native_version_probes": 14,
+      "parent_bytes_hashed_before_finalization": 31269246,
+      "partition_decode_visits": 6,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000049152/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000049152/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000049152/evidence.arrow": 1
+      },
+      "planning_wall_seconds": 0.09112362100000837,
+      "repeated_partition_decodes": 0,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 9,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 114405376,
+      "summary_rows": 160,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 6,
+      "wall_seconds_before_finalization": 0.15038581900000736
+    }
+  ],
+  "r0-k3-C-window-64": [
+    {
+      "final_union_recheck_bytes": 14940392,
+      "largest_native_reported_peak_rss_bytes": 9359360,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 32,
+      "native_query_invocations": 6,
+      "native_version_probes": 17,
+      "parent_bytes_hashed_before_finalization": 31316654,
+      "partition_decode_visits": 6,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 2
+      },
+      "planning_wall_seconds": 0.12073138000005201,
+      "repeated_partition_decodes": 3,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 12,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 112631808,
+      "summary_rows": 128,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 3,
+      "wall_seconds_before_finalization": 0.19910990400001083
+    },
+    {
+      "final_union_recheck_bytes": 15232593,
+      "largest_native_reported_peak_rss_bytes": 9310208,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 44,
+      "native_query_invocations": 12,
+      "native_version_probes": 23,
+      "parent_bytes_hashed_before_finalization": 32604411,
+      "partition_decode_visits": 12,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000032768/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000032768/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000032768/evidence.arrow": 2
+      },
+      "planning_wall_seconds": 0.09548207000000275,
+      "repeated_partition_decodes": 6,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 16,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 107487232,
+      "summary_rows": 768,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 6,
+      "wall_seconds_before_finalization": 0.2526070150000237
+    },
+    {
+      "final_union_recheck_bytes": 15121246,
+      "largest_native_reported_peak_rss_bytes": 9400320,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 38,
+      "native_query_invocations": 9,
+      "native_version_probes": 20,
+      "parent_bytes_hashed_before_finalization": 32074216,
+      "partition_decode_visits": 12,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000049152/evidence.arrow": 3,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000049152/evidence.arrow": 3,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000049152/evidence.arrow": 3
+      },
+      "planning_wall_seconds": 0.09092158700002528,
+      "repeated_partition_decodes": 6,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 14,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 116297728,
+      "summary_rows": 160,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 6,
+      "wall_seconds_before_finalization": 0.19909089200001517
+    }
+  ],
+  "r0-k3-D-content-checked": [
+    {
+      "bytes_hashed": 27438,
+      "consumed_files": 3,
+      "integrity_scope": "consumed SHA256 before/after and inventory identity",
+      "native_process_launches": 0,
+      "rows_read": 370
+    },
+    {
+      "bytes_hashed": 43042,
+      "consumed_files": 6,
+      "integrity_scope": "consumed SHA256 before/after and inventory identity",
+      "native_process_launches": 0,
+      "rows_read": 738
+    },
+    {
+      "bytes_hashed": 43060,
+      "consumed_files": 6,
+      "integrity_scope": "consumed SHA256 before/after and inventory identity",
+      "native_process_launches": 0,
+      "rows_read": 464
+    }
+  ],
+  "r0-k3-D-performance-only": [
+    {
+      "bytes_hashed": 0,
+      "consumed_files": 3,
+      "integrity_scope": "performance-only; no content hashing",
+      "native_process_launches": 0,
+      "rows_read": 370
+    },
+    {
+      "bytes_hashed": 0,
+      "consumed_files": 6,
+      "integrity_scope": "performance-only; no content hashing",
+      "native_process_launches": 0,
+      "rows_read": 738
+    },
+    {
+      "bytes_hashed": 0,
+      "consumed_files": 6,
+      "integrity_scope": "performance-only; no content hashing",
+      "native_process_launches": 0,
+      "rows_read": 464
+    }
+  ],
+  "r1-k1-B-saved": [
+    {
+      "integrity_scope": "native verified consumed inputs per invocation; no outer union recheck",
+      "native_process_launches": 6,
+      "native_query_invocations": 3,
+      "native_version_probes": 3
+    }
+  ],
+  "r1-k1-C-window-256": [
+    {
+      "final_union_recheck_bytes": 14925923,
+      "largest_native_reported_peak_rss_bytes": 9220096,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 26,
+      "native_query_invocations": 3,
+      "native_version_probes": 14,
+      "parent_bytes_hashed_before_finalization": 30914190,
+      "partition_decode_visits": 3,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 1
+      },
+      "planning_wall_seconds": 0.12459123300004649,
+      "repeated_partition_decodes": 0,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 10,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 113496064,
+      "summary_rows": 128,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 3,
+      "wall_seconds_before_finalization": 0.18413445400000228
+    }
+  ],
+  "r1-k1-C-window-64": [
+    {
+      "final_union_recheck_bytes": 14940392,
+      "largest_native_reported_peak_rss_bytes": 9363456,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 32,
+      "native_query_invocations": 6,
+      "native_version_probes": 17,
+      "parent_bytes_hashed_before_finalization": 31316654,
+      "partition_decode_visits": 6,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 2
+      },
+      "planning_wall_seconds": 0.12363096699999687,
+      "repeated_partition_decodes": 3,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 12,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 112689152,
+      "summary_rows": 128,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 3,
+      "wall_seconds_before_finalization": 0.20719521999996005
+    }
+  ],
+  "r1-k1-D-content-checked": [
+    {
+      "bytes_hashed": 27438,
+      "consumed_files": 3,
+      "integrity_scope": "consumed SHA256 before/after and inventory identity",
+      "native_process_launches": 0,
+      "rows_read": 370
+    }
+  ],
+  "r1-k1-D-performance-only": [
+    {
+      "bytes_hashed": 0,
+      "consumed_files": 3,
+      "integrity_scope": "performance-only; no content hashing",
+      "native_process_launches": 0,
+      "rows_read": 370
+    }
+  ],
+  "r1-k2-B-saved": [
+    {
+      "integrity_scope": "native verified consumed inputs per invocation; no outer union recheck",
+      "native_process_launches": 6,
+      "native_query_invocations": 3,
+      "native_version_probes": 3
+    },
+    {
+      "integrity_scope": "native verified consumed inputs per invocation; no outer union recheck",
+      "native_process_launches": 6,
+      "native_query_invocations": 3,
+      "native_version_probes": 3
+    }
+  ],
+  "r1-k2-C-window-256": [
+    {
+      "final_union_recheck_bytes": 14925923,
+      "largest_native_reported_peak_rss_bytes": 9318400,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 26,
+      "native_query_invocations": 3,
+      "native_version_probes": 14,
+      "parent_bytes_hashed_before_finalization": 30914190,
+      "partition_decode_visits": 3,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 1
+      },
+      "planning_wall_seconds": 0.12511145999997098,
+      "repeated_partition_decodes": 0,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 10,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 108216320,
+      "summary_rows": 128,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 3,
+      "wall_seconds_before_finalization": 0.1837424629999873
+    },
+    {
+      "final_union_recheck_bytes": 15191931,
+      "largest_native_reported_peak_rss_bytes": 9469952,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 26,
+      "native_query_invocations": 3,
+      "native_version_probes": 14,
+      "parent_bytes_hashed_before_finalization": 31529154,
+      "partition_decode_visits": 6,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000032768/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000032768/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000032768/evidence.arrow": 1
+      },
+      "planning_wall_seconds": 0.09533556599996018,
+      "repeated_partition_decodes": 0,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 10,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 107544576,
+      "summary_rows": 768,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 6,
+      "wall_seconds_before_finalization": 0.1803794119999793
+    }
+  ],
+  "r1-k2-C-window-64": [
+    {
+      "final_union_recheck_bytes": 14940392,
+      "largest_native_reported_peak_rss_bytes": 9355264,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 32,
+      "native_query_invocations": 6,
+      "native_version_probes": 17,
+      "parent_bytes_hashed_before_finalization": 31316654,
+      "partition_decode_visits": 6,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 2
+      },
+      "planning_wall_seconds": 0.11963587999997571,
+      "repeated_partition_decodes": 3,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 12,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 113852416,
+      "summary_rows": 128,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 3,
+      "wall_seconds_before_finalization": 0.20451550199999247
+    },
+    {
+      "final_union_recheck_bytes": 15232593,
+      "largest_native_reported_peak_rss_bytes": 9367552,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 44,
+      "native_query_invocations": 12,
+      "native_version_probes": 23,
+      "parent_bytes_hashed_before_finalization": 32604411,
+      "partition_decode_visits": 12,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000032768/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000032768/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000032768/evidence.arrow": 2
+      },
+      "planning_wall_seconds": 0.0991687730000308,
+      "repeated_partition_decodes": 6,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 16,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 114790400,
+      "summary_rows": 768,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 6,
+      "wall_seconds_before_finalization": 0.24501797800002123
+    }
+  ],
+  "r1-k2-D-content-checked": [
+    {
+      "bytes_hashed": 27438,
+      "consumed_files": 3,
+      "integrity_scope": "consumed SHA256 before/after and inventory identity",
+      "native_process_launches": 0,
+      "rows_read": 370
+    },
+    {
+      "bytes_hashed": 43042,
+      "consumed_files": 6,
+      "integrity_scope": "consumed SHA256 before/after and inventory identity",
+      "native_process_launches": 0,
+      "rows_read": 738
+    }
+  ],
+  "r1-k2-D-performance-only": [
+    {
+      "bytes_hashed": 0,
+      "consumed_files": 3,
+      "integrity_scope": "performance-only; no content hashing",
+      "native_process_launches": 0,
+      "rows_read": 370
+    },
+    {
+      "bytes_hashed": 0,
+      "consumed_files": 6,
+      "integrity_scope": "performance-only; no content hashing",
+      "native_process_launches": 0,
+      "rows_read": 738
+    }
+  ],
+  "r1-k3-B-saved": [
+    {
+      "integrity_scope": "native verified consumed inputs per invocation; no outer union recheck",
+      "native_process_launches": 6,
+      "native_query_invocations": 3,
+      "native_version_probes": 3
+    },
+    {
+      "integrity_scope": "native verified consumed inputs per invocation; no outer union recheck",
+      "native_process_launches": 6,
+      "native_query_invocations": 3,
+      "native_version_probes": 3
+    },
+    {
+      "integrity_scope": "native verified consumed inputs per invocation; no outer union recheck",
+      "native_process_launches": 6,
+      "native_query_invocations": 3,
+      "native_version_probes": 3
+    }
+  ],
+  "r1-k3-C-window-256": [
+    {
+      "final_union_recheck_bytes": 14925923,
+      "largest_native_reported_peak_rss_bytes": 9326592,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 26,
+      "native_query_invocations": 3,
+      "native_version_probes": 14,
+      "parent_bytes_hashed_before_finalization": 30914190,
+      "partition_decode_visits": 3,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 1
+      },
+      "planning_wall_seconds": 0.11389182200002779,
+      "repeated_partition_decodes": 0,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 10,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 110669824,
+      "summary_rows": 128,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 3,
+      "wall_seconds_before_finalization": 0.1676471619999802
+    },
+    {
+      "final_union_recheck_bytes": 15191931,
+      "largest_native_reported_peak_rss_bytes": 9510912,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 26,
+      "native_query_invocations": 3,
+      "native_version_probes": 14,
+      "parent_bytes_hashed_before_finalization": 31529154,
+      "partition_decode_visits": 6,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000032768/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000032768/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000032768/evidence.arrow": 1
+      },
+      "planning_wall_seconds": 0.09262804399998004,
+      "repeated_partition_decodes": 0,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 10,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 106520576,
+      "summary_rows": 768,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 6,
+      "wall_seconds_before_finalization": 0.1700778430000014
+    },
+    {
+      "final_union_recheck_bytes": 15092299,
+      "largest_native_reported_peak_rss_bytes": 9342976,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 26,
+      "native_query_invocations": 3,
+      "native_version_probes": 14,
+      "parent_bytes_hashed_before_finalization": 31269246,
+      "partition_decode_visits": 6,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000049152/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000049152/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000049152/evidence.arrow": 1
+      },
+      "planning_wall_seconds": 0.08643827200000942,
+      "repeated_partition_decodes": 0,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 9,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 115060736,
+      "summary_rows": 160,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 6,
+      "wall_seconds_before_finalization": 0.14090106600002628
+    }
+  ],
+  "r1-k3-C-window-64": [
+    {
+      "final_union_recheck_bytes": 14940392,
+      "largest_native_reported_peak_rss_bytes": 9359360,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 32,
+      "native_query_invocations": 6,
+      "native_version_probes": 17,
+      "parent_bytes_hashed_before_finalization": 31316654,
+      "partition_decode_visits": 6,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 2
+      },
+      "planning_wall_seconds": 0.12297183800001221,
+      "repeated_partition_decodes": 3,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 12,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 107470848,
+      "summary_rows": 128,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 3,
+      "wall_seconds_before_finalization": 0.20406857800003309
+    },
+    {
+      "final_union_recheck_bytes": 15232593,
+      "largest_native_reported_peak_rss_bytes": 9383936,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 44,
+      "native_query_invocations": 12,
+      "native_version_probes": 23,
+      "parent_bytes_hashed_before_finalization": 32604411,
+      "partition_decode_visits": 12,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000032768/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000032768/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000032768/evidence.arrow": 2
+      },
+      "planning_wall_seconds": 0.09334591499998623,
+      "repeated_partition_decodes": 6,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 16,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 113393664,
+      "summary_rows": 768,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 6,
+      "wall_seconds_before_finalization": 0.24462660400001823
+    },
+    {
+      "final_union_recheck_bytes": 15121246,
+      "largest_native_reported_peak_rss_bytes": 9318400,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 38,
+      "native_query_invocations": 9,
+      "native_version_probes": 20,
+      "parent_bytes_hashed_before_finalization": 32074216,
+      "partition_decode_visits": 12,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000049152/evidence.arrow": 3,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000049152/evidence.arrow": 3,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000049152/evidence.arrow": 3
+      },
+      "planning_wall_seconds": 0.09279730399998698,
+      "repeated_partition_decodes": 6,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 13,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 114638848,
+      "summary_rows": 160,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 6,
+      "wall_seconds_before_finalization": 0.2012197899999819
+    }
+  ],
+  "r1-k3-D-content-checked": [
+    {
+      "bytes_hashed": 27438,
+      "consumed_files": 3,
+      "integrity_scope": "consumed SHA256 before/after and inventory identity",
+      "native_process_launches": 0,
+      "rows_read": 370
+    },
+    {
+      "bytes_hashed": 43042,
+      "consumed_files": 6,
+      "integrity_scope": "consumed SHA256 before/after and inventory identity",
+      "native_process_launches": 0,
+      "rows_read": 738
+    },
+    {
+      "bytes_hashed": 43060,
+      "consumed_files": 6,
+      "integrity_scope": "consumed SHA256 before/after and inventory identity",
+      "native_process_launches": 0,
+      "rows_read": 464
+    }
+  ],
+  "r1-k3-D-performance-only": [
+    {
+      "bytes_hashed": 0,
+      "consumed_files": 3,
+      "integrity_scope": "performance-only; no content hashing",
+      "native_process_launches": 0,
+      "rows_read": 370
+    },
+    {
+      "bytes_hashed": 0,
+      "consumed_files": 6,
+      "integrity_scope": "performance-only; no content hashing",
+      "native_process_launches": 0,
+      "rows_read": 738
+    },
+    {
+      "bytes_hashed": 0,
+      "consumed_files": 6,
+      "integrity_scope": "performance-only; no content hashing",
+      "native_process_launches": 0,
+      "rows_read": 464
+    }
+  ],
+  "r2-k1-B-saved": [
+    {
+      "integrity_scope": "native verified consumed inputs per invocation; no outer union recheck",
+      "native_process_launches": 6,
+      "native_query_invocations": 3,
+      "native_version_probes": 3
+    }
+  ],
+  "r2-k1-C-window-256": [
+    {
+      "final_union_recheck_bytes": 14925923,
+      "largest_native_reported_peak_rss_bytes": 9359360,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 26,
+      "native_query_invocations": 3,
+      "native_version_probes": 14,
+      "parent_bytes_hashed_before_finalization": 30914190,
+      "partition_decode_visits": 3,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 1
+      },
+      "planning_wall_seconds": 0.11860571599999048,
+      "repeated_partition_decodes": 0,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 10,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 107995136,
+      "summary_rows": 128,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 3,
+      "wall_seconds_before_finalization": 0.17384644100002333
+    }
+  ],
+  "r2-k1-C-window-64": [
+    {
+      "final_union_recheck_bytes": 14940392,
+      "largest_native_reported_peak_rss_bytes": 9297920,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 32,
+      "native_query_invocations": 6,
+      "native_version_probes": 17,
+      "parent_bytes_hashed_before_finalization": 31316654,
+      "partition_decode_visits": 6,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 2
+      },
+      "planning_wall_seconds": 0.11665846400001101,
+      "repeated_partition_decodes": 3,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 12,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 111239168,
+      "summary_rows": 128,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 3,
+      "wall_seconds_before_finalization": 0.1919945010000106
+    }
+  ],
+  "r2-k1-D-content-checked": [
+    {
+      "bytes_hashed": 27438,
+      "consumed_files": 3,
+      "integrity_scope": "consumed SHA256 before/after and inventory identity",
+      "native_process_launches": 0,
+      "rows_read": 370
+    }
+  ],
+  "r2-k1-D-performance-only": [
+    {
+      "bytes_hashed": 0,
+      "consumed_files": 3,
+      "integrity_scope": "performance-only; no content hashing",
+      "native_process_launches": 0,
+      "rows_read": 370
+    }
+  ],
+  "r2-k2-B-saved": [
+    {
+      "integrity_scope": "native verified consumed inputs per invocation; no outer union recheck",
+      "native_process_launches": 6,
+      "native_query_invocations": 3,
+      "native_version_probes": 3
+    },
+    {
+      "integrity_scope": "native verified consumed inputs per invocation; no outer union recheck",
+      "native_process_launches": 6,
+      "native_query_invocations": 3,
+      "native_version_probes": 3
+    }
+  ],
+  "r2-k2-C-window-256": [
+    {
+      "final_union_recheck_bytes": 14925923,
+      "largest_native_reported_peak_rss_bytes": 9211904,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 26,
+      "native_query_invocations": 3,
+      "native_version_probes": 14,
+      "parent_bytes_hashed_before_finalization": 30914190,
+      "partition_decode_visits": 3,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 1
+      },
+      "planning_wall_seconds": 0.11791771700001163,
+      "repeated_partition_decodes": 0,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 10,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 109662208,
+      "summary_rows": 128,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 3,
+      "wall_seconds_before_finalization": 0.17577825500001154
+    },
+    {
+      "final_union_recheck_bytes": 15191931,
+      "largest_native_reported_peak_rss_bytes": 9498624,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 26,
+      "native_query_invocations": 3,
+      "native_version_probes": 14,
+      "parent_bytes_hashed_before_finalization": 31529154,
+      "partition_decode_visits": 6,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000032768/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000032768/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000032768/evidence.arrow": 1
+      },
+      "planning_wall_seconds": 0.09141681600004858,
+      "repeated_partition_decodes": 0,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 10,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 107491328,
+      "summary_rows": 768,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 6,
+      "wall_seconds_before_finalization": 0.1696989510000435
+    }
+  ],
+  "r2-k2-C-window-64": [
+    {
+      "final_union_recheck_bytes": 14940392,
+      "largest_native_reported_peak_rss_bytes": 9330688,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 32,
+      "native_query_invocations": 6,
+      "native_version_probes": 17,
+      "parent_bytes_hashed_before_finalization": 31316654,
+      "partition_decode_visits": 6,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 2
+      },
+      "planning_wall_seconds": 0.12057984800003396,
+      "repeated_partition_decodes": 3,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 11,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 106545152,
+      "summary_rows": 128,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 3,
+      "wall_seconds_before_finalization": 0.1966726660000404
+    },
+    {
+      "final_union_recheck_bytes": 15232593,
+      "largest_native_reported_peak_rss_bytes": 9371648,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 44,
+      "native_query_invocations": 12,
+      "native_version_probes": 23,
+      "parent_bytes_hashed_before_finalization": 32604411,
+      "partition_decode_visits": 12,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000032768/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000032768/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000032768/evidence.arrow": 2
+      },
+      "planning_wall_seconds": 0.09517302000000427,
+      "repeated_partition_decodes": 6,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 16,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 114913280,
+      "summary_rows": 768,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 6,
+      "wall_seconds_before_finalization": 0.23617647399998987
+    }
+  ],
+  "r2-k2-D-content-checked": [
+    {
+      "bytes_hashed": 27438,
+      "consumed_files": 3,
+      "integrity_scope": "consumed SHA256 before/after and inventory identity",
+      "native_process_launches": 0,
+      "rows_read": 370
+    },
+    {
+      "bytes_hashed": 43042,
+      "consumed_files": 6,
+      "integrity_scope": "consumed SHA256 before/after and inventory identity",
+      "native_process_launches": 0,
+      "rows_read": 738
+    }
+  ],
+  "r2-k2-D-performance-only": [
+    {
+      "bytes_hashed": 0,
+      "consumed_files": 3,
+      "integrity_scope": "performance-only; no content hashing",
+      "native_process_launches": 0,
+      "rows_read": 370
+    },
+    {
+      "bytes_hashed": 0,
+      "consumed_files": 6,
+      "integrity_scope": "performance-only; no content hashing",
+      "native_process_launches": 0,
+      "rows_read": 738
+    }
+  ],
+  "r2-k3-B-saved": [
+    {
+      "integrity_scope": "native verified consumed inputs per invocation; no outer union recheck",
+      "native_process_launches": 6,
+      "native_query_invocations": 3,
+      "native_version_probes": 3
+    },
+    {
+      "integrity_scope": "native verified consumed inputs per invocation; no outer union recheck",
+      "native_process_launches": 6,
+      "native_query_invocations": 3,
+      "native_version_probes": 3
+    },
+    {
+      "integrity_scope": "native verified consumed inputs per invocation; no outer union recheck",
+      "native_process_launches": 6,
+      "native_query_invocations": 3,
+      "native_version_probes": 3
+    }
+  ],
+  "r2-k3-C-window-256": [
+    {
+      "final_union_recheck_bytes": 14925923,
+      "largest_native_reported_peak_rss_bytes": 9297920,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 26,
+      "native_query_invocations": 3,
+      "native_version_probes": 14,
+      "parent_bytes_hashed_before_finalization": 30914190,
+      "partition_decode_visits": 3,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 1
+      },
+      "planning_wall_seconds": 0.11402611300002263,
+      "repeated_partition_decodes": 0,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 10,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 111415296,
+      "summary_rows": 128,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 3,
+      "wall_seconds_before_finalization": 0.16687548700002708
+    },
+    {
+      "final_union_recheck_bytes": 15191931,
+      "largest_native_reported_peak_rss_bytes": 9498624,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 26,
+      "native_query_invocations": 3,
+      "native_version_probes": 14,
+      "parent_bytes_hashed_before_finalization": 31529154,
+      "partition_decode_visits": 6,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000032768/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000032768/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000032768/evidence.arrow": 1
+      },
+      "planning_wall_seconds": 0.08989404900000864,
+      "repeated_partition_decodes": 0,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 14,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 110706688,
+      "summary_rows": 768,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 6,
+      "wall_seconds_before_finalization": 0.21847475300000951
+    },
+    {
+      "final_union_recheck_bytes": 15092299,
+      "largest_native_reported_peak_rss_bytes": 9400320,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 26,
+      "native_query_invocations": 3,
+      "native_version_probes": 14,
+      "parent_bytes_hashed_before_finalization": 31269246,
+      "partition_decode_visits": 6,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000049152/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000049152/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000049152/evidence.arrow": 1
+      },
+      "planning_wall_seconds": 0.08729160000001457,
+      "repeated_partition_decodes": 0,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 9,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 108998656,
+      "summary_rows": 160,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 6,
+      "wall_seconds_before_finalization": 0.14185864500001344
+    }
+  ],
+  "r2-k3-C-window-64": [
+    {
+      "final_union_recheck_bytes": 14940392,
+      "largest_native_reported_peak_rss_bytes": 9281536,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 32,
+      "native_query_invocations": 6,
+      "native_version_probes": 17,
+      "parent_bytes_hashed_before_finalization": 31316654,
+      "partition_decode_visits": 6,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 2
+      },
+      "planning_wall_seconds": 0.11042057600002408,
+      "repeated_partition_decodes": 3,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 12,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 113688576,
+      "summary_rows": 128,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 3,
+      "wall_seconds_before_finalization": 0.18762005799999315
+    },
+    {
+      "final_union_recheck_bytes": 15232593,
+      "largest_native_reported_peak_rss_bytes": 9322496,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 44,
+      "native_query_invocations": 12,
+      "native_version_probes": 23,
+      "parent_bytes_hashed_before_finalization": 32604411,
+      "partition_decode_visits": 12,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000032768/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000032768/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 2,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000032768/evidence.arrow": 2
+      },
+      "planning_wall_seconds": 0.09861868100000493,
+      "repeated_partition_decodes": 6,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 16,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 112701440,
+      "summary_rows": 768,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 6,
+      "wall_seconds_before_finalization": 0.2417753599999628
+    },
+    {
+      "final_union_recheck_bytes": 15121246,
+      "largest_native_reported_peak_rss_bytes": 9322496,
+      "native_build_identity": {
+        "code_dirty": "false",
+        "code_git_sha": "a7f3b40daff9aa319a0e089c5af1ef7f37fd5ec4",
+        "producer.version": "0.5.0",
+        "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+        "target_triple": "x86_64-unknown-linux-gnu"
+      },
+      "native_metadata_invocations": 9,
+      "native_process_launches": 38,
+      "native_query_invocations": 9,
+      "native_version_probes": 20,
+      "parent_bytes_hashed_before_finalization": 32074216,
+      "partition_decode_visits": 12,
+      "partition_visit_counts": {
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-000-cache/3c1dfc9e7f520c641d90c4c0653b151aebdd08d503a4d2ab7f9aa7b89955cf64/c00000000-p0000049152/evidence.arrow": 3,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-001-cache/7a6cb4598aa0d7feaf75b1507d1b8b84804f15d933a9488a177878e6bc55adaa/c00000000-p0000049152/evidence.arrow": 3,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000000000/evidence.arrow": 1,
+        "/home/runner/work/rosalind/rosalind/validation-results/pilot/native/synthetic-002-cache/d6678bb2cf387226098aa25c033ebd357894f816ff8ca22970468b18217e3878/c00000000-p0000049152/evidence.arrow": 3
+      },
+      "planning_wall_seconds": 0.08436607100003357,
+      "repeated_partition_decodes": 6,
+      "rss_sample_interval_seconds": 0.01,
+      "rss_samples": 13,
+      "rss_scope": "simultaneous parent and descendants through reduction and first final rehash; excludes final publication phase; benchmark outer sampler covers full workflow",
+      "sampled_process_tree_peak_rss_bytes": 116035584,
+      "summary_rows": 160,
+      "timing_scope": "phase observations may overlap; outer caller measures publication and process startup",
+      "unique_consumed_partitions": 6,
+      "wall_seconds_before_finalization": 0.19303057500002296
+    }
+  ],
+  "r2-k3-D-content-checked": [
+    {
+      "bytes_hashed": 27438,
+      "consumed_files": 3,
+      "integrity_scope": "consumed SHA256 before/after and inventory identity",
+      "native_process_launches": 0,
+      "rows_read": 370
+    },
+    {
+      "bytes_hashed": 43042,
+      "consumed_files": 6,
+      "integrity_scope": "consumed SHA256 before/after and inventory identity",
+      "native_process_launches": 0,
+      "rows_read": 738
+    },
+    {
+      "bytes_hashed": 43060,
+      "consumed_files": 6,
+      "integrity_scope": "consumed SHA256 before/after and inventory identity",
+      "native_process_launches": 0,
+      "rows_read": 464
+    }
+  ],
+  "r2-k3-D-performance-only": [
+    {
+      "bytes_hashed": 0,
+      "consumed_files": 3,
+      "integrity_scope": "performance-only; no content hashing",
+      "native_process_launches": 0,
+      "rows_read": 370
+    },
+    {
+      "bytes_hashed": 0,
+      "consumed_files": 6,
+      "integrity_scope": "performance-only; no content hashing",
+      "native_process_launches": 0,
+      "rows_read": 738
+    },
+    {
+      "bytes_hashed": 0,
+      "consumed_files": 6,
+      "integrity_scope": "performance-only; no content hashing",
+      "native_process_launches": 0,
+      "rows_read": 464
+    }
+  ]
+}
