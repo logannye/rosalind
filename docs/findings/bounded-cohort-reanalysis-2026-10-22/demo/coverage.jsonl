@@ -1,0 +1,3 @@
+{"covered_loci":4,"missing":{"intervals":[],"sites":[]},"missing_loci":0,"requested_loci":4,"specimen_id":"specimen-a"}
+{"covered_loci":3,"missing":{"intervals":[{"contig":0,"end":40,"start":39}],"sites":[{"alternates":[67],"contig":0,"position":39,"reference":65}]},"missing_loci":1,"requested_loci":4,"specimen_id":"specimen-b"}
+{"covered_loci":3,"missing":{"intervals":[{"contig":0,"end":30,"start":29}],"sites":[{"alternates":[84],"contig":0,"position":29,"reference":65}]},"missing_loci":1,"requested_loci":4,"specimen_id":"specimen-c"}

@@ -1,0 +1,410 @@
+{
+  "binary_sha256": "b2638ccc3b5e734f2c15dacbdf1b4e223cd2c71d778c877aabc2acfeb4e320ce",
+  "binary_version": "rosalind 0.5.0",
+  "checks": [
+    "independent-sam-counts",
+    "hand-authored-missingness-and-summary",
+    "exclusive-filter-counters",
+    "relocated-offline-byte-equality",
+    "strict-missing-refusal",
+    "missing-fields-refusal",
+    "fresh-reuse-byte-equality",
+    "reuse-denominators",
+    "reused-artifact-verification"
+  ],
+  "commands": [
+    {
+      "argv": [
+        "/home/runner/work/rosalind/rosalind/target/release/rosalind",
+        "analyze",
+        "evidence",
+        "--reference",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/raw/reference.fa",
+        "--alignments",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/raw/specimen-a.bam",
+        "--regions",
+        "/home/runner/work/rosalind/rosalind/examples/cohort-reanalysis/specimen-a.bed",
+        "--fields",
+        "depths,alleles",
+        "--memory-budget-mb",
+        "128",
+        "--format",
+        "tsv",
+        "--output",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/specimen-a-stored.tsv",
+        "--cache-dir",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/specimen-a-cache"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "/home/runner/work/rosalind/rosalind/target/release/rosalind",
+        "analyze",
+        "evidence",
+        "--reference",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/raw/reference.fa",
+        "--alignments",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/raw/specimen-b.bam",
+        "--regions",
+        "/home/runner/work/rosalind/rosalind/examples/cohort-reanalysis/specimen-b.bed",
+        "--fields",
+        "depths,alleles",
+        "--memory-budget-mb",
+        "128",
+        "--format",
+        "tsv",
+        "--output",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/specimen-b-stored.tsv",
+        "--cache-dir",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/specimen-b-cache"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "/home/runner/work/rosalind/rosalind/target/release/rosalind",
+        "analyze",
+        "evidence",
+        "--reference",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/raw/reference.fa",
+        "--alignments",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/raw/specimen-c.bam",
+        "--regions",
+        "/home/runner/work/rosalind/rosalind/examples/cohort-reanalysis/specimen-c.bed",
+        "--fields",
+        "depths,alleles",
+        "--memory-budget-mb",
+        "128",
+        "--format",
+        "tsv",
+        "--output",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/specimen-c-stored.tsv",
+        "--cache-dir",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/specimen-c-cache"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "/home/runner/work/rosalind/rosalind/target/release/rosalind",
+        "dataset",
+        "verify",
+        "--dataset",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/portable/specimen-a/evidence-dataset.manifest.json"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "/home/runner/work/rosalind/rosalind/target/release/rosalind",
+        "dataset",
+        "extract",
+        "--dataset",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/portable/specimen-a/evidence-dataset.manifest.json",
+        "--regions",
+        "/home/runner/work/rosalind/rosalind/examples/cohort-reanalysis/specimen-a.bed",
+        "--fields",
+        "depths,alleles",
+        "--format",
+        "tsv",
+        "--output",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/specimen-a-offline.tsv"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "/home/runner/work/rosalind/rosalind/target/release/rosalind",
+        "dataset",
+        "verify",
+        "--dataset",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/portable/specimen-b/evidence-dataset.manifest.json"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "/home/runner/work/rosalind/rosalind/target/release/rosalind",
+        "dataset",
+        "extract",
+        "--dataset",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/portable/specimen-b/evidence-dataset.manifest.json",
+        "--regions",
+        "/home/runner/work/rosalind/rosalind/examples/cohort-reanalysis/specimen-b.bed",
+        "--fields",
+        "depths,alleles",
+        "--format",
+        "tsv",
+        "--output",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/specimen-b-offline.tsv"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "/home/runner/work/rosalind/rosalind/target/release/rosalind",
+        "dataset",
+        "extract",
+        "--dataset",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/portable/specimen-b/evidence-dataset.manifest.json",
+        "--sites",
+        "/home/runner/work/rosalind/rosalind/examples/cohort-reanalysis/candidates.vcf",
+        "--format",
+        "tsv",
+        "--output",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/specimen-b-missing.tsv"
+      ],
+      "exit_code": 3
+    },
+    {
+      "argv": [
+        "/home/runner/work/rosalind/rosalind/target/release/rosalind",
+        "dataset",
+        "verify",
+        "--dataset",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/portable/specimen-c/evidence-dataset.manifest.json"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "/home/runner/work/rosalind/rosalind/target/release/rosalind",
+        "dataset",
+        "extract",
+        "--dataset",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/portable/specimen-c/evidence-dataset.manifest.json",
+        "--regions",
+        "/home/runner/work/rosalind/rosalind/examples/cohort-reanalysis/specimen-c.bed",
+        "--fields",
+        "depths,alleles",
+        "--format",
+        "tsv",
+        "--output",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/specimen-c-offline.tsv"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "/home/runner/work/rosalind/rosalind/target/release/rosalind",
+        "dataset",
+        "extract",
+        "--dataset",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/portable/specimen-c/evidence-dataset.manifest.json",
+        "--sites",
+        "/home/runner/work/rosalind/rosalind/examples/cohort-reanalysis/candidates.vcf",
+        "--format",
+        "tsv",
+        "--output",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/specimen-c-missing.tsv"
+      ],
+      "exit_code": 3
+    },
+    {
+      "argv": [
+        "/home/runner/work/rosalind/rosalind/target/release/rosalind",
+        "dataset",
+        "extract",
+        "--dataset",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/portable/specimen-a/evidence-dataset.manifest.json",
+        "--fields",
+        "strands",
+        "--format",
+        "tsv",
+        "--output",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/missing-fields.tsv"
+      ],
+      "exit_code": 3
+    },
+    {
+      "argv": [
+        "/home/runner/work/rosalind/rosalind/target/release/rosalind",
+        "analyze",
+        "evidence",
+        "--reference",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/raw/reference.fa",
+        "--alignments",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/raw/specimen-a.bam",
+        "--sites",
+        "/home/runner/work/rosalind/rosalind/examples/cohort-reanalysis/candidates.vcf",
+        "--fields",
+        "depths,alleles",
+        "--memory-budget-mb",
+        "128",
+        "--format",
+        "tsv",
+        "--output",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/specimen-a-fresh.tsv"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "/home/runner/work/rosalind/rosalind/target/release/rosalind",
+        "analyze",
+        "evidence",
+        "--reference",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/raw/reference.fa",
+        "--alignments",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/raw/specimen-a.bam",
+        "--sites",
+        "/home/runner/work/rosalind/rosalind/examples/cohort-reanalysis/candidates.vcf",
+        "--fields",
+        "depths,alleles",
+        "--memory-budget-mb",
+        "128",
+        "--format",
+        "tsv",
+        "--output",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/specimen-a-reused.tsv",
+        "--reuse-dataset",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/portable/specimen-a/evidence-dataset.manifest.json",
+        "--workers",
+        "1"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "/home/runner/work/rosalind/rosalind/target/release/rosalind",
+        "verify",
+        "--manifest",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/specimen-a-reused.tsv.manifest.json"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "/home/runner/work/rosalind/rosalind/target/release/rosalind",
+        "analyze",
+        "evidence",
+        "--reference",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/raw/reference.fa",
+        "--alignments",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/raw/specimen-b.bam",
+        "--sites",
+        "/home/runner/work/rosalind/rosalind/examples/cohort-reanalysis/candidates.vcf",
+        "--fields",
+        "depths,alleles",
+        "--memory-budget-mb",
+        "128",
+        "--format",
+        "tsv",
+        "--output",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/specimen-b-fresh.tsv"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "/home/runner/work/rosalind/rosalind/target/release/rosalind",
+        "analyze",
+        "evidence",
+        "--reference",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/raw/reference.fa",
+        "--alignments",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/raw/specimen-b.bam",
+        "--sites",
+        "/home/runner/work/rosalind/rosalind/examples/cohort-reanalysis/candidates.vcf",
+        "--fields",
+        "depths,alleles",
+        "--memory-budget-mb",
+        "128",
+        "--format",
+        "tsv",
+        "--output",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/specimen-b-reused.tsv",
+        "--reuse-dataset",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/portable/specimen-b/evidence-dataset.manifest.json",
+        "--workers",
+        "1"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "/home/runner/work/rosalind/rosalind/target/release/rosalind",
+        "verify",
+        "--manifest",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/specimen-b-reused.tsv.manifest.json"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "/home/runner/work/rosalind/rosalind/target/release/rosalind",
+        "analyze",
+        "evidence",
+        "--reference",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/raw/reference.fa",
+        "--alignments",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/raw/specimen-c.bam",
+        "--sites",
+        "/home/runner/work/rosalind/rosalind/examples/cohort-reanalysis/candidates.vcf",
+        "--fields",
+        "depths,alleles",
+        "--memory-budget-mb",
+        "128",
+        "--format",
+        "tsv",
+        "--output",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/specimen-c-fresh.tsv"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "/home/runner/work/rosalind/rosalind/target/release/rosalind",
+        "analyze",
+        "evidence",
+        "--reference",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/raw/reference.fa",
+        "--alignments",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/raw/specimen-c.bam",
+        "--sites",
+        "/home/runner/work/rosalind/rosalind/examples/cohort-reanalysis/candidates.vcf",
+        "--fields",
+        "depths,alleles",
+        "--memory-budget-mb",
+        "128",
+        "--format",
+        "tsv",
+        "--output",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/specimen-c-reused.tsv",
+        "--reuse-dataset",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/portable/specimen-c/evidence-dataset.manifest.json",
+        "--workers",
+        "1"
+      ],
+      "exit_code": 0
+    },
+    {
+      "argv": [
+        "/home/runner/work/rosalind/rosalind/target/release/rosalind",
+        "verify",
+        "--manifest",
+        "/home/runner/work/rosalind/rosalind/validation-results/fixture/validation/specimen-c-reused.tsv.manifest.json"
+      ],
+      "exit_code": 0
+    }
+  ],
+  "expectations_sha256": "c69e822c613b279636ced4b805889835ac05ccdadd030612d63357b70fd129fe",
+  "fixture": "cohort-contract-synthetic-v1",
+  "passed": true,
+  "reuse": {
+    "specimen-a": {
+      "computed_loci": 0,
+      "reused_loci": 4
+    },
+    "specimen-b": {
+      "computed_loci": 1,
+      "reused_loci": 3
+    },
+    "specimen-c": {
+      "computed_loci": 1,
+      "reused_loci": 3
+    }
+  },
+  "scope": "Existing single-sample extraction/dataset/reuse checks; no cohort implementation or user validation."
+}

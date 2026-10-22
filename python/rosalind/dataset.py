@@ -56,6 +56,32 @@ class EvidenceDataset:
         """Verify every stored evidence row and partition, including zero-depth rows."""
         return _json(self._command("verify", memory_budget_mb=memory_budget_mb))
 
+    def coverage(self, *, regions: Optional[PathLike] = None, sites: Optional[PathLike] = None,
+                 fields: Optional[Sequence[str]] = None, memory_budget_mb: Optional[int] = None,
+                 max_output_bytes: int = 4_194_304) -> dict:
+        """Split normalized requested loci into covered and missing metadata.
+
+        The ``rosalind-dataset-coverage-v1`` response contains the canonical query,
+        its native digest, parent/descriptor byte identities, coverage counts and
+        selections. Coordinates are zero-based; SNV bases are ASCII byte values.
+        This verifies metadata only: partition bodies and requested REF alleles
+        remain unchecked until consumed. It never reads original source files.
+
+        Responses above ``max_output_bytes`` are refused before JSON is returned;
+        callers must submit smaller selection windows. The maximum is 32 MiB.
+        This is an output bound, not a maximum process RSS. Strict saved queries
+        still refuse missing loci; partial consumers must query the intersection.
+        """
+        if (isinstance(max_output_bytes, bool) or not isinstance(max_output_bytes, int)
+                or not 1 <= max_output_bytes <= 33_554_432):
+            raise ValueError("max_output_bytes must be an integer in 1..=33554432")
+        command = self._command("coverage", memory_budget_mb=memory_budget_mb)
+        command += _query(regions, sites, fields) + ["--max-output-bytes", str(max_output_bytes)]
+        result = _json(command, max_bytes=max_output_bytes)
+        if not isinstance(result, dict) or result.get("schema") != "rosalind-dataset-coverage-v1":
+            raise ValueError("unsupported native dataset coverage schema")
+        return result
+
     def batches(self, *, workdir: Optional[PathLike] = None, regions: Optional[PathLike] = None,
                 sites: Optional[PathLike] = None, fields: Optional[Sequence[str]] = None,
                 memory_budget_mb: Optional[int] = None) -> EvidenceRun:
@@ -148,9 +174,13 @@ def _run(command: list[str], stdout=None) -> None:
             raise EvidenceProcessError(code, diagnostics.read().decode("utf-8", errors="replace"))
 
 
-def _json(command: list[str]) -> dict:
+def _json(command: list[str], *, max_bytes: Optional[int] = None) -> dict:
     with tempfile.TemporaryFile() as output:
         _run(command, stdout=output)
+        if max_bytes is not None:
+            output.seek(0, 2)
+            if output.tell() > max_bytes:
+                raise ValueError("native JSON response exceeds max_output_bytes")
         output.seek(0)
         return json.load(output)
 

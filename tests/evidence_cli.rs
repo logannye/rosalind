@@ -352,6 +352,169 @@ fn cache_reuse_and_worker_cli_preserve_canonical_output() {
 }
 
 #[test]
+fn dataset_coverage_is_bounded_metadata_only_and_leaves_saved_queries_strict() {
+    let f = Fixture::new();
+    std::fs::write(&f.bed, "chr1\t0\t2\nchr1\t20\t21\n").unwrap();
+    let artifact = f.root.join("sparse.arrow");
+    success(
+        f.command("evidence")
+            .args([
+                "--format",
+                "arrow-ipc",
+                "--fields",
+                "depths,alleles",
+                "--cache-dir",
+            ])
+            .arg(f.root.join("cache"))
+            .arg("-o")
+            .arg(&artifact)
+            .output()
+            .unwrap(),
+    );
+    let parent =
+        PathBuf::from(&receipt(&artifact).measurements["execution.evidence_dataset_manifest"]);
+    let sites = f.root.join("candidates.vcf");
+    let header = "##fileformat=VCFv4.2\n##contig=<ID=chr1,length=4099>\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n";
+    std::fs::write(
+        &sites,
+        format!("{header}chr1\t21\t.\tA\tC\t.\t.\t.\nchr1\t10\t.\tA\tG\t.\t.\t.\nchr1\t1\t.\tA\tG\t.\t.\t.\nchr1\t1\t.\tA\tC\t.\t.\t.\n"),
+    )
+    .unwrap();
+    std::fs::remove_file(&f.reference).unwrap();
+    std::fs::remove_file(&f.bam).unwrap();
+    let command = |action: &str| {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_rosalind"));
+        command
+            .args(["dataset", action, "--dataset"])
+            .arg(&parent)
+            .arg("--sites")
+            .arg(&sites);
+        command
+    };
+    let response = success(command("coverage").output().unwrap());
+    let coverage: serde_json::Value = serde_json::from_slice(&response.stdout).unwrap();
+    assert_eq!(coverage["schema"], "rosalind-dataset-coverage-v1");
+    assert_eq!(coverage["verification_level"], "metadata_only");
+    assert_eq!(coverage["partition_bodies_verified"], false);
+    assert_eq!(coverage["original_sources_rehashed"], false);
+    assert_eq!(coverage["reference_validation"], "not_performed");
+    assert_eq!(coverage["requested_loci"], 3);
+    assert_eq!(coverage["covered_loci"], 2);
+    assert_eq!(coverage["missing_loci"], 1);
+    assert_eq!(coverage["query"]["fields"], 3);
+    assert_eq!(coverage["covered"]["sites"][0]["position"], 0);
+    assert_eq!(
+        coverage["covered"]["sites"][0]["alternates"],
+        serde_json::json!([67, 71])
+    );
+    assert_eq!(coverage["covered"]["sites"][1]["position"], 20);
+    assert_eq!(coverage["missing"]["sites"][0]["position"], 9);
+    assert_eq!(
+        coverage["parent"]["blake3"],
+        rosalind::provenance::blake3_file(&parent).unwrap()
+    );
+    assert_eq!(
+        coverage["descriptor"]["blake3"],
+        rosalind::provenance::blake3_file(
+            &parent.parent().unwrap().join("dataset.descriptor.json")
+        )
+        .unwrap()
+    );
+    // The coverage adapter must not relax the existing reader's missingness rule.
+    let strict = command("extract").arg("--plan").output().unwrap();
+    assert!(!strict.status.success());
+    assert!(String::from_utf8_lossy(&strict.stderr).contains("absent from the dataset"));
+    let bounded = command("coverage")
+        .args(["--max-output-bytes", "64"])
+        .output()
+        .unwrap();
+    assert!(!bounded.status.success());
+    assert!(bounded.stdout.is_empty());
+    assert!(String::from_utf8_lossy(&bounded.stderr).contains("max-output-bytes"));
+    let exact_bound = success(
+        command("coverage")
+            .arg("--max-output-bytes")
+            .arg(response.stdout.len().to_string())
+            .output()
+            .unwrap(),
+    );
+    assert_eq!(exact_bound.stdout, response.stdout);
+    let below_bound = command("coverage")
+        .arg("--max-output-bytes")
+        .arg((response.stdout.len() - 1).to_string())
+        .output()
+        .unwrap();
+    assert!(!below_bound.status.success());
+    assert!(below_bound.stdout.is_empty());
+    let absent_fields = command("coverage")
+        .args(["--fields", "strands"])
+        .output()
+        .unwrap();
+    assert!(!absent_fields.status.success());
+    assert!(String::from_utf8_lossy(&absent_fields.stderr).contains("fields absent"));
+    // Reordering and merging duplicate ALT annotations preserves native identity.
+    std::fs::write(
+        &sites,
+        format!("{header}chr1\t1\t.\tA\tC,G\t.\t.\t.\nchr1\t10\t.\tA\tG\t.\t.\t.\nchr1\t21\t.\tA\tC\t.\t.\t.\n"),
+    )
+    .unwrap();
+    let repeat: serde_json::Value =
+        serde_json::from_slice(&success(command("coverage").output().unwrap()).stdout).unwrap();
+    assert_eq!(coverage["query_blake3"], repeat["query_blake3"]);
+    assert_eq!(coverage["covered"], repeat["covered"]);
+    std::fs::write(&sites, format!("{header}chr1\t10\t.\tA\tG\t.\t.\t.\n")).unwrap();
+    let missing: serde_json::Value =
+        serde_json::from_slice(&success(command("coverage").output().unwrap()).stdout).unwrap();
+    assert_eq!(missing["covered_loci"], 0);
+    assert_eq!(missing["missing_loci"], 1);
+    assert_eq!(missing["covered"]["sites"], serde_json::json!([]));
+    std::fs::write(&sites, header).unwrap();
+    let empty: serde_json::Value =
+        serde_json::from_slice(&success(command("coverage").output().unwrap()).stdout).unwrap();
+    assert_eq!(empty["requested_loci"], 0);
+    assert_eq!(empty["covered_loci"], 0);
+    assert_eq!(empty["missing_loci"], 0);
+    // Native BED conversion and normalization are shared with strict extraction.
+    std::fs::write(&f.bed, "chr1\t0\t10\nchr1\t1\t3\n").unwrap();
+    let bed_result = success(
+        Command::new(env!("CARGO_BIN_EXE_rosalind"))
+            .args(["dataset", "coverage", "--dataset"])
+            .arg(&parent)
+            .arg("--regions")
+            .arg(&f.bed)
+            .output()
+            .unwrap(),
+    );
+    let bed: serde_json::Value = serde_json::from_slice(&bed_result.stdout).unwrap();
+    assert_eq!(bed["covered_loci"], 2);
+    assert_eq!(bed["missing_loci"], 8);
+    assert!(bed["covered"]["sites"].is_null());
+    assert_eq!(
+        bed["missing"]["intervals"],
+        serde_json::json!([{"contig":0,"start":2,"end":10}])
+    );
+    // REF checks require observed saved rows, and are deliberately deferred.
+    std::fs::write(&sites, format!("{header}chr1\t1\t.\tT\tC\t.\t.\t.\n")).unwrap();
+    success(command("coverage").output().unwrap());
+    let wrong_ref = command("extract").output().unwrap();
+    assert!(!wrong_ref.status.success());
+    // Missing Arrow bodies do not undermine the honest metadata-only statement.
+    std::fs::write(&sites, format!("{header}chr1\t1\t.\tA\tC\t.\t.\t.\n")).unwrap();
+    let descriptor: serde_json::Value = serde_json::from_slice(
+        &std::fs::read(parent.parent().unwrap().join("dataset.descriptor.json")).unwrap(),
+    )
+    .unwrap();
+    let arrow = parent.parent().unwrap().join(
+        descriptor["partitions"][0]["arrow"]["path"]
+            .as_str()
+            .unwrap(),
+    );
+    std::fs::remove_file(arrow).unwrap();
+    success(command("coverage").output().unwrap());
+    assert!(!command("extract").output().unwrap().status.success());
+}
+
+#[test]
 fn finalization_breach_demotes_both_panel_artifacts() {
     let f = Fixture::new();
     let panel = f.root.join("final-panel.tsv");
