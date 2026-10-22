@@ -127,9 +127,13 @@ def _stream(prepared, index, window, child_directory, metrics):
         if metrics["native_build_identity"] is not None and metrics["native_build_identity"] != build:
             raise ValueError("native build identity changed during run")
         metrics["native_build_identity"] = build
-        peak = int(receipt.get("measurements", {}).get("peak_rss_bytes", 0))
-        metrics["largest_native_reported_peak_rss_bytes"] = max(
-            peak, metrics["largest_native_reported_peak_rss_bytes"])
+        peak = receipt.get("measurements", {}).get("peak_rss_bytes")
+        if peak is not None:
+            if type(peak) is not int or peak < 0:
+                raise ValueError("invalid native reported peak RSS")
+            previous_peak = metrics["largest_native_reported_peak_rss_bytes"]
+            metrics["largest_native_reported_peak_rss_bytes"] = (
+                peak if previous_peak is None else max(peak, previous_peak))
         return expected_loci, run.result.manifest_path
     expected_keys = {(c.contig, c.pos) for c in covered}
     return consume
@@ -152,7 +156,7 @@ def run_analysis(args, *, after_child=None):
     source = source_identity(ROOT)
     staging = Path(tempfile.mkdtemp(prefix=f".{output.name}.staging-", dir=output.parent))
     metrics = {"native_query_invocations": 0, "partition_decode_visits": 0,
-               "partition_visit_counts": {}, "largest_native_reported_peak_rss_bytes": 0,
+               "partition_visit_counts": {}, "largest_native_reported_peak_rss_bytes": None,
                "native_build_identity": None, "summary_rows": 0}
     try:
         with ProcessTreeSampler() as sampler:

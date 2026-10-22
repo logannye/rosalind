@@ -141,6 +141,17 @@ class CohortIntegration(unittest.TestCase):
                 self.assertEqual(content, reference)
             reference = content
 
+    def test_empty_selection_completes_without_native_query_or_invented_peak(self):
+        selection = sites(self.directory / "empty.vcf", [])
+        output = self.directory / "empty"
+        self.run_cli(output, selection=selection, policy="strict")
+        self.assertEqual((output / "summary.jsonl").read_bytes(), b"")
+        metrics = json.loads((output / "metrics.json").read_text())
+        self.assertEqual(metrics["native_query_invocations"], 0)
+        self.assertIsNone(metrics["largest_native_reported_peak_rss_bytes"])
+        from run_manifest import verify_run
+        self.assertEqual(verify_run(output)["status"], "completed")
+
     def test_multialt_and_completely_unobserved_reference_annotation(self):
         candidates = [(10, "A", "G"), (10, "A", "C"), (50, "G", "T")]
         selection = sites(self.directory / "new-alt.vcf", candidates)
