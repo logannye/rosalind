@@ -20,6 +20,14 @@ pub(crate) enum DatasetAction {
     Inspect(DatasetInput),
     /// Verify every stored partition and evidence row without original alignments.
     Verify(DatasetInput),
+    /// Split requested loci by stored coverage using verified metadata only.
+    Coverage {
+        #[command(flatten)]
+        query: QueryArgs,
+        /// Maximum JSON response bytes (1..=33554432); larger requests must be windowed.
+        #[arg(long, default_value_t = 4_194_304)]
+        max_output_bytes: usize,
+    },
     /// Query stored evidence as bounded Arrow batches or TSV.
     Extract {
         #[command(flatten)]
@@ -113,7 +121,8 @@ pub(crate) fn run(action: DatasetAction) -> Result<()> {
 fn run_inner(action: DatasetAction) -> Result<()> {
     let input = match &action {
         DatasetAction::Inspect(input) | DatasetAction::Verify(input) => input,
-        DatasetAction::Extract { query, .. }
+        DatasetAction::Coverage { query, .. }
+        | DatasetAction::Extract { query, .. }
         | DatasetAction::PanelQc { query, .. }
         | DatasetAction::Export { query, .. } => &query.input,
     };
@@ -161,6 +170,37 @@ fn run_inner(action: DatasetAction) -> Result<()> {
                 "{}",
                 serde_json::json!({"status":"verified", "verified_loci":stats.emitted_loci, "verified_partition_files":dataset.verified_partition_hashes()?.len(), "original_sources_rehashed":false, "dataset_namespace":dataset.descriptor().dataset_namespace})
             );
+        }
+        DatasetAction::Coverage {
+            query,
+            max_output_bytes,
+        } => {
+            if query.plan {
+                bail!("dataset coverage is already metadata-only; omit --plan");
+            }
+            if max_output_bytes == 0 || max_output_bytes > 32 << 20 {
+                bail!("max-output-bytes must be in 1..=33554432");
+            }
+            let (query, _, guard) = make_query(&dataset, &query, None)?;
+            let bytes = coverage_json(&dataset, &query, max_output_bytes)?;
+            // No successful response is visible until every metadata/selection
+            // guard has been rechecked, including after normalization/encoding.
+            if let Some(guard) = &guard {
+                guard.verify()?;
+            }
+            dataset.verify_unchanged()?;
+            checkpoint().map_err(EvidenceError::from)?;
+            if let Some(budget) = budget {
+                let peak = peak_rss_bytes();
+                if peak > budget {
+                    return Err(EvidenceError::Core(CoreError::BudgetExceeded {
+                        needed: peak,
+                        budget,
+                    })
+                    .into());
+                }
+            }
+            io::stdout().lock().write_all(&bytes)?;
         }
         DatasetAction::Extract {
             query,
@@ -324,6 +364,88 @@ fn make_query(
 }
 fn plan_json(plan: &DatasetReadPlan) -> serde_json::Value {
     serde_json::json!({"model":plan.model_id,"baseline_rss_bytes":plan.baseline_rss_bytes,"metadata_bytes":plan.metadata_bytes,"source_decoder_bytes":plan.source_decoder_bytes,"projection_bytes":plan.projection_bytes,"analyzer_bytes":plan.analyzer_bytes,"predicted_peak_rss_bytes":plan.predicted_peak_rss_bytes,"selected_loci":plan.selected_loci,"source_fields":plan.source_fields.bits(),"fields":plan.output_fields.bits(),"output_batch_rows":plan.output_batch_rows})
+}
+
+/// Coverage is a metadata statement, not a claim that any Arrow body or query REF
+/// has been checked. Its query digest is the existing persisted-query identity.
+fn coverage_json(
+    dataset: &VerifiedEvidenceDataset,
+    query: &DatasetQuery,
+    max_output_bytes: usize,
+) -> Result<Vec<u8>> {
+    if !dataset.fields().contains(query.fields) {
+        bail!("query requires fields absent from the stored dataset");
+    }
+    let split = dataset.coverage_split(&query.selection)?;
+    let canonical = |selection: &EvidenceSelection| -> Result<serde_json::Value> {
+        let text = canonical_dataset_query(
+            &DatasetQuery {
+                selection: selection.clone(),
+                fields: query.fields,
+            },
+            dataset.contigs(),
+        )?;
+        if text.len() > max_output_bytes {
+            bail!("coverage response exceeds max-output-bytes; submit smaller selection windows");
+        }
+        Ok(serde_json::from_str(&text)?)
+    };
+    let normalized_query = canonical(&query.selection)?;
+    let covered = canonical(&split.covered)?;
+    let missing = canonical(&split.missing)?;
+    let identities = dataset.source_hashes();
+    let parent = identities
+        .first()
+        .ok_or_else(|| anyhow::anyhow!("verified parent receipt identity absent"))?;
+    let descriptor = identities
+        .get(1)
+        .ok_or_else(|| anyhow::anyhow!("verified descriptor identity absent"))?;
+    let response = serde_json::json!({
+        "schema": "rosalind-dataset-coverage-v1",
+        "verification_level": "metadata_only",
+        "partition_bodies_verified": false,
+        "original_sources_rehashed": false,
+        "reference_validation": "not_performed",
+        "dataset_namespace": dataset.descriptor().dataset_namespace,
+        "compatibility_key": dataset.descriptor().compatibility_blake3,
+        "parent": {"path": parent.path, "blake3": parent.blake3},
+        "descriptor": {"path": descriptor.path, "blake3": descriptor.blake3},
+        "query_blake3": dataset_query_digest(query, dataset.contigs())?,
+        "query": normalized_query,
+        "covered": covered["selection"],
+        "missing": missing["selection"],
+        "requested_loci": split.covered_loci.checked_add(split.missing_loci)
+            .ok_or(EvidenceError::CounterOverflow)?,
+        "covered_loci": split.covered_loci,
+        "missing_loci": split.missing_loci,
+    });
+    let mut output = BoundedCoverageOutput {
+        bytes: Vec::new(),
+        limit: max_output_bytes,
+    };
+    serde_json::to_writer(&mut output, &response)?;
+    output.write_all(b"\n")?;
+    Ok(output.bytes)
+}
+
+/// Buffer the complete, capped response so a refusal never emits partial JSON.
+struct BoundedCoverageOutput {
+    bytes: Vec<u8>,
+    limit: usize,
+}
+impl Write for BoundedCoverageOutput {
+    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+        if bytes.len() > self.limit.saturating_sub(self.bytes.len()) {
+            return Err(io::Error::other(
+                "coverage response exceeds max-output-bytes; submit smaller selection windows",
+            ));
+        }
+        self.bytes.extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
+    }
 }
 
 #[allow(clippy::too_many_arguments)]

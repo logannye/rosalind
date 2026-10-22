@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "purpose": "G2 diagnostic only; entirely synthetic; not a final performance claim",
+  "members": 3,
+  "loci": 1024,
+  "spacing": 64,
+  "reference_length": 65536,
+  "missing_modulus": 17,
+  "native_memory_budget_mb": 256,
+  "parent_memory_budget_mb": 128,
+  "windows": [64, 256],
+  "repetitions": 3,
+  "prefixes": [1, 2, 3],
+  "requests": [
+    {"id": "clustered-one-shot", "indices": [[0, 128]], "alt": "C", "thresholds": [10]},
+    {"id": "overlap-new-alt", "indices": [[64, 192], [512, 640]], "alt": "G", "thresholds": [5, 10, 20]},
+    {"id": "revisit-disjoint-partitions", "indices": [[0, 32], [768, 896]], "alt": "T", "thresholds": [10]}
+  ],
+  "cache_condition": "No OS cache eviction; reused files; counterbalanced order; never described as cold",
+  "baseline": {"format": "parquet", "batch_size": 1024, "batch_readahead": 1, "fragment_readahead": 1, "use_threads": false},
+  "memory_measurement": {"method": "sampled simultaneous worker-and-descendant RSS", "sample_interval_ms": 10, "is_os_enforced_limit": false},
+  "limits": {"max_members": 32, "max_loci": 8192, "max_requests": 20, "max_output_bytes": 536870912},
+  "prohibited_claims": ["biological independence", "clinical validity", "real-read performance", "universal speedup", "guarantee-equivalent baseline receipts"]
+}

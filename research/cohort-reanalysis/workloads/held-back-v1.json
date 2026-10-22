@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "purpose": "Reserved engineering generalization configuration; do not use to select pilot parameters",
+  "members": 8,
+  "loci": 1536,
+  "spacing": 48,
+  "reference_length": 73728,
+  "missing_modulus": 19,
+  "native_memory_budget_mb": 256,
+  "parent_memory_budget_mb": 128,
+  "windows": [96, 384],
+  "repetitions": 3,
+  "prefixes": [1, 2],
+  "requests": [
+    {"id": "held-back-boundaries", "indices": [[320, 384], [1000, 1100]], "alt": "T", "thresholds": [7, 13]},
+    {"id": "held-back-overlap", "indices": [[350, 400], [1200, 1300]], "alt": "G", "thresholds": [7, 13]}
+  ],
+  "cache_condition": "Uncontrolled warm OS cache; counterbalanced order",
+  "baseline": {"format": "parquet", "batch_size": 1024, "batch_readahead": 1, "fragment_readahead": 1, "use_threads": false},
+  "memory_measurement": {"method": "sampled simultaneous worker-and-descendant RSS", "sample_interval_ms": 10, "is_os_enforced_limit": false},
+  "limits": {"max_members": 32, "max_loci": 8192, "max_requests": 20, "max_output_bytes": 536870912}
+}
