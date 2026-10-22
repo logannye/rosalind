@@ -16,6 +16,7 @@ import platform
 import statistics
 import subprocess
 import sys
+import threading
 import time
 
 HERE = Path(__file__).resolve().parent
@@ -359,7 +360,12 @@ def worker(args):
                 "--window-size", str(args.window), "--output", str(destination)]
             for threshold in request["thresholds"]:
                 command += ["--min-callable-depth", str(threshold)]
-            checked(command, args.output / "commands.log")
+            # Every path retains one Python interpreter for this K-prefix.
+            # Native subprocesses remain fresh, and only this request is passed.
+            import analyze
+            with (args.output / "commands.log").open("a") as log:
+                log.write(json.dumps({"equivalent_cli": command, "execution": "in-process run_analysis"}) + "\n")
+            analyze.run_analysis(analyze.build_parser().parse_args(command[2:]))
             answer = [json.loads(line) for line in (destination / "summary.jsonl").read_text().splitlines()]
             metric = json.loads((destination / "metrics.json").read_text()) if (destination / "metrics.json").exists() else {}
         else:
@@ -379,25 +385,41 @@ def measure(command, destination):
     destination.parent.mkdir(parents=True, exist_ok=True)
     started = time.perf_counter()
     peak, samples = 0, 0
+    stopped = threading.Event()
     with destination.with_suffix(".stdout.log").open("wb") as stdout, destination.with_suffix(".stderr.log").open("wb") as stderr:
         process = subprocess.Popen(command, stdout=stdout, stderr=stderr)
-        parent = psutil.Process(process.pid)
-        while process.poll() is None:
+
+        def sample():
+            nonlocal peak, samples
             try:
-                processes = [parent, *parent.children(recursive=True)]
-                rss = 0
-                for item in processes:
-                    try:
-                        rss += item.memory_info().rss
-                    except psutil.Error:
-                        pass
-                peak = max(peak, rss)
-                samples += 1
+                parent = psutil.Process(process.pid)
             except psutil.Error:
-                pass
-            time.sleep(0.01)
-        code = process.wait()
-    return {"argv": command, "exit_code": code, "outer_wall_seconds": time.perf_counter() - started,
+                return
+            while not stopped.is_set():
+                try:
+                    processes = [parent, *parent.children(recursive=True)]
+                    rss = 0
+                    for item in processes:
+                        try:
+                            rss += item.memory_info().rss
+                        except psutil.Error:
+                            pass
+                    peak = max(peak, rss)
+                    samples += 1
+                except psutil.Error:
+                    pass
+                stopped.wait(0.01)
+
+        monitor = threading.Thread(target=sample, daemon=True)
+        monitor.start()
+        try:
+            code = process.wait()
+            # Capture completion immediately, not at the next 10-ms RSS poll.
+            elapsed = time.perf_counter() - started
+        finally:
+            stopped.set()
+            monitor.join()
+    return {"argv": command, "exit_code": code, "outer_wall_seconds": elapsed,
             "sampled_process_tree_peak_rss_bytes": peak, "rss_samples": samples,
             "rss_sample_interval_ms": 10, "rss_scope": "simultaneous worker and current descendants; sampling may miss short peaks",
             "memory_budget_semantics": "cooperative native/parent admission; no OS RSS cap",
@@ -426,7 +448,8 @@ def run(args):
                        "Setup measured once per representation; this is a diagnostic estimate, not a repeated setup distribution.",
                        "D content checks are separately labeled and do not implement native receipt semantics.",
                        "No OS cache eviction, no cold-cache or p99 claim. All trial order and failures retained.",
-                       "No raw/fresh A comparison or real-read conclusion in this pilot."]}
+                       "No raw/fresh A comparison or real-read conclusion in this pilot.",
+                       "All query paths retain one Python worker per K-prefix; each analyzer request is an in-process API call. Native children remain fresh."]}
     try:
         state = prepare(root, config)
         base = [sys.executable, str(Path(__file__).resolve()), "--state", str(root / "state.json"), "--binary", str(args.binary)]

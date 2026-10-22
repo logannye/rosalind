@@ -32,7 +32,10 @@ consumed-file SHA256 checks before and after reduction. These checks are useful
 integrity costs, but do not supply native receipts or every analyzer guarantee.
 No native or analyzer output is used to populate D's cache.
 
-Every worker's outer wall time includes interpreter startup, planning/imports,
+All query paths retain one Python interpreter for each K prefix. C calls the
+research run function once per request within that worker; its standalone CLI is
+validated separately. Native reader processes remain fresh. Every worker's outer
+wall time includes interpreter startup, planning/imports,
 verification where applicable, decoding, reduction and output publication. Setup
 includes extraction, materialization and initial verification, and is charged to
 all total-time prefixes. The pilot measures setup once per representation and
@@ -60,3 +63,13 @@ measured advantage or select an optimization automatically.
 algorithm and protocol are frozen. Do not tune against it. Real-read HG002
 measurement remains a separate Tier B run requiring the locked local resources;
 this entirely synthetic pilot cannot replace it.
+
+The focused workflow also runs `archived_real.py` against one checksum-pinned,
+repository-retained HG002 leaf. It streams only 3,856,677 bytes from the historical
+archive: one 1,000-locus/62-partition BAM-derived dataset, its independent CIGAR
+oracle TSV and metadata, and its extraction receipt. It reruns native saved-data
+verification and compares all 3,000 summary rows (thresholds 5/10/20) across windows
+128/512. Original BAM/reference inputs are not extracted or downloaded. The
+historical extraction and oracle identities remain distinct from the current
+reader/analyzer identities. This is a saved-evidence correctness check, not a new
+raw-extraction study, newly executed independent oracle, or throughput claim.

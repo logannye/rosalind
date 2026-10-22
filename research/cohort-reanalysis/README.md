@@ -215,6 +215,21 @@ Native integration tests require `ROSALIND_BINARY` explicitly and are skipped
 without it. An exact-revision hosted build must pass integration and relevant
 existing conformance/replay/CRAM gates before new end-to-end claims.
 
+After the unchanged fixture's `prepare.py` and `validate.py` have succeeded with
+the same binary, retain its first plan, summary and offline replay with:
+
+```sh
+python research/cohort-reanalysis/demo.py \
+  --prepared validation-results/fixture --binary "$ROSALIND_BINARY" \
+  --output validation-results/retained-demo
+```
+
+The demo uses the three explicit portable fixture leaves, checks the unchanged
+authored summary, verifies all portable leaf payloads, and replays with a different
+window while temporarily hiding only the generated `prepared/raw` directory.
+A `finally` block restores that directory. Its retained `report.json` contains
+commands, oracle/binary identities and checks; the demo makes no timing claim.
+
 `benchmark.py --binary /absolute/path/to/built/rosalind --output /absolute/path/to/new-pilot`
 uses the locked [`workloads/pilot-v1.json`](workloads/pilot-v1.json) diagnostic
 protocol: three synthetic members, 1,024 spaced loci spanning several partitions,

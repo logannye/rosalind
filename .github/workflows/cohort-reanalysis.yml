@@ -77,8 +77,18 @@ jobs:
         run: |
           python examples/cohort-reanalysis/prepare.py validation-results/fixture
           python examples/cohort-reanalysis/validate.py validation-results/fixture --binary "$ROSALIND_BINARY"
+      - name: Retain three-specimen plan, summary and offline replay walkthrough
+        run: |
+          python research/cohort-reanalysis/demo.py \
+            --prepared validation-results/fixture --binary "$ROSALIND_BINARY" \
+            --output validation-results/retained-demo
       - name: New exact reducer, contract and native research lifecycle checks
         run: python -m unittest discover -s research/cohort-reanalysis/tests -p 'test_*.py' -v 2>&1 | tee validation-results/research.log
+      - name: Saved-only historical HG002 leaf against retained independent oracle
+        run: |
+          python research/cohort-reanalysis/archived_real.py \
+            --binary "$ROSALIND_BINARY" \
+            --output validation-results/archived-hg002
       - name: Relevant independent evidence oracle regressions
         run: python -m unittest discover -s benchmarks/evidence -p 'test_*.py' -v 2>&1 | tee validation-results/evidence-oracle.log
       - name: Small multi-partition B/C/D diagnostic pilot
