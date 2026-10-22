@@ -27,6 +27,16 @@ class TemporaryFiles(unittest.TestCase):
 
 
 class InputLedgerTests(TemporaryFiles):
+    def test_native_receipt_memory_strings_remain_exact_and_absence_is_null(self):
+        from analyze import native_peak_rss
+        self.assertIsNone(native_peak_rss(None))
+        self.assertEqual(native_peak_rss("9007199254740993"), 9007199254740993)
+        self.assertEqual(native_peak_rss("0"), 0)
+        self.assertEqual(native_peak_rss(12), 12)
+        for value in (True, 1.5, "1.5", "1e3", "-1", "", "18446744073709551616"):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                native_peak_rss(value)
+
     def test_nonregular_inputs_are_refused_before_open(self):
         paths = [self.root]
         if Path("/dev/null").exists():

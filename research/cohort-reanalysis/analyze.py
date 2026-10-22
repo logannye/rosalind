@@ -40,6 +40,17 @@ def build_parser():
     return parser
 
 
+def native_peak_rss(value):
+    """Native receipt measurements are decimal strings; absence stays unknown."""
+    if value is None:
+        return None
+    if isinstance(value, str) and value.isascii() and value.isdecimal() and len(value) <= 20:
+        value = int(value)
+    if type(value) is not int or not 0 <= value <= (1 << 64) - 1:
+        raise ValueError("invalid native reported peak RSS")
+    return value
+
+
 def _receipt_dependencies(prepared, index, sites, receipt):
     """Accept only actual native dependencies matching the pinned descriptor."""
     member = prepared.members[index]
@@ -127,10 +138,8 @@ def _stream(prepared, index, window, child_directory, metrics):
         if metrics["native_build_identity"] is not None and metrics["native_build_identity"] != build:
             raise ValueError("native build identity changed during run")
         metrics["native_build_identity"] = build
-        peak = receipt.get("measurements", {}).get("peak_rss_bytes")
+        peak = native_peak_rss(receipt.get("measurements", {}).get("peak_rss_bytes"))
         if peak is not None:
-            if type(peak) is not int or peak < 0:
-                raise ValueError("invalid native reported peak RSS")
             previous_peak = metrics["largest_native_reported_peak_rss_bytes"]
             metrics["largest_native_reported_peak_rss_bytes"] = (
                 peak if previous_peak is None else max(peak, previous_peak))
