@@ -160,11 +160,18 @@ def prepare(args, directory, binary):
                 raise ValueError("native normalized requests differ between members")
             path = coverage_dir / f"{index:04d}.json"
             write_json(path, coverage)
+            # Execution rereads this split on every member/window pass. Bind it
+            # now so final output hashing cannot silently accept a changed mask.
+            ledger.pin(path)
+            total_inventory += 1
             coverage_paths.append(path)
             # Serialized split selections are disk-backed, with bounded parsing
             # one member at a time during execution, not a retained M x L mask.
             metadata_bytes += path.stat().st_size
-            write_json(metadata_dir / f"{index:04d}.json", descriptor)
+            descriptor_copy = metadata_dir / f"{index:04d}.json"
+            write_json(descriptor_copy, descriptor)
+            ledger.pin(descriptor_copy)
+            total_inventory += 1
             entry = {"specimen_id": member.specimen_id, "dataset": str(member.dataset),
                      "metadata": dict(member.metadata),
                      "parent": coverage["parent"], "descriptor": coverage["descriptor"],

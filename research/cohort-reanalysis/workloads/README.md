@@ -26,7 +26,8 @@ B uses existing verified saved-query streams and a straightforward exact reducer
 C runs the research analyzer at both predefined windows. D independently counts
 the same generated BAMs using explicit one-base CIGAR/filter logic, materializes
 uint64 Parquet with row-group statistics, then uses file pruning, predicate and
-projection pushdown, 1,024-row batches, one-batch/fragment readahead, and no threaded
+projection of position, depth and the current requested ALT only, 1,024-row
+batches, one-batch/fragment readahead, and no threaded
 readahead. Its two reported modes distinguish performance-only queries from
 consumed-file SHA256 checks before and after reduction. These checks are useful
 integrity costs, but do not supply native receipts or every analyzer guarantee.
@@ -48,7 +49,9 @@ raw-versus-saved amortization crossover.
 Process-tree RSS is the sampled simultaneous sum for a worker and its active
 children at 10 ms intervals. It can miss brief peaks, excludes the measurement
 driver, and is not an OS-enforced cap. Native cooperative budgets are reported
-separately. Storage records logical raw/cache/query-output bytes; it is not a
+separately. Storage records logical raw/cache/query-output bytes and distinguishes native
+portable caches from additionally retained aggregate Arrow exports/receipts. The
+native retained total is not the minimum storage required for saved queries. It is not a
 sampled peak temporary-disk metric. The entire retained pilot is refused above
 512 MiB. There is no OS cache eviction and no cold-cache or p99 claim.
 

@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 import sys
 import tempfile
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -160,6 +160,35 @@ class BaselineSummaryTests(unittest.TestCase):
             self.assertEqual(calls, [("b-leaf", [20]), ("a-leaf", [10])])
             self.assertEqual([r["n_observed"] for r in answer], [1, 1])
             self.assertEqual([r["total_callable_depth"] for r in answer], [10, 10])
+
+    def test_columnar_projects_only_requested_alt_and_performance_mode_does_not_hash(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "columnar").mkdir()
+            (root / "columnar/inventory.json").write_text(json.dumps({"files": [
+                {"path": "selected.parquet", "member": "a", "min_pos": 10, "max_pos": 10}]}))
+            state = {"root": str(root), "members": [{"specimen_id": "a"}]}
+            request = {"candidates": [(10, "G")], "alt": "G", "thresholds": [10]}
+            options = []
+
+            def scanner(**kwargs):
+                options.append(kwargs)
+                batch = SimpleNamespace(to_pylist=lambda: [{"pos": 10, "callable_depth": 10, "g": 2}])
+                return SimpleNamespace(to_batches=lambda: iter([batch]))
+
+            dataset_module = ModuleType("pyarrow.dataset")
+            dataset_module.dataset = lambda *_a, **_kw: SimpleNamespace(scanner=scanner)
+            dataset_module.field = lambda _name: SimpleNamespace(isin=lambda values: tuple(values))
+            arrow_module = ModuleType("pyarrow")
+            arrow_module.dataset = dataset_module
+            with patch.dict(sys.modules, {"pyarrow": arrow_module, "pyarrow.dataset": dataset_module}):
+                with patch.object(benchmark, "sha256", side_effect=AssertionError("performance path must not hash")):
+                    answer, metrics = benchmark.columnar_request(state, request, root, False)
+            self.assertEqual(options[0]["columns"], ["pos", "callable_depth", "g"])
+            self.assertEqual(options[0]["batch_size"], 1024)
+            self.assertEqual(options[0]["fragment_readahead"], 1)
+            self.assertEqual(answer[0]["total_alt_count"], 2)
+            self.assertEqual(metrics["bytes_hashed"], 0)
 
     def test_source_identity_includes_exact_bam_index_reference_and_mask(self):
         with tempfile.TemporaryDirectory() as directory:

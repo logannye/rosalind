@@ -215,6 +215,30 @@ class CohortIntegration(unittest.TestCase):
             for part, before in changed:
                 part.write_bytes(before)
 
+    def test_future_member_coverage_mutation_prevents_publication(self):
+        analyze = self.load_analysis()
+        output = self.directory / "coverage-mutated"
+        args = analyze.build_parser().parse_args(self.command(output, window=4)[2:])
+        changed = []
+
+        def mutate(prepared, member_index, _receipt_path):
+            if not changed:
+                self.assertEqual(member_index, 0)
+                # A later member's saved mask is an execution input. Removing a
+                # site could otherwise turn real stored evidence into missingness.
+                coverage_path = prepared.coverage_paths[1]
+                coverage = json.loads(coverage_path.read_text())
+                self.assertTrue(coverage["covered"]["sites"])
+                coverage["covered"]["sites"].pop(0)
+                coverage_path.write_text(json.dumps(coverage))
+                changed.append(coverage_path)
+
+        with self.assertRaisesRegex(ValueError, "input changed before publication"):
+            analyze.run_analysis(args, after_child=mutate)
+        self.assertTrue(changed, "must mutate after the first completed child")
+        self.assertFalse(output.exists())
+        self.assertFalse((output / "run-manifest.json").exists())
+
     def test_consumer_failure_and_cancellation_do_not_publish(self):
         analyze = self.load_analysis()
         for failure in (RuntimeError("simulated downstream consumer failure"), KeyboardInterrupt()):

@@ -319,7 +319,7 @@ def columnar_request(state, request, output, integrity):
         consumed.extend(relevant)
         # Explicit file pruning plus Parquet row-group statistics and projection.
         dataset = ds.dataset([part["path"] for part in relevant], format="parquet")
-        scanner = dataset.scanner(columns=["pos", "callable_depth", "a", "c", "g", "t"],
+        scanner = dataset.scanner(columns=["pos", "callable_depth", request["alt"].lower()],
             filter=ds.field("pos").isin(selected), batch_size=1024,
             batch_readahead=1, fragment_readahead=1, use_threads=False)
         for batch in scanner.to_batches():
@@ -507,9 +507,18 @@ def run(args):
                     "sampled_tree_rss_range_bytes": [min(r["sampled_process_tree_peak_rss_bytes"] for r in trials),
                                                       max(r["sampled_process_tree_peak_rss_bytes"] for r in trials)]})
         report["medians"] = medians
-        report["storage"] = {"raw_bytes": size(root / "raw"), "native_retained_bytes": size(root / "native"),
+        native_root = root / "native"
+        native_cache_bytes = sum(size(path) for path in native_root.glob("*-cache") if path.is_dir())
+        native_export_bytes = sum(path.stat().st_size for path in native_root.glob("*.arrow"))
+        native_export_receipt_bytes = sum(path.stat().st_size for path in native_root.glob("*.arrow.manifest.json"))
+        native_total_bytes = size(native_root)
+        report["storage"] = {"raw_bytes": size(root / "raw"), "native_retained_bytes": native_total_bytes,
+                             "native_portable_cache_bytes": native_cache_bytes,
+                             "native_aggregate_export_bytes": native_export_bytes,
+                             "native_aggregate_export_receipt_bytes": native_export_receipt_bytes,
+                             "native_setup_other_bytes": native_total_bytes - native_cache_bytes - native_export_bytes - native_export_receipt_bytes,
                              "columnar_retained_bytes": size(root / "columnar"), "all_trial_bytes": size(root / "trials"),
-                             "scope": "logical file bytes; includes retained disposable query outputs, not sampled peak temporary storage"}
+                             "scope": "logical file bytes; native total includes portable cache plus retained aggregate exports; query-output sum is not sampled peak temporary storage"}
         report["status"] = "failed" if report["failures"] else "passed"
         report["decision"] = "Inspect measured totals and memory before choosing any optimization. No optimization selected automatically."
     except BaseException as exc:

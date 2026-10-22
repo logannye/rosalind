@@ -1,9 +1,11 @@
 """Pure stdlib artifact, mutation, and admission checks; no native execution."""
 import json
+import os
 from pathlib import Path
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from contract import Candidate
@@ -25,6 +27,31 @@ class TemporaryFiles(unittest.TestCase):
 
 
 class InputLedgerTests(TemporaryFiles):
+    def test_nonregular_inputs_are_refused_before_open(self):
+        paths = [self.root]
+        if Path("/dev/null").exists():
+            paths.append(Path("/dev/null"))
+        for path in paths:
+            with self.subTest(path=path), \
+                    patch.object(Path, "open", side_effect=AssertionError("must not open")) as opened:
+                with self.assertRaisesRegex(ValueError, "must be a regular file"):
+                    file_digest(path)
+                opened.assert_not_called()
+
+    @unittest.skipUnless(hasattr(os, "mkfifo"), "named pipes require POSIX")
+    def test_fifo_is_refused_without_waiting_for_a_writer(self):
+        fifo = self.root / "candidate-input.fifo"
+        os.mkfifo(fifo)
+        ledger = InputLedger()
+        # An attempted open fails immediately even if the regular-file guard
+        # regresses; this test can never hang waiting for a FIFO writer.
+        with patch.object(Path, "open", side_effect=AssertionError("must not open FIFO")) as opened:
+            with self.assertRaisesRegex(ValueError, "must be a regular file"):
+                ledger.pin(fifo)
+            opened.assert_not_called()
+        self.assertEqual(ledger.as_list(), [])
+        self.assertEqual(ledger.bytes_hashed, 0)
+
     def test_final_union_detects_mutation_of_an_earlier_consumed_child(self):
         first = self.make_file("earlier.arrow")
         last = self.make_file("last.arrow", b"last-child")

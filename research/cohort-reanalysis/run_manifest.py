@@ -13,6 +13,7 @@ import json
 import os
 from pathlib import Path
 import platform
+import stat
 import subprocess
 import sys
 import threading
@@ -56,6 +57,8 @@ def file_digest(path, algorithm="sha256"):
         raise ValueError("unsupported digest")
     path = Path(path)
     before = path.stat()
+    if not stat.S_ISREG(before.st_mode):
+        raise ValueError(f"identity input must be a regular file: {path}")
     count = 0
     with path.open("rb") as stream:
         for block in iter(lambda: stream.read(1 << 20), b""):
