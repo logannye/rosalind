@@ -1,0 +1,8 @@
+{
+  "outcome": "stop_no_signal",
+  "p1_started": false,
+  "further_p0_expansion_allowed": false,
+  "source_revision": "5a4152a5eb7306662be20bf6867147ce522a5198",
+  "reason": "Both prespecified development AP gains are below 0.005 after the sole count-driven expansion. All correctness and data-adequacy checks pass.",
+  "test_outcomes_used_for_decision": false
+}

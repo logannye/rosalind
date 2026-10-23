@@ -1,0 +1,10 @@
+{
+  "files_verified": 3967,
+  "bytes_verified": 401622465,
+  "missing": 0,
+  "mismatches": 0,
+  "run_id": 39879349288,
+  "artifact_id": 12470695514,
+  "artifact_zip_bytes": 32008328,
+  "scope": "Retained artifact manifest integrity; no local native or ML execution."
+}

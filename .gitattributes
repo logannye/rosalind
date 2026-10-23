@@ -2,3 +2,6 @@
 docs/findings/representative-evidence-2026-09-06/*.log -whitespace
 docs/findings/cram-decoder-validation-2026-09-06/**/*.log -whitespace
 docs/findings/python-contract-2026-09-18/**/*.log -whitespace
+
+# Preserve auditable machine results while keeping research code reviews readable.
+research/evidence-sufficiency/reports/**/*.json linguist-generated=true

@@ -194,6 +194,7 @@ supported scope are documented in [scientific semantics](docs/SEMANTICS.md),
 | Check maturity or contribute | [Implementation status](docs/implementation-status.md) · [Roadmap](docs/ROADMAP.md) · [Contributor guide](CONTRIBUTING.md) |
 | Try your own task and report results | [Researcher and builder validation kit](docs/adoption-validation.md) |
 | Watch or rerun a complete workflow | [Evidence-reuse demonstration](docs/evidence-reuse-demo.md) |
+| Evaluate richer evidence against simple candidate filters | [HG002 pilot results and stop decision](research/evidence-sufficiency/RESULTS.md) |
 | Find everything else | [Documentation index](docs/index.md) · [Security](SECURITY.md) · [Citation](CITATION.cff) |
 
 ## License

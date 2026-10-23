@@ -1,5 +1,9 @@
 # Evidence sufficiency: HG002 P0
 
+**Completed: [results and stop decision](RESULTS.md).** The expanded pilot passed
+correctness and data adequacy, but neither learner reached the frozen 0.005 AP
+gain. The locked study was not started. The scripts below reproduce the experiment.
+
 This experiment asks whether compact saved read evidence improves candidate-SNV
 triage enough to justify retaining it. The practical target is fewer false
 positive candidates at a fixed recall, with reusable evidence and explicit costs.

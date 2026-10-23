@@ -1,0 +1,221 @@
+{
+  "downsampled_bam": "/home/runner/work/rosalind/rosalind/validation-results/hg002-p0/inputs/downsampled.bam",
+  "identities": {
+    "benchmark_coverage": {
+      "by_block": {
+        "calibration-45m": {
+          "confident_bases": 1984748,
+          "confident_fraction": 0.9948611528822056,
+          "contig": "chr20",
+          "end": 46995000,
+          "partition": "calibration",
+          "selected_bases": 1995000,
+          "start": 45000000
+        },
+        "test-55m": {
+          "confident_bases": 3965179,
+          "confident_fraction": 0.99129475,
+          "contig": "chr20",
+          "end": 59000000,
+          "partition": "test",
+          "selected_bases": 4000000,
+          "start": 55000000
+        },
+        "threshold-47m": {
+          "confident_bases": 1960642,
+          "confident_fraction": 0.9827779448621554,
+          "contig": "chr20",
+          "end": 49000000,
+          "partition": "threshold",
+          "selected_bases": 1995000,
+          "start": 47005000
+        },
+        "train-39m": {
+          "confident_bases": 3991654,
+          "confident_fraction": 0.9979135,
+          "contig": "chr20",
+          "end": 43000000,
+          "partition": "train",
+          "selected_bases": 4000000,
+          "start": 39000000
+        },
+        "train-5m": {
+          "confident_bases": 3982816,
+          "confident_fraction": 0.995704,
+          "contig": "chr20",
+          "end": 9000000,
+          "partition": "train",
+          "selected_bases": 4000000,
+          "start": 5000000
+        }
+      },
+      "confident_bases": 15885039,
+      "empty_block_ids": [],
+      "required_nonempty": true,
+      "selected_bases": 15990000,
+      "truth_bed_sha256": "ef7d898dd421ea357bb9db915894ab3e5c6c1689e36ccf619befda4bbf1cef5b"
+    },
+    "dictionary_contigs": 195,
+    "downsample": {
+      "algorithm": "sha256-json-template-v1",
+      "denominator": 35,
+      "numerator": 10,
+      "seed": 42
+    },
+    "downsampled_bai": {
+      "bytes": 69344,
+      "path": "/home/runner/work/rosalind/rosalind/validation-results/hg002-p0/inputs/downsampled.bam.bai",
+      "sha256": "14adcb65f6861e742b404f9c25641aa3d6575628322cce88cf57fef987e26f1c"
+    },
+    "downsampled_bam": {
+      "bytes": 77384556,
+      "path": "/home/runner/work/rosalind/rosalind/validation-results/hg002-p0/inputs/downsampled.bam",
+      "sha256": "1824fdd22f038a12244bde5128bdc0ebcdc9f7bd60bd405f410bc75da160fe33"
+    },
+    "original_bam": {
+      "bytes": 1093938924,
+      "path": "/home/runner/work/rosalind/rosalind/validation-results/hg002-p0/inputs/HG002.novaseq.pcr-free.35x.dedup.grch38_no_alt.chr20.bam",
+      "sha256": "34ac157739e1feeb590f6eb7e11046ccc2aa3277fd55a3ce0942e774d931ed81"
+    },
+    "pysam_version": "0.23.3",
+    "reference": {
+      "bytes": 3144230986,
+      "path": "/home/runner/work/rosalind/rosalind/validation-results/hg002-p0/inputs/reference.fa",
+      "sha256": "9cce8b926416dd96b152deea85188495b75f7ac8d634cc723a017067be8702b7"
+    },
+    "reference_fai": {
+      "bytes": 7804,
+      "path": "/home/runner/work/rosalind/rosalind/validation-results/hg002-p0/inputs/reference.fa.fai",
+      "sha256": "502a1b8fb73ccd53285c28a0f12df90c818b4fe3de1e862ef47c593ef1a0a4b4"
+    },
+    "regions": {
+      "bytes": 215,
+      "path": "/home/runner/work/rosalind/rosalind/validation-results/hg002-p0/inputs/regions.bed",
+      "sha256": "c56dabffd60a5c249ef747d8f1e3370a07b8d431e3d6249ada24e88b92faef02"
+    },
+    "resource_lock_sha256": "409aa2d18e98b8c5405c1c35e4f46b7871607b27b20585093e81fe443a4c91a6",
+    "sample": "HG002",
+    "sources": {
+      "reads_bai": {
+        "attempts": 1,
+        "bytes": 196136,
+        "download_seconds": 0.258406205999961,
+        "filename": "HG002.novaseq.pcr-free.35x.dedup.grch38_no_alt.chr20.bam.bai",
+        "id": "reads_bai",
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/hg002-p0/inputs/HG002.novaseq.pcr-free.35x.dedup.grch38_no_alt.chr20.bam.bai",
+        "sha256": "245dcdcc474b1971eeb36fc9a8af37b76ac8b4c7ce06a7bdee64e0c42bd93f34",
+        "url": "https://storage.googleapis.com/deepvariant/case-study-testdata/HG002.novaseq.pcr-free.35x.dedup.grch38_no_alt.chr20.bam.bai"
+      },
+      "reads_bam": {
+        "attempts": 1,
+        "bytes": 1093938924,
+        "download_seconds": 9.920070263000014,
+        "filename": "HG002.novaseq.pcr-free.35x.dedup.grch38_no_alt.chr20.bam",
+        "id": "reads_bam",
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/hg002-p0/inputs/HG002.novaseq.pcr-free.35x.dedup.grch38_no_alt.chr20.bam",
+        "sha256": "34ac157739e1feeb590f6eb7e11046ccc2aa3277fd55a3ce0942e774d931ed81",
+        "url": "https://storage.googleapis.com/deepvariant/case-study-testdata/HG002.novaseq.pcr-free.35x.dedup.grch38_no_alt.chr20.bam"
+      },
+      "reference": {
+        "attempts": 1,
+        "bytes": 886344618,
+        "download_seconds": 12.134231049999983,
+        "filename": "GCA_000001405.15_GRCh38_no_alt_analysis_set.fasta.gz",
+        "id": "reference",
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/hg002-p0/inputs/GCA_000001405.15_GRCh38_no_alt_analysis_set.fasta.gz",
+        "sha256": "3c8def6d325c5d1e934b2dd530c4d1709f027677a15859467071fddf3fff2026",
+        "url": "https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/references/GRCh38/GCA_000001405.15_GRCh38_no_alt_analysis_set.fasta.gz"
+      },
+      "truth_bed": {
+        "attempts": 1,
+        "bytes": 685544,
+        "download_seconds": 0.2690400960000261,
+        "filename": "HG002_GRCh38_v5.0q_smvar.benchmark.bed",
+        "id": "truth_bed",
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/hg002-p0/inputs/HG002_GRCh38_v5.0q_smvar.benchmark.bed",
+        "sha256": "ef7d898dd421ea357bb9db915894ab3e5c6c1689e36ccf619befda4bbf1cef5b",
+        "url": "https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/AshkenazimTrio/HG002_NA24385_son/v5.0q/HG002_GRCh38_v5.0q_smvar.benchmark.bed"
+      },
+      "truth_vcf": {
+        "attempts": 1,
+        "bytes": 42067644,
+        "download_seconds": 1.0158319709999546,
+        "filename": "HG002_GRCh38_v5.0q_smvar.vcf.gz",
+        "id": "truth_vcf",
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/hg002-p0/inputs/HG002_GRCh38_v5.0q_smvar.vcf.gz",
+        "sha256": "c7f9d7a4781f1f0a8a42ec54b051d6b95db1935c5e12318bae219740f9c50dc8",
+        "url": "https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/AshkenazimTrio/HG002_NA24385_son/v5.0q/HG002_GRCh38_v5.0q_smvar.vcf.gz"
+      }
+    }
+  },
+  "metrics": {
+    "benchmark_coverage": {
+      "by_block": {
+        "calibration-45m": {
+          "confident_bases": 1984748,
+          "confident_fraction": 0.9948611528822056,
+          "contig": "chr20",
+          "end": 46995000,
+          "partition": "calibration",
+          "selected_bases": 1995000,
+          "start": 45000000
+        },
+        "test-55m": {
+          "confident_bases": 3965179,
+          "confident_fraction": 0.99129475,
+          "contig": "chr20",
+          "end": 59000000,
+          "partition": "test",
+          "selected_bases": 4000000,
+          "start": 55000000
+        },
+        "threshold-47m": {
+          "confident_bases": 1960642,
+          "confident_fraction": 0.9827779448621554,
+          "contig": "chr20",
+          "end": 49000000,
+          "partition": "threshold",
+          "selected_bases": 1995000,
+          "start": 47005000
+        },
+        "train-39m": {
+          "confident_bases": 3991654,
+          "confident_fraction": 0.9979135,
+          "contig": "chr20",
+          "end": 43000000,
+          "partition": "train",
+          "selected_bases": 4000000,
+          "start": 39000000
+        },
+        "train-5m": {
+          "confident_bases": 3982816,
+          "confident_fraction": 0.995704,
+          "contig": "chr20",
+          "end": 9000000,
+          "partition": "train",
+          "selected_bases": 4000000,
+          "start": 5000000
+        }
+      },
+      "confident_bases": 15885039,
+      "empty_block_ids": [],
+      "selected_bases": 15990000
+    },
+    "download_attempts": 5,
+    "download_bytes": 2023232866,
+    "interval_bases": 15990000,
+    "retained_query_bases": 196124133,
+    "retained_records": 1300644,
+    "scratch_high_water_bytes": 5244928719,
+    "selected_query_bases": 687423593,
+    "selected_records": 4558759,
+    "traversed_records": 19467155,
+    "wall_seconds": 92.26207297400003
+  },
+  "original_bam": "/home/runner/work/rosalind/rosalind/validation-results/hg002-p0/inputs/HG002.novaseq.pcr-free.35x.dedup.grch38_no_alt.chr20.bam",
+  "reference": "/home/runner/work/rosalind/rosalind/validation-results/hg002-p0/inputs/reference.fa",
+  "regions": "/home/runner/work/rosalind/rosalind/validation-results/hg002-p0/inputs/regions.bed",
+  "sample": "HG002",
+  "truth_bed": "/home/runner/work/rosalind/rosalind/validation-results/hg002-p0/inputs/HG002_GRCh38_v5.0q_smvar.benchmark.bed",
+  "truth_vcf": "/home/runner/work/rosalind/rosalind/validation-results/hg002-p0/inputs/HG002_GRCh38_v5.0q_smvar.vcf.gz"
+}

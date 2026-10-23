@@ -1,0 +1,26 @@
+{
+  "call_argv": [
+    "-m",
+    "-v",
+    "-Ov"
+  ],
+  "mpileup_argv": [
+    "-f",
+    "/home/runner/work/rosalind/rosalind/validation-results/hg002-p0/inputs/reference.fa",
+    "-R",
+    "/home/runner/work/rosalind/rosalind/validation-results/hg002-p0/inputs/regions.bed",
+    "-q",
+    "20",
+    "-Q",
+    "20",
+    "-d",
+    "100000",
+    "-Ou",
+    "-o",
+    "/home/runner/work/rosalind/rosalind/validation-results/hg002-p0/caller-pileup.bcf",
+    "/home/runner/work/rosalind/rosalind/validation-results/hg002-p0/inputs/HG002.novaseq.pcr-free.35x.dedup.grch38_no_alt.chr20.bam"
+  ],
+  "pysam": "0.23.3",
+  "samtools": "1.21",
+  "semantics": "bcftools default BAQ/overlap treatment, MAPQ/BQ20; separate caller baseline, not exact-count parity"
+}

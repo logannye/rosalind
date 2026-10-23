@@ -1,0 +1,19 @@
+{
+  "benchmark_mask_used_for_candidate_selection": false,
+  "block_totals": {
+    "calibration-45m.callable_depth_sum": 76848590,
+    "calibration-45m.positions": 1995000,
+    "test-55m.callable_depth_sum": 145510045,
+    "test-55m.positions": 4000000,
+    "threshold-47m.callable_depth_sum": 78450580,
+    "threshold-47m.positions": 1995000,
+    "train-39m.callable_depth_sum": 146889431,
+    "train-39m.positions": 4000000,
+    "train-5m.callable_depth_sum": 140679992,
+    "train-5m.positions": 4000000
+  },
+  "candidate_loci": 27747,
+  "receipt": "/home/runner/work/rosalind/rosalind/validation-results/hg002-p0/candidate-scan/evidence.manifest.json",
+  "rows": 15990000,
+  "truth_labels_used": false
+}

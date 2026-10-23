@@ -1,0 +1,27 @@
+{
+  "calibration-45m": {
+    "candidate_generation_recall": 0.9975835682641966,
+    "proposed_truth_snvs": 2477,
+    "truth_snvs": 2483
+  },
+  "test-55m": {
+    "candidate_generation_recall": 0.997115037865128,
+    "proposed_truth_snvs": 5530,
+    "truth_snvs": 5546
+  },
+  "threshold-47m": {
+    "candidate_generation_recall": 0.9909755049419854,
+    "proposed_truth_snvs": 2306,
+    "truth_snvs": 2327
+  },
+  "train-39m": {
+    "candidate_generation_recall": 0.9975192259985115,
+    "proposed_truth_snvs": 4021,
+    "truth_snvs": 4031
+  },
+  "train-5m": {
+    "candidate_generation_recall": 0.9893798596624312,
+    "proposed_truth_snvs": 5217,
+    "truth_snvs": 5273
+  }
+}
