@@ -1,0 +1,26 @@
+{
+  "schema": "rosalind-evidence-sufficiency-protocol-v1",
+  "experiment": "p0-hg002-four-megabase-v1",
+  "status": "frozen-before-first-data-run",
+  "specimen": "HG002",
+  "truth_release": "GIAB HG002 v5.0q GRCh38",
+  "intervals": [
+    {"contig":"chr20","start":10000000,"end":11000000,"partition":"train","block_id":"train-10m"},
+    {"contig":"chr20","start":20000000,"end":21000000,"partition":"train","block_id":"train-20m"},
+    {"contig":"chr20","start":30000000,"end":30495000,"partition":"calibration","block_id":"calibration-30m"},
+    {"contig":"chr20","start":30505000,"end":31000000,"partition":"threshold","block_id":"threshold-30m"},
+    {"contig":"chr20","start":40000000,"end":41000000,"partition":"test","block_id":"test-40m"}
+  ],
+  "candidate_rule": {"minimum_alt_count":2,"fraction_numerator":2,"fraction_denominator":100},
+  "extraction": {"mapq":20,"base_quality":20,"max_read_len":250,"workers":1,"memory_budget_mb":512},
+  "rich_fields": ["depths","alleles","strands","quality-sums","read-position","allele-quality"],
+  "downsample": {"seed":42,"numerator":10,"denominator":35},
+  "model_seed": 42,
+  "gates": {"min_development_negatives":50,"min_mean_ap_gain":0.005,"target_recall":0.99},
+  "limits": {
+    "download_bytes":4294967296,"scratch_bytes":32212254720,"retained_evidence_bytes":2147483648,
+    "candidate_loci":100000,"candidate_rows":300000,"analysis_seconds":7200,"process_tree_rss_bytes":15032385536
+  },
+  "primary_scope": "within-HG002 feasibility; pilot test never selects advancement; no independent-person generalization",
+  "locked_study": "P1 must not execute unless all P0 correctness, adequacy and development-signal gates pass"
+}

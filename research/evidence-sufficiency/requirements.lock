@@ -1,0 +1,10 @@
+# Prebuilt wheels only. No installation of Rosalind or implicit local Rust builds.
+numpy==2.2.6
+pyarrow==20.0.0
+pysam==0.23.3
+psutil==6.1.1
+blake3==1.0.5
+scipy==1.15.2
+scikit-learn==1.6.1
+joblib==1.4.2
+threadpoolctl==3.5.0
