@@ -1,0 +1,76 @@
+{
+  "dependencies": {
+    "blake3": "1.0.5",
+    "joblib": "1.4.2",
+    "numpy": "2.2.6",
+    "psutil": "6.1.1",
+    "pyarrow": "20.0.0",
+    "pysam": "0.23.3",
+    "scikit-learn": "1.6.1",
+    "scipy": "1.15.2",
+    "threadpoolctl": "3.5.0"
+  },
+  "git_revision": "5808c19a45a3eda5746df0c65e3a252fb79ab8fd",
+  "github_run_attempt": "1",
+  "github_run_id": "39895644473",
+  "input_source": {
+    "artifact_id": 12470695514,
+    "artifact_sha256": "cd7514ea47b8fc954c4f0a3acb7d5e31ae21db8147572d08f9127d8ca5275bc5",
+    "commit": "5a4152a5eb7306662be20bf6867147ce522a5198",
+    "files": {
+      "candidate-recall.json": {
+        "bytes": 675,
+        "sha256": "5be2c7b966a31b02e4cabed975b279e1350ab42a5ab5347f8ce5efbca7c22c09"
+      },
+      "identity.json": {
+        "bytes": 1925,
+        "sha256": "2290e69c4649bb0e14718e1f1b85baacc2c359cab2dc0d2b143210efb4adc664"
+      },
+      "protocol.json": {
+        "bytes": 2584,
+        "sha256": "5f3d6eb5d532afa4ba5a7e708808e2111b54f5f45043d13870caf890231c9e76"
+      },
+      "records.jsonl": {
+        "bytes": 210736360,
+        "sha256": "ce46def174781e3a9d400c04e8dd04ab93a33f5cca0f631853959b68a624d0aa"
+      },
+      "report.json": {
+        "bytes": 118193,
+        "sha256": "8d3f695c0545143299266555933a4cfc9e4b78ad7013dfaac726f961d35b5a87"
+      },
+      "run-manifest.json": {
+        "bytes": 944286,
+        "sha256": "bffa9405d4d0c6c6d4989283adf13e39c205b1915f0923b881f38caf0bd1f4d5"
+      },
+      "study/frozen-models.json": {
+        "bytes": 7426,
+        "sha256": "ea3965887ef854fbcedcfe2cc4aa86789b3e00e9efc73eef2e5a516c721eaeb4"
+      },
+      "study/frozen-models.pkl": {
+        "bytes": 770514,
+        "sha256": "8794d8db1ecfc08da3e7a81634aa515337be13ce2a54d2431e7285249542bf88"
+      },
+      "telemetry.json": {
+        "bytes": 968,
+        "sha256": "249b551038ecc352b3aa12eee3ad1df70ed1e098598f3d7365ac67fcba61bf5e"
+      },
+      "truth-recovery.json": {
+        "bytes": 6689,
+        "sha256": "488e31da26aa7666c10c9294fff1405138a47cfe382ffedb583f00f0a09e5905"
+      }
+    },
+    "repository": "logannye/rosalind",
+    "run_id": 39879349288
+  },
+  "original_p0_status": "stop_no_signal",
+  "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+  "python": "3.11.17 (main, Oct  1 2026, 14:32:31) [GCC 13.3.0]",
+  "source_sha256": {
+    ".github/workflows/depth-calibration.yml": "61698f8f2f0d8ca9e64b9c39f88975e60a490196485ca80d8a4c09c79abc6d25",
+    "research/depth-calibration/PROTOCOL.md": "cffdc6ab2e1011fd25a4313d8d4a8301cd2764885eaefe4e782540ef44f7ae41",
+    "research/depth-calibration/calibration.py": "ed2fa817880ff1c32728f50bf7fe7244b803f71d644d29706add4d7300e0d6a1",
+    "research/depth-calibration/protocol.json": "8f092e66268be5017d955ce6e2787456903868e3c92887e2d2772f29c41fd277",
+    "research/depth-calibration/run.py": "ca4623c089d73f5f37684e8ee61486ad18a20b81cd708769c8fe27d2a03d4556",
+    "research/evidence-sufficiency/study.py": "be750090ad9fdfd47d752765fdd428e0d1f41c60a42b5a2d6f214d2bc1ad923e"
+  }
+}

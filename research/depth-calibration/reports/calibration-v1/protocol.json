@@ -1,0 +1,92 @@
+{
+  "bootstrap": {
+    "block_bp": 100000,
+    "minimum_nonempty_blocks": 20,
+    "minimum_valid_replicates": 1900,
+    "replicates": 2000,
+    "seed": 42
+  },
+  "conditions": "Original and deterministic 10/35 template-retained reads only; measured depth varies. No new depth or caller data acquired.",
+  "cost_scope": "Saved feature serialization, repeated matrix construction and prediction only. Extraction, fallback acquisition, caller rerun, total workflow and user review costs unavailable.",
+  "descriptive_recall_targets": [
+    0.95,
+    0.995
+  ],
+  "experiment": "hg002-saved-depth-calibration-v1",
+  "gates": {
+    "confidence_level": 0.95,
+    "maximum_recall_loss": 0.005,
+    "minimum_absolute_fp_reduction": 10,
+    "minimum_relative_fp_reduction": 0.25,
+    "requires_positive_fp_gain_ci_lower": true
+  },
+  "limits": {
+    "analysis_seconds": 900,
+    "output_bytes": 1073741824,
+    "rss_bytes": 8589934592
+  },
+  "next_step": "Only nominate independent-data and full-cost validation if the exploratory benefit screen passes. Do not implement selective escalation on this evidence alone.",
+  "original_condition": "original",
+  "original_p0_status": "stop_no_signal",
+  "p1_authorized": false,
+  "reduced_condition": "downsampled",
+  "roles": "Preserve original train, calibration, threshold and test roles. All original/reduced derivatives stay together.",
+  "schema": "rosalind-depth-calibration-protocol-v1",
+  "scope": "Exploratory single-specimen diagnosis using previously inspected HG002 data and fixed original candidate list. Test outcomes are not fresh confirmation.",
+  "selection": "downsampled threshold-role false positives ascending, attained recall descending, arm ID ascending; exclude frozen controls",
+  "selective_escalation_authorized": false,
+  "source": {
+    "artifact_id": 12470695514,
+    "artifact_sha256": "cd7514ea47b8fc954c4f0a3acb7d5e31ae21db8147572d08f9127d8ca5275bc5",
+    "commit": "5a4152a5eb7306662be20bf6867147ce522a5198",
+    "files": {
+      "candidate-recall.json": {
+        "bytes": 675,
+        "sha256": "5be2c7b966a31b02e4cabed975b279e1350ab42a5ab5347f8ce5efbca7c22c09"
+      },
+      "identity.json": {
+        "bytes": 1925,
+        "sha256": "2290e69c4649bb0e14718e1f1b85baacc2c359cab2dc0d2b143210efb4adc664"
+      },
+      "protocol.json": {
+        "bytes": 2584,
+        "sha256": "5f3d6eb5d532afa4ba5a7e708808e2111b54f5f45043d13870caf890231c9e76"
+      },
+      "records.jsonl": {
+        "bytes": 210736360,
+        "sha256": "ce46def174781e3a9d400c04e8dd04ab93a33f5cca0f631853959b68a624d0aa"
+      },
+      "report.json": {
+        "bytes": 118193,
+        "sha256": "8d3f695c0545143299266555933a4cfc9e4b78ad7013dfaac726f961d35b5a87"
+      },
+      "run-manifest.json": {
+        "bytes": 944286,
+        "sha256": "bffa9405d4d0c6c6d4989283adf13e39c205b1915f0923b881f38caf0bd1f4d5"
+      },
+      "study/frozen-models.json": {
+        "bytes": 7426,
+        "sha256": "ea3965887ef854fbcedcfe2cc4aa86789b3e00e9efc73eef2e5a516c721eaeb4"
+      },
+      "study/frozen-models.pkl": {
+        "bytes": 770514,
+        "sha256": "8794d8db1ecfc08da3e7a81634aa515337be13ce2a54d2431e7285249542bf88"
+      },
+      "telemetry.json": {
+        "bytes": 968,
+        "sha256": "249b551038ecc352b3aa12eee3ad1df70ed1e098598f3d7365ac67fcba61bf5e"
+      },
+      "truth-recovery.json": {
+        "bytes": 6689,
+        "sha256": "488e31da26aa7666c10c9294fff1405138a47cfe382ffedb583f00f0a09e5905"
+      }
+    },
+    "repository": "logannye/rosalind",
+    "run_id": 39879349288
+  },
+  "status": "frozen-before-calibration-experiment",
+  "target_recall": 0.99,
+  "timing": {
+    "rounds": 7
+  }
+}

@@ -29,6 +29,16 @@
       "source_artifact_retrieved": true,
       "tests_passed": 42,
       "reason": "P0 deliberately excludes final telemetry.json from its member inventory; new adapter initially required an inventory entry. ZIP and all pinned member digests passed. Repair accepts only this documented omission and still verifies its pinned SHA256."
+    },
+    {
+      "run_id": 39895644473,
+      "url": "https://github.com/logannye/rosalind/actions/runs/39895644473",
+      "status": "completed",
+      "source_revision": "5808c19a45a3eda5746df0c65e3a252fb79ab8fd",
+      "hg002_executed": true,
+      "tests_passed": 42,
+      "scientific_status": "inconclusive_validation_screen",
+      "protocol_changed_since_first_commit": false
     }
   ]
 }

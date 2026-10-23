@@ -1,0 +1,7 @@
+{
+  "elapsed_seconds": 93.31761602699999,
+  "input_archive_bytes": 32008328,
+  "peak_rss_bytes": 1398820864,
+  "retained_bytes_before_inventory": 189723073,
+  "scope": "Saved artifact verification, feature loading and model reanalysis; excludes source ZIP download, dependency installation, native compilation and raw read acquisition"
+}

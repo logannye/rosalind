@@ -1,0 +1,24 @@
+{
+  "repository": "logannye/rosalind",
+  "run_id": 39895644473,
+  "run_attempt": 1,
+  "url": "https://github.com/logannye/rosalind/actions/runs/39895644473",
+  "tested_revision": "5808c19a45a3eda5746df0c65e3a252fb79ab8fd",
+  "conclusion": "success",
+  "platform": "hosted Ubuntu 24.04 / Python 3.11.17",
+  "tests": {
+    "existing_study": 12,
+    "calibration_and_provenance": 30,
+    "total": 42,
+    "skipped": 0
+  },
+  "artifact_id": 12476332528,
+  "artifact_bytes": 26014461,
+  "artifact_sha256": "6a81cdfca72b11a0b2fe0824a381b3194b99ed978d7b5e8e48fee8c10ad37d62",
+  "inventory_files_verified": 11,
+  "completion_report_and_manifest_verified": true,
+  "model_and_freeze_hashes_verified": true,
+  "current_analysis_sources_match_tested_revision": true,
+  "native_builds": 0,
+  "new_raw_read_downloads": 0
+}

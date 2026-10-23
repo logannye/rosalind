@@ -1,0 +1,9 @@
+{
+  "input_identity_rechecked": true,
+  "p1_authorized": false,
+  "report_sha256": "643ac31f8dc56aeabf75fde6cd8eecf7e0fb126ddffde1bd493baf2fc1cb1e46",
+  "resource_checks_passed": true,
+  "run_manifest_sha256": "18c24e0155bbd4b712089ea6a832b88076898d18cbf919838f37d135eb690fc8",
+  "selective_escalation_authorized": false,
+  "status": "completed"
+}

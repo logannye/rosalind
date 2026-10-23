@@ -1,0 +1,48 @@
+{
+  "files": {
+    "features-f0.jsonl.gz": {
+      "bytes": 1604890,
+      "sha256": "0ae95c96dec26dcb32b210752500f3227338187b8080fc3a8cc90be59a289d12"
+    },
+    "features-f1.jsonl.gz": {
+      "bytes": 7378748,
+      "sha256": "e0e834e47f73caba921690f896baf9268485146fb2f4af5d268123cb36edccf2"
+    },
+    "frozen-models.json": {
+      "bytes": 37398,
+      "sha256": "d0257a952a634c5851fca6defbc5d0ca7dcca80e4acb40b65b6c902e876f4d4f"
+    },
+    "frozen-models.pkl": {
+      "bytes": 1564799,
+      "sha256": "754bf9772105ebedc684076db9e5df51894ce4795e22987737b315d8b55288b9"
+    },
+    "identity.json": {
+      "bytes": 3013,
+      "sha256": "f746d80f96355a31e5e9dc92f2d91414df2cec1e558cdc50e3e6369e056c4848"
+    },
+    "input-recheck.json": {
+      "bytes": 45,
+      "sha256": "9dded0a311fc4f2c54d50092cda3af5e2942ec2af5f1314652a42e9ca504d08f"
+    },
+    "predictions.jsonl": {
+      "bytes": 178055390,
+      "sha256": "df788764669ca2c05b8755c8e7a42610c840a9ee728f5c1dbf0eb0eddb49aeef"
+    },
+    "protocol.json": {
+      "bytes": 3650,
+      "sha256": "8f092e66268be5017d955ce6e2787456903868e3c92887e2d2772f29c41fd277"
+    },
+    "report.json": {
+      "bytes": 1067003,
+      "sha256": "643ac31f8dc56aeabf75fde6cd8eecf7e0fb126ddffde1bd493baf2fc1cb1e46"
+    },
+    "source-truth-recovery.json": {
+      "bytes": 8137,
+      "sha256": "6735f3c3ffbd63f647df01f62b64f9069f4f46d1edf6d684fd4edd7f51dc6cca"
+    },
+    "telemetry.json": {
+      "bytes": 338,
+      "sha256": "30fbbfdd77cd2e53f8fd2e3d278bbe6d2a7412beeb3adfa5603c60c477ed993a"
+    }
+  }
+}

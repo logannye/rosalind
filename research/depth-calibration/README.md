@@ -1,5 +1,10 @@
 # Saved HG002 depth calibration
 
+**Completed: [results and inconclusive screen](RESULTS.md).** Rich evidence cut
+false positives by 35.6% at matched empirical recall under reduced depth, but
+failed the frozen threshold recall-reliability screen. Selective escalation
+and P1 remain stopped.
+
 This separate exploratory experiment diagnoses the reduced-depth threshold
 failure found in [P0](../evidence-sufficiency/RESULTS.md). It compares depth-aware
 counts with rich evidence while retaining the original `stop_no_signal` decision
