@@ -1,0 +1,112 @@
+START fresh_acquisition_extraction_and_oracles
+[E::idx_find_and_load] Could not retrieve index file for '/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/truth.vcf.gz'
+Candidate scan: 200704 positions, 415 candidate loci
+Candidate scan: 401408 positions, 778 candidate loci
+Candidate scan: 602112 positions, 1091 candidate loci
+Candidate scan: 802816 positions, 1565 candidate loci
+Candidate scan: 1003520 positions, 1875 candidate loci
+Candidate scan: 1204224 positions, 2191 candidate loci
+Candidate scan: 1404928 positions, 2472 candidate loci
+Candidate scan: 1605632 positions, 2727 candidate loci
+Candidate scan: 1806336 positions, 3147 candidate loci
+Candidate scan: 2007040 positions, 3569 candidate loci
+Candidate scan: 2207744 positions, 4006 candidate loci
+Candidate scan: 2408448 positions, 4136 candidate loci
+Candidate scan: 2609152 positions, 4599 candidate loci
+Candidate scan: 2809856 positions, 4878 candidate loci
+Candidate scan: 3010560 positions, 5316 candidate loci
+Candidate scan: 3211264 positions, 5649 candidate loci
+Candidate scan: 3411968 positions, 5887 candidate loci
+Candidate scan: 3612672 positions, 6198 candidate loci
+Candidate scan: 3813376 positions, 6562 candidate loci
+Candidate scan: 200704 positions, 366 candidate loci
+Candidate scan: 401408 positions, 695 candidate loci
+Candidate scan: 602112 positions, 965 candidate loci
+Candidate scan: 802816 positions, 1365 candidate loci
+Candidate scan: 1003520 positions, 1622 candidate loci
+Candidate scan: 1204224 positions, 1903 candidate loci
+Candidate scan: 1404928 positions, 2138 candidate loci
+Candidate scan: 1605632 positions, 2335 candidate loci
+Candidate scan: 1806336 positions, 2660 candidate loci
+Candidate scan: 2007040 positions, 3027 candidate loci
+Candidate scan: 2207744 positions, 3386 candidate loci
+Candidate scan: 2408448 positions, 3483 candidate loci
+Candidate scan: 2609152 positions, 3873 candidate loci
+Candidate scan: 2809856 positions, 4102 candidate loci
+Candidate scan: 3010560 positions, 4478 candidate loci
+Candidate scan: 3211264 positions, 4756 candidate loci
+Candidate scan: 3411968 positions, 4954 candidate loci
+Candidate scan: 3612672 positions, 5216 candidate loci
+Candidate scan: 3813376 positions, 5520 candidate loci
+Candidate scan: 200704 positions, 297 candidate loci
+Candidate scan: 401408 positions, 575 candidate loci
+Candidate scan: 602112 positions, 773 candidate loci
+Candidate scan: 802816 positions, 1067 candidate loci
+Candidate scan: 1003520 positions, 1254 candidate loci
+Candidate scan: 1204224 positions, 1443 candidate loci
+Candidate scan: 1404928 positions, 1651 candidate loci
+Candidate scan: 1605632 positions, 1772 candidate loci
+Candidate scan: 1806336 positions, 2010 candidate loci
+Candidate scan: 2007040 positions, 2279 candidate loci
+Candidate scan: 2207744 positions, 2533 candidate loci
+Candidate scan: 2408448 positions, 2597 candidate loci
+Candidate scan: 2609152 positions, 2863 candidate loci
+Candidate scan: 2809856 positions, 3023 candidate loci
+Candidate scan: 3010560 positions, 3272 candidate loci
+Candidate scan: 3211264 positions, 3482 candidate loci
+Candidate scan: 3411968 positions, 3640 candidate loci
+Candidate scan: 3612672 positions, 3823 candidate loci
+Candidate scan: 3813376 positions, 4045 candidate loci
+END fresh_acquisition_extraction_and_oracles: 405.42s
+START frozen_fresh_evaluation
+END frozen_fresh_evaluation: 2.84s
+START same_candidate_cost_measurements
+END same_candidate_cost_measurements: 7.10s
+{
+  "phase": "fresh_completed",
+  "gate": {
+    "status": "prespecified_screen_not_met",
+    "predictive_and_workload_screen_passed": false,
+    "checks": {
+      "all_required_conditions_present": true,
+      "original_counts_absolute_recall": true,
+      "original_rich_absolute_recall": false,
+      "original_comparison_uncertainty_supported": true,
+      "original_recall_noninferiority": true,
+      "downsampled_counts_absolute_recall": true,
+      "downsampled_rich_absolute_recall": true,
+      "downsampled_comparison_uncertainty_supported": true,
+      "downsampled_recall_noninferiority": true,
+      "novel_low_counts_absolute_recall": true,
+      "novel_low_rich_absolute_recall": false,
+      "novel_low_comparison_uncertainty_supported": true,
+      "novel_low_recall_noninferiority": true,
+      "primary_absolute_fp_gain": true,
+      "primary_relative_fp_gain": false,
+      "primary_fp_gain_ci_positive": true,
+      "primary_assessed_workload_reduction": false,
+      "primary_all_workload_reduction": false
+    },
+    "nominate_fresh_workflow_validation": false,
+    "selective_escalation_authorized": false,
+    "proceed_to_p1": false,
+    "total_workflow_cost_advantage_established": false,
+    "reason": "Full acquisition, deferred review and fallback costs remain external requirements",
+    "recall_estimand": "Candidate retention including unresolved pass-throughs",
+    "empirical_spatial_bounds_are_not_person_shift_guarantees": true,
+    "external_checks": {
+      "metadata_preflight": true,
+      "full_template_identity": true,
+      "coordinate_order": true,
+      "preflight_bytes_unchanged": true,
+      "fresh_independent_counts": true,
+      "fresh_native_parquet_features": true,
+      "standalone_counts_features_equal": true,
+      "raw_unavailable_replay": true,
+      "standalone_columnar_policy_parity": true,
+      "all_declared_depth_costs_present": true,
+      "saved_feature_costs_recorded": true,
+      "fresh_inputs_unchanged": true
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "accepted": true,
+  "bai_download": {
+    "bytes": 12006264,
+    "md5": "00fd8ac75a92daf341e79008e7e9d900",
+    "path": "/home/runner/work/rosalind/rosalind/validation-results/preflight/source.bam.bai",
+    "published_md5_verified": true,
+    "sha256": "70732f19dbd14ef1253ceaa9d1d979cb4cef0e20cbba425df93e4c5c23378d5d",
+    "url": "https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/NA12878/NIST_NA12878_HG001_HiSeq_300x/NHGRI_Illumina300X_novoalign_bams/HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x.bam.bai",
+    "wall_seconds": 0.22328636199999607
+  },
+  "chr20_length": 64444167,
+  "dictionary_sha256": "64416f59da1f276495e898e8e1d5a6f071f463bd081aa0f561068f6c62714da7",
+  "download_bytes": 18559920,
+  "limits": {
+    "download_bytes": 67108864,
+    "probe_bp": 1000,
+    "probe_records": 64,
+    "wall_seconds": 120
+  },
+  "outcome_data_loaded": false,
+  "probe_records": 64,
+  "read_metadata_path": "/home/runner/work/rosalind/rosalind/validation-results/preflight/read-metadata.json",
+  "receipt_path": "/home/runner/work/rosalind/rosalind/validation-results/preflight/preflight.json",
+  "received_bam_bytes": 6553656,
+  "reference_sequence_verified": false,
+  "remote_bam_full_md5_verified": false,
+  "scope": "metadata compatibility only; full extraction must revalidate every record",
+  "source": {
+    "bytes": 589702020566,
+    "last_modified": "Tue, 08 Mar 2016 18:53:34 GMT",
+    "md5": "f48bf321c34f32b7c08feb17b9e5b220",
+    "url": "https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/NA12878/NIST_NA12878_HG001_HiSeq_300x/NHGRI_Illumina300X_novoalign_bams/HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x.bam"
+  },
+  "source_header_sha256": "2a507e6a549c0e6b62bdccb14da7c4b10dec3c7882fb04e357782672ceabc856",
+  "source_identity_sha256": "60ffb955c63f376b18a230d50111a6c2b46be84af3e16e6e9decb7c9ce618fce",
+  "technical_read_group": "rosalind_source_60ffb955c63f376b18a230d50111a6c2b46be84af3e16e6e9decb7c9ce618fce",
+  "wall_seconds": 0.9605396820000038
+}

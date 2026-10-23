@@ -1,0 +1,16 @@
+{
+  "combined_download_bytes": 1772676465,
+  "completed_without_error": true,
+  "failure": null,
+  "identity_scope": "official URL/size/Last-Modified plus received byte-range hashes; full BAM not acquired",
+  "range_receipts": 92,
+  "received_bam_bytes": 738066488,
+  "remote_bam_full_md5_verified": false,
+  "source": {
+    "bytes": 589702020566,
+    "last_modified": "Tue, 08 Mar 2016 18:53:34 GMT",
+    "md5": "f48bf321c34f32b7c08feb17b9e5b220",
+    "url": "https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/NA12878/NIST_NA12878_HG001_HiSeq_300x/NHGRI_Illumina300X_novoalign_bams/HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x.bam"
+  },
+  "wall_seconds": 174.13409534800007
+}

@@ -1,0 +1,9 @@
+{
+  "base_model_fits": 0,
+  "fresh_test_scored": false,
+  "frozen_policy_sha256": "899ee3f34e9c3fb10d04da23d0637d07780b552f23239724c894b980c4ae0dbd",
+  "model_pickle_sha256": "754bf9772105ebedc684076db9e5df51894ce4795e22987737b315d8b55288b9",
+  "model_source_revision": "5808c19a45a3eda5746df0c65e3a252fb79ab8fd",
+  "protocol_sha256": "27cdb262fef4ed2e23f4f78914be766b34cfd89dd5898f4fc270f3bb049e3d1a",
+  "status": "frozen_before_fresh_acquisition"
+}

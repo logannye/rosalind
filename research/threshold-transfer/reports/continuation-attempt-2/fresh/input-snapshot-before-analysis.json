@@ -1,0 +1,77 @@
+{
+  "bam-preparation.json": {
+    "bytes": 5614,
+    "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/bam-preparation.json",
+    "sha256": "c6ab7ec2d53361f0ad9368ce5329cffd5b99199545bf4ea7e0a497c25deb1dda"
+  },
+  "downsampled.bam": {
+    "bytes": 27440382,
+    "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/downsampled.bam",
+    "sha256": "83ceedc6bc307636556705cb4847ad18e71657349c7b84e6cc12a59243f0e904"
+  },
+  "downsampled.bam.bai": {
+    "bytes": 59592,
+    "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/downsampled.bam.bai",
+    "sha256": "3a3e6ed3d7431a5540637106ab34dca2055741018ac85c46f350d88bab135477"
+  },
+  "extraction-request.json": {
+    "bytes": 5130,
+    "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/extraction-request.json",
+    "sha256": "3baa2f3f4016973c7ad0c5649721f1d454d1fb14c35bb5d58d475fa090e916ce"
+  },
+  "novel_low.bam": {
+    "bytes": 14780488,
+    "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/novel_low.bam",
+    "sha256": "97753b819fac0991b1167e2b9c25ce76eb457beca4ed3d3b9c87b591f48fd4f2"
+  },
+  "novel_low.bam.bai": {
+    "bytes": 54264,
+    "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/novel_low.bam.bai",
+    "sha256": "77cc7a3bf5d3b18af07caed3eacf5df7f1579218c8d7d87d3ade21b4102de2a5"
+  },
+  "original.bam": {
+    "bytes": 90629290,
+    "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/original.bam",
+    "sha256": "07ea00bb12b38059c05f40b1bb3cc91e49a955e7868eecc8787446200038d971"
+  },
+  "original.bam.bai": {
+    "bytes": 59592,
+    "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/original.bam.bai",
+    "sha256": "ef36875075e58004cce356ebe7ff2d0fcaf88cc378f09f0ae4ced2594a5c757c"
+  },
+  "reference.fa": {
+    "bytes": 3150409646,
+    "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/reference.fa",
+    "sha256": "592502666381c995059a6b4a5dda11e6b1f6b8efeea04e7dacfffe1e0d2f0d25"
+  },
+  "reference.fa.fai": {
+    "bytes": 123147,
+    "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/reference.fa.fai",
+    "sha256": "e33afb84eb6463b2607798f86c6060e55eb549698c586268d6011f3ce815b122"
+  },
+  "reference.fa.gz": {
+    "bytes": 874637925,
+    "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/reference.fa.gz",
+    "sha256": "08959902840a28f410ad1220e36b2a3fbe2cb90beecceb6ea5b050a0e68ed96d"
+  },
+  "regions.bed": {
+    "bytes": 24,
+    "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/regions.bed",
+    "sha256": "774c1e96fd37c7a7922f78cf4d478bb29a772694bf0ce637940c4d2ebf38ae33"
+  },
+  "source.bam.bai": {
+    "bytes": 12006264,
+    "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/source.bam.bai",
+    "sha256": "70732f19dbd14ef1253ceaa9d1d979cb4cef0e20cbba425df93e4c5c23378d5d"
+  },
+  "truth.bed": {
+    "bytes": 15479939,
+    "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/truth.bed",
+    "sha256": "dc3485e60447a3e863c34dfc063c3710ea5ed5efae50855c5197ba62538263b9"
+  },
+  "truth.vcf.gz": {
+    "bytes": 125932193,
+    "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/truth.vcf.gz",
+    "sha256": "93bc4c2c696eaf13515ab058caecc064bfed704f85bac7482330ca91bc730daa"
+  }
+}

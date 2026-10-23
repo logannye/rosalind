@@ -1,0 +1,260 @@
+{
+  "advance_scope": "Only nominate independent workflow validation if all frozen recall, noninferiority, practical-volume and correctness gates pass; never authorize a router or product promotion.",
+  "bootstrap": {
+    "block_bp": 100000,
+    "development_replicates": 10000,
+    "fresh_replicates": 2000,
+    "minimum_error_blocks": 2,
+    "minimum_nonempty_blocks": 20,
+    "minimum_valid_fraction": 0.95,
+    "seed": 42
+  },
+  "candidate_rule": {
+    "fraction_denominator": 100,
+    "fraction_numerator": 2,
+    "minimum_alt_count": 2
+  },
+  "condition_sources": {
+    "downsampled": "downsampled",
+    "novel_low": "downsampled",
+    "original": "original"
+  },
+  "confidence_level": 0.95,
+  "deadline_utc": "2026-10-23T12:22:00Z",
+  "depth_edges": [
+    0,
+    5,
+    10,
+    20,
+    40,
+    null
+  ],
+  "development_conditions": [
+    "original",
+    "downsampled"
+  ],
+  "experiment": "hg001-frozen-threshold-transfer-v1",
+  "extraction": {
+    "base_quality": 20,
+    "mapq": 20,
+    "max_read_len": 250,
+    "memory_budget_mb": 512,
+    "workers": 1
+  },
+  "fresh": {
+    "conditions": [
+      {
+        "denominator": 300,
+        "name": "original",
+        "numerator": 35
+      },
+      {
+        "denominator": 300,
+        "name": "downsampled",
+        "numerator": 10
+      },
+      {
+        "denominator": 300,
+        "name": "novel_low",
+        "numerator": 5
+      }
+    ],
+    "intervals": [
+      {
+        "block_id": "fresh-hg001-55m",
+        "contig": "chr20",
+        "end": 59000000,
+        "partition": "test",
+        "start": 55000000
+      }
+    ],
+    "seed": 42,
+    "sources": {
+      "reads_bai": {
+        "bytes": 12006264,
+        "md5": "00fd8ac75a92daf341e79008e7e9d900",
+        "url": "https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/NA12878/NIST_NA12878_HG001_HiSeq_300x/NHGRI_Illumina300X_novoalign_bams/HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x.bam.bai"
+      },
+      "reads_bam": {
+        "bytes": 589702020566,
+        "last_modified": "Tue, 08 Mar 2016 18:53:34 GMT",
+        "md5": "f48bf321c34f32b7c08feb17b9e5b220",
+        "url": "https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/NA12878/NIST_NA12878_HG001_HiSeq_300x/NHGRI_Illumina300X_novoalign_bams/HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x.bam"
+      },
+      "reference": {
+        "bytes": 874637925,
+        "md5": "a056c57649f3c9964c68aead3849bbf8",
+        "url": "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/001/405/GCA_000001405.15_GRCh38/seqs_for_alignment_pipelines.ucsc_ids/GCA_000001405.15_GRCh38_no_alt_plus_hs38d1_analysis_set.fna.gz"
+      },
+      "truth_bed": {
+        "bytes": 15479939,
+        "md5": "e1ea90c830f981d29a46043eb618e7bf",
+        "url": "https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/NA12878_HG001/NISTv4.2.1/GRCh38/HG001_GRCh38_1_22_v4.2.1_benchmark.bed"
+      },
+      "truth_vcf": {
+        "bytes": 125932193,
+        "md5": "ec61d76ad725d808e3a9e1c8acec402a",
+        "url": "https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/NA12878_HG001/NISTv4.2.1/GRCh38/HG001_GRCh38_1_22_v4.2.1_benchmark.vcf.gz"
+      }
+    },
+    "specimen": "HG001",
+    "truth_release": "GIAB HG001 v4.2.1 GRCh38"
+  },
+  "gates": {
+    "confidence_level": 0.95,
+    "maximum_recall_loss": 0.005,
+    "minimum_absolute_fp_reduction": 10,
+    "minimum_assessed_retained_reduction": 0.01,
+    "minimum_relative_fp_reduction": 0.25,
+    "minimum_total_retained_reduction": 0.01,
+    "requires_positive_fp_gain_ci_lower": true
+  },
+  "limits": {
+    "analysis_seconds": 7200,
+    "candidate_loci": 100000,
+    "candidate_rows": 300000,
+    "download_bytes": 4294967296,
+    "network_timeout_seconds": 60,
+    "process_tree_rss_bytes": 15032385536,
+    "retained_evidence_bytes": 2147483648,
+    "scratch_bytes": 32212254720
+  },
+  "low_depth_passthrough_below": 5,
+  "minimum_calibration_positives_per_depth_bin": 300,
+  "model_source": {
+    "artifact_id": 12476332528,
+    "artifact_sha256": "6a81cdfca72b11a0b2fe0824a381b3194b99ed978d7b5e8e48fee8c10ad37d62",
+    "commit": "5808c19a45a3eda5746df0c65e3a252fb79ab8fd",
+    "files": {
+      "completion.json": {
+        "bytes": 348,
+        "sha256": "bcd80966918c99c875d720dede54c2c3b8fa55c0c0381afda38d6d6eb1e2dea4"
+      },
+      "frozen-models.json": {
+        "bytes": 37398,
+        "sha256": "d0257a952a634c5851fca6defbc5d0ca7dcca80e4acb40b65b6c902e876f4d4f"
+      },
+      "frozen-models.pkl": {
+        "bytes": 1564799,
+        "sha256": "754bf9772105ebedc684076db9e5df51894ce4795e22987737b315d8b55288b9"
+      },
+      "identity.json": {
+        "bytes": 3013,
+        "sha256": "f746d80f96355a31e5e9dc92f2d91414df2cec1e558cdc50e3e6369e056c4848"
+      },
+      "input-recheck.json": {
+        "bytes": 45,
+        "sha256": "9dded0a311fc4f2c54d50092cda3af5e2942ec2af5f1314652a42e9ca504d08f"
+      },
+      "protocol.json": {
+        "bytes": 3650,
+        "sha256": "8f092e66268be5017d955ce6e2787456903868e3c92887e2d2772f29c41fd277"
+      },
+      "report.json": {
+        "bytes": 1067003,
+        "sha256": "643ac31f8dc56aeabf75fde6cd8eecf7e0fb126ddffde1bd493baf2fc1cb1e46"
+      },
+      "run-manifest.json": {
+        "bytes": 1553,
+        "sha256": "18c24e0155bbd4b712089ea6a832b88076898d18cbf919838f37d135eb690fc8"
+      }
+    },
+    "prefix": "calibration/",
+    "repository": "logannye/rosalind",
+    "run_id": 39895644473
+  },
+  "original_p0_status": "stop_no_signal",
+  "p1_authorized": false,
+  "policy_recall_targets": [
+    0.99,
+    0.995,
+    0.999,
+    1.0
+  ],
+  "practical_scope": "Retained-list volume is a workload proxy; no measured manual review time. Actual extraction/storage/prediction/caller costs reported separately.",
+  "primary_condition": "downsampled",
+  "required_fresh_conditions": [
+    "original",
+    "downsampled",
+    "novel_low"
+  ],
+  "rich_fields": [
+    "depths",
+    "alleles",
+    "strands",
+    "quality-sums",
+    "read-position",
+    "allele-quality"
+  ],
+  "schema": "rosalind-threshold-transfer-protocol-v1",
+  "scope": "Fresh specimen/library transfer on one fixed 4 Mb chr20 region, shared condition-blind thresholds, independent candidate generation per depth. Nominal depth labels are template-retention fractions, not guaranteed coverage.",
+  "selected_models": {
+    "counts": "M10_pooled",
+    "rich": "M11_pooled"
+  },
+  "selective_escalation_authorized": false,
+  "source": {
+    "artifact_id": 12470695514,
+    "artifact_sha256": "cd7514ea47b8fc954c4f0a3acb7d5e31ae21db8147572d08f9127d8ca5275bc5",
+    "commit": "5a4152a5eb7306662be20bf6867147ce522a5198",
+    "files": {
+      "candidate-recall.json": {
+        "bytes": 675,
+        "sha256": "5be2c7b966a31b02e4cabed975b279e1350ab42a5ab5347f8ce5efbca7c22c09"
+      },
+      "identity.json": {
+        "bytes": 1925,
+        "sha256": "2290e69c4649bb0e14718e1f1b85baacc2c359cab2dc0d2b143210efb4adc664"
+      },
+      "protocol.json": {
+        "bytes": 2584,
+        "sha256": "5f3d6eb5d532afa4ba5a7e708808e2111b54f5f45043d13870caf890231c9e76"
+      },
+      "records.jsonl": {
+        "bytes": 210736360,
+        "sha256": "ce46def174781e3a9d400c04e8dd04ab93a33f5cca0f631853959b68a624d0aa"
+      },
+      "report.json": {
+        "bytes": 118193,
+        "sha256": "8d3f695c0545143299266555933a4cfc9e4b78ad7013dfaac726f961d35b5a87"
+      },
+      "run-manifest.json": {
+        "bytes": 944286,
+        "sha256": "bffa9405d4d0c6c6d4989283adf13e39c205b1915f0923b881f38caf0bd1f4d5"
+      },
+      "study/frozen-models.json": {
+        "bytes": 7426,
+        "sha256": "ea3965887ef854fbcedcfe2cc4aa86789b3e00e9efc73eef2e5a516c721eaeb4"
+      },
+      "study/frozen-models.pkl": {
+        "bytes": 770514,
+        "sha256": "8794d8db1ecfc08da3e7a81634aa515337be13ce2a54d2431e7285249542bf88"
+      },
+      "telemetry.json": {
+        "bytes": 968,
+        "sha256": "249b551038ecc352b3aa12eee3ad1df70ed1e098598f3d7365ac67fcba61bf5e"
+      },
+      "truth-recovery.json": {
+        "bytes": 6689,
+        "sha256": "488e31da26aa7666c10c9294fff1405138a47cfe382ffedb583f00f0a09e5905"
+      }
+    },
+    "repository": "logannye/rosalind",
+    "run_id": 39879349288
+  },
+  "status": "freeze-before-fresh-acquisition",
+  "target_recall": 0.99,
+  "timing": {
+    "repeated_queries": [
+      1,
+      5,
+      20
+    ],
+    "rounds": 7
+  },
+  "uncertainty_families": {
+    "development": "All eligible newly constructed policies across both models and both development conditions; legacy diagnostics excluded because never selected",
+    "fresh": "Two frozen selected policies across all three fresh conditions; other policies descriptive only"
+  },
+  "uncertainty_scope": "Finite-policy corrected empirical spatial block-bootstrap bounds; no iid or distribution-free cross-person guarantee. Non-retain-all policies with fewer than two error-bearing windows are unsupported."
+}

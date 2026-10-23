@@ -1,5 +1,10 @@
 # Threshold transfer: frozen policies, fresh validation incomplete
 
+Historical report for the original three-attempt scope. A subsequently authorized
+[metadata-preflight continuation](CONTINUATION_RESULTS.md) resolved intake and
+completed fresh evaluation; its scientific gates failed. The original results and
+stopping history below remain unchanged.
+
 **The study stopped after its third permitted hosted attempt. Engineering tests
 passed, but fresh HG001 evaluation could not start because the source BAM has no
 read-group records. Recall reliability and practical benefit on fresh data remain

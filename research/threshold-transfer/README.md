@@ -1,16 +1,18 @@
 # Frozen thresholds across coverage and specimen changes
 
-Status: a newly authorized [metadata-preflight continuation](INPUT_CONTRACT.md)
-is being validated after the [original three-attempt intake stop](RESULTS.md).
-Frozen models, thresholds and scientific gates are unchanged. Fresh recall and
-practical benefit remain unmeasured until a verified completed evaluation exists.
-Historical HG002 results are not fresh confirmation.
+Status: the [metadata-preflight continuation](CONTINUATION_RESULTS.md) completed
+on fresh HG001 data. Input compatibility and every correctness check passed, but
+the unchanged scientific screen failed. Primary total retained candidate count fell only 0.44%;
+two depth conditions lacked the required support for their recall bounds.
+No advancement or selective escalation follows. Frozen models, thresholds and
+scientific gates are unchanged; the [original intake stop](RESULTS.md) is preserved.
 
 This study asks whether fixed pooled counts and rich-evidence models can retain
 at least 99% of assessed positive candidates under changed coverage while reducing
 downstream candidate volume. It preserves the original P0 stop and P1 lock.
 
-The [overnight plan](OVERNIGHT_PLAN.md) sets the time and resource budget. The
+The [overnight plan](OVERNIGHT_PLAN.md) records the original time and resource budget;
+the separate [input contract](INPUT_CONTRACT.md) bounds the completed continuation. The
 machine-readable [protocol](protocol.json) pins source artifacts, data sources,
 conditions, finite policy family and gates before acquiring fresh HG001 evidence.
 [Data sources](DATA_SOURCES.md) explains sample, library, alignment and truth-release
@@ -50,7 +52,8 @@ slices are descriptive and not automatically certified by an aggregate bound.
 
 ## Untouched evaluation and stop rules
 
-The selected policies and model identity are published before fresh acquisition.
+The selected policies and model identity are published before full fresh acquisition
+and evaluation, after the outcome-blind metadata preflight in the continuation.
 HG001 chr20:55,000,000–59,000,000 (zero-based half-open) is evaluated once with
 35/300, 10/300 and 5/300 template retention from the same nominal 300x source.
 Actual callable depth is measured. Candidates are generated separately per

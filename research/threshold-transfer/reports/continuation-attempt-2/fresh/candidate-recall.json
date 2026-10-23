@@ -1,0 +1,23 @@
+{
+  "downsampled": {
+    "fresh-hg001-55m": {
+      "candidate_generation_recall": 0.9368302312464749,
+      "proposed_truth_snvs": 4983,
+      "truth_snvs": 5319
+    }
+  },
+  "novel_low": {
+    "fresh-hg001-55m": {
+      "candidate_generation_recall": 0.7016356457980824,
+      "proposed_truth_snvs": 3732,
+      "truth_snvs": 5319
+    }
+  },
+  "original": {
+    "fresh-hg001-55m": {
+      "candidate_generation_recall": 1.0,
+      "proposed_truth_snvs": 5319,
+      "truth_snvs": 5319
+    }
+  }
+}

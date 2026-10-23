@@ -1,0 +1,16 @@
+{
+  "bai": "/home/runner/work/rosalind/rosalind/validation-results/preflight/source.bam.bai",
+  "out": "/home/runner/work/rosalind/rosalind/validation-results/preflight",
+  "region": {
+    "contig": "chr20",
+    "end": 55001000,
+    "start": 55000000
+  },
+  "source": {
+    "bytes": 589702020566,
+    "last_modified": "Tue, 08 Mar 2016 18:53:34 GMT",
+    "md5": "f48bf321c34f32b7c08feb17b9e5b220",
+    "url": "https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/NA12878/NIST_NA12878_HG001_HiSeq_300x/NHGRI_Illumina300X_novoalign_bams/HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x.bam"
+  },
+  "url": "http://127.0.0.1:34387/source.bam"
+}

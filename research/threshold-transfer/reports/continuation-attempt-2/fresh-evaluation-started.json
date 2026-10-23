@@ -1,0 +1,5 @@
+{
+  "fresh_test_consumed": true,
+  "frozen_policy_sha256": "899ee3f34e9c3fb10d04da23d0637d07780b552f23239724c894b980c4ae0dbd",
+  "rule": "No threshold, model or region changes after this marker; execution-only repairs preserve frozen bytes"
+}

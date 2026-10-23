@@ -1,0 +1,198 @@
+{
+  "candidate_rows_including_unknown": 5697,
+  "columnar_format": "Parquet zstd, row_group_size1024, one thread, identical candidate order",
+  "manual_review_seconds": null,
+  "measurements": {
+    "parquet_parse_and_inference": {
+      "counts": {
+        "median_cpu_seconds": 0.1022369249999997,
+        "median_wall_seconds": 0.09914608600001884,
+        "rounds": [
+          {
+            "cpu_seconds": 0.1049595990000114,
+            "wall_seconds": 0.10112741599994024
+          },
+          {
+            "cpu_seconds": 0.1062211009999885,
+            "wall_seconds": 0.10335972600000787
+          },
+          {
+            "cpu_seconds": 0.1022369249999997,
+            "wall_seconds": 0.09914608600001884
+          },
+          {
+            "cpu_seconds": 0.10012964399999191,
+            "wall_seconds": 0.09732845700000325
+          },
+          {
+            "cpu_seconds": 0.09915520100000208,
+            "wall_seconds": 0.0970764370000552
+          },
+          {
+            "cpu_seconds": 0.10309947600001124,
+            "wall_seconds": 0.10012723199997708
+          },
+          {
+            "cpu_seconds": 0.10172989399998755,
+            "wall_seconds": 0.09768550399996911
+          }
+        ]
+      },
+      "rich": {
+        "median_cpu_seconds": 0.4940959919999841,
+        "median_wall_seconds": 0.4853766029999633,
+        "rounds": [
+          {
+            "cpu_seconds": 0.6255253399999958,
+            "wall_seconds": 0.5486009450000893
+          },
+          {
+            "cpu_seconds": 0.49046419199999036,
+            "wall_seconds": 0.48171534699997665
+          },
+          {
+            "cpu_seconds": 0.5291685949999874,
+            "wall_seconds": 0.5230146720000448
+          },
+          {
+            "cpu_seconds": 0.48820036399999367,
+            "wall_seconds": 0.4794200149999597
+          },
+          {
+            "cpu_seconds": 0.5410845990000155,
+            "wall_seconds": 0.5336322399999744
+          },
+          {
+            "cpu_seconds": 0.4940959919999841,
+            "wall_seconds": 0.4853766029999633
+          },
+          {
+            "cpu_seconds": 0.48673670599998786,
+            "wall_seconds": 0.47856701199998497
+          }
+        ]
+      }
+    },
+    "warm_inference": {
+      "counts": {
+        "median_cpu_seconds": 0.003063177999990785,
+        "median_wall_seconds": 0.0030321579999963433,
+        "rounds": [
+          {
+            "cpu_seconds": 0.003063177999990785,
+            "wall_seconds": 0.0030321579999963433
+          },
+          {
+            "cpu_seconds": 0.0034742379999954665,
+            "wall_seconds": 0.003473960000064835
+          },
+          {
+            "cpu_seconds": 0.0022785159999898497,
+            "wall_seconds": 0.0022224250000135726
+          },
+          {
+            "cpu_seconds": 0.0031167690000017956,
+            "wall_seconds": 0.003116211999895313
+          },
+          {
+            "cpu_seconds": 0.0018554689999916718,
+            "wall_seconds": 0.0018549229999962336
+          },
+          {
+            "cpu_seconds": 0.003068326999994042,
+            "wall_seconds": 0.003036625000049753
+          },
+          {
+            "cpu_seconds": 0.0017733579999799076,
+            "wall_seconds": 0.0017555869999341667
+          }
+        ]
+      },
+      "rich": {
+        "median_cpu_seconds": 0.2050987789999965,
+        "median_wall_seconds": 0.2017648809999173,
+        "rounds": [
+          {
+            "cpu_seconds": 0.24522726399999328,
+            "wall_seconds": 0.24193392999995922
+          },
+          {
+            "cpu_seconds": 0.20024507699997685,
+            "wall_seconds": 0.19706645700000536
+          },
+          {
+            "cpu_seconds": 0.20499695000000884,
+            "wall_seconds": 0.2017648809999173
+          },
+          {
+            "cpu_seconds": 0.20554402399997684,
+            "wall_seconds": 0.2023530879999953
+          },
+          {
+            "cpu_seconds": 0.20983376500001327,
+            "wall_seconds": 0.2064071119999653
+          },
+          {
+            "cpu_seconds": 0.20326599000000556,
+            "wall_seconds": 0.19883747599999424
+          },
+          {
+            "cpu_seconds": 0.2050987789999965,
+            "wall_seconds": 0.20060998799999652
+          }
+        ]
+      }
+    }
+  },
+  "native_parquet_prediction_parity": true,
+  "net_end_user_benefit_established": false,
+  "order": "counts/rich alternating with rich/counts, after one warmup per arm",
+  "primary_condition": "downsampled",
+  "repeated_saved_queries": {
+    "1": {
+      "counts": 0.09914608600001884,
+      "rich": 0.4853766029999633
+    },
+    "20": {
+      "counts": 1.9829217200003768,
+      "rich": 9.707532059999266
+    },
+    "5": {
+      "counts": 0.4957304300000942,
+      "rich": 2.4268830149998166
+    }
+  },
+  "repeated_saved_queries_scope": "Arithmetic projection of measured median repeated-query costs, not observed end-to-end crossover",
+  "rounds": 7,
+  "schema": "rosalind-threshold-transfer-costs-v1",
+  "scope": "Standalone feature storage, serialization and repeated same-candidate matrix/model/policy execution. Acquisition/extraction/caller costs reported separately; no native-vs-Parquet speed claim.",
+  "selected_structural_retain_all": {
+    "counts": true,
+    "rich": false
+  },
+  "serialization": {
+    "counts": {
+      "cpu_seconds": 0.03750691199999778,
+      "wall_seconds": 0.03493210099998123
+    },
+    "rich": {
+      "cpu_seconds": 0.13914237899999193,
+      "wall_seconds": 0.13644472500004667
+    }
+  },
+  "storage": {
+    "counts": {
+      "bytes": 134772,
+      "candidate_rows_including_unknown": 5697,
+      "feature_columns": 22,
+      "sha256": "856cb089bd2785742ee095bc0192e0b0f93938c25b50d3cee2e27e7fb6e54fd3"
+    },
+    "rich": {
+      "bytes": 417540,
+      "candidate_rows_including_unknown": 5697,
+      "feature_columns": 90,
+      "sha256": "c984acbf02a5a53e5353643d6e84b825ae32eec8e3d99d7d3d15d02ee6807277"
+    }
+  },
+  "structural_policy_cost_scope": "A structural retain-all policy needs neither model scoring nor stored features. Its serialized-table costs are optional representation overhead, not necessary retention-policy cost."
+}

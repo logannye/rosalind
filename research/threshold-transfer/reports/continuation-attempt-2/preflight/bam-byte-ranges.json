@@ -1,0 +1,37 @@
+[
+  {
+    "complete": true,
+    "received_bytes": 28,
+    "received_sha256": "d079906378251d29409f7f0f691113fd3b0049b5927b713e2704ca44ac743d48",
+    "requested_end_inclusive": 589702020565,
+    "start": 589702020538
+  },
+  {
+    "complete": false,
+    "received_bytes": 524288,
+    "received_sha256": "05fd1582ea26b55fd82f98ff079514dca2fe555355709e81b5eddecde29732e7",
+    "requested_end_inclusive": 8388607,
+    "start": 0
+  },
+  {
+    "complete": true,
+    "received_bytes": 28,
+    "received_sha256": "d079906378251d29409f7f0f691113fd3b0049b5927b713e2704ca44ac743d48",
+    "requested_end_inclusive": 589702020565,
+    "start": 589702020538
+  },
+  {
+    "complete": false,
+    "received_bytes": 2752512,
+    "received_sha256": "05c4f8c00f2e9c0b62cfe7a5ad85c46934570b45df3483d4ae6de7a0c9ac6886",
+    "requested_end_inclusive": 8388607,
+    "start": 0
+  },
+  {
+    "complete": false,
+    "received_bytes": 3276800,
+    "received_sha256": "4b8e8c3e4f60c4d5d7d5a242282bc6fcdd1d4dabe6449b6555be8449be75c071",
+    "requested_end_inclusive": 500702098980,
+    "start": 500693710373
+  }
+]

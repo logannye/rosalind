@@ -1,0 +1,21 @@
+{
+  "additional_hosted_attempts": 2,
+  "authorization": "User explicitly authorized implementing metadata preflight, resolving GIAB compatibility, and rerunning the threshold study with unchanged frozen models, thresholds and scientific gates.",
+  "completed_prior_run_ids": [
+    39901841463,
+    39902020683,
+    39991819570,
+    39996264574
+  ],
+  "deadline_utc": "2026-10-23T21:20:00Z",
+  "frozen_policy_sha256": "899ee3f34e9c3fb10d04da23d0637d07780b552f23239724c894b980c4ae0dbd",
+  "frozen_protocol_sha256": "27cdb262fef4ed2e23f4f78914be766b34cfd89dd5898f4fc270f3bb049e3d1a",
+  "maximum_additional_runner_seconds": 18000,
+  "maximum_total_runner_seconds": 21600,
+  "original_deadline_utc": "2026-10-23T12:22:00Z",
+  "previous_hosted_attempts": 3,
+  "previous_runner_seconds": 618,
+  "schema": "rosalind-threshold-preflight-continuation-v1",
+  "scope": "New authorized input-compatibility continuation. At most two additional hosted attempts, including at most one execution/provenance repair. No new models, thresholds, gates, source objects, regions, fractions or seed. Source-only template namespace is an explicit intake-contract extension before labels. No retry or retuning after scientific gate failure.",
+  "started_utc": "2026-10-23T17:20:00Z"
+}

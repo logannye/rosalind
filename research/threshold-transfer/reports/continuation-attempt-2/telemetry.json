@@ -1,0 +1,14 @@
+{
+  "elapsed_seconds": 418.239719474,
+  "limitations": "sampled peaks may miss brief maxima; cooperative admission plus job timeout",
+  "phases_seconds": {
+    "fresh_acquisition_extraction_and_oracles": 405.423143398,
+    "frozen_fresh_evaluation": 2.84161914099991,
+    "same_candidate_cost_measurements": 7.1039035459999695
+  },
+  "resource_error": null,
+  "rss_sample_seconds": 0.1,
+  "sampled_process_tree_peak_rss_bytes": 2647212032,
+  "sampled_scratch_peak_bytes": 4912823912,
+  "scratch_sample_seconds": 5
+}

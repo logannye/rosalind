@@ -1,0 +1,536 @@
+{
+  "candidate_recall": {
+    "downsampled": {
+      "fresh-hg001-55m": {
+        "candidate_generation_recall": 0.9368302312464749,
+        "proposed_truth_snvs": 4983,
+        "truth_snvs": 5319
+      }
+    },
+    "novel_low": {
+      "fresh-hg001-55m": {
+        "candidate_generation_recall": 0.7016356457980824,
+        "proposed_truth_snvs": 3732,
+        "truth_snvs": 5319
+      }
+    },
+    "original": {
+      "fresh-hg001-55m": {
+        "candidate_generation_recall": 1.0,
+        "proposed_truth_snvs": 5319,
+        "truth_snvs": 5319
+      }
+    }
+  },
+  "identities": {
+    "bam_preparation": {
+      "bam_chr20_header_m5": null,
+      "bams": {
+        "downsampled": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/downsampled.bam",
+        "novel_low": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/novel_low.bam",
+        "original": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/original.bam"
+      },
+      "chr20_md5": "b18e6c531b0bd70e949a7fc20859cb01",
+      "conditions": {
+        "downsampled": {
+          "query_bases": 36854072,
+          "records": 249014
+        },
+        "novel_low": {
+          "query_bases": 18525012,
+          "records": 125169
+        },
+        "original": {
+          "query_bases": 129204296,
+          "records": 873002
+        }
+      },
+      "coordinate_order_verified": true,
+      "downsampling_algorithm": "sha256-json-template-v1; same hash nested at all fractions",
+      "full_ordered_bam_reference_dictionary_match": true,
+      "sample": "HG001",
+      "selected_records": 7490699,
+      "source_only_technical_group": true,
+      "source_sample_admission": {
+        "accepted": true,
+        "binding_scope": "Exact-source published donor metadata; not genotype authentication or recovered library provenance",
+        "binding_sources": [
+          "https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/NA12878/NIST_NA12878_HG001_HiSeq_300x/README_NIST_Illumina_pairedend_NA12878.txt",
+          "https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/NA12878/NIST_NA12878_HG001_HiSeq_300x/131219_D00360_005_BH814YADXX/Project_RM8398/",
+          "https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/NA12878/NIST_NA12878_HG001_HiSeq_300x/140127_D00360_0011_AHGV6ADXX/Project_RM8398/"
+        ],
+        "canonical_sample": "HG001",
+        "chr20_length": 64444167,
+        "contigs": 2580,
+        "declared_sort_order": "unsorted",
+        "dictionary_sha256": "64416f59da1f276495e898e8e1d5a6f071f463bd081aa0f561068f6c62714da7",
+        "header_read_groups": [],
+        "normalization": "Derived technical RG and SM only; SO coordinate requires full observed-order audit; all original records preserved",
+        "original_header": {
+          "bytes": 237114,
+          "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/source-header.sam",
+          "sha256": "2a507e6a549c0e6b62bdccb14da7c4b10dec3c7882fb04e357782672ceabc856"
+        },
+        "original_read_groups": [],
+        "reference_sequence_verified": false,
+        "source": {
+          "bytes": 589702020566,
+          "last_modified": "Tue, 08 Mar 2016 18:53:34 GMT",
+          "md5": "f48bf321c34f32b7c08feb17b9e5b220",
+          "url": "https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/NA12878/NIST_NA12878_HG001_HiSeq_300x/NHGRI_Illumina300X_novoalign_bams/HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x.bam"
+        },
+        "source_header_bytes": 237114,
+        "source_header_sha256": "2a507e6a549c0e6b62bdccb14da7c4b10dec3c7882fb04e357782672ceabc856",
+        "source_identity_sha256": "60ffb955c63f376b18a230d50111a6c2b46be84af3e16e6e9decb7c9ce618fce",
+        "synthetic_source_group": true,
+        "technical_group_scope": "source-level selection namespace; original library/read-group identity unavailable",
+        "technical_read_group": "rosalind_source_60ffb955c63f376b18a230d50111a6c2b46be84af3e16e6e9decb7c9ce618fce"
+      },
+      "template_identity_audit": {
+        "distinct_exact_qnames": 3805142,
+        "limitations": [
+          "Consistent identical primary signatures cannot exclude physically distinct molecules sharing the same full name",
+          "Names are scoped to this source and technical group, not asserted globally unique",
+          "Secondary and supplementary payloads are not subjected to primary-end collision checks",
+          "Technical grouping supplies no biological lane, library or platform-unit metadata"
+        ],
+        "mapped_primary_pairs_reciprocity_checked": 3685557,
+        "max_templates": 8000000,
+        "memory_scope": "Bounded template-entry dictionary with compact digests; external process-tree RSS admission remains required",
+        "nonprimary_records": 0,
+        "original_rg_tags_allowed": false,
+        "passed": true,
+        "physical_records_deduplicated": 0,
+        "physical_records_observed": 7490699,
+        "primary_pairs_with_unmapped_end": 0,
+        "primary_records": 7490699,
+        "primary_signature_fields": "Full FLAG, reference/start/end, MAPQ, mate reference/start, TLEN, CIGAR, sequence and qualities; optional tags excluded",
+        "qnames_rewritten": 0,
+        "receipt_scope": "Every admitted alignment offered by the caller from its declared bounded region, before downsampling; reconcile this count with caller traversal/exclusion counts; missing mates may be outside scope but that is not inferred",
+        "record_order_qname_flag_sha256": "4ced13fa07899cadaf14a72b77be5c9f3d7f901f2bb17ed0f87d603adc6ebb7a",
+        "repeated_primary_end_signatures": 0,
+        "schema": "rosalind-source-local-template-audit-v1",
+        "secondary_and_supplementary_counters_may_overlap": true,
+        "secondary_records": 0,
+        "source_identity": "60ffb955c63f376b18a230d50111a6c2b46be84af3e16e6e9decb7c9ce618fce",
+        "supplementary_records": 0,
+        "technical_synthetic_group": "rosalind_source_60ffb955c63f376b18a230d50111a6c2b46be84af3e16e6e9decb7c9ce618fce",
+        "template_key": "exact full unmodified seven-field Illumina QNAME within pinned source and technical group",
+        "templates_with_both_primary_mates": 3685557,
+        "templates_with_no_primary_alignment_observed_in_scope": 0,
+        "templates_with_one_primary_mate_not_observed_in_scope": 119585,
+        "unique_primary_ends": 7490699
+      },
+      "template_identity_sha256": "60ffb955c63f376b18a230d50111a6c2b46be84af3e16e6e9decb7c9ce618fce",
+      "traversed_records": 7579333
+    },
+    "cross_specimen_chr20_sequence_match": "not separately verified",
+    "inputs": {
+      "bam-preparation.json": {
+        "bytes": 5614,
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/bam-preparation.json",
+        "sha256": "c6ab7ec2d53361f0ad9368ce5329cffd5b99199545bf4ea7e0a497c25deb1dda"
+      },
+      "downsampled.bam": {
+        "bytes": 27440382,
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/downsampled.bam",
+        "sha256": "83ceedc6bc307636556705cb4847ad18e71657349c7b84e6cc12a59243f0e904"
+      },
+      "downsampled.bam.bai": {
+        "bytes": 59592,
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/downsampled.bam.bai",
+        "sha256": "3a3e6ed3d7431a5540637106ab34dca2055741018ac85c46f350d88bab135477"
+      },
+      "extraction-request.json": {
+        "bytes": 5130,
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/extraction-request.json",
+        "sha256": "3baa2f3f4016973c7ad0c5649721f1d454d1fb14c35bb5d58d475fa090e916ce"
+      },
+      "novel_low.bam": {
+        "bytes": 14780488,
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/novel_low.bam",
+        "sha256": "97753b819fac0991b1167e2b9c25ce76eb457beca4ed3d3b9c87b591f48fd4f2"
+      },
+      "novel_low.bam.bai": {
+        "bytes": 54264,
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/novel_low.bam.bai",
+        "sha256": "77cc7a3bf5d3b18af07caed3eacf5df7f1579218c8d7d87d3ade21b4102de2a5"
+      },
+      "original.bam": {
+        "bytes": 90629290,
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/original.bam",
+        "sha256": "07ea00bb12b38059c05f40b1bb3cc91e49a955e7868eecc8787446200038d971"
+      },
+      "original.bam.bai": {
+        "bytes": 59592,
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/original.bam.bai",
+        "sha256": "ef36875075e58004cce356ebe7ff2d0fcaf88cc378f09f0ae4ced2594a5c757c"
+      },
+      "reference.fa": {
+        "bytes": 3150409646,
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/reference.fa",
+        "sha256": "592502666381c995059a6b4a5dda11e6b1f6b8efeea04e7dacfffe1e0d2f0d25"
+      },
+      "reference.fa.fai": {
+        "bytes": 123147,
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/reference.fa.fai",
+        "sha256": "e33afb84eb6463b2607798f86c6060e55eb549698c586268d6011f3ce815b122"
+      },
+      "reference.fa.gz": {
+        "bytes": 874637925,
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/reference.fa.gz",
+        "sha256": "08959902840a28f410ad1220e36b2a3fbe2cb90beecceb6ea5b050a0e68ed96d"
+      },
+      "regions.bed": {
+        "bytes": 24,
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/regions.bed",
+        "sha256": "774c1e96fd37c7a7922f78cf4d478bb29a772694bf0ce637940c4d2ebf38ae33"
+      },
+      "source.bam.bai": {
+        "bytes": 12006264,
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/source.bam.bai",
+        "sha256": "70732f19dbd14ef1253ceaa9d1d979cb4cef0e20cbba425df93e4c5c23378d5d"
+      },
+      "truth.bed": {
+        "bytes": 15479939,
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/truth.bed",
+        "sha256": "dc3485e60447a3e863c34dfc063c3710ea5ed5efae50855c5197ba62538263b9"
+      },
+      "truth.vcf.gz": {
+        "bytes": 125932193,
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/truth.vcf.gz",
+        "sha256": "93bc4c2c696eaf13515ab058caecc064bfed704f85bac7482330ca91bc730daa"
+      }
+    },
+    "post_analysis_input_recheck": {
+      "bytes_verified": 4311623490,
+      "files_verified": 15,
+      "passed": true
+    },
+    "preflight": {
+      "accepted": true,
+      "bai_download": {
+        "bytes": 12006264,
+        "md5": "00fd8ac75a92daf341e79008e7e9d900",
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/preflight/source.bam.bai",
+        "published_md5_verified": true,
+        "sha256": "70732f19dbd14ef1253ceaa9d1d979cb4cef0e20cbba425df93e4c5c23378d5d",
+        "url": "https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/NA12878/NIST_NA12878_HG001_HiSeq_300x/NHGRI_Illumina300X_novoalign_bams/HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x.bam.bai",
+        "wall_seconds": 0.22328636199999607
+      },
+      "bai_path": "/home/runner/work/rosalind/rosalind/validation-results/preflight/source.bam.bai",
+      "chr20_length": 64444167,
+      "dictionary_sha256": "64416f59da1f276495e898e8e1d5a6f071f463bd081aa0f561068f6c62714da7",
+      "download_bytes": 18559920,
+      "limits": {
+        "download_bytes": 67108864,
+        "probe_bp": 1000,
+        "probe_records": 64,
+        "wall_seconds": 120
+      },
+      "outcome_data_loaded": false,
+      "probe_records": 64,
+      "read_metadata_path": "/home/runner/work/rosalind/rosalind/validation-results/preflight/read-metadata.json",
+      "receipt_path": "/home/runner/work/rosalind/rosalind/validation-results/preflight/preflight.json",
+      "received_bam_bytes": 6553656,
+      "reference_sequence_verified": false,
+      "remote_bam_full_md5_verified": false,
+      "scope": "metadata compatibility only; full extraction must revalidate every record",
+      "source": {
+        "bytes": 589702020566,
+        "last_modified": "Tue, 08 Mar 2016 18:53:34 GMT",
+        "md5": "f48bf321c34f32b7c08feb17b9e5b220",
+        "url": "https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/NA12878/NIST_NA12878_HG001_HiSeq_300x/NHGRI_Illumina300X_novoalign_bams/HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x.bam"
+      },
+      "source_header_sha256": "2a507e6a549c0e6b62bdccb14da7c4b10dec3c7882fb04e357782672ceabc856",
+      "source_identity_sha256": "60ffb955c63f376b18a230d50111a6c2b46be84af3e16e6e9decb7c9ce618fce",
+      "technical_read_group": "rosalind_source_60ffb955c63f376b18a230d50111a6c2b46be84af3e16e6e9decb7c9ce618fce",
+      "verified_preflight_files": {
+        "bam-byte-ranges.json": {
+          "bytes": 1083,
+          "md5": "9560d788167f387318d12aa49895e60e",
+          "sha256": "e9c3b514001c0123535428645563ec1f8e08b462047235485bd6e3ddb767e33e"
+        },
+        "download-reads_bai.json": {
+          "bytes": 689,
+          "md5": "d742d17ae38d8e33dbf4d25530b6cf53",
+          "sha256": "98e39bb445992a74da1b12c7cdda0c3a3c6c00670f8f02010ab337a19618f929"
+        },
+        "preflight.json": {
+          "bytes": 2009,
+          "md5": "8beceea360451b33c1fb5755ba0212a5",
+          "sha256": "1292d7013b19f26875e6e25bc4430f9614629d0f6d2b1818dcccc36b5c51ad78"
+        },
+        "probe-request.json": {
+          "bytes": 654,
+          "md5": "1786663f3dbd9dfca8c3992fce3a6cc7",
+          "sha256": "b5d704ec01a8e2874ed92abedd8725c29fde8ee988d0ab3889a687595939ace7"
+        },
+        "range-errors.json": {
+          "bytes": 3,
+          "md5": "58e0494c51d30eb3494f7c9198986bb9",
+          "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+        },
+        "read-metadata.json": {
+          "bytes": 19254,
+          "md5": "0f7b872a86748ef9a49f9d0fd3446115",
+          "sha256": "31a9354163e740ce5bf5f4ffdb77cf22732dc4146552004e44778693ef2b9313"
+        },
+        "source-header.sam": {
+          "bytes": 237114,
+          "md5": "e317a9ec5389e2889b3975d5e5964b3f",
+          "sha256": "2a507e6a549c0e6b62bdccb14da7c4b10dec3c7882fb04e357782672ceabc856"
+        },
+        "source.bam.bai": {
+          "bytes": 12006264,
+          "md5": "00fd8ac75a92daf341e79008e7e9d900",
+          "sha256": "70732f19dbd14ef1253ceaa9d1d979cb4cef0e20cbba425df93e4c5c23378d5d"
+        }
+      },
+      "wall_seconds": 0.9605396820000038
+    },
+    "preflight_recheck": {
+      "bytes_verified": 12268639,
+      "files_verified": 9,
+      "passed": true
+    },
+    "preflight_snapshot": {
+      "bam-byte-ranges.json": {
+        "bytes": 1083,
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/preflight/bam-byte-ranges.json",
+        "sha256": "e9c3b514001c0123535428645563ec1f8e08b462047235485bd6e3ddb767e33e"
+      },
+      "completion.json": {
+        "bytes": 1569,
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/preflight/completion.json",
+        "sha256": "cfc8315d6e22c0a444963d73cdbec93d5eac680486e6099fdec1deabb41b8135"
+      },
+      "download-reads_bai.json": {
+        "bytes": 689,
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/preflight/download-reads_bai.json",
+        "sha256": "98e39bb445992a74da1b12c7cdda0c3a3c6c00670f8f02010ab337a19618f929"
+      },
+      "preflight.json": {
+        "bytes": 2009,
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/preflight/preflight.json",
+        "sha256": "1292d7013b19f26875e6e25bc4430f9614629d0f6d2b1818dcccc36b5c51ad78"
+      },
+      "probe-request.json": {
+        "bytes": 654,
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/preflight/probe-request.json",
+        "sha256": "b5d704ec01a8e2874ed92abedd8725c29fde8ee988d0ab3889a687595939ace7"
+      },
+      "range-errors.json": {
+        "bytes": 3,
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/preflight/range-errors.json",
+        "sha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      "read-metadata.json": {
+        "bytes": 19254,
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/preflight/read-metadata.json",
+        "sha256": "31a9354163e740ce5bf5f4ffdb77cf22732dc4146552004e44778693ef2b9313"
+      },
+      "source-header.sam": {
+        "bytes": 237114,
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/preflight/source-header.sam",
+        "sha256": "2a507e6a549c0e6b62bdccb14da7c4b10dec3c7882fb04e357782672ceabc856"
+      },
+      "source.bam.bai": {
+        "bytes": 12006264,
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/preflight/source.bam.bai",
+        "sha256": "70732f19dbd14ef1253ceaa9d1d979cb4cef0e20cbba425df93e4c5c23378d5d"
+      }
+    },
+    "remote_bam": {
+      "bytes": 589702020566,
+      "last_modified": "Tue, 08 Mar 2016 18:53:34 GMT",
+      "md5": "f48bf321c34f32b7c08feb17b9e5b220",
+      "url": "https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/NA12878/NIST_NA12878_HG001_HiSeq_300x/NHGRI_Illumina300X_novoalign_bams/HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x.bam"
+    },
+    "remote_bam_full_md5_verified": false,
+    "remote_bam_identity_scope": "official URL/size/Last-Modified plus received byte-range hashes; full BAM not acquired",
+    "sources": {
+      "reads_bai": {
+        "bytes": 12006264,
+        "md5": "00fd8ac75a92daf341e79008e7e9d900",
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/source.bam.bai",
+        "published_md5_verified": true,
+        "sha256": "70732f19dbd14ef1253ceaa9d1d979cb4cef0e20cbba425df93e4c5c23378d5d",
+        "url": "https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/NA12878/NIST_NA12878_HG001_HiSeq_300x/NHGRI_Illumina300X_novoalign_bams/HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x.bam.bai",
+        "wall_seconds": 0.22328636199999607
+      },
+      "reference": {
+        "bytes": 874637925,
+        "md5": "a056c57649f3c9964c68aead3849bbf8",
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/reference.fa.gz",
+        "published_md5_verified": true,
+        "sha256": "08959902840a28f410ad1220e36b2a3fbe2cb90beecceb6ea5b050a0e68ed96d",
+        "url": "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/001/405/GCA_000001405.15_GRCh38/seqs_for_alignment_pipelines.ucsc_ids/GCA_000001405.15_GRCh38_no_alt_plus_hs38d1_analysis_set.fna.gz",
+        "wall_seconds": 12.79557855600001
+      },
+      "truth_bed": {
+        "bytes": 15479939,
+        "md5": "e1ea90c830f981d29a46043eb618e7bf",
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/truth.bed",
+        "published_md5_verified": true,
+        "sha256": "dc3485e60447a3e863c34dfc063c3710ea5ed5efae50855c5197ba62538263b9",
+        "url": "https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/NA12878_HG001/NISTv4.2.1/GRCh38/HG001_GRCh38_1_22_v4.2.1_benchmark.bed",
+        "wall_seconds": 0.3055008509999766
+      },
+      "truth_vcf": {
+        "bytes": 125932193,
+        "md5": "ec61d76ad725d808e3a9e1c8acec402a",
+        "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/truth.vcf.gz",
+        "published_md5_verified": true,
+        "sha256": "93bc4c2c696eaf13515ab058caecc064bfed704f85bac7482330ca91bc730daa",
+        "url": "https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/NA12878_HG001/NISTv4.2.1/GRCh38/HG001_GRCh38_1_22_v4.2.1_benchmark.vcf.gz",
+        "wall_seconds": 0.9311145339999598
+      }
+    }
+  },
+  "metrics": {
+    "benchmark_coverage": {
+      "by_block": {
+        "fresh-hg001-55m": {
+          "confident_bases": 3815678,
+          "confident_fraction": 0.9539195,
+          "contig": "chr20",
+          "end": 59000000,
+          "partition": "test",
+          "selected_bases": 4000000,
+          "start": 55000000
+        }
+      },
+      "confident_bases": 3815678,
+      "empty_block_ids": [],
+      "selected_bases": 4000000
+    },
+    "condition_costs": {
+      "downsampled": {
+        "caller_seconds": 10.355564287999982,
+        "caller_unthresholded_snv_calls": {
+          "false": 23,
+          "true": 4958,
+          "unknown": 485
+        },
+        "candidate_rows": 5697,
+        "candidate_scan_seconds": 40.148518921000004,
+        "extraction_order": [
+          "f0",
+          "f1"
+        ],
+        "feature_derivation_scope": "F1 includes candidate assembly/label lookup; F0 includes exact parity check; not a matched microbenchmark",
+        "feature_derivation_seconds": {
+          "f0": 0.04077514000005067,
+          "f1": 0.24740064700006315
+        },
+        "input_bam_bytes": 27440382,
+        "matched_candidate_extraction": {
+          "f0": {
+            "retained_bytes": 4430896,
+            "scope": "materialization, verification and first saved read at identical candidate sites",
+            "wall_seconds": 2.1023251809999692
+          },
+          "f1": {
+            "retained_bytes": 7543178,
+            "scope": "materialization, verification and first saved read at identical candidate sites",
+            "wall_seconds": 2.8205112790000157
+          }
+        },
+        "unknown_labels": 645
+      },
+      "novel_low": {
+        "caller_seconds": 7.72204925099993,
+        "caller_unthresholded_snv_calls": {
+          "false": 95,
+          "true": 4009,
+          "unknown": 371
+        },
+        "candidate_rows": 4165,
+        "candidate_scan_seconds": 40.08289608999996,
+        "extraction_order": [
+          "f1",
+          "f0"
+        ],
+        "feature_derivation_scope": "F1 includes candidate assembly/label lookup; F0 includes exact parity check; not a matched microbenchmark",
+        "feature_derivation_seconds": {
+          "f0": 0.030348856000046,
+          "f1": 0.249215984999978
+        },
+        "input_bam_bytes": 14780488,
+        "matched_candidate_extraction": {
+          "f0": {
+            "retained_bytes": 3612916,
+            "scope": "materialization, verification and first saved read at identical candidate sites",
+            "wall_seconds": 2.1125062759999764
+          },
+          "f1": {
+            "retained_bytes": 6027164,
+            "scope": "materialization, verification and first saved read at identical candidate sites",
+            "wall_seconds": 2.621186988999966
+          }
+        },
+        "unknown_labels": 410
+      },
+      "original": {
+        "caller_seconds": 21.08771862599997,
+        "caller_unthresholded_snv_calls": {
+          "false": 8,
+          "true": 5318,
+          "unknown": 663
+        },
+        "candidate_rows": 6805,
+        "candidate_scan_seconds": 40.40512680100005,
+        "extraction_order": [
+          "f1",
+          "f0"
+        ],
+        "feature_derivation_scope": "F1 includes candidate assembly/label lookup; F0 includes exact parity check; not a matched microbenchmark",
+        "feature_derivation_seconds": {
+          "f0": 0.04776941399995849,
+          "f1": 0.3516703120000102
+        },
+        "input_bam_bytes": 90629290,
+        "matched_candidate_extraction": {
+          "f0": {
+            "retained_bytes": 5014272,
+            "scope": "materialization, verification and first saved read at identical candidate sites",
+            "wall_seconds": 2.471315861999983
+          },
+          "f1": {
+            "retained_bytes": 8628890,
+            "scope": "materialization, verification and first saved read at identical candidate sites",
+            "wall_seconds": 2.3270131069999707
+          }
+        },
+        "unknown_labels": 1106
+      }
+    },
+    "correctness": {
+      "coordinate_order": true,
+      "full_template_identity": true,
+      "independent_counts": true,
+      "metadata_preflight": true,
+      "native_parquet_features": true,
+      "saved_only_replay": true,
+      "standalone_counts_f0_equal": true
+    },
+    "cost_limitations": "Single counterbalanced extraction per arm/depth, shared acquisition and scan; no selective fallback or user-review workflow measured",
+    "download_bytes": 1772676465,
+    "retained_bytes": 116948381,
+    "scratch_high_water_bytes": 4422875778,
+    "wall_seconds": 404.6731085530001
+  },
+  "state": {
+    "condition_bams": {
+      "downsampled": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/downsampled.bam",
+      "novel_low": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/novel_low.bam",
+      "original": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/original.bam"
+    },
+    "reference": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/reference.fa",
+    "regions": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/regions.bed",
+    "sample": "HG001",
+    "truth_bed": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/truth.bed",
+    "truth_vcf": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/inputs/truth.vcf.gz"
+  }
+}

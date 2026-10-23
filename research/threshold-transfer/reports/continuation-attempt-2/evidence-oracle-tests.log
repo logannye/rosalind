@@ -1,0 +1,255 @@
+test_bounded_metadata_and_no_storage_symlink_traversal (test_audit_representative.AuditTests.test_bounded_metadata_and_no_storage_symlink_traversal) ... ok
+test_changed_receipt_budget_and_observed_denominator_fail (test_audit_representative.AuditTests.test_changed_receipt_budget_and_observed_denominator_fail) ... ok
+test_changed_startup_files_fail_individually (test_audit_representative.AuditTests.test_changed_startup_files_fail_individually) ... ok
+test_cram_validation_work_is_distinct_from_resumed_indexed_work (test_audit_representative.AuditTests.test_cram_validation_work_is_distinct_from_resumed_indexed_work) ... ok
+test_failed_and_malformed_receipt_rows_are_retained (test_audit_representative.AuditTests.test_failed_and_malformed_receipt_rows_are_retained) ... ok
+test_identity_resource_work_and_storage_audit (test_audit_representative.AuditTests.test_identity_resource_work_and_storage_audit) ... ok
+test_plan_widths_alone_do_not_prove_execution_changed (test_audit_representative.AuditTests.test_plan_widths_alone_do_not_prove_execution_changed) ... ok
+test_prediction_underestimate_is_not_a_budget_breach (test_audit_representative.AuditTests.test_prediction_underestimate_is_not_a_budget_breach) ... ok
+test_running_and_missing_invocations_fail (test_audit_representative.AuditTests.test_running_and_missing_invocations_fail) ... ok
+test_capacity_requires_identified_integrity_checked_partial (test_cgroup_probe.OutcomeTests.test_capacity_requires_identified_integrity_checked_partial) ... ok
+test_completed_requires_verified_receipt_and_real_limit (test_cgroup_probe.OutcomeTests.test_completed_requires_verified_receipt_and_real_limit) ... ok
+test_cram_capacity_preflight_error_is_retained_and_classified (test_cgroup_probe.OutcomeTests.test_cram_capacity_preflight_error_is_retained_and_classified) ... ok
+test_cram_capacity_preflight_requires_specific_error_and_no_output (test_cgroup_probe.OutcomeTests.test_cram_capacity_preflight_requires_specific_error_and_no_output) ... ok
+test_failed_runs_cannot_keep_success_destinations (test_cgroup_probe.OutcomeTests.test_failed_runs_cannot_keep_success_destinations) ... ok
+test_first_party_failed_receipt_is_classified_by_status (test_cgroup_probe.OutcomeTests.test_first_party_failed_receipt_is_classified_by_status) ... ok
+test_missing_events_are_unknown_and_metadata_reads_are_capped (test_cgroup_probe.OutcomeTests.test_missing_events_are_unknown_and_metadata_reads_are_capped) ... ok
+test_refusal_is_distinct_from_runtime_breach_and_oom (test_cgroup_probe.OutcomeTests.test_refusal_is_distinct_from_runtime_breach_and_oom) ... ok
+test_signal_exit_alone_does_not_establish_oom (test_cgroup_probe.OutcomeTests.test_signal_exit_alone_does_not_establish_oom) ... ok
+test_bad_download_and_existing_symlink_do_not_publish (test_prepare_representative.PreparationTests.test_bad_download_and_existing_symlink_do_not_publish) ... ok
+test_concurrent_conflicting_object_is_never_overwritten (test_prepare_representative.PreparationTests.test_concurrent_conflicting_object_is_never_overwritten) ... ok
+test_concurrent_downloaders_publish_one_verified_object (test_prepare_representative.PreparationTests.test_concurrent_downloaders_publish_one_verified_object) ... ok
+test_invalid_selection_is_rejected_without_reading_sources (test_prepare_representative.PreparationTests.test_invalid_selection_is_rejected_without_reading_sources) ... ok
+test_lock_rejects_malformed_rows_hashes_and_aliased_paths_before_download (test_prepare_representative.PreparationTests.test_lock_rejects_malformed_rows_hashes_and_aliased_paths_before_download) ... ok
+test_tiny_preparation_keeps_executed_source_and_lock_snapshots (test_prepare_representative.PreparationTests.test_tiny_preparation_keeps_executed_source_and_lock_snapshots) ... ok
+test_valid_lock_can_include_other_unique_locked_resources (test_prepare_representative.PreparationTests.test_valid_lock_can_include_other_unique_locked_resources) ... ok
+test_budget_rss_and_denominator_gates_reject_false_success (test_representative.HarnessTests.test_budget_rss_and_denominator_gates_reject_false_success) ... /tmp/tmp5jfhjnib/prepared/workloads.json
+[1/30] cram-panel-cache-r1-cold
+[2/30] cram-panel-cache-r1-resumed
+[3/30] cram-panel-cache-r1-persisted
+[4/30] cram-panel-base-r1
+[5/30] bam-panel-oracle-r1
+[6/30] cram-panel-oracle-r1
+[7/30] bam-panel-cache-r1-cold
+[8/30] bam-panel-cache-r1-resumed
+[9/30] bam-panel-cache-r1-persisted
+[10/30] bam-panel-base-r1
+[11/30] cram-panel-cache-r2-cold
+[12/30] cram-panel-cache-r2-resumed
+[13/30] cram-panel-cache-r2-persisted
+[14/30] bam-panel-oracle-r2
+[15/30] bam-panel-base-r2
+[16/30] bam-panel-cache-r2-cold
+[17/30] bam-panel-cache-r2-resumed
+[18/30] bam-panel-cache-r2-persisted
+[19/30] cram-panel-base-r2
+[20/30] cram-panel-oracle-r2
+[21/30] bam-panel-cache-r3-cold
+[22/30] bam-panel-cache-r3-resumed
+[23/30] bam-panel-cache-r3-persisted
+[24/30] cram-panel-cache-r3-cold
+[25/30] cram-panel-cache-r3-resumed
+[26/30] cram-panel-cache-r3-persisted
+[27/30] bam-panel-base-r3
+[28/30] cram-panel-oracle-r3
+[29/30] bam-panel-oracle-r3
+[30/30] cram-panel-base-r3
+[1/30] cram-panel-cache-r1-cold
+[2/30] cram-panel-cache-r1-resumed
+[3/30] cram-panel-cache-r1-persisted
+[4/30] cram-panel-base-r1
+[5/30] bam-panel-oracle-r1
+[6/30] cram-panel-oracle-r1
+[7/30] bam-panel-cache-r1-cold
+[8/30] bam-panel-cache-r1-resumed
+[9/30] bam-panel-cache-r1-persisted
+[10/30] bam-panel-base-r1
+[11/30] cram-panel-cache-r2-cold
+[12/30] cram-panel-cache-r2-resumed
+[13/30] cram-panel-cache-r2-persisted
+[14/30] bam-panel-oracle-r2
+[15/30] bam-panel-base-r2
+[16/30] bam-panel-cache-r2-cold
+[17/30] bam-panel-cache-r2-resumed
+[18/30] bam-panel-cache-r2-persisted
+[19/30] cram-panel-base-r2
+[20/30] cram-panel-oracle-r2
+[21/30] bam-panel-cache-r3-cold
+[22/30] bam-panel-cache-r3-resumed
+[23/30] bam-panel-cache-r3-persisted
+[24/30] cram-panel-cache-r3-cold
+[25/30] cram-panel-cache-r3-resumed
+[26/30] cram-panel-cache-r3-persisted
+[27/30] bam-panel-base-r3
+[28/30] cram-panel-oracle-r3
+[29/30] bam-panel-oracle-r3
+[30/30] cram-panel-base-r3
+[1/30] cram-panel-cache-r1-cold
+[2/30] cram-panel-cache-r1-resumed
+[3/30] cram-panel-cache-r1-persisted
+[4/30] cram-panel-base-r1
+[5/30] bam-panel-oracle-r1
+[6/30] cram-panel-oracle-r1
+[7/30] bam-panel-cache-r1-cold
+[8/30] bam-panel-cache-r1-resumed
+[9/30] bam-panel-cache-r1-persisted
+[10/30] bam-panel-base-r1
+[11/30] cram-panel-cache-r2-cold
+[12/30] cram-panel-cache-r2-resumed
+[13/30] cram-panel-cache-r2-persisted
+[14/30] bam-panel-oracle-r2
+[15/30] bam-panel-base-r2
+[16/30] bam-panel-cache-r2-cold
+[17/30] bam-panel-cache-r2-resumed
+[18/30] bam-panel-cache-r2-persisted
+[19/30] cram-panel-base-r2
+[20/30] cram-panel-oracle-r2
+[21/30] bam-panel-cache-r3-cold
+[22/30] bam-panel-cache-r3-resumed
+[23/30] bam-panel-cache-r3-persisted
+[24/30] cram-panel-cache-r3-cold
+[25/30] cram-panel-cache-r3-resumed
+[26/30] cram-panel-cache-r3-persisted
+[27/30] bam-panel-base-r3
+[28/30] cram-panel-oracle-r3
+[29/30] bam-panel-oracle-r3
+[30/30] cram-panel-base-r3
+[1/30] cram-panel-cache-r1-cold
+[2/30] cram-panel-cache-r1-resumed
+[3/30] cram-panel-cache-r1-persisted
+[4/30] cram-panel-base-r1
+[5/30] bam-panel-oracle-r1
+[6/30] cram-panel-oracle-r1
+[7/30] bam-panel-cache-r1-cold
+[8/30] bam-panel-cache-r1-resumed
+[9/30] bam-panel-cache-r1-persisted
+[10/30] bam-panel-base-r1
+[11/30] cram-panel-cache-r2-cold
+[12/30] cram-panel-cache-r2-resumed
+[13/30] cram-panel-cache-r2-persisted
+[14/30] bam-panel-oracle-r2
+[15/30] bam-panel-base-r2
+[16/30] bam-panel-cache-r2-cold
+[17/30] bam-panel-cache-r2-resumed
+[18/30] bam-panel-cache-r2-persisted
+[19/30] cram-panel-base-r2
+[20/30] cram-panel-oracle-r2
+[21/30] bam-panel-cache-r3-cold
+[22/30] bam-panel-cache-r3-resumed
+[23/30] bam-panel-cache-r3-persisted
+[24/30] cram-panel-cache-r3-cold
+[25/30] cram-panel-cache-r3-resumed
+[26/30] cram-panel-cache-r3-persisted
+[27/30] bam-panel-base-r3
+[28/30] cram-panel-oracle-r3
+[29/30] bam-panel-oracle-r3
+[30/30] cram-panel-base-r3
+ok
+test_case_inventory_is_repeatable_and_keeps_resume_dependencies (test_representative.HarnessTests.test_case_inventory_is_repeatable_and_keeps_resume_dependencies) ... ok
+test_completed_process_metadata_failure_keeps_timings_and_all_jobs (test_representative.HarnessTests.test_completed_process_metadata_failure_keeps_timings_and_all_jobs) ... [1/30] cram-panel-cache-r1-cold
+[2/30] cram-panel-cache-r1-resumed
+[3/30] cram-panel-cache-r1-persisted
+[4/30] cram-panel-base-r1
+[5/30] bam-panel-oracle-r1
+[6/30] cram-panel-oracle-r1
+[7/30] bam-panel-cache-r1-cold
+[8/30] bam-panel-cache-r1-resumed
+[9/30] bam-panel-cache-r1-persisted
+[10/30] bam-panel-base-r1
+[11/30] cram-panel-cache-r2-cold
+[12/30] cram-panel-cache-r2-resumed
+[13/30] cram-panel-cache-r2-persisted
+[14/30] bam-panel-oracle-r2
+[15/30] bam-panel-base-r2
+[16/30] bam-panel-cache-r2-cold
+[17/30] bam-panel-cache-r2-resumed
+[18/30] bam-panel-cache-r2-persisted
+[19/30] cram-panel-base-r2
+[20/30] cram-panel-oracle-r2
+[21/30] bam-panel-cache-r3-cold
+[22/30] bam-panel-cache-r3-resumed
+[23/30] bam-panel-cache-r3-persisted
+[24/30] cram-panel-cache-r3-cold
+[25/30] cram-panel-cache-r3-resumed
+[26/30] cram-panel-cache-r3-persisted
+[27/30] bam-panel-base-r3
+[28/30] cram-panel-oracle-r3
+[29/30] bam-panel-oracle-r3
+[30/30] cram-panel-base-r3
+[1/30] cram-panel-cache-r1-cold
+[2/30] cram-panel-cache-r1-resumed
+[3/30] cram-panel-cache-r1-persisted
+[4/30] cram-panel-base-r1
+[5/30] bam-panel-oracle-r1
+[6/30] cram-panel-oracle-r1
+[7/30] bam-panel-cache-r1-cold
+[8/30] bam-panel-cache-r1-resumed
+[9/30] bam-panel-cache-r1-persisted
+[10/30] bam-panel-base-r1
+[11/30] cram-panel-cache-r2-cold
+[12/30] cram-panel-cache-r2-resumed
+[13/30] cram-panel-cache-r2-persisted
+[14/30] bam-panel-oracle-r2
+[15/30] bam-panel-base-r2
+[16/30] bam-panel-cache-r2-cold
+[17/30] bam-panel-cache-r2-resumed
+[18/30] bam-panel-cache-r2-persisted
+[19/30] cram-panel-base-r2
+[20/30] cram-panel-oracle-r2
+[21/30] bam-panel-cache-r3-cold
+[22/30] bam-panel-cache-r3-resumed
+[23/30] bam-panel-cache-r3-persisted
+[24/30] cram-panel-cache-r3-cold
+[25/30] cram-panel-cache-r3-resumed
+[26/30] cram-panel-cache-r3-persisted
+[27/30] bam-panel-base-r3
+[28/30] cram-panel-oracle-r3
+[29/30] bam-panel-oracle-r3
+[30/30] cram-panel-base-r3
+ok
+test_effective_scheduling_and_refusals_are_not_hidden (test_representative.HarnessTests.test_effective_scheduling_and_refusals_are_not_hidden) ... ok
+test_final_checks_rehash_even_when_snapshot_check_is_not_used (test_representative.HarnessTests.test_final_checks_rehash_even_when_snapshot_check_is_not_used) ... ok
+test_fingerprints_and_invalid_matrix_retain_failure_report (test_representative.HarnessTests.test_fingerprints_and_invalid_matrix_retain_failure_report) ... ok
+test_midrun_mutation_aborts_and_records_remaining_inventory (test_representative.HarnessTests.test_midrun_mutation_aborts_and_records_remaining_inventory) ... [1/30] cram-panel-cache-r1-cold
+ok
+test_resume_gate_does_not_hide_separate_cram_validation (test_representative.HarnessTests.test_resume_gate_does_not_hide_separate_cram_validation) ... [1/30] cram-panel-cache-r1-cold
+[2/30] cram-panel-cache-r1-resumed
+[3/30] cram-panel-cache-r1-persisted
+[4/30] cram-panel-base-r1
+[5/30] bam-panel-oracle-r1
+[6/30] cram-panel-oracle-r1
+[7/30] bam-panel-cache-r1-cold
+[8/30] bam-panel-cache-r1-resumed
+[9/30] bam-panel-cache-r1-persisted
+[10/30] bam-panel-base-r1
+[11/30] cram-panel-cache-r2-cold
+[12/30] cram-panel-cache-r2-resumed
+[13/30] cram-panel-cache-r2-persisted
+[14/30] bam-panel-oracle-r2
+[15/30] bam-panel-base-r2
+[16/30] bam-panel-cache-r2-cold
+[17/30] bam-panel-cache-r2-resumed
+[18/30] bam-panel-cache-r2-persisted
+[19/30] cram-panel-base-r2
+[20/30] cram-panel-oracle-r2
+[21/30] bam-panel-cache-r3-cold
+[22/30] bam-panel-cache-r3-resumed
+[23/30] bam-panel-cache-r3-persisted
+[24/30] cram-panel-cache-r3-cold
+[25/30] cram-panel-cache-r3-resumed
+[26/30] cram-panel-cache-r3-persisted
+[27/30] bam-panel-base-r3
+[28/30] cram-panel-oracle-r3
+[29/30] bam-panel-oracle-r3
+[30/30] cram-panel-base-r3
+ok
+test_summaries_exclude_failed_measurements_but_retain_requested_count (test_representative.HarnessTests.test_summaries_exclude_failed_measurements_but_retain_requested_count) ... ok
+test_bam_cram_and_multiallelic_snv_equality (test_representative.OracleTests.test_bam_cram_and_multiallelic_snv_equality) ... ok
+test_cigar_filters_zero_denominators_and_tile_bounds (test_representative.OracleTests.test_cigar_filters_zero_denominators_and_tile_bounds) ... ok
+test_native_exact_oracle_both_formats_and_selections (test_representative.OracleTests.test_native_exact_oracle_both_formats_and_selections) ... ok
+test_unsorted_selection_and_ambiguous_samples_fail_explicitly (test_representative.OracleTests.test_unsorted_selection_and_ambiguous_samples_fail_explicitly) ... ok
+
+----------------------------------------------------------------------
+Ran 38 tests in 0.696s
+
+OK

@@ -1,0 +1,5 @@
+{
+  "fresh_candidate_labels_may_be_accessed": true,
+  "rule": "No model, policy, region or gate changes; never silently consume candidate outcomes twice",
+  "stage": "before constructing truth index; no model scoring yet"
+}

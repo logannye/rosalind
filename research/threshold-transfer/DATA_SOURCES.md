@@ -1,5 +1,10 @@
 # Independent HG001 sources and acquisition boundary
 
+The sources below remain fixed. The later, explicitly authorized
+[source-only input contract](INPUT_CONTRACT.md) supersedes the historical read-group
+admission hypothesis in this document. Its [completed result](CONTINUATION_RESULTS.md)
+preserves the original missing-metadata failure and does not invent library identity.
+
 Metadata was inspected on 2026-10-22 before acquiring or evaluating fresh reads.
 The adapter freezes the exact URLs, published MD5 values, object sizes and, for
 the partially acquired BAM, Last-Modified value in `DEFAULT_SOURCES`. The study

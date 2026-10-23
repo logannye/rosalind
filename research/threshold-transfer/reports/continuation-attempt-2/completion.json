@@ -1,0 +1,10 @@
+{
+  "fresh_test_consumed": true,
+  "frozen_policy_sha256": "899ee3f34e9c3fb10d04da23d0637d07780b552f23239724c894b980c4ae0dbd",
+  "input_identity_rechecked": true,
+  "p1_authorized": false,
+  "report_sha256": "06114b1536efe591fbe1627e2aef69aaf6a802e628d4918cbaaf09a2c59e9847",
+  "run_manifest_sha256": "e066d3d8226fe06b0c3ceb112cbf782a224a77cce73ec662af9b7a40bd09d5ee",
+  "selective_escalation_authorized": false,
+  "status": "completed"
+}

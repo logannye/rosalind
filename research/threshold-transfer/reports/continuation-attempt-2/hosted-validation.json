@@ -1,0 +1,101 @@
+{
+  "schema": "rosalind-hosted-continuation-validation-v1",
+  "run_id": 39997188782,
+  "source_revision": "10096419d00c18a03f64098c8c5f35701560bb59",
+  "run_attempt": 1,
+  "platform": "GitHub-hosted ubuntu-24.04, Linux x86_64, Python3.11",
+  "conclusion": "success",
+  "job_seconds": 730,
+  "continuation_job_seconds": 768,
+  "all_threshold_study_job_seconds": 1386,
+  "python_test_counts": {
+    "evidence": 54,
+    "calibration": 30,
+    "threshold": 95,
+    "native_integration": 29,
+    "independent_oracles": 38,
+    "total": 246
+  },
+  "rust_workspace_tests_passed": true,
+  "rust_format_passed": true,
+  "release_build_passed": true,
+  "artifacts": [
+    {
+      "id": 12520991213,
+      "bytes": 16378,
+      "digest": "sha256:9c0411fa173f324a77affb0cc60c8605cbf3171509e6782e98012ea07f0bcbd0",
+      "provider_identity_verified_locally": true
+    },
+    {
+      "id": 12520577858,
+      "bytes": 16529974,
+      "digest": "sha256:0b389958f07e9f12b528e9d290fa996f1fcf5b9fc42a286c1f6bb67b423528af",
+      "provider_identity_verified_locally": true
+    }
+  ],
+  "completion": {
+    "fresh_test_consumed": true,
+    "frozen_policy_sha256": "899ee3f34e9c3fb10d04da23d0637d07780b552f23239724c894b980c4ae0dbd",
+    "input_identity_rechecked": true,
+    "p1_authorized": false,
+    "report_sha256": "06114b1536efe591fbe1627e2aef69aaf6a802e628d4918cbaaf09a2c59e9847",
+    "run_manifest_sha256": "e066d3d8226fe06b0c3ceb112cbf782a224a77cce73ec662af9b7a40bd09d5ee",
+    "selective_escalation_authorized": false,
+    "status": "completed"
+  },
+  "manifest_files_verified": 3063,
+  "manifest_retained_bytes": 220374472,
+  "separate_freeze_equals_final": true,
+  "scientific_gate": {
+    "checks": {
+      "all_required_conditions_present": true,
+      "downsampled_comparison_uncertainty_supported": true,
+      "downsampled_counts_absolute_recall": true,
+      "downsampled_recall_noninferiority": true,
+      "downsampled_rich_absolute_recall": true,
+      "novel_low_comparison_uncertainty_supported": true,
+      "novel_low_counts_absolute_recall": true,
+      "novel_low_recall_noninferiority": true,
+      "novel_low_rich_absolute_recall": false,
+      "original_comparison_uncertainty_supported": true,
+      "original_counts_absolute_recall": true,
+      "original_recall_noninferiority": true,
+      "original_rich_absolute_recall": false,
+      "primary_absolute_fp_gain": true,
+      "primary_all_workload_reduction": false,
+      "primary_assessed_workload_reduction": false,
+      "primary_fp_gain_ci_positive": true,
+      "primary_relative_fp_gain": false
+    },
+    "empirical_spatial_bounds_are_not_person_shift_guarantees": true,
+    "external_checks": {
+      "all_declared_depth_costs_present": true,
+      "coordinate_order": true,
+      "fresh_independent_counts": true,
+      "fresh_inputs_unchanged": true,
+      "fresh_native_parquet_features": true,
+      "full_template_identity": true,
+      "metadata_preflight": true,
+      "preflight_bytes_unchanged": true,
+      "raw_unavailable_replay": true,
+      "saved_feature_costs_recorded": true,
+      "standalone_columnar_policy_parity": true,
+      "standalone_counts_features_equal": true
+    },
+    "nominate_fresh_workflow_validation": false,
+    "predictive_and_workload_screen_passed": false,
+    "proceed_to_p1": false,
+    "reason": "Full acquisition, deferred review and fallback costs remain external requirements",
+    "recall_estimand": "Candidate retention including unresolved pass-throughs",
+    "selective_escalation_authorized": false,
+    "status": "prespecified_screen_not_met",
+    "total_workflow_cost_advantage_established": false
+  },
+  "limitations": [
+    "Local work was static editing and reading/verifying hosted outputs; no local tests, builds or scientific execution.",
+    "Raw acquisition inputs and preflight BAI are intentionally excluded from uploaded results; hosted input recheck receipts are retained.",
+    "Whole remote BAM MD5 was not verified; pinned metadata and byte-range receipts bound partial acquisition.",
+    "Provider job durations are not billing receipts.",
+    "The summary files are copied from an immutable hosted artifact; full artifact and detailed evidence remain in ignored local storage and GitHub artifacts."
+  ]
+}

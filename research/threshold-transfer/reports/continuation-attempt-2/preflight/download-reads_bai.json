@@ -1,0 +1,18 @@
+{
+  "failure": null,
+  "headers": {
+    "Content-Length": "12006264",
+    "Last-Modified": "Tue, 08 Mar 2016 14:47:13 GMT"
+  },
+  "published_md5_verified": true,
+  "received_bytes": 12006264,
+  "received_md5": "00fd8ac75a92daf341e79008e7e9d900",
+  "received_sha256": "70732f19dbd14ef1253ceaa9d1d979cb4cef0e20cbba425df93e4c5c23378d5d",
+  "source": {
+    "bytes": 12006264,
+    "md5": "00fd8ac75a92daf341e79008e7e9d900",
+    "url": "https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/NA12878/NIST_NA12878_HG001_HiSeq_300x/NHGRI_Illumina300X_novoalign_bams/HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x.bam.bai"
+  },
+  "status": 200,
+  "wall_seconds": 0.22329016800000545
+}
