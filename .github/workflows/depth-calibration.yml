@@ -1,0 +1,89 @@
+name: Saved HG002 depth calibration
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/hg002-depth-calibration]
+    paths:
+      - 'research/depth-calibration/**'
+      - '!research/depth-calibration/reports/**'
+      - '!research/depth-calibration/RESULTS.md'
+      - '!research/depth-calibration/README.md'
+      - '.github/workflows/depth-calibration.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: depth-calibration-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  saved-evidence:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      OMP_NUM_THREADS: '1'
+      OPENBLAS_NUM_THREADS: '1'
+      MKL_NUM_THREADS: '1'
+      NUMEXPR_NUM_THREADS: '1'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11'
+      - name: Install exact source-model binary wheels
+        run: |
+          mkdir -p validation-results
+          python -m pip install --only-binary=:all: -r research/evidence-sufficiency/requirements.lock
+      - name: Test calibration, split, metric and provenance boundaries
+        run: |
+          python -m unittest discover -s research/evidence-sufficiency/tests -p test_study.py -v 2>&1 | tee validation-results/original-study-tests.log
+          python -m unittest discover -s research/depth-calibration/tests -v 2>&1 | tee validation-results/tests.log
+      - name: Retrieve the exact previously validated source artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api repos/logannye/rosalind/actions/runs/39879349288 > validation-results/source-run.json
+          gh api repos/logannye/rosalind/actions/artifacts/12470695514 > validation-results/source-artifact.json
+          gh api repos/logannye/rosalind/actions/artifacts/12470695514/zip > validation-results/source.zip
+      - name: Execute frozen calibration experiment on saved evidence
+        timeout-minutes: 17
+        run: |
+          python -u research/depth-calibration/run.py \
+            --archive validation-results/source.zip \
+            --run-metadata validation-results/source-run.json \
+            --artifact-metadata validation-results/source-artifact.json \
+            --output validation-results/calibration 2>&1 | tee validation-results/calibration.log
+      - name: Publish scientific decision separately from job status
+        if: always()
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          path = Path('validation-results/calibration/report.json')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as out:
+              out.write('Exploratory reanalysis of previously inspected HG002 evidence. Original P0 stop and P1 lock remain in force.\n\n')
+              if (path.parent / 'failure.json').exists():
+                  out.write('Scientific execution failed; any partial report is invalid. Inspect failure.json and logs.\n')
+              elif path.exists() and (path.parent / 'completion.json').exists():
+                  report = json.loads(path.read_text())
+                  out.write('```json\n' + json.dumps(report['gate'], indent=2) + '\n```\n')
+              else:
+                  out.write('No completed scientific report; any partial screen is provisional. Inspect retained failure logs.\n')
+          PY
+      - name: Retain models, predictions, receipts and failure records
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: depth-calibration-${{ github.sha }}-${{ github.run_id }}
+          path: |
+            validation-results
+            !validation-results/source.zip
+            !validation-results/verified-source/**
+          if-no-files-found: error
+          retention-days: 30
