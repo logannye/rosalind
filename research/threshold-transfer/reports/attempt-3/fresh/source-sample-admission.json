@@ -1,0 +1,46 @@
+{
+  "accepted": false,
+  "allowed_sample_labels": [
+    "HG001",
+    "NA12878",
+    "U0a",
+    "U0b",
+    "U0c",
+    "U1a",
+    "U1b",
+    "U2a",
+    "U2b",
+    "U3a",
+    "U3b",
+    "U4a",
+    "U4b",
+    "U5a",
+    "U5b",
+    "U5c"
+  ],
+  "binding_scope": "exact-source published metadata; not genotype authentication",
+  "binding_sources": [
+    "https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/NA12878/NIST_NA12878_HG001_HiSeq_300x/README_NIST_Illumina_pairedend_NA12878.txt",
+    "https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/NA12878/NIST_NA12878_HG001_HiSeq_300x/131219_D00360_005_BH814YADXX/Project_RM8398/",
+    "https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/NA12878/NIST_NA12878_HG001_HiSeq_300x/140127_D00360_0011_AHGV6ADXX/Project_RM8398/"
+  ],
+  "canonical_sample": "HG001",
+  "failures": [
+    "source header has no read groups"
+  ],
+  "normalization": "derived header SM only; RG IDs, read tags, QNAMEs and template hash inputs preserved",
+  "observed_sample_labels": [],
+  "original_header": {
+    "bytes": 237114,
+    "path": "/home/runner/work/rosalind/rosalind/validation-results/threshold-transfer/fresh/source-header.sam",
+    "sha256": "2a507e6a549c0e6b62bdccb14da7c4b10dec3c7882fb04e357782672ceabc856"
+  },
+  "read_groups": [],
+  "source": {
+    "bytes": 589702020566,
+    "last_modified": "Tue, 08 Mar 2016 18:53:34 GMT",
+    "md5": "f48bf321c34f32b7c08feb17b9e5b220",
+    "url": "https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/NA12878/NIST_NA12878_HG001_HiSeq_300x/NHGRI_Illumina300X_novoalign_bams/HG001.GRCh38_full_plus_hs38d1_analysis_set_minus_alts.300x.bam"
+  },
+  "source_matches_reviewed_object": true
+}

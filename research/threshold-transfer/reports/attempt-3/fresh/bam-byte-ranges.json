@@ -1,0 +1,30 @@
+[
+  {
+    "complete": true,
+    "received_bytes": 28,
+    "received_sha256": "d079906378251d29409f7f0f691113fd3b0049b5927b713e2704ca44ac743d48",
+    "requested_end_inclusive": 589702020565,
+    "start": 589702020538
+  },
+  {
+    "complete": false,
+    "received_bytes": 655360,
+    "received_sha256": "6c4020e583c67e074e5dc54a9235d6994e9e6f447674747684897d71ba72c371",
+    "requested_end_inclusive": 8388607,
+    "start": 0
+  },
+  {
+    "complete": true,
+    "received_bytes": 28,
+    "received_sha256": "d079906378251d29409f7f0f691113fd3b0049b5927b713e2704ca44ac743d48",
+    "requested_end_inclusive": 589702020565,
+    "start": 589702020538
+  },
+  {
+    "complete": false,
+    "received_bytes": 196608,
+    "received_sha256": "061d2ba689edab023ac9e70a41705eead91656d09c7cddf00989e2e6a8465f23",
+    "requested_end_inclusive": 8388607,
+    "start": 0
+  }
+]

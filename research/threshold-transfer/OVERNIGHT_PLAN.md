@@ -97,5 +97,7 @@ six-runner-hour totals still apply. Prior hosted runner time is 275 seconds.
 The workflow rejects reruns and requires the provider's attempt inventory to equal
 the two preserved failures plus the current final run. Any scientific failure or
 further execution failure ends this scoped study without another retry. The
-expired overnight heartbeat is paused; the resumed attempt is supervised in the
-current chat, with the same hosted-only execution and reporting requirements.
+expired overnight heartbeat was paused and then deleted at the user's request;
+the resumed attempt was supervised in the current chat with the same hosted-only
+execution and reporting requirements. It stopped at header admission; all three
+attempts are now consumed. See [the final report](RESULTS.md).

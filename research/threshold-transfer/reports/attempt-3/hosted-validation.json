@@ -1,0 +1,85 @@
+{
+  "schema": "rosalind-hosted-threshold-validation-v1",
+  "source_revision": "47773f64cb2c3b9e87c9ce369b03891b0766a32a",
+  "run_id": 39991819570,
+  "run_url": "https://github.com/logannye/rosalind/actions/runs/39991819570",
+  "run_attempt": 1,
+  "provider_conclusion": "failure",
+  "hosted_platform": "ubuntu-24.04 / Linux x86_64 / Python3.11.17",
+  "job_runner_seconds": 343,
+  "runner_time_scope": "Sum of provider job start/completion spans; not a billed-cost receipt",
+  "tests": {
+    "evidence_study": 54,
+    "depth_calibration": 30,
+    "threshold_transfer": 60,
+    "native_python": 29,
+    "independent_evidence_oracle": 38,
+    "all_python_passed": true,
+    "cargo_fmt": "passed",
+    "cargo_test_locked_workspace": "passed",
+    "cargo_build_locked_release": "passed"
+  },
+  "frozen_policy_sha256": "899ee3f34e9c3fb10d04da23d0637d07780b552f23239724c894b980c4ae0dbd",
+  "protocol_sha256": "27cdb262fef4ed2e23f4f78914be766b34cfd89dd5898f4fc270f3bb049e3d1a",
+  "freeze_files_match_final_artifact": true,
+  "original_frozen_policy_and_protocol_equal": true,
+  "artifact_identities": [
+    {
+      "id": 12518421880,
+      "name": "threshold-freeze-47773f64cb2c3b9e87c9ce369b03891b0766a32a-39991819570",
+      "bytes": 16069,
+      "sha256": "0d86dc5cfef0315493aa1afe019d433dadf00e1b869618b55bc56217b4a0f155",
+      "provider_size_and_sha256_verified": true
+    },
+    {
+      "id": 12517903067,
+      "name": "threshold-transfer-47773f64cb2c3b9e87c9ce369b03891b0766a32a-39991819570",
+      "bytes": 68515,
+      "sha256": "9f63cde6a482771ddb69b4d99b59549c98d71d4f67e4e7c5bd45a6450b25ec75",
+      "provider_size_and_sha256_verified": true
+    }
+  ],
+  "test_logs": {
+    "calibration-tests.log": {
+      "bytes": 5236,
+      "sha256": "93ee1ca9e93d96cc9ece834064393206012b2c92588ad697b5375c3e9ee29bd1"
+    },
+    "freeze.log": {
+      "bytes": 122,
+      "sha256": "6e97232f33ccaeb83cc3c55de4b9a5c5ae80729285e1250450b32d51f3ec45e8"
+    },
+    "evidence-study-tests.log": {
+      "bytes": 7825,
+      "sha256": "3966b70c86c224cb1f1805765c8525581f0a57e9112fb15015be4726428ec4a6"
+    },
+    "fresh.log": {
+      "bytes": 2316,
+      "sha256": "4ae58fd5f1bb0224f78fa000da830e01bfffdbfbba05dd22d1c9eb350549affe"
+    },
+    "threshold-tests.log": {
+      "bytes": 9934,
+      "sha256": "f414b0e061c201b14bff709be1c761ee24c5e0c1202df4317a24e93fc637509c"
+    },
+    "native-tests.log": {
+      "bytes": 78395,
+      "sha256": "d6a48a0c85b4c5f37edd323bbe7b209bf2e4f7dd490d1a71ba4e6f449193e5d2"
+    },
+    "evidence-oracle-tests.log": {
+      "bytes": 12872,
+      "sha256": "9e1cdf436f6fecdf72b7cf471a4c773af5208c1c7e854caa68554927ea4874cf"
+    },
+    "python-native-tests.log": {
+      "bytes": 5862,
+      "sha256": "5cee4b9bc35b993a06531b5480c3bf6d2fbf92552d67600c07882fdeeb0ec5ef"
+    },
+    "native-build.log": {
+      "bytes": 7693,
+      "sha256": "70ba3885561c58d2d4451d8eac5de5e96701918f89f77decf61aee3741a3c493"
+    }
+  },
+  "scientific_completion": false,
+  "failure": "source header has no read groups",
+  "fresh_candidate_generation_started": false,
+  "fresh_model_scoring_started": false,
+  "fresh_access_scope": "Reference, BAI and benchmark files downloaded; benchmark BED coverage checked; remote BAM header read. No interval read fetch, candidate generation, candidate truth labels or model scoring."
+}

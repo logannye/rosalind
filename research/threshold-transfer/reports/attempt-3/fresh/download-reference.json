@@ -1,0 +1,18 @@
+{
+  "failure": null,
+  "headers": {
+    "Content-Length": "874637925",
+    "Last-Modified": "Wed, 17 Feb 2016 21:33:41 GMT"
+  },
+  "published_md5_verified": true,
+  "received_bytes": 874637925,
+  "received_md5": "a056c57649f3c9964c68aead3849bbf8",
+  "received_sha256": "08959902840a28f410ad1220e36b2a3fbe2cb90beecceb6ea5b050a0e68ed96d",
+  "source": {
+    "bytes": 874637925,
+    "md5": "a056c57649f3c9964c68aead3849bbf8",
+    "url": "https://ftp.ncbi.nlm.nih.gov/genomes/all/GCA/000/001/405/GCA_000001405.15_GRCh38/seqs_for_alignment_pipelines.ucsc_ids/GCA_000001405.15_GRCh38_no_alt_plus_hs38d1_analysis_set.fna.gz"
+  },
+  "status": 200,
+  "wall_seconds": 20.545004327000015
+}

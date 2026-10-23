@@ -1,0 +1,12 @@
+{
+  "elapsed_seconds": 44.940652605000025,
+  "limitations": "sampled peaks may miss brief maxima; cooperative admission plus job timeout",
+  "phases_seconds": {
+    "fresh_acquisition_extraction_and_oracles": 44.93970711200001
+  },
+  "resource_error": null,
+  "rss_sample_seconds": 0.1,
+  "sampled_process_tree_peak_rss_bytes": 192356352,
+  "sampled_scratch_peak_bytes": 4178937770,
+  "scratch_sample_seconds": 5
+}

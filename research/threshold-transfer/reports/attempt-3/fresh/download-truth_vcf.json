@@ -1,0 +1,18 @@
+{
+  "failure": null,
+  "headers": {
+    "Content-Length": "125932193",
+    "Last-Modified": "Mon, 20 Sep 2021 16:51:05 GMT"
+  },
+  "published_md5_verified": true,
+  "received_bytes": 125932193,
+  "received_md5": "ec61d76ad725d808e3a9e1c8acec402a",
+  "received_sha256": "93bc4c2c696eaf13515ab058caecc064bfed704f85bac7482330ca91bc730daa",
+  "source": {
+    "bytes": 125932193,
+    "md5": "ec61d76ad725d808e3a9e1c8acec402a",
+    "url": "https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/NA12878_HG001/NISTv4.2.1/GRCh38/HG001_GRCh38_1_22_v4.2.1_benchmark.vcf.gz"
+  },
+  "status": 200,
+  "wall_seconds": 2.055979347999994
+}

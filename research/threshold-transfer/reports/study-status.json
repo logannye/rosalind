@@ -1,0 +1,50 @@
+{
+  "schema": "rosalind-threshold-study-status-v1",
+  "status": "incomplete_acquisition",
+  "attempts_exhausted": true,
+  "source_revision": "47773f64cb2c3b9e87c9ce369b03891b0766a32a",
+  "last_run_id": 39991819570,
+  "fresh_candidate_generation_started": false,
+  "fresh_test_scored": false,
+  "selected_policies": {
+    "counts": "M10_pooled::retain_all",
+    "rich": "M11_pooled::depth_table_q0.999"
+  },
+  "conditions": {
+    "original": {
+      "candidate_generation_recall": null,
+      "counts_candidate_retention_recall": null,
+      "rich_candidate_retention_recall": null,
+      "recall_uncertainty": null,
+      "false_positive_reduction": null,
+      "workload_reduction": null,
+      "extraction_or_replay_cost": null,
+      "gates": "not_evaluable"
+    },
+    "downsampled": {
+      "candidate_generation_recall": null,
+      "counts_candidate_retention_recall": null,
+      "rich_candidate_retention_recall": null,
+      "recall_uncertainty": null,
+      "false_positive_reduction": null,
+      "workload_reduction": null,
+      "extraction_or_replay_cost": null,
+      "gates": "not_evaluable"
+    },
+    "novel_low": {
+      "candidate_generation_recall": null,
+      "counts_candidate_retention_recall": null,
+      "rich_candidate_retention_recall": null,
+      "recall_uncertainty": null,
+      "false_positive_reduction": null,
+      "workload_reduction": null,
+      "extraction_or_replay_cost": null,
+      "gates": "not_evaluable"
+    }
+  },
+  "nominate_fresh_workflow_validation": false,
+  "p1_authorized": false,
+  "selective_escalation_authorized": false,
+  "product_promotion_authorized": false,
+  "reason": "Source metadata incompatible with audited read-group/template-identity contract; no completed fresh evaluation."
+}

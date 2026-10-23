@@ -1,0 +1,28 @@
+{
+  "git_revision": "47773f64cb2c3b9e87c9ce369b03891b0766a32a",
+  "github_run_attempt": "1",
+  "github_run_id": "39991819570",
+  "native_sha256": "9c84882d09aec422f437393005546b18010f3b22331848446cef6425b62d70b4",
+  "native_version": "rosalind 0.5.0",
+  "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+  "python": "3.11.17 (main, Oct  1 2026, 14:32:31) [GCC 13.3.0]",
+  "source_sha256": {
+    ".github/workflows/threshold-transfer.yml": "fbafc4f94439a4a22fb1e41104065d90decd414198608bb07709b5b04bb46199",
+    "python/rosalind/__init__.py": "bfbbea129cc6634563f10e73ecbd1d07dc20c031c97c013b0971500e4425d9f2",
+    "python/rosalind/dataset.py": "caba4ff81ed1c03510a653a179206ae07c89f2c9ff2f697af9ee93438b9129d6",
+    "python/rosalind/evidence.py": "3bccf02a292eaba614731981990eca78de6adcba79fc5686c66bcfc9dcf5fa5b",
+    "python/rosalind/features.py": "7c252f335adb83866d8b42dd3943649d9afbb28440f94cba39b9da8f5a0e3ff5",
+    "python/rosalind/receipts.py": "3266a8927a98a5b213235ad6e860037b647c7cd1b2e75e13950ebb9a1a6e615d",
+    "research/evidence-sufficiency/features.py": "5cd5a156f697e600b26c6bf0e0ec9502d13c0de688b39f456d3af604abc8d5e5",
+    "research/evidence-sufficiency/labels.py": "66192093b6ddabbdf8a339871ac7e9a81030b6beb5abfa4c3e141c232faffa3c",
+    "research/evidence-sufficiency/prepare.py": "1b5e26a919633d5940f37766010310cddc326ef27d654b3cb536880425864432",
+    "research/evidence-sufficiency/run_pilot.py": "4086e0ab192f5d97da891ff0a7afb34e64ddb3e8816f3fad6f9637ae461788cb",
+    "research/evidence-sufficiency/study.py": "be750090ad9fdfd47d752765fdd428e0d1f41c60a42b5a2d6f214d2bc1ad923e",
+    "research/threshold-transfer/costs.py": "f1b90f5d370fbcc593532d91e2bf807d290275dd122cca2e5d9af053d4502198",
+    "research/threshold-transfer/execution-window.json": "49f0508597882d407c415fc09c1d6e1799ebfa0dc6fc0242e28808c8e3ffafe0",
+    "research/threshold-transfer/prepare_fresh.py": "1de8eba3efe74659e9317316fe2c25c1c85c68503bbec59704a49aedc63f2416",
+    "research/threshold-transfer/protocol.json": "27cdb262fef4ed2e23f4f78914be766b34cfd89dd5898f4fc270f3bb049e3d1a",
+    "research/threshold-transfer/run.py": "9ca865eb2da7ab2903db6e0663206f748498f11898966b45e83564bfa26de4c9",
+    "research/threshold-transfer/thresholds.py": "50cb91aa38dbd1f2a7d7f19aa2fc018a764d6c4f057a28040008586ada260bc8"
+  }
+}

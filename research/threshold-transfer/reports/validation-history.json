@@ -20,6 +20,22 @@
       "native_tests_and_build": "passed",
       "python_native_and_evidence_oracles": "passed",
       "reason": "Pinned HG001 BAM failed the single canonical sample-name guard. Actual header values were not retained; source-owner metadata supports a finite technical-library alias repair, but the precise mismatch is unconfirmed."
+    },
+    {
+      "run_id": 39991819570,
+      "source_revision": "47773f64cb2c3b9e87c9ce369b03891b0766a32a",
+      "status": "fresh_header_admission_failed",
+      "url": "https://github.com/logannye/rosalind/actions/runs/39991819570",
+      "fresh_test_scored": false,
+      "created_utc": "2026-10-23T17:02:46Z",
+      "scientific_unit_tests": "passed",
+      "native_tests_and_build": "passed",
+      "python_native_and_evidence_oracles": "passed",
+      "original_frozen_policy_and_protocol_equal": true,
+      "last_known_step": "Fresh GIAB acquisition and evaluation",
+      "runner_seconds": 343,
+      "reason": "Retained source header has no read groups; failure before interval fetching, candidate generation or scoring.",
+      "completed_utc": "2026-10-23T17:08:32Z"
     }
   ],
   "verified_artifacts": [
@@ -36,6 +52,20 @@
       "kind": "freeze",
       "bytes": 15425,
       "sha256": "9d041188b5ab9785d73bf45a0be4366ee87731370ab34cdc28670b3cb21de517"
+    },
+    {
+      "run_id": 39991819570,
+      "artifact_id": 12518421880,
+      "kind": "freeze",
+      "bytes": 16069,
+      "sha256": "0d86dc5cfef0315493aa1afe019d433dadf00e1b869618b55bc56217b4a0f155"
+    },
+    {
+      "run_id": 39991819570,
+      "artifact_id": 12517903067,
+      "kind": "result",
+      "bytes": 68515,
+      "sha256": "9f63cde6a482771ddb69b4d99b59549c98d71d4f67e4e7c5bd45a6450b25ec75"
     }
   ],
   "frozen_policy_sha256": "899ee3f34e9c3fb10d04da23d0637d07780b552f23239724c894b980c4ae0dbd",
@@ -43,6 +73,18 @@
     "counts": "M10_pooled::retain_all",
     "rich": "M11_pooled::depth_table_q0.999"
   },
+  "total_runner_seconds": 618,
+  "resumption": {
+    "authorization": "User replenished usage and explicitly asked to resume interrupted work",
+    "started_utc": "2026-10-23T17:00:00Z",
+    "deadline_utc": "2026-10-23T20:00:00Z",
+    "additional_hosted_attempts": 1,
+    "scientific_protocol_changed": false,
+    "automation_status": "DELETED",
+    "interruption": "Usage limit prevented completing the in-progress repair during the overnight window",
+    "automation_deletion_reason": "User explicitly requested deletion after the overnight window"
+  },
   "fresh_evaluation_consumed": false,
-  "repair_boundary": "Only execution/provenance defects may change. Model, policy and protocol bytes remain frozen. No fresh candidates or outcomes were produced by either attempt."
+  "scientific_status": "incomplete_acquisition",
+  "repair_boundary": "All three attempts exhausted. Original protocol, models and frozen policies retained. No fresh candidates or scoring outcomes produced. No fourth attempt, gate relaxation or advancement."
 }

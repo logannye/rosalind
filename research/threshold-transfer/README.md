@@ -1,7 +1,9 @@
 # Frozen thresholds across coverage and specimen changes
 
-Status: implementation and prospective protocol; results require a completed,
-identity-verified hosted run. Historical HG002 results are not fresh confirmation.
+Status: [stopped after the final allowed hosted attempt](RESULTS.md). Tests and
+policy freezing passed, but the fresh HG001 BAM lacks read groups required by the
+audited input contract. Fresh recall and practical benefit remain unmeasured.
+Historical HG002 results are not fresh confirmation.
 
 This study asks whether fixed pooled counts and rich-evidence models can retain
 at least 99% of assessed positive candidates under changed coverage while reducing
