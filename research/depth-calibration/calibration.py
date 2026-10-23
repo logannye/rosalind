@@ -526,8 +526,11 @@ def run_experiment(records: list[dict], original_bundle: dict,
                 elif variant == "depth_calibrated":
                     entry["calibrators"][condition] = depth_calibrator
                 else:
-                    entry["calibrators"][condition] = _fit_sigmoid(
-                        _raw(entry, cal, names, dep), [r["label"] for r in cal], dep)
+                    try:
+                        entry["calibrators"][condition] = _fit_sigmoid(
+                            _raw(entry, cal, names, dep), [r["label"] for r in cal], dep)
+                    except ValueError as exc:
+                        raise ValueError(f"{arm}/{condition}: {exc}") from exc
                     calibrator_fits += 1
                 # The frozen control transfers the old original operating point.
                 selection_rows = development[("threshold", original)] if variant == "frozen" else threshold_rows

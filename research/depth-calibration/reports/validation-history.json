@@ -1,0 +1,25 @@
+{
+  "initial_frozen_commit": "854efe2351209cf0154c22267a2442f51c64c246",
+  "runs": [
+    {
+      "run_id": 39895345667,
+      "url": "https://github.com/logannye/rosalind/actions/runs/39895345667",
+      "status": "test_fixture_failure",
+      "hg002_executed": false,
+      "source_artifact_retrieved": false,
+      "original_tests_passed": 12,
+      "new_tests_passed": 29,
+      "new_tests_total": 30,
+      "error_excerpt": [
+        "2026-10-23T03:30:32.6167860Z Ran 12 tests in 1.662s",
+        "2026-10-23T03:30:33.9922020Z ERROR: test_development_only_fits_freeze_before_test_and_preserve_unknown_predictions (test_calibration.EstimatorBoundaryTests.test_development_only_fits_freeze_before_test_and_preserve_unknown_predictions)",
+        "2026-10-23T03:30:33.9933336Z   File \"/home/runner/work/rosalind/rosalind/research/depth-calibration/tests/test_calibration.py\", line 362, in test_development_only_fits_freeze_before_test_and_preserve_unknown_predictions",
+        "2026-10-23T03:30:33.9936150Z   File \"/home/runner/work/rosalind/rosalind/research/depth-calibration/calibration.py\", line 529, in run_experiment",
+        "2026-10-23T03:30:33.9937963Z   File \"/home/runner/work/rosalind/rosalind/research/depth-calibration/calibration.py\", line 115, in _fit_sigmoid",
+        "2026-10-23T03:30:33.9939141Z ValueError: sigmoid calibration must have a strictly positive slope",
+        "2026-10-23T03:30:33.9939887Z Ran 30 tests in 1.138s",
+        "2026-10-23T03:30:33.9940108Z FAILED (errors=1)"
+      ]
+    }
+  ]
+}

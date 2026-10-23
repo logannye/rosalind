@@ -32,9 +32,11 @@ def fixture_records():
             for condition in ("original", "downsampled"):
                 depth = (32 if condition == "original" else 10) + index % 3
                 fraction = .24 + .1 * signal + .005 * (index % 5)
+                # Keep a transferable ranking signal for the full-run boundary
+                # test. A raw alt-count split can collapse every reduced-depth
+                # score to one leaf, which the positive-slope guard rightly rejects.
                 f0 = {"callable_depth": depth, "alt_fraction": fraction,
-                      "alt_count": depth * fraction, "constant": 1.0,
-                      "undefined": None}
+                      "constant": 1.0, "undefined": None}
                 f1 = dict(f0, quality_difference=.2 + .6 * signal,
                           strand_fraction=.4 + .1 * (index % 2))
                 row = {"candidate_id": f"{block}:{index}", "contig": "chr20",
