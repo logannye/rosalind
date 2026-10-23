@@ -145,12 +145,61 @@ class PreparationTests(unittest.TestCase):
                 lambda p: p["intervals"][0].update(start=True),
                 lambda p: p["intervals"][0].update(contig="chr21"),
                 lambda p: p["intervals"][1].update(block_id="a"),
+                lambda p: p.update(require_nonempty_benchmark_coverage="true"),
                 lambda p: p["downsample"].update(numerator=35),
                 lambda p: p["limits"].update(download_bytes=5 << 30)):
             value = protocol()
             mutation(value)
             with self.assertRaises(ValueError):
                 prepare._validate_protocol(value)
+
+    def test_benchmark_coverage_merges_masks_and_respects_half_open_blocks(self):
+        body = (b"# confidence mask\nchr20\t15\t18\nchr20\t5\t15\nchr20\t12\t17\n"
+                b"chr20\t18\t20\nchr20\t20\t30\nchr20\t31\t33\n"
+                b"chr20\t31\t33\nchr21\t0\t100\n")
+        with tempfile.TemporaryDirectory() as directory:
+            for compressed in (False, True):
+                path = Path(directory) / ("mask.gz" if compressed else "mask.bed")
+                path.write_bytes(gzip.compress(body) if compressed else body)
+                report = prepare.benchmark_coverage(path, protocol()["intervals"])
+                self.assertEqual(report["selected_bases"], 20)
+                self.assertEqual(report["confident_bases"], 12)
+                self.assertEqual(report["by_block"]["a"]["confident_bases"], 10)
+                self.assertEqual(report["by_block"]["b"]["confident_fraction"], 0.2)
+                self.assertEqual(report["empty_block_ids"], [])
+            path.write_bytes(b"chr20\t20\t30\nchr21\t0\t100\n")
+            self.assertEqual(prepare.benchmark_coverage(path, protocol()["intervals"])
+                             ["empty_block_ids"], ["a", "b"])
+            path.write_bytes(b"chr20\t30\t20\n")
+            with self.assertRaisesRegex(ValueError, "invalid benchmark BED"):
+                prepare.benchmark_coverage(path, protocol()["intervals"])
+
+    def test_empty_benchmark_coverage_refuses_before_any_native_execution(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            resources = root / "resources.tsv"
+            resources.write_text("\n".join(
+                f"{key}\t{key}.dat\t{'a' * 64}\thttps://example.invalid/{key}"
+                for key in prepare.REQUIRED))
+            downloaded = []
+
+            def fake_download(row, out, budget):
+                downloaded.append(row["id"])
+                path = out / row["filename"]
+                path.write_bytes(b"chr20\t10\t20\n" if row["id"] == "truth_bed" else b"unused")
+                return {**row, "path": str(path), "bytes": path.stat().st_size}
+
+            value = protocol()
+            value["require_nonempty_benchmark_coverage"] = True
+            with patch.object(prepare, "_download", fake_download), \
+                    patch.object(prepare.importlib, "import_module") as native, \
+                    patch.object(prepare, "_downsample") as downsample:
+                with self.assertRaisesRegex(ValueError, "preflight refused.*no confident bases: b"):
+                    prepare.prepare_inputs(resources, value, root / "out")
+            self.assertEqual(downloaded, list(prepare.REQUIRED))
+            native.assert_not_called()
+            downsample.assert_not_called()
+            self.assertFalse((root / "out/preparation.json").exists())
 
     def test_half_open_overlap_keeps_spanning_record_once(self):
         self.assertFalse(prepare._overlaps(0, 10, [10, 30], [20, 40]))
@@ -284,7 +333,7 @@ class PreparationTests(unittest.TestCase):
             resources = root / "resources.tsv"
             bodies = {"reads_bam": b"original bam", "reads_bai": b"source index",
                       "reference": gzip.compress(b">chr20\nACGT\n>other\nACGT\n"),
-                      "truth_vcf": b"vcf fixture", "truth_bed": b"bed fixture"}
+                      "truth_vcf": b"vcf fixture", "truth_bed": b"chr20\t10\t20\n"}
             resources.write_text("\n".join(
                 f"{key}\t{key}.dat\t{hashlib.sha256(body).hexdigest()}\thttps://example.invalid/{key}"
                 for key, body in bodies.items()))
@@ -320,6 +369,9 @@ class PreparationTests(unittest.TestCase):
             self.assertEqual(Path(result["reference"]).read_bytes(), gzip.decompress(bodies["reference"]))
             self.assertEqual(json.loads((root / "out/preparation.json").read_text()), result)
             self.assertEqual(result["identities"]["dictionary_contigs"], 2)
+            self.assertEqual(result["metrics"]["benchmark_coverage"]["empty_block_ids"], ["b"])
+            self.assertEqual(result["identities"]["benchmark_coverage"]["truth_bed_sha256"],
+                             hashlib.sha256(bodies["truth_bed"]).hexdigest())
             with self.assertRaises(FileExistsError):
                 prepare.prepare_inputs(resources, protocol(), root / "out")
 

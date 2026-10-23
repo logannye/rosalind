@@ -215,7 +215,8 @@ def scan_candidates(state, protocol, binary, out):
         raise ValueError("candidate-row budget exceeded")
     write_jsonl(out/"candidates.jsonl", loci)
     write_json(out/"candidate-scan.json", {"rows":seen,"candidate_loci":len(loci),"block_totals":dict(totals),
-                                          "truth_loaded":False,"receipt":str(stream.result.manifest_path)})
+                                          "truth_labels_used":False,"benchmark_mask_used_for_candidate_selection":False,
+                                          "receipt":str(stream.result.manifest_path)})
     return loci
 
 

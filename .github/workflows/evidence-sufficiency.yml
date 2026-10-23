@@ -7,12 +7,20 @@ on:
         description: Run the frozen HG002 P0 after correctness checks
         type: boolean
         default: true
+      protocol:
+        description: Frozen initial pilot or its sole count-driven expansion
+        type: choice
+        options:
+          - protocol-p0-expanded.json
+          - protocol-p0.json
+        default: protocol-p0-expanded.json
   push:
     branches: [codex/evidence-sufficiency-pilot]
     paths:
       - 'research/evidence-sufficiency/*.py'
       - 'research/evidence-sufficiency/tests/**'
       - 'research/evidence-sufficiency/protocol-p0.json'
+      - 'research/evidence-sufficiency/protocol-p0-expanded.json'
       - 'research/evidence-sufficiency/requirements.lock'
       - '.github/workflows/evidence-sufficiency.yml'
 
@@ -41,6 +49,7 @@ jobs:
       OPENBLAS_NUM_THREADS: '1'
       MKL_NUM_THREADS: '1'
       NUMEXPR_NUM_THREADS: '1'
+      PILOT_PROTOCOL: ${{ inputs.protocol || 'protocol-p0-expanded.json' }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
@@ -82,6 +91,7 @@ jobs:
         run: |
           python -u research/evidence-sufficiency/run_pilot.py \
             --binary "$ROSALIND_BINARY" \
+            --protocol "research/evidence-sufficiency/$PILOT_PROTOCOL" \
             --output validation-results/hg002-p0 2>&1 | tee validation-results/pilot.log
       - name: Publish decision to job summary without unlocking P1 implicitly
         if: always()

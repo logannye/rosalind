@@ -6,7 +6,7 @@ import unittest
 
 HERE = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(HERE))
-from run_pilot import advancement_allowed, candidate_alts, locate, validate_protocol
+from run_pilot import advancement_allowed, candidate_alts, locate, truth_recovery, validate_protocol
 
 
 class BoundaryTests(unittest.TestCase):
@@ -43,6 +43,24 @@ class BoundaryTests(unittest.TestCase):
             self.assertFalse(advancement_allowed(gate,{**correct,key:False}))
         self.assertFalse(advancement_allowed({**gate,'test_outcomes_used':True},correct))
         self.assertFalse(advancement_allowed({**gate,'status':'insufficient_data'},correct))
+
+    def test_truth_recovery_includes_positives_never_proposed(self):
+        intervals = [{'partition':'test','block_id':'a'},{'partition':'test','block_id':'b'}]
+        generation = {'a':{'truth_snvs':3},'b':{'truth_snvs':1}}
+        study = {'metrics':{'test':{'original':{'M00':{'true_positives':2,'recall':1.0}}}}}
+        actual = truth_recovery(study,generation,intervals)['test']['original']['M00']
+        self.assertEqual(actual['assessed_truth_snvs'],4)
+        self.assertEqual(actual['truth_snv_recovery'],.5)
+
+    def test_expansion_retires_original_test_and_keeps_new_test_disjoint(self):
+        expanded=json.loads((HERE/'protocol-p0-expanded.json').read_text())
+        validate_protocol(expanded)
+        self.assertEqual(sum(r['end']-r['start'] for r in expanded['intervals']),15_990_000)
+        old_test=next(r for r in self.protocol['intervals'] if r['partition']=='test')
+        self.assertEqual(locate(expanded['intervals'],old_test['contig'],old_test['start'])['partition'],'train')
+        new_test=next(r for r in expanded['intervals'] if r['partition']=='test')
+        for old in self.protocol['intervals']:
+            self.assertTrue(new_test['end']<=old['start'] or new_test['start']>=old['end'])
 
 
 if __name__ == '__main__':

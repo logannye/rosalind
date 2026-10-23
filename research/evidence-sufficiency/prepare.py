@@ -6,6 +6,8 @@ execution. Run the entry point on the hosted study worker. Required protocol key
 are ``intervals``, ``downsample.{seed,numerator,denominator}``, and
 ``limits.{download_bytes,scratch_bytes}``. Optional ``sample`` defaults to HG002;
 ``limits.analysis_seconds`` defaults to 7200 and ``network_timeout_seconds`` to 30.
+``require_nonempty_benchmark_coverage`` optionally refuses any selected block with
+zero benchmark-BED coverage, before reference expansion or native execution.
 Deadlines and scratch limits are cooperative checks; the hosted job must impose a
 hard outer timeout. Failed preparation retains bounded partial evidence but never
 publishes preparation.json. No shared cache or existing output is overwritten.
@@ -101,6 +103,8 @@ def _source_lock(path):
 
 
 def _validate_protocol(protocol):
+    if type(protocol.get("require_nonempty_benchmark_coverage", False)) is not bool:
+        raise ValueError("require_nonempty_benchmark_coverage must be boolean")
     limits = protocol["limits"]
     download = _positive_int(limits["download_bytes"], "download_bytes")
     scratch = _positive_int(limits["scratch_bytes"], "scratch_bytes")
@@ -256,6 +260,81 @@ def _overlaps(start, end, starts, ends):
     return index >= 0 and ends[index] > start
 
 
+def benchmark_coverage(truth_bed: Path, intervals: list, budget=None) -> dict:
+    """Intersect a merged benchmark BED with selected zero-based half-open blocks.
+
+    Reads coordinates only, never the truth VCF or candidate observations. Plain
+    and gzip BEDs are supported; overlapping/duplicate/unsorted mask rows are
+    merged before counting. Only mask rows overlapping selected blocks are kept.
+    ``intervals`` must already have passed protocol validation.
+    """
+    selected = {}
+    for item in intervals:
+        selected.setdefault(item["contig"], []).append(item)
+    bounds = {}
+    masks = {contig: [] for contig in selected}
+    for contig, blocks in selected.items():
+        blocks.sort(key=lambda item: (item["start"], item["end"]))
+        bounds[contig] = ([item["start"] for item in blocks],
+                          [item["end"] for item in blocks])
+    with _read_regular(truth_bed) as source:
+        compressed = source.read(2) == b"\x1f\x8b"
+        source.seek(0)
+        with gzip.GzipFile(fileobj=source, mode="rb") if compressed else source as bed:
+            line_number = 0
+            while True:
+                if budget:
+                    budget.check_time()
+                line = bed.readline(CHUNK_BYTES + 1)
+                if not line:
+                    break
+                line_number += 1
+                if len(line) > CHUNK_BYTES:
+                    raise ValueError(f"benchmark BED line {line_number} exceeds 1 MiB")
+                fields = line.split()
+                if not fields or fields[0].startswith(b"#") or fields[0] in (b"track", b"browser"):
+                    continue
+                if (len(fields) < 3 or not re.fullmatch(rb"[0-9]+", fields[1])
+                        or not re.fullmatch(rb"[0-9]+", fields[2])):
+                    raise ValueError(f"invalid benchmark BED coordinates at line {line_number}")
+                contig = fields[0].decode("utf-8")
+                start, end = int(fields[1]), int(fields[2])
+                if not 0 <= start <= end < 1 << 63:
+                    raise ValueError(f"invalid benchmark BED interval at line {line_number}")
+                if contig in selected and start < end:
+                    starts, ends = bounds[contig]
+                    if _overlaps(start, end, starts, ends):
+                        masks[contig].append((max(start, starts[0]), min(end, ends[-1])))
+    merged = {}
+    for contig, rows in masks.items():
+        union = []
+        for start, end in sorted(rows):
+            if union and start <= union[-1][1]:
+                union[-1] = (union[-1][0], max(end, union[-1][1]))
+            else:
+                union.append((start, end))
+        merged[contig] = (union, [end for _, end in union])
+    blocks = {}
+    for item in intervals:
+        union, ends = merged[item["contig"]]
+        confident = 0
+        index = bisect.bisect_right(ends, item["start"])
+        while index < len(union) and union[index][0] < item["end"]:
+            start, end = union[index]
+            confident += min(item["end"], end) - max(item["start"], start)
+            index += 1
+        selected_bases = item["end"] - item["start"]
+        blocks[item["block_id"]] = {key: item[key] for key in
+                                    ("contig", "start", "end", "partition")}
+        blocks[item["block_id"]].update({"selected_bases": selected_bases,
+                                        "confident_bases": confident,
+                                        "confident_fraction": confident / selected_bases})
+    return {"by_block": blocks,
+            "selected_bases": sum(block["selected_bases"] for block in blocks.values()),
+            "confident_bases": sum(block["confident_bases"] for block in blocks.values()),
+            "empty_block_ids": [key for key, block in blocks.items() if block["confident_bases"] == 0]}
+
+
 def _audit_inputs(source, fasta, sample, intervals):
     if tuple(zip(source.references, source.lengths)) != tuple(zip(fasta.references, fasta.lengths)):
         raise ValueError("full ordered BAM/reference dictionaries differ")
@@ -364,6 +443,10 @@ def prepare_inputs(resources_path: Path, protocol: dict, out: Path) -> dict:
     sample = protocol.get("sample", "HG002")
     (out / "resources.tsv").write_bytes(lock_bytes)
     sources = {row["id"]: _download(row, out, budget) for row in rows}
+    coverage = benchmark_coverage(Path(sources["truth_bed"]["path"]), intervals, budget)
+    if protocol.get("require_nonempty_benchmark_coverage", False) and coverage["empty_block_ids"]:
+        raise ValueError("benchmark coverage preflight refused: selected blocks have no confident bases: "
+                         + ", ".join(coverage["empty_block_ids"]))
     pysam = importlib.import_module("pysam")
     reference = out / "reference.fa"
     with _read_regular(sources["reference"]["path"]) as compressed:
@@ -397,6 +480,10 @@ def prepare_inputs(resources_path: Path, protocol: dict, out: Path) -> dict:
     identities = {"resource_lock_sha256": hashlib.sha256(lock_bytes).hexdigest(),
                   "sources": sources, "sample": sample, "dictionary_contigs": dictionary_count,
                   "downsample": {**protocol["downsample"], "algorithm": "sha256-json-template-v1"},
+                  "benchmark_coverage": {"truth_bed_sha256": sources["truth_bed"]["sha256"],
+                                         "required_nonempty": protocol.get(
+                                             "require_nonempty_benchmark_coverage", False),
+                                         **coverage},
                   "pysam_version": pysam.__version__}
     for key, path in (("original_bam", original_bam), ("reference", reference),
                       ("reference_fai", Path(str(reference) + ".fai")),
@@ -410,6 +497,7 @@ def prepare_inputs(resources_path: Path, protocol: dict, out: Path) -> dict:
     metrics.update({"download_bytes": budget.download_bytes, "download_attempts": budget.attempts,
                     "scratch_high_water_bytes": budget.scratch_high_water,
                     "wall_seconds": time.monotonic() - budget.started,
+                    "benchmark_coverage": coverage,
                     "interval_bases": sum(x["end"] - x["start"] for x in intervals)})
     result = {"reference": str(reference), "original_bam": str(original_bam),
               "downsampled_bam": str(reduced_bam), "sample": sample,

@@ -1,0 +1,86 @@
+{
+  "candidate_rule": {
+    "fraction_denominator": 100,
+    "fraction_numerator": 2,
+    "minimum_alt_count": 2
+  },
+  "downsample": {
+    "denominator": 35,
+    "numerator": 10,
+    "seed": 42
+  },
+  "experiment": "p0-hg002-four-megabase-v1",
+  "extraction": {
+    "base_quality": 20,
+    "mapq": 20,
+    "max_read_len": 250,
+    "memory_budget_mb": 512,
+    "workers": 1
+  },
+  "gates": {
+    "min_development_negatives": 50,
+    "min_mean_ap_gain": 0.005,
+    "target_recall": 0.99
+  },
+  "intervals": [
+    {
+      "block_id": "train-10m",
+      "contig": "chr20",
+      "end": 11000000,
+      "partition": "train",
+      "start": 10000000
+    },
+    {
+      "block_id": "train-20m",
+      "contig": "chr20",
+      "end": 21000000,
+      "partition": "train",
+      "start": 20000000
+    },
+    {
+      "block_id": "calibration-30m",
+      "contig": "chr20",
+      "end": 30495000,
+      "partition": "calibration",
+      "start": 30000000
+    },
+    {
+      "block_id": "threshold-30m",
+      "contig": "chr20",
+      "end": 31000000,
+      "partition": "threshold",
+      "start": 30505000
+    },
+    {
+      "block_id": "test-40m",
+      "contig": "chr20",
+      "end": 41000000,
+      "partition": "test",
+      "start": 40000000
+    }
+  ],
+  "limits": {
+    "analysis_seconds": 7200,
+    "candidate_loci": 100000,
+    "candidate_rows": 300000,
+    "download_bytes": 4294967296,
+    "process_tree_rss_bytes": 15032385536,
+    "retained_evidence_bytes": 2147483648,
+    "scratch_bytes": 32212254720
+  },
+  "locked_study": "P1 must not execute unless all P0 correctness, adequacy and development-signal gates pass",
+  "model_seed": 42,
+  "primary_scope": "within-HG002 feasibility; pilot test never selects advancement; no independent-person generalization",
+  "rich_fields": [
+    "depths",
+    "alleles",
+    "strands",
+    "quality-sums",
+    "read-position",
+    "allele-quality"
+  ],
+  "schema": "rosalind-evidence-sufficiency-protocol-v1",
+  "specimen": "HG002",
+  "status": "frozen-before-first-data-run",
+  "truth_release": "GIAB HG002 v5.0q GRCh38"
+}

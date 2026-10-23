@@ -1,0 +1,98 @@
+{
+  "correctness": {
+    "independent_counts": true,
+    "native_parquet_features": true,
+    "prediction_equivalence": false,
+    "saved_only_replay": true
+  },
+  "gate": {
+    "proceed_to_p1": false,
+    "reasons": [
+      "both labelled classes required in development role/block: calibration",
+      "both labelled classes required in development role/block: threshold"
+    ],
+    "required_external_gates": [
+      "native_correctness",
+      "parquet_equivalence",
+      "saved_evidence_replay"
+    ],
+    "status": "insufficient_data",
+    "test_outcomes_used": false
+  },
+  "p1_authorized_by_gate": false,
+  "retained_evidence_bytes": 44050502,
+  "schema": "rosalind-evidence-sufficiency-result-v1",
+  "scope": "within-HG002 feasibility; pilot test never selects advancement; no independent-person generalization",
+  "status": "completed",
+  "study": {
+    "adequacy": {
+      "adequate": false,
+      "development_negative_count": 492,
+      "original_condition": "original",
+      "partition_counts": {
+        "calibration": {
+          "negative": 0,
+          "positive": 0,
+          "total": 5758,
+          "unknown": 5758
+        },
+        "threshold": {
+          "negative": 0,
+          "positive": 0,
+          "total": 9594,
+          "unknown": 9594
+        },
+        "train": {
+          "negative": 492,
+          "positive": 2382,
+          "total": 3335,
+          "unknown": 461
+        }
+      },
+      "reasons": [
+        "both labelled classes required in development role/block: calibration",
+        "both labelled classes required in development role/block: threshold"
+      ],
+      "test_outcomes_used": false,
+      "training_block_counts": {
+        "train-10m": {
+          "negative": 238,
+          "positive": 1387,
+          "total": 1773,
+          "unknown": 148
+        },
+        "train-20m": {
+          "negative": 254,
+          "positive": 995,
+          "total": 1562,
+          "unknown": 313
+        }
+      }
+    },
+    "costs": {
+      "cpu_seconds": 1.3021071760000211,
+      "elapsed_seconds": 1.2941222509999761,
+      "model_fits": 0
+    },
+    "frozen_model": null,
+    "gate": {
+      "proceed_to_p1": false,
+      "reasons": [
+        "both labelled classes required in development role/block: calibration",
+        "both labelled classes required in development role/block: threshold"
+      ],
+      "required_external_gates": [
+        "native_correctness",
+        "parquet_equivalence",
+        "saved_evidence_replay"
+      ],
+      "status": "insufficient_data",
+      "test_outcomes_used": false
+    },
+    "metrics": {},
+    "protocol_sha256": "c733858414973579544aaabb74daac71ef1e6a243f10c91e77bdb083a2fef432",
+    "schema": "rosalind-evidence-sufficiency-p0-study-v1",
+    "scope": "One-person P0 feasibility; no P1 predictive or population claim",
+    "test_outcomes_used_for_gate": false
+  }
+}

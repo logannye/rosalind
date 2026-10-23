@@ -1,0 +1,10 @@
+{
+  "files_verified": 1016,
+  "bytes_verified": 215231043,
+  "missing": 0,
+  "mismatches": 0,
+  "run_id": 39878127360,
+  "artifact_id": 12469248656,
+  "artifact_zip_bytes": 17770939,
+  "scope": "Retained artifact manifest integrity; test outcomes not used to choose expansion."
+}

@@ -19,6 +19,14 @@ implementation branch run P0 when its code/protocol changes. A manual dispatch
 can run validation only or repeat the exact frozen pilot in a new run directory.
 No P1 job is implicitly launched by a successful Actions job.
 
+The initial hosted run `39878127360` completed correctly but had no assessed
+calibration/threshold labels in the 30–31 Mb window. No models were fitted.
+The workflow now defaults to the sole permitted count-driven expansion,
+[`protocol-p0-expanded.json`](protocol-p0-expanded.json), frozen before its run.
+It covers 15.99 Mb; the former descriptive test becomes development, and
+55–59 Mb supplies a fresh test. Candidate rules, models and numerical gates are
+unchanged. Manual dispatch can still select the original protocol.
+
 The workflow runs the workspace native tests, existing Python integration tests,
 independent evidence oracle suite and new scientific boundary/estimator tests.
 Only then does it invoke:

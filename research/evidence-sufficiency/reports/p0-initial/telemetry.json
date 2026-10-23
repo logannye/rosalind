@@ -1,0 +1,24 @@
+{
+  "elapsed_seconds": 204.62947555300002,
+  "limitations": "sampled peaks may miss brief maxima; cooperative admission plus job timeout",
+  "phases_seconds": {
+    "audit_downsampled": 0.11139427299997351,
+    "audit_original": 0.28412123299995073,
+    "caller_baseline": 26.32389264799997,
+    "candidate_generation": 56.54155028499997,
+    "extract_downsampled": 2.7454345580000563,
+    "extract_original": 3.4614427599999544,
+    "final_identity_check": 3.675083897000036,
+    "labels_and_features": 16.969474631000026,
+    "model_study": 1.3636230249999244,
+    "parquet_downsampled": 0.8778626509999867,
+    "parquet_original": 0.8467732240000032,
+    "prepare": 88.65087291600003,
+    "saved_only_replay": 1.9465491739999834
+  },
+  "resource_error": null,
+  "rss_sample_seconds": 0.1,
+  "sampled_process_tree_peak_rss_bytes": 1565376512,
+  "sampled_scratch_peak_bytes": 5797413211,
+  "scratch_sample_seconds": 5
+}

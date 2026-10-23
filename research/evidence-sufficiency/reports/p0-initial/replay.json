@@ -1,0 +1,8 @@
+{
+  "conditions": [
+    "original",
+    "downsampled"
+  ],
+  "original_raw_paths_unavailable": true,
+  "passed": true
+}
