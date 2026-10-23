@@ -9,6 +9,7 @@ native reads, extraction, caller execution and scientific calculations are hoste
 from __future__ import annotations
 
 from contextlib import contextmanager
+import copy
 import gzip
 import hashlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -21,6 +22,7 @@ import subprocess
 import sys
 import threading
 import time
+from types import SimpleNamespace
 import urllib.request
 
 HERE = Path(__file__).resolve().parent
@@ -50,6 +52,66 @@ DEFAULT_SOURCES = {
     "truth_bed": {"url": TRUTH_BASE + "HG001_GRCh38_1_22_v4.2.1_benchmark.bed",
                   "bytes": 15479939, "md5": "e1ea90c830f981d29a46043eb618e7bf"},
 }
+
+# Exact short library labels enumerated under the official NA12878-only source
+# directory. They are not inferred from prefixes or learned from BAM outcomes.
+HG001_LIBRARY_ALIASES = frozenset({
+    "U0a", "U0b", "U0c", "U1a", "U1b", "U2a", "U2b", "U3a", "U3b",
+    "U4a", "U4b", "U5a", "U5b", "U5c",
+})
+SAMPLE_BINDING_SOURCES = (
+    "https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/NA12878/"
+    "NIST_NA12878_HG001_HiSeq_300x/README_NIST_Illumina_pairedend_NA12878.txt",
+    "https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/NA12878/"
+    "NIST_NA12878_HG001_HiSeq_300x/131219_D00360_005_BH814YADXX/Project_RM8398/",
+    "https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/NA12878/"
+    "NIST_NA12878_HG001_HiSeq_300x/140127_D00360_0011_AHGV6ADXX/Project_RM8398/",
+)
+
+
+def _admit_source_header(header, source, audit_dir):
+    """Retain original metadata, then bind each RG to this exact source's donor."""
+    audit_dir = Path(audit_dir)
+    header_path = audit_dir / "source-header.sam"
+    header_path.write_text(str(header))
+    original = header.to_dict()
+    groups = original.get("RG", [])
+    source_matches = source == DEFAULT_SOURCES["reads_bam"]
+    allowed = HG001_LIBRARY_ALIASES | {"HG001", "NA12878"}
+    ids, failures, mappings = [], [], []
+    if not source_matches:
+        failures.append("source differs from the exact reviewed HG001 BAM")
+    if not groups:
+        failures.append("source header has no read groups")
+    for group in groups:
+        identifier, sample = group.get("ID"), group.get("SM")
+        valid_id = isinstance(identifier, str) and bool(identifier.strip())
+        mapped = source_matches and isinstance(sample, str) and sample in allowed
+        mappings.append({"original_read_group": copy.deepcopy(group),
+                         "canonical_sample": "HG001" if mapped else None})
+        if not valid_id:
+            failures.append("read group has absent or empty ID")
+        elif identifier in ids:
+            failures.append(f"duplicate read group ID: {identifier}")
+        ids.append(identifier)
+        if not mapped:
+            failures.append(f"unmapped SM for read group {identifier!r}: {sample!r}")
+    admission = {"accepted": not failures, "canonical_sample": "HG001",
+                 "binding_scope": "exact-source published metadata; not genotype authentication",
+                 "source": source, "source_matches_reviewed_object": source_matches,
+                 "binding_sources": list(SAMPLE_BINDING_SOURCES),
+                 "allowed_sample_labels": sorted(allowed),
+                 "observed_sample_labels": sorted({group.get("SM") for group in groups}, key=repr),
+                 "original_header": _identity(header_path), "read_groups": mappings,
+                 "failures": failures,
+                 "normalization": "derived header SM only; RG IDs, read tags, QNAMEs and template hash inputs preserved"}
+    pilot.write_json(audit_dir / "source-sample-admission.json", admission)
+    if failures:
+        raise ValueError("fresh BAM specimen admission failed: " + "; ".join(failures))
+    normalized = copy.deepcopy(original)
+    for group in normalized["RG"]:
+        group["SM"] = "HG001"
+    return normalized, admission
 
 
 def _identity(path):
@@ -128,24 +190,39 @@ def _request(url, **kwargs):
         urllib.request.Request(url, **kwargs), timeout=30)
 
 
-def _download(source, path, budget):
+def _download(source, path, budget, receipt_path=None):
     started = time.monotonic()
     md5, sha = hashlib.md5(), hashlib.sha256()
-    with _request(source["url"], headers={"Accept-Encoding": "identity"}) as response:
-        if response.status != 200 or int(response.headers.get("Content-Length", -1)) != source["bytes"]:
-            raise ValueError("official resource length or status changed")
-        with path.open("xb") as handle:
-            while chunk := budget.read(response, 1 << 20):
-                handle.write(chunk)
-                md5.update(chunk)
-                sha.update(chunk)
-                if handle.tell() % (128 << 20) < 1 << 20:
-                    budget.check_scratch()
-    if path.stat().st_size != source["bytes"] or md5.hexdigest() != source["md5"]:
-        raise ValueError("official published resource MD5 or size mismatch")
-    budget.check_scratch()
-    return {**source, "path": str(path), "sha256": sha.hexdigest(),
-            "published_md5_verified": True, "wall_seconds": time.monotonic() - started}
+    received, verified, failure, status, headers = 0, False, None, None, {}
+    try:
+        with _request(source["url"], headers={"Accept-Encoding": "identity"}) as response:
+            status = response.status
+            headers = {key: response.headers.get(key) for key in ("Content-Length", "Last-Modified")}
+            if status != 200 or int(response.headers.get("Content-Length", -1)) != source["bytes"]:
+                raise ValueError("official resource length or status changed")
+            with path.open("xb") as handle:
+                while chunk := budget.read(response, 1 << 20):
+                    received += len(chunk)
+                    md5.update(chunk)
+                    sha.update(chunk)
+                    handle.write(chunk)
+                    if handle.tell() % (128 << 20) < 1 << 20:
+                        budget.check_scratch()
+        if path.stat().st_size != source["bytes"] or md5.hexdigest() != source["md5"]:
+            raise ValueError("official published resource MD5 or size mismatch")
+        verified = True
+        budget.check_scratch()
+        return {**source, "path": str(path), "sha256": sha.hexdigest(),
+                "published_md5_verified": True, "wall_seconds": time.monotonic() - started}
+    except BaseException as exc:
+        failure = {"type": type(exc).__name__, "reason": str(exc)}
+        raise
+    finally:
+        if receipt_path is not None:
+            pilot.write_json(receipt_path, {"source": source, "status": status, "headers": headers,
+                "received_bytes": received, "received_sha256": sha.hexdigest(),
+                "received_md5": md5.hexdigest(), "published_md5_verified": verified,
+                "failure": failure, "wall_seconds": time.monotonic() - started})
 
 
 def _check_bam_headers(headers, source, start=None, end=None):
@@ -270,19 +347,21 @@ def _extract_bams_worker(request_path):
     traversed, selected = 0, 0
     source_identity = hashlib.sha256(pilot.canonical(request["source"]).encode()).hexdigest()
     with pysam.AlignmentFile(request["url"], "rb", index_filename=request["bai"]) as source:
-        groups = source.header.to_dict().get("RG", [])
-        samples = {group.get("SM") for group in groups}
-        if len(samples) != 1 or not samples <= {"HG001", "NA12878"}:
-            raise ValueError("fresh BAM sample is not the single declared HG001/NA12878 specimen")
-        sample = next(iter(samples))
+        normalized, admission = _admit_source_header(source.header, request["source"], request["audit_out"])
+        derived_header = pysam.AlignmentHeader.from_dict(normalized)
+        sample = "HG001"
+        # Reuse the unchanged P0 reference/index audit against the admitted
+        # derived header. The original source and all read records stay intact.
+        admitted_source = SimpleNamespace(header=derived_header, references=source.references,
+                                          lengths=source.lengths, has_index=source.has_index)
         with pysam.FastaFile(request["reference"]) as fasta:
-            group_ids = prepare._audit_inputs(source, fasta, sample, intervals)
+            group_ids = prepare._audit_inputs(admitted_source, fasta, sample, intervals)
             chr20 = fasta.fetch("chr20").upper().encode()
             chr20_md5 = hashlib.md5(chr20).hexdigest()
             header_m5 = next(sq for sq in source.header.to_dict()["SQ"] if sq["SN"] == "chr20").get("M5")
             if header_m5 and header_m5.lower() != chr20_md5:
                 raise ValueError("chr20 source header M5 differs from acquired reference sequence")
-        writers = {name: pysam.AlignmentFile(path, "wb", header=source.header) for name, path in paths.items()}
+        writers = {name: pysam.AlignmentFile(path, "wb", header=derived_header) for name, path in paths.items()}
         try:
             for region_index, region in enumerate(intervals):
                 for record in source.fetch(region["contig"], region["start"], region["end"]):
@@ -310,12 +389,42 @@ def _extract_bams_worker(request_path):
     for path in paths.values():
         pysam.index(path)
     result = {"bams": paths, "sample": sample, "conditions": metrics,
+              "source_sample_admission": admission,
               "traversed_records": traversed, "selected_records": selected,
               "chr20_md5": chr20_md5, "bam_chr20_header_m5": header_m5,
               "full_ordered_bam_reference_dictionary_match": True,
               "template_identity_sha256": source_identity,
               "downsampling_algorithm": "sha256-json-template-v1; same hash nested at all fractions"}
     pilot.write_json(Path(request["out"]) / "bam-preparation.json", result)
+
+
+def _run_bam_extraction(request, budget, audit_dir):
+    """Persist completed and failed relay receipts after all relay threads stop."""
+    audit_dir = Path(audit_dir)
+    ranges, errors, failure = [], [], None
+    started = time.monotonic()
+    try:
+        with _range_relay(request["source"], budget) as (url, ranges, errors):
+            request = dict(request, url=url, audit_out=str(audit_dir))
+            request_path = Path(request["out"]) / "extraction-request.json"
+            pilot.write_json(request_path, request)
+            subprocess.run([sys.executable, str(Path(__file__).resolve()), "--extract-bams", str(request_path)],
+                           check=True, timeout=max(1, budget.deadline - time.monotonic()))
+        if errors:
+            raise ValueError("bounded BAM range relay reported acquisition errors")
+    except BaseException as exc:
+        failure = {"type": type(exc).__name__, "reason": str(exc)}
+        raise
+    finally:
+        pilot.write_json(audit_dir / "bam-byte-ranges.json", ranges)
+        pilot.write_json(audit_dir / "range-errors.json", errors)
+        pilot.write_json(audit_dir / "bam-acquisition.json", {
+            "source": request["source"], "remote_bam_full_md5_verified": False,
+            "identity_scope": "official URL/size/Last-Modified plus received byte-range hashes; full BAM not acquired",
+            "failure": failure, "completed_without_error": failure is None,
+            "range_receipts": len(ranges), "received_bam_bytes": sum(r["received_bytes"] for r in ranges),
+            "combined_download_bytes": budget.download_bytes,
+            "wall_seconds": time.monotonic() - started})
 
 
 def counts_features(row, alt):
@@ -360,7 +469,9 @@ def prepare_fresh(protocol, out, binary):
     paths = {"reads_bai": "source.bam.bai", "reference": "reference.fa.gz",
              "truth_vcf": "truth.vcf.gz", "truth_bed": "truth.bed"}
     for name, filename in paths.items():
-        acquired[name] = _download(sources[name], inputs / filename, budget)
+        acquired[name] = _download(sources[name], inputs / filename, budget,
+                                   out / ("download-" + name + ".json"))
+        pilot.write_json(out / "acquired-sources.json", acquired)
     coverage = prepare.benchmark_coverage(inputs / "truth.bed", intervals, budget)
     if coverage["empty_block_ids"]:
         raise ValueError("fresh selected interval has no benchmark confident coverage; no outcome-driven relocation")
@@ -375,18 +486,10 @@ def prepare_fresh(protocol, out, binary):
     with regions.open("x") as handle:
         for region in intervals:
             handle.write("\t".join(str(region[k]) for k in ("contig", "start", "end")) + "\n")
-    with _range_relay(sources["reads_bam"], budget) as (url, ranges, errors):
-        request = {"url": url, "source": sources["reads_bam"], "bai": str(inputs / "source.bam.bai"),
-                   "reference": str(reference), "out": str(inputs), "intervals": intervals,
-                   "conditions": conditions, "seed": fresh.get("seed", 42)}
-        request_path = inputs / "extraction-request.json"
-        pilot.write_json(request_path, request)
-        subprocess.run([sys.executable, str(Path(__file__).resolve()), "--extract-bams", str(request_path)],
-                       check=True, timeout=max(1, budget.deadline - time.monotonic()))
-    if errors:
-        pilot.write_json(out / "range-errors.json", errors)
-        raise ValueError("bounded BAM range relay reported acquisition errors")
-    pilot.write_json(out / "bam-byte-ranges.json", ranges)
+    request = {"source": sources["reads_bam"], "bai": str(inputs / "source.bam.bai"),
+               "reference": str(reference), "out": str(inputs), "intervals": intervals,
+               "conditions": conditions, "seed": fresh.get("seed", 42)}
+    _run_bam_extraction(request, budget, out)
     bam_preparation = json.loads((inputs / "bam-preparation.json").read_text())
     expected_m5 = fresh.get("expected_chr20_md5")
     if expected_m5 and expected_m5 != bam_preparation["chr20_md5"]:

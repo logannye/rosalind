@@ -8,6 +8,7 @@ on:
       - 'research/threshold-transfer/*.py'
       - 'research/threshold-transfer/tests/**'
       - 'research/threshold-transfer/protocol.json'
+      - 'research/threshold-transfer/execution-window.json'
       - '.github/workflows/threshold-transfer.yml'
 
 permissions:
@@ -45,15 +46,27 @@ jobs:
         with:
           python-version: '3.11'
       - name: Admit bounded overnight work
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           mkdir -p validation-results/source-inputs
           python - <<'PY'
           from datetime import datetime, timezone
-          import json, shutil
+          import json, os, shutil, subprocess, sys
           from pathlib import Path
-          protocol = json.loads(Path('research/threshold-transfer/protocol.json').read_text())
-          if datetime.now(timezone.utc) >= datetime.fromisoformat(protocol['deadline_utc'].replace('Z', '+00:00')):
-              raise SystemExit('Overnight deadline passed; do not start')
+          sys.path.insert(0, 'research/threshold-transfer')
+          from run import execution_deadline
+          root = Path('research/threshold-transfer')
+          if datetime.now(timezone.utc) >= execution_deadline(root/'protocol.json', root/'execution-window.json'):
+              raise SystemExit('Authorized execution deadline passed; do not start')
+          if os.environ['GITHUB_RUN_ATTEMPT'] != '1':
+              raise SystemExit('No reruns: this is the final allowed hosted attempt')
+          runs = json.loads(subprocess.check_output([
+              'gh', 'api', 'repos/logannye/rosalind/actions/workflows/threshold-transfer.yml/runs?branch=codex%2Fhg002-depth-calibration&per_page=100'
+          ], text=True))
+          allowed = {39901841463, 39902020683, int(os.environ['GITHUB_RUN_ID'])}
+          if runs['total_count'] != 3 or {r['id'] for r in runs['workflow_runs']} != allowed:
+              raise SystemExit('Hosted attempt inventory differs; stop without acquiring or scoring data')
           free = shutil.disk_usage('.').free
           print(f'Free hosted bytes: {free}')
           if free < 12 * (1 << 30):
@@ -92,6 +105,22 @@ jobs:
           python -u research/threshold-transfer/run.py --phase freeze \
             --binary "$ROSALIND_BINARY" --inputs validation-results/source-inputs \
             --output validation-results/threshold-transfer 2>&1 | tee validation-results/freeze.log
+      - name: Require identical policies and protocol after provenance repair
+        run: |
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+          # These bytes were published before acquisition in run 39902020683.
+          expected = {
+              'frozen-policy.json': '899ee3f34e9c3fb10d04da23d0637d07780b552f23239724c894b980c4ae0dbd',
+              'protocol.json': '27cdb262fef4ed2e23f4f78914be766b34cfd89dd5898f4fc270f3bb049e3d1a',
+          }
+          root = Path('validation-results/threshold-transfer')
+          for name, sha in expected.items():
+              if hashlib.sha256((root / name).read_bytes()).hexdigest() != sha:
+                  raise SystemExit(f'Frozen bytes changed after execution-only repair: {name}')
+          print('Policies and protocol match the pre-acquisition freeze from run 39902020683')
+          PY
       - name: Publish immutable threshold freeze before fresh acquisition
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

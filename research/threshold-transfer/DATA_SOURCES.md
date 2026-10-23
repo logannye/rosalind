@@ -49,6 +49,44 @@ Each specimen is assessed only within its own benchmark BED and the existing
 conservative SNV/complex-event exclusion rules. This is not an identical-domain
 cross-release comparison or a clinical benchmark.
 
+## Source-specific library labels
+
+Hosted attempt 39902020683 stopped while inspecting the BAM header, before any
+locus fetch, candidate generation or fresh scoring. Its error showed that the
+header did not satisfy the original single-SM check, but did not retain the
+actual SM strings. The alignment README and official alignment index identify
+the selected BAM and its checksum; neither documents its exact header SMs.
+
+The [NIST library README](https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/NA12878/NIST_NA12878_HG001_HiSeq_300x/README_NIST_Illumina_pairedend_NA12878.txt)
+identifies this directory as NA12878-only data and describes 14 PCR-free
+libraries from six vials. Its official Project_RM8398 directories enumerate
+the library names: [first and last vial libraries](https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/NA12878/NIST_NA12878_HG001_HiSeq_300x/131219_D00360_005_BH814YADXX/Project_RM8398/)
+and [intermediate vial libraries](https://ftp.ncbi.nlm.nih.gov/ReferenceSamples/giab/data/NA12878/NIST_NA12878_HG001_HiSeq_300x/140127_D00360_0011_AHGV6ADXX/Project_RM8398/).
+The directory entries use `Sample_` followed by these short labels:
+`U0a`, `U0b`, `U0c`, `U1a`, `U1b`, `U2a`, `U2b`, `U3a`, `U3b`, `U4a`, `U4b`,
+`U5a`, `U5b`, `U5c`.
+
+The repair admits only these 14 exact short labels and the canonical labels
+`HG001` and `NA12878`, and only for the exact reviewed source metadata in
+`DEFAULT_SOURCES['reads_bam']`. Every read group must have a distinct, nonempty
+ID and an independently admitted SM. Multiple admitted labels may coexist.
+Other spellings, case variants, prefixes including `Sample_`, and pooled donor
+labels fail closed. These labels bind published source provenance to HG001;
+they do not independently authenticate genotype or biological material.
+
+The actual BAM spellings remain unobserved at repair time. The finite rule is
+therefore a documented admission policy, not a confirmed explanation of the
+failure, and the final permitted hosted retry may still fail closed. It does
+not change the frozen protocol, models, thresholds, intervals or run budget.
+
+Before validating admission, the worker retains the original full SAM header
+in `source-header.sam` and each original RG/SM, its mapping, source metadata,
+and acceptance/rejection reason in `source-sample-admission.json`. After every
+group passes, only SM values in derived BAM headers become `HG001`. Original
+RG IDs, all other header fields, read RG tags, QNAMEs and template hash inputs
+remain unchanged. Full ordered reference dictionary, interval, index and
+chr20 sequence checks still run through the existing input audit.
+
 ## Bounded acquisition
 
 The whole 589.7 GB BAM is never downloaded. The hosted adapter downloads its
@@ -66,6 +104,13 @@ source metadata only; it cannot be verified from partial acquisition. Every
 received range prefix has its own length and SHA256 receipt, and every derived
 local BAM is hashed. These identities establish acquired-byte provenance, not
 independent authentication of the biological material.
+
+Download receipts, completed-source identities, original header admission,
+received BAM range receipts and relay failure metadata are retained outside
+the raw `inputs/` scratch directory, including when acquisition fails. A failed
+or partial transfer never claims the whole BAM MD5 was verified. Range receipts
+are persisted after the relay threads have stopped so final received bytes are
+included.
 
 Template retention uses the existing SHA256 function with one frozen seed,
 source identity, read group and QNAME. Fractions 35/300, 10/300 and 5/300 are

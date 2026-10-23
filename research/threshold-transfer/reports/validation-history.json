@@ -7,6 +7,42 @@
       "runner_seconds": 0,
       "fresh_test_scored": false,
       "reason": "YAML plain scalar containing --only-binary=:all: needed a block scalar; static parser confirmed and repair parses."
+    },
+    {
+      "run_id": 39902020683,
+      "source_revision": "859a128bab16c43800849d1f3e4a749183458f68",
+      "status": "fresh_header_admission_failed",
+      "url": "https://github.com/logannye/rosalind/actions/runs/39902020683",
+      "fresh_test_scored": false,
+      "scientific_unit_tests": "passed",
+      "last_known_step": "Fresh acquisition stopped at strict sample-header admission before interval fetch or scoring",
+      "runner_seconds": 275,
+      "native_tests_and_build": "passed",
+      "python_native_and_evidence_oracles": "passed",
+      "reason": "Pinned HG001 BAM failed the single canonical sample-name guard. Actual header values were not retained; source-owner metadata supports a finite technical-library alias repair, but the precise mismatch is unconfirmed."
     }
-  ]
+  ],
+  "verified_artifacts": [
+    {
+      "run_id": 39902020683,
+      "artifact_id": 12479361421,
+      "kind": "result",
+      "bytes": 45658,
+      "sha256": "9027dca4b0ce63867361da6014739cc19bae048f05bf6319aed40ce988a815a1"
+    },
+    {
+      "run_id": 39902020683,
+      "artifact_id": 12478954493,
+      "kind": "freeze",
+      "bytes": 15425,
+      "sha256": "9d041188b5ab9785d73bf45a0be4366ee87731370ab34cdc28670b3cb21de517"
+    }
+  ],
+  "frozen_policy_sha256": "899ee3f34e9c3fb10d04da23d0637d07780b552f23239724c894b980c4ae0dbd",
+  "frozen_policy_selection": {
+    "counts": "M10_pooled::retain_all",
+    "rich": "M11_pooled::depth_table_q0.999"
+  },
+  "fresh_evaluation_consumed": false,
+  "repair_boundary": "Only execution/provenance defects may change. Model, policy and protocol bytes remain frozen. No fresh candidates or outcomes were produced by either attempt."
 }

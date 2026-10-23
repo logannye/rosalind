@@ -41,6 +41,32 @@ def read(path):
     return json.loads(Path(path).read_text())
 
 
+def execution_deadline(protocol_path, window_path):
+    """Bind an explicit operational resumption to unchanged scientific bytes."""
+    protocol = read(protocol_path)
+    original = datetime.fromisoformat(protocol["deadline_utc"].replace("Z", "+00:00"))
+    if not window_path.exists():
+        return original
+    window = read(window_path)
+    start = datetime.fromisoformat(window["started_utc"].replace("Z", "+00:00"))
+    end = datetime.fromisoformat(window["deadline_utc"].replace("Z", "+00:00"))
+    if (window["schema"] != "rosalind-threshold-resumption-v1"
+            or window["frozen_protocol_sha256"] != digest(protocol_path)
+            or window["original_deadline_utc"] != protocol["deadline_utc"]
+            or not original < start < end
+            or (end - start).total_seconds() > 10800
+            or window["previous_hosted_attempts"] != 2
+            or window["additional_hosted_attempts"] != 1
+            or not 0 < window["maximum_additional_runner_seconds"] <= 10800
+            or window["previous_runner_seconds"] < 0
+            or window["previous_runner_seconds"] + window["maximum_additional_runner_seconds"] > 21600
+            or window["maximum_total_runner_seconds"] != 21600):
+        raise ValueError("Operational resumption differs from the authorized remaining budget or frozen protocol")
+    if datetime.now(timezone.utc) < start:
+        raise ValueError("Operational resumption window has not started")
+    return end
+
+
 def provenance_module():
     spec = importlib.util.spec_from_file_location("saved_hg002_provenance", HERE.parent / "depth-calibration/run.py")
     module = importlib.util.module_from_spec(spec)
@@ -110,6 +136,8 @@ def source_snapshot(binary, protocol_path):
     paths = sorted(HERE.glob("*.py")) + sorted((HERE.parent / "evidence-sufficiency").glob("*.py"))
     paths += sorted((ROOT / "python/rosalind").glob("*.py"))
     paths += [protocol_path, ROOT / ".github/workflows/threshold-transfer.yml"]
+    if (HERE / "execution-window.json").exists():
+        paths.append(HERE / "execution-window.json")
     return {
         "git_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
         "github_run_id": os.environ["GITHUB_RUN_ID"],
@@ -145,6 +173,8 @@ def freeze(args, protocol, binary):
     identity = source_snapshot(binary, args.protocol)
     write(args.output / "identity.json", identity)
     write(args.output / "protocol.json", protocol)
+    if (HERE / "execution-window.json").exists():
+        write(args.output / "execution-window.json", read(HERE / "execution-window.json"))
     provenance, bundle, model_identity = load_sources(args, protocol)
     saved = args.inputs / "verified-hg002"
     original_identity = provenance.extract_verified(args.inputs / "source.zip", saved, protocol["source"])
@@ -275,7 +305,7 @@ def main():
     if os.environ.get("GITHUB_ACTIONS") != "true" or platform.system() != "Linux":
         raise RuntimeError("Scientific execution requires the authorized hosted Linux workflow")
     protocol = read(args.protocol)
-    remaining = (datetime.fromisoformat(protocol["deadline_utc"].replace("Z", "+00:00"))
+    remaining = (execution_deadline(args.protocol, HERE / "execution-window.json")
                  - datetime.now(timezone.utc)).total_seconds()
     if remaining <= 0:
         raise TimeoutError("Overnight execution deadline passed; no new study phase")

@@ -83,3 +83,19 @@ Give tested revision/platform and hosted run links; exact data/source identity;
 recall and uncertainty by condition; false-candidate and workload differences;
 actual costs and scope; stop/advance disposition; failures and unresolved limits.
 If no scientifically valid result completes, report that rather than an inferred win.
+
+## User-authorized resumption after usage interruption
+
+On 2026-10-23 the user replenished usage and explicitly requested resumption from
+the interruption. The overnight window expired with two attempts recorded and no
+fresh candidates scored. A separate [execution authorization](execution-window.json)
+allows the single remaining hosted attempt from 17:00 to 20:00 UTC (10:00 a.m.
+to 1:00 p.m. Pacific). The original protocol and frozen policies retain their exact
+bytes; only the operational deadline changes. The original three-attempt and
+six-runner-hour totals still apply. Prior hosted runner time is 275 seconds.
+
+The workflow rejects reruns and requires the provider's attempt inventory to equal
+the two preserved failures plus the current final run. Any scientific failure or
+further execution failure ends this scoped study without another retry. The
+expired overnight heartbeat is paused; the resumed attempt is supervised in the
+current chat, with the same hosted-only execution and reporting requirements.

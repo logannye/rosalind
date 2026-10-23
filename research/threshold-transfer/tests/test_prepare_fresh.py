@@ -1,11 +1,14 @@
 """Hosted adapter checks: no real source downloads or model fits in fixtures."""
 import copy
+from contextlib import contextmanager
 import hashlib
 import http.client
 import importlib.util
 import io
+import json
 from pathlib import Path
 import sys
+import subprocess
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -111,6 +114,125 @@ class SourceBoundaryTests(unittest.TestCase):
             fresh.counts_features(row, "C")
 
 
+class FakeHeader:
+    def __init__(self, groups):
+        self.value = {"HD": {"VN": "1.6", "SO": "coordinate"},
+                      "SQ": [{"SN": "chr20", "LN": 100}], "RG": groups,
+                      "PG": [{"ID": "novoalign", "VN": "3.02.07"}]}
+
+    def to_dict(self):
+        return copy.deepcopy(self.value)
+
+    def __str__(self):
+        return json.dumps(self.value, sort_keys=True) + "\n"
+
+
+class SpecimenAdmissionTests(unittest.TestCase):
+    def test_exact_library_and_canonical_labels_can_coexist_without_changing_source(self):
+        labels = sorted(fresh.HG001_LIBRARY_ALIASES | {"HG001", "NA12878"})
+        self.assertEqual(len(fresh.HG001_LIBRARY_ALIASES), 14)
+        header = FakeHeader([{"ID": f"original-rg-{i}", "SM": label, "LB": label, "PL": "ILLUMINA"}
+                             for i, label in enumerate(labels)])
+        original = header.to_dict()
+        with tempfile.TemporaryDirectory() as directory:
+            normalized, admission = fresh._admit_source_header(header, fresh.DEFAULT_SOURCES["reads_bam"], directory)
+            self.assertTrue(admission["accepted"])
+            self.assertEqual(Path(directory, "source-header.sam").read_text(), str(header))
+            self.assertEqual(admission["observed_sample_labels"], labels)
+            self.assertEqual([r["original_read_group"] for r in admission["read_groups"]], original["RG"])
+            self.assertEqual(json.loads(Path(directory, "source-sample-admission.json").read_text()), admission)
+        self.assertEqual(header.to_dict(), original)
+        expected = copy.deepcopy(original)
+        for group in expected["RG"]:
+            group["SM"] = "HG001"
+        self.assertEqual(normalized, expected)
+
+    def test_unknown_prefix_case_empty_and_mixed_donor_labels_fail_with_audit(self):
+        for label in ("Sample_U0a", "U0A", "U6a", "HG002", "NA24385", "HG001+HG002", "", None):
+            header = FakeHeader([{"ID": "known", "SM": "HG001"}, {"ID": "other", "SM": label}])
+            with self.subTest(label=label), tempfile.TemporaryDirectory() as directory:
+                with self.assertRaisesRegex(ValueError, "unmapped SM"):
+                    fresh._admit_source_header(header, fresh.DEFAULT_SOURCES["reads_bam"], directory)
+                audit = json.loads(Path(directory, "source-sample-admission.json").read_text())
+                self.assertFalse(audit["accepted"])
+                self.assertIsNone(audit["read_groups"][1]["canonical_sample"])
+                self.assertEqual(audit["read_groups"][1]["original_read_group"]["SM"], label)
+                self.assertEqual(Path(directory, "source-header.sam").read_text(), str(header))
+
+    def test_missing_and_duplicate_read_group_ids_fail_with_retained_originals(self):
+        groups = ([], [{"SM": "HG001"}], [{"ID": "", "SM": "HG001"}],
+                  [{"ID": " ", "SM": "HG001"}],
+                  [{"ID": "same", "SM": "U0a"}, {"ID": "same", "SM": "NA12878"}])
+        for values in groups:
+            with self.subTest(groups=values), tempfile.TemporaryDirectory() as directory:
+                header = FakeHeader(values)
+                with self.assertRaises(ValueError):
+                    fresh._admit_source_header(header, fresh.DEFAULT_SOURCES["reads_bam"], directory)
+                audit = json.loads(Path(directory, "source-sample-admission.json").read_text())
+                self.assertFalse(audit["accepted"])
+                self.assertEqual([r["original_read_group"] for r in audit["read_groups"]], values)
+
+    def test_alias_rule_cannot_be_reused_for_another_object(self):
+        for key in ("url", "bytes", "md5", "last_modified"):
+            source = dict(fresh.DEFAULT_SOURCES["reads_bam"])
+            source[key] = "changed"
+            with self.subTest(key=key), tempfile.TemporaryDirectory() as directory:
+                with self.assertRaisesRegex(ValueError, "exact reviewed"):
+                    fresh._admit_source_header(FakeHeader([{"ID": "rg", "SM": "U0a"}]), source, directory)
+                audit = json.loads(Path(directory, "source-sample-admission.json").read_text())
+                self.assertFalse(audit["source_matches_reviewed_object"])
+
+    def test_worker_changes_only_derived_sm_and_preserves_template_hash_inputs(self):
+        import pysam
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            inputs = root / "inputs"
+            inputs.mkdir()
+            reference = root / "reference.fa"
+            reference.write_text(">chr20\nACGTACGTACGT\n")
+            pysam.faidx(str(reference))
+            source_path = root / "fixture.bam"
+            header = {"HD": {"VN": "1.6", "SO": "coordinate"},
+                      "SQ": [{"SN": "chr20", "LN": 12}],
+                      "RG": [{"ID": "rg1", "SM": "U0a", "LB": "library1"},
+                             {"ID": "rg2", "SM": "NA12878", "LB": "library2"}]}
+            with pysam.AlignmentFile(str(source_path), "wb", header=header) as writer:
+                for i, group in enumerate(header["RG"]):
+                    record = pysam.AlignedSegment()
+                    record.query_name, record.query_sequence = f"original-qname-{i}", "ACGT"
+                    record.flag, record.reference_id, record.reference_start = 0, 0, i
+                    record.mapping_quality, record.cigar = 60, [(0, 4)]
+                    record.query_qualities = pysam.qualitystring_to_array("IIII")
+                    record.set_tag("RG", group["ID"])
+                    writer.write(record)
+            pysam.index(str(source_path))
+            source_sha = fresh.pilot.digest(source_path)
+            request = {"url": str(source_path), "source": fresh.DEFAULT_SOURCES["reads_bam"],
+                       "bai": str(source_path) + ".bai", "reference": str(reference),
+                       "out": str(inputs), "audit_out": str(root), "seed": 42,
+                       "intervals": [{"contig": "chr20", "start": 0, "end": 12}],
+                       "conditions": [{"name": "original", "numerator": 35, "denominator": 300}]}
+            request_path = root / "request.json"
+            request_path.write_text(json.dumps(request))
+            with patch.object(fresh.prepare, "_keep_template", return_value=True) as keep:
+                fresh._extract_bams_worker(request_path)
+            self.assertEqual(fresh.pilot.digest(source_path), source_sha)
+            identity = hashlib.sha256(fresh.pilot.canonical(request["source"]).encode()).hexdigest()
+            self.assertEqual([call.args for call in keep.call_args_list], [
+                (42, identity, "rg1", "original-qname-0", 35, 300),
+                (42, identity, "rg2", "original-qname-1", 35, 300)])
+            with pysam.AlignmentFile(str(inputs / "original.bam"), "rb") as derived:
+                expected = copy.deepcopy(header)
+                for group in expected["RG"]:
+                    group["SM"] = "HG001"
+                self.assertEqual(derived.header.to_dict(), expected)
+                self.assertEqual([(r.query_name, r.get_tag("RG")) for r in derived.fetch("chr20")],
+                                 [("original-qname-0", "rg1"), ("original-qname-1", "rg2")])
+            result = json.loads((inputs / "bam-preparation.json").read_text())
+            self.assertEqual(result["sample"], "HG001")
+            self.assertTrue(result["full_ordered_bam_reference_dictionary_match"])
+
+
 class FakeResponse(io.BytesIO):
     def __init__(self, status, headers, content=b""):
         super().__init__(content)
@@ -118,6 +240,65 @@ class FakeResponse(io.BytesIO):
 
 
 class RangeRelayTests(unittest.TestCase):
+    def test_worker_failure_retains_range_receipts_and_combined_download_bytes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            inputs = root / "inputs"
+            inputs.mkdir()
+            budget = fresh._Budget(root, protocol()["limits"])
+            budget.download_bytes = 123
+            receipt = {"start": 0, "requested_end_inclusive": 7, "received_bytes": 8,
+                       "received_sha256": hashlib.sha256(b"abcdefgh").hexdigest(), "complete": True}
+
+            @contextmanager
+            def relay(source, supplied_budget):
+                self.assertIs(supplied_budget, budget)
+                logs = []
+                try:
+                    yield "http://127.0.0.1/source.bam", logs, []
+                finally:
+                    logs.append(receipt)
+
+            request = {"source": fresh.DEFAULT_SOURCES["reads_bam"], "out": str(inputs)}
+            with patch.object(fresh, "_range_relay", side_effect=relay), \
+                    patch.object(fresh.subprocess, "run", side_effect=subprocess.CalledProcessError(1, "worker")):
+                with self.assertRaises(subprocess.CalledProcessError):
+                    fresh._run_bam_extraction(request, budget, root)
+            self.assertEqual(json.loads((root / "bam-byte-ranges.json").read_text()), [receipt])
+            audit = json.loads((root / "bam-acquisition.json").read_text())
+            self.assertFalse(audit["completed_without_error"])
+            self.assertFalse(audit["remote_bam_full_md5_verified"])
+            self.assertEqual(audit["combined_download_bytes"], 123)
+            self.assertEqual(audit["received_bam_bytes"], 8)
+            self.assertEqual(audit["failure"]["type"], "CalledProcessError")
+            self.assertEqual(json.loads((inputs / "extraction-request.json").read_text())["audit_out"], str(root))
+
+    def test_relay_admission_failure_is_preserved_without_claiming_acquisition(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            budget = fresh._Budget(root, protocol()["limits"])
+            with patch.object(fresh, "_range_relay", side_effect=ValueError("remote BAM size changed")):
+                with self.assertRaisesRegex(ValueError, "size changed"):
+                    fresh._run_bam_extraction({"source": fresh.DEFAULT_SOURCES["reads_bam"]}, budget, root)
+            audit = json.loads((root / "bam-acquisition.json").read_text())
+            self.assertFalse(audit["completed_without_error"])
+            self.assertEqual(audit["received_bam_bytes"], 0)
+            self.assertEqual(json.loads((root / "bam-byte-ranges.json").read_text()), [])
+
+    def test_failed_full_resource_download_retains_received_hash_and_rejects_checksum(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            budget = fresh._Budget(root, protocol()["limits"])
+            source = {"url": "https://example.invalid/resource", "bytes": 8, "md5": "wrong"}
+            with patch.object(fresh, "_request", return_value=FakeResponse(200, {"Content-Length": "8"}, b"abcdefgh")):
+                with self.assertRaisesRegex(ValueError, "MD5"):
+                    fresh._download(source, root / "resource", budget, root / "receipt.json")
+            receipt = json.loads((root / "receipt.json").read_text())
+            self.assertEqual(receipt["received_bytes"], 8)
+            self.assertEqual(receipt["received_sha256"], hashlib.sha256(b"abcdefgh").hexdigest())
+            self.assertFalse(receipt["published_md5_verified"])
+            self.assertEqual(receipt["failure"]["type"], "ValueError")
+
     def relay_case(self, directory, *, response_status=206, byte_limit=100):
         source = {"url": "https://example.invalid/source.bam", "bytes": 8, "last_modified": "fixed"}
         limits = protocol()["limits"] | {"download_bytes": byte_limit}

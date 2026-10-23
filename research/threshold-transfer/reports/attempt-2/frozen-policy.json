@@ -1,0 +1,690 @@
+{
+  "base_model_refits": 0,
+  "bound_interpretation": "Empirical simultaneous spatial uncertainty, not a distribution-free 99% guarantee",
+  "calibration_rows_sha256": "ea305e5f020233be1553081cbfdd072aa6bbcdd1b1d977fc372d32f7f29c88aa",
+  "development_evidence_sha256": "4e5d6158f14522f4e9bf39bc12cb7acc6d8f35588643b78243d3e3eed149ee2e",
+  "feature_names": {
+    "f0": [
+      "alt_A",
+      "alt_C",
+      "alt_G",
+      "alt_T",
+      "alt_count",
+      "alt_count_log1p",
+      "alt_fraction",
+      "alt_fraction_undefined",
+      "callable_depth",
+      "callable_depth_log1p",
+      "other_count",
+      "other_count_log1p",
+      "other_fraction",
+      "other_fraction_undefined",
+      "ref_A",
+      "ref_C",
+      "ref_G",
+      "ref_T",
+      "ref_count",
+      "ref_count_log1p",
+      "ref_fraction",
+      "ref_fraction_undefined"
+    ],
+    "f1": [
+      "a_forward_fraction",
+      "a_forward_fraction_undefined",
+      "aligned_fraction",
+      "aligned_fraction_undefined",
+      "alt_A",
+      "alt_C",
+      "alt_G",
+      "alt_T",
+      "alt_base_quality_mean",
+      "alt_base_quality_mean_undefined",
+      "alt_count",
+      "alt_count_log1p",
+      "alt_forward_fraction",
+      "alt_forward_fraction_undefined",
+      "alt_fraction",
+      "alt_fraction_undefined",
+      "alt_mapping_quality_mean",
+      "alt_mapping_quality_mean_undefined",
+      "alt_minus_ref_base_quality_mean",
+      "alt_minus_ref_base_quality_mean_undefined",
+      "alt_minus_ref_forward_fraction",
+      "alt_minus_ref_forward_fraction_undefined",
+      "alt_minus_ref_mapping_quality_mean",
+      "alt_minus_ref_mapping_quality_mean_undefined",
+      "alt_minus_ref_read_length_mean",
+      "alt_minus_ref_read_length_mean_undefined",
+      "alt_minus_ref_read_position_mean",
+      "alt_minus_ref_read_position_mean_undefined",
+      "alt_read_length_mean",
+      "alt_read_length_mean_undefined",
+      "alt_read_position_mean",
+      "alt_read_position_mean_undefined",
+      "base_quality_mean",
+      "base_quality_mean_undefined",
+      "c_forward_fraction",
+      "c_forward_fraction_undefined",
+      "callable_depth",
+      "callable_depth_log1p",
+      "callable_fraction",
+      "callable_fraction_undefined",
+      "filtered_ambiguous_base_fraction",
+      "filtered_ambiguous_base_fraction_undefined",
+      "filtered_duplicate_fraction",
+      "filtered_duplicate_fraction_undefined",
+      "filtered_low_base_quality_fraction",
+      "filtered_low_base_quality_fraction_undefined",
+      "filtered_low_mapq_fraction",
+      "filtered_low_mapq_fraction_undefined",
+      "filtered_qc_fail_fraction",
+      "filtered_qc_fail_fraction_undefined",
+      "filtered_secondary_fraction",
+      "filtered_secondary_fraction_undefined",
+      "filtered_supplementary_fraction",
+      "filtered_supplementary_fraction_undefined",
+      "filtered_unavailable_base_quality_fraction",
+      "filtered_unavailable_base_quality_fraction_undefined",
+      "filtered_unavailable_mapq_fraction",
+      "filtered_unavailable_mapq_fraction_undefined",
+      "g_forward_fraction",
+      "g_forward_fraction_undefined",
+      "mapping_quality_mean",
+      "mapping_quality_mean_undefined",
+      "other_count",
+      "other_count_log1p",
+      "other_fraction",
+      "other_fraction_undefined",
+      "read_length_mean",
+      "read_length_mean_undefined",
+      "read_position_mean",
+      "read_position_mean_undefined",
+      "ref_A",
+      "ref_C",
+      "ref_G",
+      "ref_T",
+      "ref_base_quality_mean",
+      "ref_base_quality_mean_undefined",
+      "ref_count",
+      "ref_count_log1p",
+      "ref_forward_fraction",
+      "ref_forward_fraction_undefined",
+      "ref_fraction",
+      "ref_fraction_undefined",
+      "ref_mapping_quality_mean",
+      "ref_mapping_quality_mean_undefined",
+      "ref_read_length_mean",
+      "ref_read_length_mean_undefined",
+      "ref_read_position_mean",
+      "ref_read_position_mean_undefined",
+      "t_forward_fraction",
+      "t_forward_fraction_undefined"
+    ]
+  },
+  "model_ids": {
+    "counts": "M10_pooled",
+    "rich": "M11_pooled"
+  },
+  "model_sha256": "032016c71de297f35fc2f249ad7e0efce52aabec360a9aa6a86f564393c57d52",
+  "policies": {
+    "M10_pooled::depth_table_q0.99": {
+      "bins": [
+        {
+          "calibration_positive_rows": 66,
+          "lower": 0,
+          "reason": "low_depth_pass_through",
+          "threshold": null,
+          "upper": 5
+        },
+        {
+          "calibration_positive_rows": 816,
+          "lower": 5,
+          "reason": "depth_bin_threshold",
+          "threshold": -1.5968514981855173,
+          "upper": 10
+        },
+        {
+          "calibration_positive_rows": 1566,
+          "lower": 10,
+          "reason": "depth_bin_threshold",
+          "threshold": -0.5367565830158598,
+          "upper": 20
+        },
+        {
+          "calibration_positive_rows": 1478,
+          "lower": 20,
+          "reason": "depth_bin_threshold",
+          "threshold": 4.0043719189092375,
+          "upper": 40
+        },
+        {
+          "calibration_positive_rows": 1028,
+          "lower": 40,
+          "reason": "depth_bin_threshold",
+          "threshold": 2.1414231476691423,
+          "upper": null
+        }
+      ],
+      "condition_agnostic": true,
+      "eligible_for_selection": true,
+      "fit_role": "calibration",
+      "id": "M10_pooled::depth_table_q0.99",
+      "kind": "depth_table",
+      "model_id": "M10_pooled",
+      "passthrough_below": 5.0,
+      "quantile_target": 0.99
+    },
+    "M10_pooled::depth_table_q0.995": {
+      "bins": [
+        {
+          "calibration_positive_rows": 66,
+          "lower": 0,
+          "reason": "low_depth_pass_through",
+          "threshold": null,
+          "upper": 5
+        },
+        {
+          "calibration_positive_rows": 816,
+          "lower": 5,
+          "reason": "depth_bin_threshold",
+          "threshold": -2.4751377859422066,
+          "upper": 10
+        },
+        {
+          "calibration_positive_rows": 1566,
+          "lower": 10,
+          "reason": "depth_bin_threshold",
+          "threshold": -0.8441109199027903,
+          "upper": 20
+        },
+        {
+          "calibration_positive_rows": 1478,
+          "lower": 20,
+          "reason": "depth_bin_threshold",
+          "threshold": 1.9832084054433514,
+          "upper": 40
+        },
+        {
+          "calibration_positive_rows": 1028,
+          "lower": 40,
+          "reason": "depth_bin_threshold",
+          "threshold": 1.7855827730346598,
+          "upper": null
+        }
+      ],
+      "condition_agnostic": true,
+      "eligible_for_selection": true,
+      "fit_role": "calibration",
+      "id": "M10_pooled::depth_table_q0.995",
+      "kind": "depth_table",
+      "model_id": "M10_pooled",
+      "passthrough_below": 5.0,
+      "quantile_target": 0.995
+    },
+    "M10_pooled::depth_table_q0.999": {
+      "bins": [
+        {
+          "calibration_positive_rows": 66,
+          "lower": 0,
+          "reason": "low_depth_pass_through",
+          "threshold": null,
+          "upper": 5
+        },
+        {
+          "calibration_positive_rows": 816,
+          "lower": 5,
+          "reason": "depth_bin_threshold",
+          "threshold": -3.265233536310457,
+          "upper": 10
+        },
+        {
+          "calibration_positive_rows": 1566,
+          "lower": 10,
+          "reason": "depth_bin_threshold",
+          "threshold": -2.1984085897679337,
+          "upper": 20
+        },
+        {
+          "calibration_positive_rows": 1478,
+          "lower": 20,
+          "reason": "depth_bin_threshold",
+          "threshold": -0.3759472173962522,
+          "upper": 40
+        },
+        {
+          "calibration_positive_rows": 1028,
+          "lower": 40,
+          "reason": "depth_bin_threshold",
+          "threshold": -0.8747781826187256,
+          "upper": null
+        }
+      ],
+      "condition_agnostic": true,
+      "eligible_for_selection": true,
+      "fit_role": "calibration",
+      "id": "M10_pooled::depth_table_q0.999",
+      "kind": "depth_table",
+      "model_id": "M10_pooled",
+      "passthrough_below": 5.0,
+      "quantile_target": 0.999
+    },
+    "M10_pooled::depth_table_q1": {
+      "bins": [
+        {
+          "calibration_positive_rows": 66,
+          "lower": 0,
+          "reason": "low_depth_pass_through",
+          "threshold": null,
+          "upper": 5
+        },
+        {
+          "calibration_positive_rows": 816,
+          "lower": 5,
+          "reason": "depth_bin_threshold",
+          "threshold": -3.265233536310457,
+          "upper": 10
+        },
+        {
+          "calibration_positive_rows": 1566,
+          "lower": 10,
+          "reason": "depth_bin_threshold",
+          "threshold": -2.215412602058161,
+          "upper": 20
+        },
+        {
+          "calibration_positive_rows": 1478,
+          "lower": 20,
+          "reason": "depth_bin_threshold",
+          "threshold": -6.9622244489642515,
+          "upper": 40
+        },
+        {
+          "calibration_positive_rows": 1028,
+          "lower": 40,
+          "reason": "depth_bin_threshold",
+          "threshold": -1.3129038338486667,
+          "upper": null
+        }
+      ],
+      "condition_agnostic": true,
+      "eligible_for_selection": true,
+      "fit_role": "calibration",
+      "id": "M10_pooled::depth_table_q1",
+      "kind": "depth_table",
+      "model_id": "M10_pooled",
+      "passthrough_below": 5.0,
+      "quantile_target": 1.0
+    },
+    "M10_pooled::existing_global": {
+      "condition_agnostic": false,
+      "eligible_for_selection": false,
+      "fit_role": "calibration",
+      "id": "M10_pooled::existing_global",
+      "kind": "legacy",
+      "legacy_thresholds": {
+        "downsampled": -1.1545387416954869,
+        "original": 2.3276805928861
+      },
+      "model_id": "M10_pooled",
+      "passthrough_below": null,
+      "selection_exclusion": "Legacy thresholds were already selected using the HG002 threshold role"
+    },
+    "M10_pooled::existing_global_low_depth_passthrough": {
+      "condition_agnostic": false,
+      "eligible_for_selection": false,
+      "fit_role": "calibration",
+      "id": "M10_pooled::existing_global_low_depth_passthrough",
+      "kind": "legacy",
+      "legacy_thresholds": {
+        "downsampled": -1.1545387416954869,
+        "original": 2.3276805928861
+      },
+      "model_id": "M10_pooled",
+      "passthrough_below": 5.0,
+      "selection_exclusion": "Legacy thresholds were already selected using the HG002 threshold role"
+    },
+    "M10_pooled::global_q0.99": {
+      "calibration_positive_rows_above_passthrough": 4888,
+      "condition_agnostic": true,
+      "eligible_for_selection": true,
+      "fit_role": "calibration",
+      "id": "M10_pooled::global_q0.99",
+      "kind": "global",
+      "model_id": "M10_pooled",
+      "passthrough_below": 5.0,
+      "quantile_target": 0.99,
+      "threshold": -0.36532038692989466
+    },
+    "M10_pooled::global_q0.995": {
+      "calibration_positive_rows_above_passthrough": 4888,
+      "condition_agnostic": true,
+      "eligible_for_selection": true,
+      "fit_role": "calibration",
+      "id": "M10_pooled::global_q0.995",
+      "kind": "global",
+      "model_id": "M10_pooled",
+      "passthrough_below": 5.0,
+      "quantile_target": 0.995,
+      "threshold": -0.8747781826187256
+    },
+    "M10_pooled::global_q0.999": {
+      "calibration_positive_rows_above_passthrough": 4888,
+      "condition_agnostic": true,
+      "eligible_for_selection": true,
+      "fit_role": "calibration",
+      "id": "M10_pooled::global_q0.999",
+      "kind": "global",
+      "model_id": "M10_pooled",
+      "passthrough_below": 5.0,
+      "quantile_target": 0.999,
+      "threshold": -2.633000564419333
+    },
+    "M10_pooled::global_q1": {
+      "calibration_positive_rows_above_passthrough": 4888,
+      "condition_agnostic": true,
+      "eligible_for_selection": true,
+      "fit_role": "calibration",
+      "id": "M10_pooled::global_q1",
+      "kind": "global",
+      "model_id": "M10_pooled",
+      "passthrough_below": 5.0,
+      "quantile_target": 1.0,
+      "threshold": -6.9622244489642515
+    },
+    "M10_pooled::retain_all": {
+      "condition_agnostic": true,
+      "eligible_for_selection": true,
+      "fit_role": "calibration",
+      "id": "M10_pooled::retain_all",
+      "kind": "retain_all",
+      "model_id": "M10_pooled"
+    },
+    "M11_pooled::depth_table_q0.99": {
+      "bins": [
+        {
+          "calibration_positive_rows": 66,
+          "lower": 0,
+          "reason": "low_depth_pass_through",
+          "threshold": null,
+          "upper": 5
+        },
+        {
+          "calibration_positive_rows": 816,
+          "lower": 5,
+          "reason": "depth_bin_threshold",
+          "threshold": -1.596470755381795,
+          "upper": 10
+        },
+        {
+          "calibration_positive_rows": 1566,
+          "lower": 10,
+          "reason": "depth_bin_threshold",
+          "threshold": 1.0016246072290165,
+          "upper": 20
+        },
+        {
+          "calibration_positive_rows": 1478,
+          "lower": 20,
+          "reason": "depth_bin_threshold",
+          "threshold": 4.169480294972614,
+          "upper": 40
+        },
+        {
+          "calibration_positive_rows": 1028,
+          "lower": 40,
+          "reason": "depth_bin_threshold",
+          "threshold": 4.364477740341602,
+          "upper": null
+        }
+      ],
+      "condition_agnostic": true,
+      "eligible_for_selection": true,
+      "fit_role": "calibration",
+      "id": "M11_pooled::depth_table_q0.99",
+      "kind": "depth_table",
+      "model_id": "M11_pooled",
+      "passthrough_below": 5.0,
+      "quantile_target": 0.99
+    },
+    "M11_pooled::depth_table_q0.995": {
+      "bins": [
+        {
+          "calibration_positive_rows": 66,
+          "lower": 0,
+          "reason": "low_depth_pass_through",
+          "threshold": null,
+          "upper": 5
+        },
+        {
+          "calibration_positive_rows": 816,
+          "lower": 5,
+          "reason": "depth_bin_threshold",
+          "threshold": -2.521012127738016,
+          "upper": 10
+        },
+        {
+          "calibration_positive_rows": 1566,
+          "lower": 10,
+          "reason": "depth_bin_threshold",
+          "threshold": -0.22566467288787403,
+          "upper": 20
+        },
+        {
+          "calibration_positive_rows": 1478,
+          "lower": 20,
+          "reason": "depth_bin_threshold",
+          "threshold": 3.189852169189511,
+          "upper": 40
+        },
+        {
+          "calibration_positive_rows": 1028,
+          "lower": 40,
+          "reason": "depth_bin_threshold",
+          "threshold": 3.1905768856253784,
+          "upper": null
+        }
+      ],
+      "condition_agnostic": true,
+      "eligible_for_selection": true,
+      "fit_role": "calibration",
+      "id": "M11_pooled::depth_table_q0.995",
+      "kind": "depth_table",
+      "model_id": "M11_pooled",
+      "passthrough_below": 5.0,
+      "quantile_target": 0.995
+    },
+    "M11_pooled::depth_table_q0.999": {
+      "bins": [
+        {
+          "calibration_positive_rows": 66,
+          "lower": 0,
+          "reason": "low_depth_pass_through",
+          "threshold": null,
+          "upper": 5
+        },
+        {
+          "calibration_positive_rows": 816,
+          "lower": 5,
+          "reason": "depth_bin_threshold",
+          "threshold": -4.060216640907101,
+          "upper": 10
+        },
+        {
+          "calibration_positive_rows": 1566,
+          "lower": 10,
+          "reason": "depth_bin_threshold",
+          "threshold": -2.4182535843797295,
+          "upper": 20
+        },
+        {
+          "calibration_positive_rows": 1478,
+          "lower": 20,
+          "reason": "depth_bin_threshold",
+          "threshold": -1.3098163245006853,
+          "upper": 40
+        },
+        {
+          "calibration_positive_rows": 1028,
+          "lower": 40,
+          "reason": "depth_bin_threshold",
+          "threshold": 0.7292007719940502,
+          "upper": null
+        }
+      ],
+      "condition_agnostic": true,
+      "eligible_for_selection": true,
+      "fit_role": "calibration",
+      "id": "M11_pooled::depth_table_q0.999",
+      "kind": "depth_table",
+      "model_id": "M11_pooled",
+      "passthrough_below": 5.0,
+      "quantile_target": 0.999
+    },
+    "M11_pooled::depth_table_q1": {
+      "bins": [
+        {
+          "calibration_positive_rows": 66,
+          "lower": 0,
+          "reason": "low_depth_pass_through",
+          "threshold": null,
+          "upper": 5
+        },
+        {
+          "calibration_positive_rows": 816,
+          "lower": 5,
+          "reason": "depth_bin_threshold",
+          "threshold": -4.060216640907101,
+          "upper": 10
+        },
+        {
+          "calibration_positive_rows": 1566,
+          "lower": 10,
+          "reason": "depth_bin_threshold",
+          "threshold": -3.434219298075083,
+          "upper": 20
+        },
+        {
+          "calibration_positive_rows": 1478,
+          "lower": 20,
+          "reason": "depth_bin_threshold",
+          "threshold": -6.275525550002412,
+          "upper": 40
+        },
+        {
+          "calibration_positive_rows": 1028,
+          "lower": 40,
+          "reason": "depth_bin_threshold",
+          "threshold": -2.192895388323034,
+          "upper": null
+        }
+      ],
+      "condition_agnostic": true,
+      "eligible_for_selection": true,
+      "fit_role": "calibration",
+      "id": "M11_pooled::depth_table_q1",
+      "kind": "depth_table",
+      "model_id": "M11_pooled",
+      "passthrough_below": 5.0,
+      "quantile_target": 1.0
+    },
+    "M11_pooled::existing_global": {
+      "condition_agnostic": false,
+      "eligible_for_selection": false,
+      "fit_role": "calibration",
+      "id": "M11_pooled::existing_global",
+      "kind": "legacy",
+      "legacy_thresholds": {
+        "downsampled": -0.8684019192972169,
+        "original": 3.131632543422058
+      },
+      "model_id": "M11_pooled",
+      "passthrough_below": null,
+      "selection_exclusion": "Legacy thresholds were already selected using the HG002 threshold role"
+    },
+    "M11_pooled::existing_global_low_depth_passthrough": {
+      "condition_agnostic": false,
+      "eligible_for_selection": false,
+      "fit_role": "calibration",
+      "id": "M11_pooled::existing_global_low_depth_passthrough",
+      "kind": "legacy",
+      "legacy_thresholds": {
+        "downsampled": -0.8684019192972169,
+        "original": 3.131632543422058
+      },
+      "model_id": "M11_pooled",
+      "passthrough_below": 5.0,
+      "selection_exclusion": "Legacy thresholds were already selected using the HG002 threshold role"
+    },
+    "M11_pooled::global_q0.99": {
+      "calibration_positive_rows_above_passthrough": 4888,
+      "condition_agnostic": true,
+      "eligible_for_selection": true,
+      "fit_role": "calibration",
+      "id": "M11_pooled::global_q0.99",
+      "kind": "global",
+      "model_id": "M11_pooled",
+      "passthrough_below": 5.0,
+      "quantile_target": 0.99,
+      "threshold": 0.6957048236713784
+    },
+    "M11_pooled::global_q0.995": {
+      "calibration_positive_rows_above_passthrough": 4888,
+      "condition_agnostic": true,
+      "eligible_for_selection": true,
+      "fit_role": "calibration",
+      "id": "M11_pooled::global_q0.995",
+      "kind": "global",
+      "model_id": "M11_pooled",
+      "passthrough_below": 5.0,
+      "quantile_target": 0.995,
+      "threshold": -0.8525228372974528
+    },
+    "M11_pooled::global_q0.999": {
+      "calibration_positive_rows_above_passthrough": 4888,
+      "condition_agnostic": true,
+      "eligible_for_selection": true,
+      "fit_role": "calibration",
+      "id": "M11_pooled::global_q0.999",
+      "kind": "global",
+      "model_id": "M11_pooled",
+      "passthrough_below": 5.0,
+      "quantile_target": 0.999,
+      "threshold": -2.676618604832472
+    },
+    "M11_pooled::global_q1": {
+      "calibration_positive_rows_above_passthrough": 4888,
+      "condition_agnostic": true,
+      "eligible_for_selection": true,
+      "fit_role": "calibration",
+      "id": "M11_pooled::global_q1",
+      "kind": "global",
+      "model_id": "M11_pooled",
+      "passthrough_below": 5.0,
+      "quantile_target": 1.0,
+      "threshold": -6.275525550002412
+    },
+    "M11_pooled::retain_all": {
+      "condition_agnostic": true,
+      "eligible_for_selection": true,
+      "fit_role": "calibration",
+      "id": "M11_pooled::retain_all",
+      "kind": "retain_all",
+      "model_id": "M11_pooled"
+    }
+  },
+  "policy_sha256": "30fdaae9a955a1f3e33d254ca14773b990834df6f4b52393e2ef2b327a674345",
+  "protocol_sha256": "29444d1839e5b58bec0675b11e56f6ab533ffa25d5b84a9e821549cde5948975",
+  "recall_estimand": "Retention of assessed positive candidates including deferred unresolved work",
+  "schema": "rosalind-threshold-transfer-policies-v1",
+  "selected": {
+    "counts": "M10_pooled::retain_all",
+    "rich": "M11_pooled::depth_table_q0.999"
+  },
+  "selected_structural_retain_all": {
+    "counts": true,
+    "rich": false
+  },
+  "selection_rows_sha256": "d19b94b8a150c856c2ea32119350852a1eefe632d91acabc935aa2c93dc6b3ae",
+  "stage": "frozen_before_fresh_scoring",
+  "test_labels_used_for_fitting_or_selection": false
+}

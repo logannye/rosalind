@@ -87,5 +87,40 @@ class ModelProvenanceTests(unittest.TestCase):
                     runner.verify_model_archive(archive, output, source)
 
 
+class ExecutionWindowTests(unittest.TestCase):
+    def fixture(self, root):
+        protocol = root / "protocol.json"
+        protocol.write_bytes(encoded({"deadline_utc": "2020-01-01T00:00:00Z"}))
+        window = runner.read(HERE / "execution-window.json")
+        window.update(started_utc="2020-01-02T00:00:00Z", deadline_utc="2020-01-02T03:00:00Z",
+                      original_deadline_utc="2020-01-01T00:00:00Z",
+                      frozen_protocol_sha256=runner.digest(protocol))
+        path = root / "execution-window.json"
+        path.write_bytes(encoded(window))
+        return protocol, path, window
+
+    def test_resumption_leaves_original_scientific_bytes_unchanged(self):
+        with tempfile.TemporaryDirectory() as directory:
+            protocol, path, window = self.fixture(Path(directory))
+            original = protocol.read_bytes()
+            self.assertEqual(runner.execution_deadline(protocol, path).isoformat(), "2020-01-02T03:00:00+00:00")
+            self.assertEqual(protocol.read_bytes(), original)
+            path.unlink()
+            self.assertEqual(runner.execution_deadline(protocol, path).isoformat(), "2020-01-01T00:00:00+00:00")
+
+    def test_changed_protocol_and_excess_time_attempts_or_compute_fail_closed(self):
+        changes = {"frozen_protocol_sha256": "0" * 64, "deadline_utc": "2020-01-02T03:00:01Z",
+                   "additional_hosted_attempts": 2, "previous_hosted_attempts": 1,
+                   "maximum_additional_runner_seconds": 10801, "previous_runner_seconds": 21600,
+                   "maximum_total_runner_seconds": 21601}
+        for key, value in changes.items():
+            with self.subTest(key=key), tempfile.TemporaryDirectory() as directory:
+                protocol, path, window = self.fixture(Path(directory))
+                window[key] = value
+                path.write_bytes(encoded(window))
+                with self.assertRaisesRegex(ValueError, "Operational resumption differs"):
+                    runner.execution_deadline(protocol, path)
+
+
 if __name__ == "__main__":
     unittest.main()
