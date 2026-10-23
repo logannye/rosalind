@@ -119,7 +119,10 @@ class SourceOnlyWorkerTests(unittest.TestCase):
                 path = fixture["inputs"] / (condition["name"] + ".bam")
                 self.assertTrue(Path(str(path) + ".bai").is_file())
                 with pysam.AlignmentFile(str(path), "rb") as derived:
-                    self.assertEqual(derived.header.to_dict(), expected_header)
+                    # SAM section order may be normalized by htslib (RG before
+                    # CO). Compare all section contents without treating the
+                    # top-level OrderedDict insertion order as biological data.
+                    self.assertEqual(dict(derived.header.to_dict()), dict(expected_header))
                     rows = list(derived.fetch("chr20"))
                     self.assertEqual([_core(record) for record in rows], fixture["records"])
                     self.assertEqual([r.get_tag("RG") for r in rows], [bound["technical_read_group"]] * 3)

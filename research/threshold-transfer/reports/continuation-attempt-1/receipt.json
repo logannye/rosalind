@@ -1,0 +1,18 @@
+{
+  "schema": "rosalind-hosted-attempt-receipt-v1",
+  "run_id": 39996264574,
+  "source_revision": "c1fb078f593b0c96c1b91674558ab74142263c9c",
+  "conclusion": "failure",
+  "job_seconds": 38,
+  "artifact_id": 12520310952,
+  "artifact_bytes": 6512,
+  "artifact_sha256": "976995a7d25285a5bc66fcfa68468c96336645eaa4f77b08a032ad118d987e26",
+  "artifact_integrity_verified": true,
+  "phase": "synthetic_tests",
+  "fresh_candidate_labels_accessed": false,
+  "fresh_model_scoring_started": false,
+  "native_build_ran": false,
+  "metadata_preflight_ran": false,
+  "failure": "One synthetic integration assertion compared top-level SAM section insertion order; htslib normalizes RG before CO. Other 94 threshold tests passed; 54 evidence-study and 30 calibration tests passed.",
+  "repair": "Compare ordinary top-level mappings, retaining all header section and nested content comparisons; all other identity and record preservation checks unchanged."
+}
