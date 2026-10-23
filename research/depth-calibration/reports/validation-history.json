@@ -20,6 +20,15 @@
         "2026-10-23T03:30:33.9939887Z Ran 30 tests in 1.138s",
         "2026-10-23T03:30:33.9940108Z FAILED (errors=1)"
       ]
+    },
+    {
+      "run_id": 39895529415,
+      "url": "https://github.com/logannye/rosalind/actions/runs/39895529415",
+      "status": "provenance_adapter_failure",
+      "hg002_executed": false,
+      "source_artifact_retrieved": true,
+      "tests_passed": 42,
+      "reason": "P0 deliberately excludes final telemetry.json from its member inventory; new adapter initially required an inventory entry. ZIP and all pinned member digests passed. Repair accepts only this documented omission and still verifies its pinned SHA256."
     }
   ]
 }

@@ -24,6 +24,8 @@ class ProvenanceTests(unittest.TestCase):
         }
         entry = lambda b: {"bytes": len(b), "sha256": hashlib.sha256(b).hexdigest()}
         files["run-manifest.json"] = json.dumps({"files": {k: entry(v) for k, v in files.items()}}).encode()
+        # The source pilot explicitly wrote final telemetry after its inventory.
+        files["telemetry.json"] = b'{"final":true}\n'
         source["files"] = {k: entry(v) for k, v in files.items()}
         archive = directory / "input.zip"
         with zipfile.ZipFile(archive, "w") as z:

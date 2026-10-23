@@ -73,7 +73,12 @@ def extract_verified(archive: Path, destination: Path, source: dict) -> dict:
             verify_file(path, expected)
     manifest = json.loads((destination / "run-manifest.json").read_text())
     for relative, expected in source["files"].items():
-        if relative != "run-manifest.json" and manifest["files"].get(relative) != expected:
+        # P0 writes final telemetry after its inventory and explicitly excludes
+        # that file (run_pilot.py). Its ZIP and member hashes are still pinned
+        # and verified above; no model/data file receives this exception.
+        if relative == "run-manifest.json" or (relative == "telemetry.json" and relative not in manifest["files"]):
+            continue
+        if manifest["files"].get(relative) != expected:
             raise ValueError(f"Pinned identity differs from original inventory: {relative}")
     identity = json.loads((destination / "identity.json").read_text())
     if (identity["git_revision"] != source["commit"]
