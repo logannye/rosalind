@@ -1,0 +1,12 @@
+{
+  "attempts": [
+    {
+      "run_id": 39901841463,
+      "source_revision": "c42ecf3180be6da08b7a0b4654d2674f0d37f87a",
+      "status": "workflow_admission_failed",
+      "runner_seconds": 0,
+      "fresh_test_scored": false,
+      "reason": "YAML plain scalar containing --only-binary=:all: needed a block scalar; static parser confirmed and repair parses."
+    }
+  ]
+}

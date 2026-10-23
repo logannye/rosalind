@@ -60,7 +60,8 @@ jobs:
               raise SystemExit('Insufficient hosted scratch')
           PY
       - name: Install exact model dependency wheels
-        run: python -m pip install --only-binary=:all: -r research/evidence-sufficiency/requirements.lock
+        run: |
+          python -m pip install --only-binary=:all: -r research/evidence-sufficiency/requirements.lock
       - name: Scientific policy, split, labeling and provenance tests
         run: |
           python -m unittest discover -s research/evidence-sufficiency/tests -v 2>&1 | tee validation-results/evidence-study-tests.log
