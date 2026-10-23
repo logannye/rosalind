@@ -18,6 +18,7 @@ import math
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import threading
@@ -69,7 +70,7 @@ SAMPLE_BINDING_SOURCES = (
 )
 
 
-def _admit_source_header(header, source, audit_dir):
+def _admit_source_header(header, source, audit_dir, source_only_receipt=None):
     """Retain original metadata, then bind each RG to this exact source's donor."""
     audit_dir = Path(audit_dir)
     header_path = audit_dir / "source-header.sam"
@@ -77,6 +78,24 @@ def _admit_source_header(header, source, audit_dir):
     original = header.to_dict()
     groups = original.get("RG", [])
     source_matches = source == DEFAULT_SOURCES["reads_bam"]
+    if not groups and source_only_receipt is not None:
+        from preflight import validate_header_identity
+        bound = validate_header_identity(header, source)
+        if (source_only_receipt.get("accepted") is not True
+                or any(source_only_receipt.get(key) != bound[key] for key in
+                       ("source_header_sha256", "source_identity_sha256", "dictionary_sha256", "technical_read_group"))):
+            raise ValueError("source-only header does not match the accepted metadata preflight")
+        normalized = copy.deepcopy(original)
+        normalized["RG"] = [{"ID": bound["technical_read_group"], "SM": "HG001",
+                             "DS": "Synthetic source-object group; original library and read-group identity unavailable"}]
+        normalized.setdefault("HD", {})["SO"] = "coordinate"
+        admission = dict(bound, accepted=True, source=source, original_header=_identity(header_path),
+                         canonical_sample="HG001", original_read_groups=[], synthetic_source_group=True,
+                         binding_sources=list(SAMPLE_BINDING_SOURCES),
+                         binding_scope="Exact-source published donor metadata; not genotype authentication or recovered library provenance",
+                         normalization="Derived technical RG and SM only; SO coordinate requires full observed-order audit; all original records preserved")
+        pilot.write_json(audit_dir / "source-sample-admission.json", admission)
+        return normalized, admission
     allowed = HG001_LIBRARY_ALIASES | {"HG001", "NA12878"}
     ids, failures, mappings = [], [], []
     if not source_matches:
@@ -183,11 +202,16 @@ class _Budget(prepare._Budget):
             return chunk
 
 
-def _request(url, **kwargs):
+def _request(url, *, timeout_seconds=30, **kwargs):
     if not url.startswith("https://"):
         raise ValueError("source transport must be HTTPS")
     return urllib.request.build_opener(prepare._HttpsRedirect()).open(
-        urllib.request.Request(url, **kwargs), timeout=30)
+        urllib.request.Request(url, **kwargs), timeout=timeout_seconds)
+
+
+def _network_timeout(budget):
+    budget.check_time()
+    return min(budget.timeout, max(0.001, budget.deadline - time.monotonic()))
 
 
 def _download(source, path, budget, receipt_path=None):
@@ -195,7 +219,8 @@ def _download(source, path, budget, receipt_path=None):
     md5, sha = hashlib.md5(), hashlib.sha256()
     received, verified, failure, status, headers = 0, False, None, None, {}
     try:
-        with _request(source["url"], headers={"Accept-Encoding": "identity"}) as response:
+        with _request(source["url"], headers={"Accept-Encoding": "identity"},
+                      timeout_seconds=_network_timeout(budget)) as response:
             status = response.status
             headers = {key: response.headers.get(key) for key in ("Content-Length", "Last-Modified")}
             if status != 200 or int(response.headers.get("Content-Length", -1)) != source["bytes"]:
@@ -244,7 +269,8 @@ def _range_relay(source, budget):
     fallback is rejected. Byte limits include bytes read before client disconnect.
     The published whole-BAM MD5 is retained as metadata, never claimed verified.
     """
-    with _request(source["url"], method="HEAD", headers={"Accept-Encoding": "identity"}) as response:
+    with _request(source["url"], method="HEAD", headers={"Accept-Encoding": "identity"},
+                  timeout_seconds=_network_timeout(budget)) as response:
         if response.status != 200 or response.headers.get("Accept-Ranges") != "bytes":
             raise ValueError("remote BAM does not advertise byte ranges")
         _check_bam_headers(response.headers, source)
@@ -295,7 +321,8 @@ def _range_relay(source, budget):
                                        "If-Unmodified-Since": source["last_modified"],
                                        "Accept-Encoding": "identity"}
                     try:
-                        with _request(source["url"], headers=request_headers) as response:
+                        with _request(source["url"], headers=request_headers,
+                                      timeout_seconds=_network_timeout(budget)) as response:
                             if response.status != 206:
                                 raise ValueError("refusing non-range BAM response; whole genome transfer forbidden")
                             _check_bam_headers(response.headers, source, start, stop)
@@ -347,7 +374,15 @@ def _extract_bams_worker(request_path):
     traversed, selected = 0, 0
     source_identity = hashlib.sha256(pilot.canonical(request["source"]).encode()).hexdigest()
     with pysam.AlignmentFile(request["url"], "rb", index_filename=request["bai"]) as source:
-        normalized, admission = _admit_source_header(source.header, request["source"], request["audit_out"])
+        normalized, admission = _admit_source_header(source.header, request["source"], request["audit_out"],
+                                                    request.get("preflight_receipt"))
+        source_only = admission.get("synthetic_source_group") is True
+        audit = None
+        if source_only:
+            from preflight import validate_no_rg_record_identity
+            from template_identity import TemplateIdentityAudit
+            audit = TemplateIdentityAudit(source_identity=source_identity,
+                                          synthetic_group=admission["technical_read_group"])
         derived_header = pysam.AlignmentHeader.from_dict(normalized)
         sample = "HG001"
         # Reuse the unchanged P0 reference/index audit against the admitted
@@ -362,6 +397,7 @@ def _extract_bams_worker(request_path):
             if header_m5 and header_m5.lower() != chr20_md5:
                 raise ValueError("chr20 source header M5 differs from acquired reference sequence")
         writers = {name: pysam.AlignmentFile(path, "wb", header=derived_header) for name, path in paths.items()}
+        previous_coordinate = None
         try:
             for region_index, region in enumerate(intervals):
                 for record in source.fetch(region["contig"], region["start"], region["end"]):
@@ -373,19 +409,39 @@ def _extract_bams_worker(request_path):
                     # its first overlapping interval. Do not deduplicate by QNAME.
                     if any(start < previous["end"] and end > previous["start"] for previous in intervals[:region_index]):
                         continue
-                    if not record.has_tag("RG") or record.get_tag("RG") not in group_ids:
-                        raise ValueError("fresh selected record has missing or unexpected RG")
+                    coordinate = (record.reference_id, start)
+                    if previous_coordinate is not None and coordinate < previous_coordinate:
+                        raise ValueError("fresh interval records are not in coordinate order")
+                    previous_coordinate = coordinate
+                    if source_only:
+                        validate_no_rg_record_identity(record)
+                        audit.observe(record)
+                        group = admission["technical_read_group"]
+                    else:
+                        if not record.has_tag("RG") or record.get_tag("RG") not in group_ids:
+                            raise ValueError("fresh selected record has missing or unexpected RG")
+                        group = record.get_tag("RG")
                     selected += 1
-                    for condition in conditions:
-                        if prepare._keep_template(request["seed"], source_identity, record.get_tag("RG"),
-                                                  record.query_name, condition["numerator"], condition["denominator"]):
-                            name = condition["name"]
+                    retained = [c["name"] for c in conditions if prepare._keep_template(
+                        request["seed"], source_identity, group, record.query_name, c["numerator"], c["denominator"])]
+                    if source_only and retained:
+                        record.set_tag("RG", group)
+                    try:
+                        for name in retained:
                             writers[name].write(record)
                             metrics[name]["records"] += 1
                             metrics[name]["query_bases"] += record.query_length or 0
+                    finally:
+                        if source_only and retained:
+                            record.set_tag("RG", None)
         finally:
             for writer in writers.values():
                 writer.close()
+    template_audit = audit.finish() if audit is not None else None
+    if template_audit is not None:
+        if template_audit["physical_records_observed"] != selected:
+            raise ValueError("full template audit does not reconcile with admitted physical records")
+        pilot.write_json(Path(request["audit_out"]) / "template-identity-audit.json", template_audit)
     for path in paths.values():
         pysam.index(path)
     result = {"bams": paths, "sample": sample, "conditions": metrics,
@@ -394,6 +450,9 @@ def _extract_bams_worker(request_path):
               "chr20_md5": chr20_md5, "bam_chr20_header_m5": header_m5,
               "full_ordered_bam_reference_dictionary_match": True,
               "template_identity_sha256": source_identity,
+              "template_identity_audit": template_audit,
+              "source_only_technical_group": source_only,
+              "coordinate_order_verified": True,
               "downsampling_algorithm": "sha256-json-template-v1; same hash nested at all fractions"}
     pilot.write_json(Path(request["out"]) / "bam-preparation.json", result)
 
@@ -452,7 +511,7 @@ def counts_features(row, alt):
     return features
 
 
-def prepare_fresh(protocol, out, binary):
+def prepare_fresh(protocol, out, binary, preflight_dir=None):
     if os.environ.get("GITHUB_ACTIONS") != "true":
         raise RuntimeError("fresh scientific acquisition and execution require hosted workflow")
     import pysam
@@ -466,15 +525,29 @@ def prepare_fresh(protocol, out, binary):
     budget = _Budget(out, protocol["limits"])
     sources = fresh.get("sources", DEFAULT_SOURCES)
     acquired = {}
-    paths = {"reads_bai": "source.bam.bai", "reference": "reference.fa.gz",
-             "truth_vcf": "truth.vcf.gz", "truth_bed": "truth.bed"}
-    for name, filename in paths.items():
-        acquired[name] = _download(sources[name], inputs / filename, budget,
-                                   out / ("download-" + name + ".json"))
-        pilot.write_json(out / "acquired-sources.json", acquired)
-    coverage = prepare.benchmark_coverage(inputs / "truth.bed", intervals, budget)
-    if coverage["empty_block_ids"]:
-        raise ValueError("fresh selected interval has no benchmark confident coverage; no outcome-driven relocation")
+    from preflight import run_preflight, validate_preflight_receipt
+    if preflight_dir is None:
+        preflight_dir = out / "preflight"
+        preflight_receipt = run_preflight(protocol, preflight_dir, budget)
+    else:
+        preflight_dir = Path(preflight_dir).absolute()
+        preflight_receipt = validate_preflight_receipt(preflight_dir, protocol)
+        budget.download_bytes = preflight_receipt["download_bytes"]
+        if budget.download_bytes > budget.download_limit:
+            raise ValueError("preflight bytes exceed combined acquisition budget")
+        (out / "preflight").mkdir()
+        for path in preflight_dir.iterdir():
+            if path.is_file() and path.suffix != ".bai":
+                shutil.copyfile(path, out / "preflight" / path.name)
+    preflight_receipt = validate_preflight_receipt(preflight_dir, protocol)
+    preflight_snapshot = {name: _identity(preflight_dir / name)
+                          for name in (*preflight_receipt["verified_preflight_files"], "completion.json")}
+    bai = preflight_receipt["bai_download"]
+    shutil.copyfile(preflight_receipt["bai_path"], inputs / "source.bam.bai")
+    acquired["reads_bai"] = dict(bai, path=str(inputs / "source.bam.bai"))
+    acquired["reference"] = _download(sources["reference"], inputs / "reference.fa.gz", budget,
+                                      out / "download-reference.json")
+    pilot.write_json(out / "acquired-sources.json", acquired)
     reference = inputs / "reference.fa"
     with gzip.open(inputs / "reference.fa.gz", "rb") as source, reference.open("xb") as dest:
         while chunk := source.read(1 << 20):
@@ -482,13 +555,28 @@ def prepare_fresh(protocol, out, binary):
             if dest.tell() % (128 << 20) < 1 << 20:
                 budget.check_scratch()
     pysam.faidx(str(reference))
+    header = pysam.AlignmentHeader.from_text((preflight_dir / "source-header.sam").read_text())
+    with pysam.FastaFile(str(reference)) as fasta:
+        if tuple(zip(header.references, header.lengths)) != tuple(zip(fasta.references, fasta.lengths)):
+            raise ValueError("preflight BAM dictionary and acquired reference differ")
+    pilot.write_json(out / "reference-admission.json", {
+        "accepted": True, "full_ordered_bam_reference_dictionary_match": True,
+        "reference_gzip": acquired["reference"],
+        "header_sha256": preflight_receipt["source_header_sha256"],
+        "scope": "Full reference checksum and ordered dictionary verified before truth acquisition"})
+    for name, filename in (("truth_vcf", "truth.vcf.gz"), ("truth_bed", "truth.bed")):
+        acquired[name] = _download(sources[name], inputs / filename, budget, out / ("download-" + name + ".json"))
+        pilot.write_json(out / "acquired-sources.json", acquired)
+    coverage = prepare.benchmark_coverage(inputs / "truth.bed", intervals, budget)
+    if coverage["empty_block_ids"]:
+        raise ValueError("fresh selected interval has no benchmark confident coverage; no outcome-driven relocation")
     regions = inputs / "regions.bed"
     with regions.open("x") as handle:
         for region in intervals:
             handle.write("\t".join(str(region[k]) for k in ("contig", "start", "end")) + "\n")
     request = {"source": sources["reads_bam"], "bai": str(inputs / "source.bam.bai"),
                "reference": str(reference), "out": str(inputs), "intervals": intervals,
-               "conditions": conditions, "seed": fresh.get("seed", 42)}
+               "conditions": conditions, "seed": fresh.get("seed", 42), "preflight_receipt": preflight_receipt}
     _run_bam_extraction(request, budget, out)
     bam_preparation = json.loads((inputs / "bam-preparation.json").read_text())
     expected_m5 = fresh.get("expected_chr20_md5")
@@ -504,6 +592,10 @@ def prepare_fresh(protocol, out, binary):
                   "regions": str(regions), "truth_vcf": str(inputs / "truth.vcf.gz"),
                   "truth_bed": str(inputs / "truth.bed")}
     local_protocol = dict(protocol, intervals=intervals)
+    pilot.write_json(out / "candidate-label-access-started.json", {
+        "fresh_candidate_labels_may_be_accessed": True,
+        "stage": "before constructing truth index; no model scoring yet",
+        "rule": "No model, policy, region or gate changes; never silently consume candidate outcomes twice"})
     truth = TruthIndex(base_state["truth_vcf"], base_state["truth_bed"], intervals,
                        reference_path=base_state["reference"])
     records, candidate_recall, costs, leaves = [], {}, {}, {}
@@ -600,17 +692,24 @@ def prepare_fresh(protocol, out, binary):
         raise ValueError("fresh retained evidence byte budget exceeded")
     recheck = verify_input_snapshot(input_snapshot)
     pilot.write_json(out / "input-recheck.json", recheck)
+    preflight_recheck = verify_input_snapshot(preflight_snapshot)
+    pilot.write_json(out / "preflight-recheck.json", preflight_recheck)
     identities = {"sources": acquired, "remote_bam": sources["reads_bam"],
                   "remote_bam_full_md5_verified": False,
                   "remote_bam_identity_scope": "official URL/size/Last-Modified plus received byte-range hashes; full BAM not acquired",
                   "inputs": input_snapshot, "post_analysis_input_recheck": recheck,
+                  "preflight": preflight_receipt, "preflight_snapshot": preflight_snapshot,
+                  "preflight_recheck": preflight_recheck,
                   "bam_preparation": bam_preparation,
                   "cross_specimen_chr20_sequence_match": True if expected_m5 else "not separately verified"}
     metrics = {"wall_seconds": time.monotonic() - budget.started, "download_bytes": budget.download_bytes,
                "retained_bytes": retained, "scratch_high_water_bytes": budget.scratch_high_water,
                "condition_costs": costs, "benchmark_coverage": coverage,
                "correctness": {"independent_counts": True, "native_parquet_features": True,
-                               "standalone_counts_f0_equal": True, "saved_only_replay": True},
+                               "standalone_counts_f0_equal": True, "saved_only_replay": True,
+                               "metadata_preflight": preflight_receipt["accepted"],
+                               "full_template_identity": bam_preparation["template_identity_audit"]["passed"],
+                               "coordinate_order": bam_preparation["coordinate_order_verified"]},
                "cost_limitations": "Single counterbalanced extraction per arm/depth, shared acquisition and scan; no selective fallback or user-review workflow measured"}
     result = {"records": records, "candidate_recall": candidate_recall, "metrics": metrics,
               "identities": identities, "state": base_state | {"condition_bams": bam_preparation["bams"]}}

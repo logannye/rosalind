@@ -50,14 +50,16 @@ def execution_deadline(protocol_path, window_path):
     window = read(window_path)
     start = datetime.fromisoformat(window["started_utc"].replace("Z", "+00:00"))
     end = datetime.fromisoformat(window["deadline_utc"].replace("Z", "+00:00"))
-    if (window["schema"] != "rosalind-threshold-resumption-v1"
+    known = {"rosalind-threshold-resumption-v1", "rosalind-threshold-preflight-continuation-v1"}
+    continuation = window.get("schema") == "rosalind-threshold-preflight-continuation-v1"
+    if (window["schema"] not in known
             or window["frozen_protocol_sha256"] != digest(protocol_path)
             or window["original_deadline_utc"] != protocol["deadline_utc"]
             or not original < start < end
-            or (end - start).total_seconds() > 10800
-            or window["previous_hosted_attempts"] != 2
-            or window["additional_hosted_attempts"] != 1
-            or not 0 < window["maximum_additional_runner_seconds"] <= 10800
+            or (end - start).total_seconds() > (14400 if continuation else 10800)
+            or window["previous_hosted_attempts"] != (3 if continuation else 2)
+            or window["additional_hosted_attempts"] != (2 if continuation else 1)
+            or not 0 < window["maximum_additional_runner_seconds"] <= (18000 if continuation else 10800)
             or window["previous_runner_seconds"] < 0
             or window["previous_runner_seconds"] + window["maximum_additional_runner_seconds"] > 21600
             or window["maximum_total_runner_seconds"] != 21600):
@@ -216,7 +218,8 @@ def fresh(args, protocol, binary):
         raise FileExistsError("Fresh run exists; never silently rescore or overwrite it")
     with Telemetry(args.output, protocol) as telemetry:
         with telemetry.phase("fresh_acquisition_extraction_and_oracles"):
-            data = prepare_fresh(protocol, out, binary)
+            preflight_dir = args.inputs.parent / "preflight"
+            data = prepare_fresh(protocol, out, binary, preflight_dir=preflight_dir)
         write(args.output / "fresh-evaluation-started.json", {
             "fresh_test_consumed": True, "frozen_policy_sha256": freeze_receipt["frozen_policy_sha256"],
             "rule": "No threshold, model or region changes after this marker; execution-only repairs preserve frozen bytes",
@@ -257,6 +260,10 @@ def fresh(args, protocol, binary):
         scientific_gate = report["gate"]
         correctness = data["metrics"].get("correctness", {})
         external_checks = {
+            "metadata_preflight": correctness.get("metadata_preflight") is True,
+            "full_template_identity": correctness.get("full_template_identity") is True,
+            "coordinate_order": correctness.get("coordinate_order") is True,
+            "preflight_bytes_unchanged": verify_input_snapshot(data["identities"]["preflight_snapshot"]).get("passed") is True,
             "fresh_independent_counts": correctness.get("independent_counts") is True,
             "fresh_native_parquet_features": correctness.get("native_parquet_features") is True,
             "standalone_counts_features_equal": correctness.get("standalone_counts_f0_equal") is True,

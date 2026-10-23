@@ -1,8 +1,9 @@
 # Frozen thresholds across coverage and specimen changes
 
-Status: [stopped after the final allowed hosted attempt](RESULTS.md). Tests and
-policy freezing passed, but the fresh HG001 BAM lacks read groups required by the
-audited input contract. Fresh recall and practical benefit remain unmeasured.
+Status: a newly authorized [metadata-preflight continuation](INPUT_CONTRACT.md)
+is being validated after the [original three-attempt intake stop](RESULTS.md).
+Frozen models, thresholds and scientific gates are unchanged. Fresh recall and
+practical benefit remain unmeasured until a verified completed evaluation exists.
 Historical HG002 results are not fresh confirmation.
 
 This study asks whether fixed pooled counts and rich-evidence models can retain

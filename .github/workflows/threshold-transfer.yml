@@ -45,7 +45,7 @@ jobs:
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: '3.11'
-      - name: Admit bounded overnight work
+      - name: Admit bounded user-authorized continuation
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -60,13 +60,26 @@ jobs:
           if datetime.now(timezone.utc) >= execution_deadline(root/'protocol.json', root/'execution-window.json'):
               raise SystemExit('Authorized execution deadline passed; do not start')
           if os.environ['GITHUB_RUN_ATTEMPT'] != '1':
-              raise SystemExit('No reruns: this is the final allowed hosted attempt')
+              raise SystemExit('No opaque reruns; continuation requires a recorded new attempt')
           runs = json.loads(subprocess.check_output([
               'gh', 'api', 'repos/logannye/rosalind/actions/workflows/threshold-transfer.yml/runs?branch=codex%2Fhg002-depth-calibration&per_page=100'
           ], text=True))
-          allowed = {39901841463, 39902020683, int(os.environ['GITHUB_RUN_ID'])}
-          if runs['total_count'] != 3 or {r['id'] for r in runs['workflow_runs']} != allowed:
+          window = json.loads((root/'execution-window.json').read_text())
+          prior = set(window['completed_prior_run_ids'])
+          if not {39901841463, 39902020683, 39991819570}.issubset(prior) or not 3 <= len(prior) <= 4:
+              raise SystemExit('Continuation permits at most two new attempts after the preserved three-run history')
+          allowed = prior | {int(os.environ['GITHUB_RUN_ID'])}
+          if runs['total_count'] != len(allowed) or {r['id'] for r in runs['workflow_runs']} != allowed:
               raise SystemExit('Hosted attempt inventory differs; stop without acquiring or scoring data')
+          if any(r['status'] != 'completed' for r in runs['workflow_runs'] if r['id'] in prior):
+              raise SystemExit('Prior study compute still active; do not overlap')
+          used = 0
+          for run_id in sorted(prior):
+              jobs = json.loads(subprocess.check_output(['gh', 'api', f'repos/logannye/rosalind/actions/runs/{run_id}/jobs'], text=True))
+              for job in jobs['jobs']:
+                  used += (datetime.fromisoformat(job['completed_at'].replace('Z', '+00:00')) - datetime.fromisoformat(job['started_at'].replace('Z', '+00:00'))).total_seconds()
+          if used + 10800 > 21600 or used - 618 + 10800 > 18000:
+              raise SystemExit('Insufficient remaining runner budget for the hard per-job limit')
           free = shutil.disk_usage('.').free
           print(f'Free hosted bytes: {free}')
           if free < 12 * (1 << 30):
@@ -80,6 +93,12 @@ jobs:
           python -m unittest discover -s research/evidence-sufficiency/tests -v 2>&1 | tee validation-results/evidence-study-tests.log
           python -m unittest discover -s research/depth-calibration/tests -v 2>&1 | tee validation-results/calibration-tests.log
           python -m unittest discover -s research/threshold-transfer/tests -v 2>&1 | tee validation-results/threshold-tests.log
+      - name: Cheap GIAB metadata preflight before full downloads and native build
+        timeout-minutes: 3
+        run: |
+          python -u research/threshold-transfer/preflight.py \
+            --protocol research/threshold-transfer/protocol.json \
+            --output validation-results/preflight 2>&1 | tee validation-results/preflight.log
       - name: Hosted native compilation and conformance
         run: |
           cargo fmt --all -- --check
@@ -157,7 +176,9 @@ jobs:
           path: |
             validation-results
             !validation-results/source-inputs/**
+            !validation-results/preflight/*.bai
             !validation-results/threshold-transfer/fresh/inputs/**
             !validation-results/threshold-transfer/fresh/inputs.hidden-for-replay/**
+            !validation-results/threshold-transfer/fresh/preflight/*.bai
           if-no-files-found: error
           retention-days: 30

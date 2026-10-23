@@ -93,6 +93,9 @@ class ExecutionWindowTests(unittest.TestCase):
         protocol.write_bytes(encoded({"deadline_utc": "2020-01-01T00:00:00Z"}))
         window = runner.read(HERE / "execution-window.json")
         window.update(started_utc="2020-01-02T00:00:00Z", deadline_utc="2020-01-02T03:00:00Z",
+                      schema="rosalind-threshold-resumption-v1", previous_hosted_attempts=2,
+                      additional_hosted_attempts=1, previous_runner_seconds=275,
+                      maximum_additional_runner_seconds=10800,
                       original_deadline_utc="2020-01-01T00:00:00Z",
                       frozen_protocol_sha256=runner.digest(protocol))
         path = root / "execution-window.json"
@@ -120,6 +123,20 @@ class ExecutionWindowTests(unittest.TestCase):
                 path.write_bytes(encoded(window))
                 with self.assertRaisesRegex(ValueError, "Operational resumption differs"):
                     runner.execution_deadline(protocol, path)
+
+    def test_new_input_continuation_retains_overall_compute_ceiling(self):
+        with tempfile.TemporaryDirectory() as directory:
+            protocol, path, window = self.fixture(Path(directory))
+            window.update(schema="rosalind-threshold-preflight-continuation-v1",
+                          previous_hosted_attempts=3, additional_hosted_attempts=2,
+                          previous_runner_seconds=618, maximum_additional_runner_seconds=18000,
+                          deadline_utc="2020-01-02T04:00:00Z")
+            path.write_bytes(encoded(window))
+            self.assertEqual(runner.execution_deadline(protocol, path).isoformat(), "2020-01-02T04:00:00+00:00")
+            window["previous_runner_seconds"] = 3601
+            path.write_bytes(encoded(window))
+            with self.assertRaisesRegex(ValueError, "remaining budget"):
+                runner.execution_deadline(protocol, path)
 
 
 if __name__ == "__main__":
