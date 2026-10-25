@@ -6,10 +6,16 @@ existing native saved queries (B), and checked zstd Parquet (D). D shares B's
 native extraction and pays the same setup plus conversion. This does not compare
 Rosalind with an independent raw-to-Parquet pipeline.
 
-**Execution status:** implementation prepared; exact-source hosted results are
-pending. No new real-data measurements or successful clean replay are claimed
-by this document. The findings and claim ledger must identify the tested commit,
-run and artifacts before an application result can be quoted.
+**Execution status:** producer and separate clean replay passed in
+[run 40151881458](https://github.com/logannye/rosalind/actions/runs/40151881458)
+at exact source `401b06b12b875e13e4c101305f41d4bb0ed252fc`.
+Independent artifact and cost audits passed. All 34 legacy columns matched at
+1,000 probes; all 27 query answers matched; native replay returned `REPRODUCED`.
+For the fixed three-query sequence, setup-inclusive medians were A 2.880463 s,
+B 1.435907 s, D 1.895494 s, excluding common acquisition/preparation of 33.937795 s.
+See the [complete findings and evidence](https://github.com/logannye/rosalind/tree/codex/reproducibility-case-study/docs/findings/reproducibility-case-study-2026-10-24).
+The initial failure and one correction are retained; the authorized scientific
+attempts are exhausted. The measured source precedes the findings-only commit.
 
 The [frozen protocol](PROTOCOL.md) specifies one public HG002 BAM window,
 chr20:[10,000,000,11,000,000), 1,000 reference-derived probes, legacy mask63,
@@ -58,17 +64,17 @@ PYTHONPATH=python python research/reproducibility-case-study/run.py \
   --output "$RUNNER_TEMP/rosalind-case-study"
 ```
 
-Outputs must be new paths. The explicit build record binds binary SHA256, native
-compiled commit/tree/compiler/lock identities, the protocol, dependencies and
-relevant source files. A version string is only an assertion. Authentication
+Outputs must be new paths. The explicit build record binds binary SHA256, source commit/tree, compiled
+commit/compiler/target/lock metadata, the protocol, dependencies and relevant
+source files. A version string is only an assertion. Authentication
 checks consistency with the trusted hosted record; unsigned hashes do not prove
 authorship or protect against coordinated replacement of all artifacts.
 
 ## Verify only the saved bundle
 
 Download `replay-bundle-RUN-ATTEMPT` and `exact-binary-RUN-ATTEMPT` from the same
-identified run into separate directories. Hosted retention is 30 days; rerun
-the exact commit and pinned public sources if artifacts expire. The binary
+identified run into separate directories. Hosted retention is 30 days; preserve the original ZIPs before they expire.
+A new scientific run requires a new scope decision after the two retained attempts. The binary
 artifact contains `rosalind` and `build-identity.json`; no native target is needed.
 Checkout that exact source SHA and install the pinned wheels without installing
 the repository. Obtain the expected inventory hash from the producer job output
@@ -113,8 +119,8 @@ RSS is a 10 ms sampled simultaneous process-tree sum, not a hard memory cap.
 No cold-cache, p99, extrapolated crossover, clinical outcome, release acceptance
 or outside-user adoption follows.
 
-Both earlier stops remain visible: the [bounded cohort analyzer](../../docs/findings/bounded-cohort-reanalysis-2026-10-22/README.md)
+Both earlier stops remain visible: the [bounded cohort analyzer](https://github.com/logannye/rosalind/blob/70af512ecb803baa61b79abcf68ccb6d42cb990f/docs/findings/bounded-cohort-reanalysis-2026-10-22/README.md)
 was correct but slower than existing saved queries and checked Parquet; the
-[frozen HG001 threshold transfer](../threshold-transfer/CONTINUATION_RESULTS.md)
+[frozen HG001 threshold transfer](https://github.com/logannye/rosalind/blob/70af512ecb803baa61b79abcf68ccb6d42cb990f/research/threshold-transfer/CONTINUATION_RESULTS.md)
 removed two true candidates and failed practical-benefit gates. Neither is
 reopened. See [claim ledger](CLAIMS.md) and [interview notes](INTERVIEW.md).

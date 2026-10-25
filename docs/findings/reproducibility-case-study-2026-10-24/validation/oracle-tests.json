@@ -1,0 +1,12 @@
+{
+  "elapsed_seconds": 0.8219179639999936,
+  "errors": [],
+  "expected_failures": [],
+  "failures": [],
+  "passed": true,
+  "pattern": "test_*.py",
+  "skips": [],
+  "start": "benchmarks/evidence",
+  "tests_run": 38,
+  "unexpected_successes": []
+}

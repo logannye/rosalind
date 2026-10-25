@@ -1,0 +1,12 @@
+{
+  "elapsed_seconds": 0.015983132000002342,
+  "errors": [],
+  "expected_failures": [],
+  "failures": [],
+  "passed": true,
+  "pattern": "test_reproduce_demo.py",
+  "skips": [],
+  "start": "scripts",
+  "tests_run": 3,
+  "unexpected_successes": []
+}

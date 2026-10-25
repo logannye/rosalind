@@ -24,8 +24,8 @@ Keeping these states distinct prevents silent denominator and accuracy errors.
 The experiment reports acquisition/preparation, evidence materialization and
 verification, columnar conversion/readback, query execution, explicit verification,
 and retained bytes. Whole-worker and parent-clock prefix measurements include
-startup. Native fresh extraction repeatedly hashes the full reference, so a
-saved-query benefit would not isolate faster counting. The experiment does not
+startup. Native fresh extraction repeatedly hashes the full reference, so an
+observed saved-query benefit does not isolate faster counting. The experiment does not
 separately identify every cost of decoding, counting, startup and hashing. A
 10 ms process-tree RSS maximum is an observation that can miss short peaks; the
 native budget is cooperative and excludes Python consumers.
@@ -45,3 +45,28 @@ missingness and failure behavior, and an evaluated resource envelope on affected
 workloads. This one-window case cannot establish all-platform/all-workload safety,
 variant-calling accuracy, clinical usefulness, production adoption or neural
 interface performance. Each of those needs its own evaluation.
+
+For this completed run, native setup cost 1.325328 s and Parquet conversion added
+0.405434 s. The complete three-query sequence including those costs took median
+1.435907 s native, 1.895494 s Parquet, and 2.880463 s fresh. Parquet used far fewer
+retained bytes and beat native on Q2/Q3; its first query included PyArrow startup.
+Both reuse paths first beat fresh at the observed two-query prefix. Three rounds
+and one setup measurement cannot establish a universal crossover. Acquisition
+and preparation took another 33.937795 s, so a twofold whole-pipeline claim would
+be misleading. The largest sampled phase RSS was preparation at 297,918,464
+bytes, beyond the scope of the native cooperative budget.
+
+The complete replay artifact contains 5,840,123 logical bytes and is paired with
+an exact 13,917,792-byte binary. Its value is that another clean job can recompute
+the checks, preserve the original receipt, and distinguish corrupted, missing,
+REF-mismatched and stored-zero data. The real probes had no zero-callable rows;
+the zero/missing check deliberately uses a labeled synthetic fixture. Matching
+compiled source and output hashes establish the scoped reproduction claim, while
+unsigned hashes and shared semantics still have explicit trust limits.
+
+An existing test's nested build used the shared target directory but its executable
+lookup assumed a private directory. The first hosted attempt failed there before
+scientific work. One targeted test-path correction produced the successful second
+run; no measurement-engine Rust change or third scientific attempt was needed.
+The later packaging issue was a transitive offline documentation size failure,
+resolved by linking large historical evidence remotely while retaining it.

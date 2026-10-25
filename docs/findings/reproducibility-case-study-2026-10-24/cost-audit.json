@@ -1,0 +1,334 @@
+{
+  "acquisition_added_k3_medians_seconds": {
+    "A": 36.81825819400001,
+    "B": 35.37370209100004,
+    "D": 35.83328923800002
+  },
+  "acquisition_preparation_seconds": 33.93779477300001,
+  "audit_schema_version": 1,
+  "caveats": [
+    "One fixed 1000-probe HG002 workload and three ordered request rounds; no statistical significance, p99, cold-cache claim, or arbitrary-K extrapolation.",
+    "B and D totals add a single observed common setup; D additionally adds its single conversion. These are arithmetic totals, not independently repeated setup-inclusive trials.",
+    "D shares native extraction and is a retained representation comparator, not an independent raw-to-Parquet pipeline.",
+    "Post-preparation per-path RSS is the maximum of retained-evidence setup/conversion/query phase peaks; the reported per-path workflow value excludes common acquisition/preparation. The largest sampled phase across the study was acquisition/preparation at 297918464 bytes.",
+    "RSS samples every 10 ms can miss short peaks and double-count shared pages; monitoring driver excluded. No OS-enforced or whole-process memory cap follows from the 256 MiB cooperative native budget.",
+    "A/B separate verification measures external native receipt verification and canonical result readback; native integrated hashing remains included in query wall time. D separately measures inventory/anchor/schema and before/after hashes plus result readback. These subcolumns have unequal instrumentation boundaries.",
+    "A native receipts attribute 419-444 ms per query to hashing and 25-99 ms to analysis/encoding; hashing is nested in setup/native elapsed and must not be added again. External verification adds about 0.42-0.44 s. These costs do not establish counting-kernel speedup.",
+    "D Q1 includes initial PyArrow import/initialization in the current worker; D Q2 and Q3 are faster than B in these observations. B has the faster three-request parent prefix and setup-inclusive total; neither result generalizes to every individual cached query.",
+    "Acquisition/preparation 33.937794773 s and 1980479678 downloaded bytes are a common separately measured term. Preparation also creates unused CRAM/panel inputs. Independent raw oracle, controls, source rechecks and bundle publication are separate from compared path totals.",
+    "Cache byte counts include each cache metadata; the complete replay bundle and separately supplied executable are larger. Values are logical file bytes, not allocated disk or measured peak scratch.",
+    "The 212 s hosted setup interval ends at build-identity capture and excludes subsequent Python test suites, scientific workload and clean replay."
+  ],
+  "checks": {
+    "answer_hashes_and_expected_rows_verified": true,
+    "balanced_order_verified": true,
+    "csv_matches_every_trial": true,
+    "native_parquet_and_bundle_logical_sizes_recomputed": true,
+    "prefix_medians_ranges_recomputed": true,
+    "prefixes_use_parent_clocks_not_inner_sums": true,
+    "rss_maxima_recomputed_without_summing": true,
+    "trials": 27,
+    "workers": 9
+  },
+  "conversion_seconds": 0.4054341859999795,
+  "hosted_setup_to_build_identity_seconds": 212,
+  "independent_raw_oracle_seconds": 1.357455123999955,
+  "largest_sampled_phase": "acquisition_preparation",
+  "largest_sampled_phase_rss_bytes_including_acquisition": 297918464,
+  "method": "Independent standard-library JSON/CSV/file-size arithmetic; no native execution, packages or artifact mutation",
+  "observed_crossover_request_prefix": {
+    "B_vs_A": 2,
+    "D_vs_A": 2
+  },
+  "paths": {
+    "A": {
+      "added_single_setup_seconds": 0,
+      "observed_prefix_seconds": {
+        "Q1": {
+          "max": 0.9565893399999936,
+          "median": 0.9385304429999906,
+          "min": 0.93360947299999
+        },
+        "Q2": {
+          "max": 1.9099465120000332,
+          "median": 1.9081732250000414,
+          "min": 1.9027050669999994
+        },
+        "Q3": {
+          "max": 2.89005576400001,
+          "median": 2.8804634210000017,
+          "min": 2.8559638809999797
+        }
+      },
+      "post_preparation_setup_query_peak_rss_bytes": 30724096,
+      "queries_seconds": {
+        "Q1": {
+          "max": 0.9272127510000132,
+          "median": 0.9073984930000165,
+          "min": 0.893659112000023,
+          "verification_median": 0.43027115200004573
+        },
+        "Q2": {
+          "max": 0.9693519830000241,
+          "median": 0.9687897009999915,
+          "min": 0.953064468999969,
+          "verification_median": 0.42920881800000643
+        },
+        "Q3": {
+          "max": 0.9795604120000121,
+          "median": 0.9717030089999525,
+          "min": 0.9527289729999779,
+          "verification_median": 0.4212551440000425
+        }
+      },
+      "query_only_peak_rss_bytes": 30724096,
+      "setup_inclusive_prefix_seconds": {
+        "Q1": {
+          "max": 0.9565893399999936,
+          "median": 0.9385304429999906,
+          "min": 0.93360947299999
+        },
+        "Q2": {
+          "max": 1.9099465120000332,
+          "median": 1.9081732250000414,
+          "min": 1.9027050669999994
+        },
+        "Q3": {
+          "max": 2.89005576400001,
+          "median": 2.8804634210000017,
+          "min": 2.8559638809999797
+        }
+      },
+      "whole_worker_seconds": {
+        "max": 2.896624639000038,
+        "median": 2.8874068730000317,
+        "min": 2.862804976999996
+      }
+    },
+    "B": {
+      "added_single_setup_seconds": 1.3253276020000158,
+      "observed_prefix_seconds": {
+        "Q1": {
+          "max": 0.07816331999998738,
+          "median": 0.0446962379999718,
+          "min": 0.04315959999996721
+        },
+        "Q2": {
+          "max": 0.10891411799997286,
+          "median": 0.07369069999998601,
+          "min": 0.06958396099997799
+        },
+        "Q3": {
+          "max": 0.1464277739999602,
+          "median": 0.11057971600001792,
+          "min": 0.10588141299996323
+        }
+      },
+      "post_preparation_setup_query_peak_rss_bytes": 81440768,
+      "queries_seconds": {
+        "Q1": {
+          "max": 0.027285121000033996,
+          "median": 0.014505307999968409,
+          "min": 0.014040042000033282,
+          "verification_median": 0.0024603409999599535
+        },
+        "Q2": {
+          "max": 0.030499426999995194,
+          "median": 0.028734608999968714,
+          "min": 0.026179219999960424,
+          "verification_median": 0.004218971000000238
+        },
+        "Q3": {
+          "max": 0.036961551000047166,
+          "median": 0.036321106999992026,
+          "min": 0.035793870000020434,
+          "verification_median": 0.006259046999957718
+        }
+      },
+      "query_only_peak_rss_bytes": 33193984,
+      "setup_inclusive_prefix_seconds": {
+        "Q1": {
+          "max": 1.4034909220000031,
+          "median": 1.3700238399999876,
+          "min": 1.368487201999983
+        },
+        "Q2": {
+          "max": 1.4342417199999886,
+          "median": 1.3990183020000018,
+          "min": 1.3949115629999937
+        },
+        "Q3": {
+          "max": 1.471755375999976,
+          "median": 1.4359073180000337,
+          "min": 1.431209014999979
+        }
+      },
+      "whole_worker_seconds": {
+        "max": 0.15212643299997808,
+        "median": 0.11636104000001524,
+        "min": 0.11103122099996199
+      }
+    },
+    "D": {
+      "added_single_setup_seconds": 1.7307617879999952,
+      "observed_prefix_seconds": {
+        "Q1": {
+          "max": 0.1423818289999872,
+          "median": 0.13170477500000288,
+          "min": 0.13107564399996363
+        },
+        "Q2": {
+          "max": 0.1540080830000079,
+          "median": 0.14341590799995174,
+          "min": 0.14311255900003061
+        },
+        "Q3": {
+          "max": 0.17555116500000167,
+          "median": 0.1647326770000177,
+          "min": 0.16236757999996598
+        }
+      },
+      "post_preparation_setup_query_peak_rss_bytes": 117485568,
+      "queries_seconds": {
+        "Q1": {
+          "max": 0.11276753399999961,
+          "median": 0.101938242000017,
+          "min": 0.10126985499999819,
+          "verification_median": 0.006760714000051848
+        },
+        "Q2": {
+          "max": 0.0120036339999956,
+          "median": 0.011965747000033389,
+          "min": 0.011427402999970582,
+          "verification_median": 0.004334436000021924
+        },
+        "Q3": {
+          "max": 0.02107157900002221,
+          "median": 0.01833347399997365,
+          "min": 0.017632488000003832,
+          "verification_median": 0.00566547700003639
+        }
+      },
+      "query_only_peak_rss_bytes": 100524032,
+      "setup_inclusive_prefix_seconds": {
+        "Q1": {
+          "max": 1.8731436169999824,
+          "median": 1.8624665629999981,
+          "min": 1.8618374319999589
+        },
+        "Q2": {
+          "max": 1.8847698710000031,
+          "median": 1.874177695999947,
+          "min": 1.8738743470000259
+        },
+        "Q3": {
+          "max": 1.906312952999997,
+          "median": 1.895494465000013,
+          "min": 1.8931293679999612
+        }
+      },
+      "whole_worker_seconds": {
+        "max": 0.19395401700001003,
+        "median": 0.1892255100000284,
+        "min": 0.18018425599996135
+      }
+    }
+  },
+  "prefix_overhead_checks": {
+    "r1-A": {
+      "first_parent_prefix_minus_inner_query_seconds": 0.03113194999997404,
+      "whole_worker_minus_final_ack_seconds": 0.006943452000029993
+    },
+    "r1-B": {
+      "first_parent_prefix_minus_inner_query_seconds": 0.03019093000000339,
+      "whole_worker_minus_final_ack_seconds": 0.005781323999997312
+    },
+    "r1-D": {
+      "first_parent_prefix_minus_inner_query_seconds": 0.029766532999985884,
+      "whole_worker_minus_final_ack_seconds": 0.024492833000010705
+    },
+    "r2-A": {
+      "first_parent_prefix_minus_inner_query_seconds": 0.029376588999980413,
+      "whole_worker_minus_final_ack_seconds": 0.006568875000027674
+    },
+    "r2-B": {
+      "first_parent_prefix_minus_inner_query_seconds": 0.05087819899995338,
+      "whole_worker_minus_final_ack_seconds": 0.005698659000017869
+    },
+    "r2-D": {
+      "first_parent_prefix_minus_inner_query_seconds": 0.029805788999965444,
+      "whole_worker_minus_final_ack_seconds": 0.01781667599999537
+    },
+    "r3-A": {
+      "first_parent_prefix_minus_inner_query_seconds": 0.03995036099996696,
+      "whole_worker_minus_final_ack_seconds": 0.006841096000016478
+    },
+    "r3-B": {
+      "first_parent_prefix_minus_inner_query_seconds": 0.02911955799993393,
+      "whole_worker_minus_final_ack_seconds": 0.005149807999998757
+    },
+    "r3-D": {
+      "first_parent_prefix_minus_inner_query_seconds": 0.029614294999987578,
+      "whole_worker_minus_final_ack_seconds": 0.018402852000008352
+    }
+  },
+  "run_id": 40151881458,
+  "single_setup_seconds": 1.3253276020000158,
+  "source_recheck_seconds": 2.5415536900000006,
+  "source_report_sha256": "e90279332c08e11a0b54a8439d8b55f4aa393fa6b02c532dacb892688aaaa822",
+  "source_revision": "401b06b12b875e13e4c101305f41d4bb0ed252fc",
+  "status": "passed",
+  "storage_logical_bytes": {
+    "all_query_outputs_and_logs": 5190873,
+    "authenticated_downloads": 1980479678,
+    "external_binary": 13917792,
+    "full_replay_bundle": 5840123,
+    "materialization_exports_and_receipts": 3388782,
+    "native_metadata": 384903,
+    "native_minimum_replay": 3732895,
+    "native_payload_arrow": 3347992,
+    "parquet_inventory": 162822,
+    "parquet_minimum_replay": 197471,
+    "parquet_payload": 34649,
+    "prepared_all_files": 3162748946
+  },
+  "verification": {
+    "A": {
+      "native_analysis_encoding_ms": {
+        "max": 99,
+        "median": 94,
+        "min": 25
+      },
+      "native_internal_hashing_ms": {
+        "max": 444,
+        "median": 432,
+        "min": 419
+      },
+      "outer_recorded_verification_seconds": {
+        "max": 0.44017383199997084,
+        "median": 0.4284171300000139,
+        "min": 0.42105630599996857
+      }
+    },
+    "B": {
+      "outer_recorded_verification_seconds": {
+        "max": 0.006382352999992236,
+        "median": 0.004246822999959932,
+        "min": 0.0024073499999417436
+      }
+    },
+    "D": {
+      "bytes_hashed_each_query": 394942,
+      "checked_parquet_internal_verification_seconds": {
+        "max": 0.007087049000006118,
+        "median": 0.0033834569999839914,
+        "min": 0.0027346950000151082
+      },
+      "outer_recorded_verification_seconds": {
+        "max": 0.007632745000023533,
+        "median": 0.00566547700003639,
+        "min": 0.004212161000054948
+      }
+    }
+  }
+}

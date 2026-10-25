@@ -1,0 +1,8 @@
+test_existing_output_is_never_reused_or_deleted (test_reproduce_demo.DemonstrationGuards.test_existing_output_is_never_reused_or_deleted) ... ok
+test_transcript_hides_machine_paths_and_preserves_public_hashes (test_reproduce_demo.DemonstrationGuards.test_transcript_hides_machine_paths_and_preserves_public_hashes) ... ok
+test_wrong_version_cannot_create_a_demo_or_fall_back_to_another_binary (test_reproduce_demo.DemonstrationGuards.test_wrong_version_cannot_create_a_demo_or_fall_back_to_another_binary) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.016s
+
+OK

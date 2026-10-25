@@ -59,7 +59,7 @@ authenticated. Original receipt bytes are never rewritten for relocation.
 Stop after acceptance or a precise blocker, with at most one justified correction
 attempt. Preserve all failed attempts. No HG001 acquisition, refit, threshold
 change, cohort expansion, or optimization search belongs to this protocol. The
-[cohort no-go](../../docs/findings/bounded-cohort-reanalysis-2026-10-22/README.md)
-and [HG001 practical-benefit failure](../threshold-transfer/CONTINUATION_RESULTS.md)
+[cohort no-go](https://github.com/logannye/rosalind/blob/70af512ecb803baa61b79abcf68ccb6d42cb990f/docs/findings/bounded-cohort-reanalysis-2026-10-22/README.md)
+and [HG001 practical-benefit failure](https://github.com/logannye/rosalind/blob/70af512ecb803baa61b79abcf68ccb6d42cb990f/research/threshold-transfer/CONTINUATION_RESULTS.md)
 remain in force. This study does not establish clinical or neural-interface value,
 release readiness, or outside-user adoption.

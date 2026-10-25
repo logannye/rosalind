@@ -1,0 +1,42 @@
+{
+  "gates": {
+    "clean_replay_completed": true,
+    "clean_replay_science_recomputed": true,
+    "full_arrow_1000_by_34_zero_mismatches": true,
+    "full_tsv_equal": true,
+    "independent_artifact_audit_passed": true,
+    "independent_cost_audit_passed": true,
+    "intact_bundle_unchanged": true,
+    "native_reproduced_matching_code": true,
+    "producer_all_stages_completed": true,
+    "provider_zip_digests_match": true,
+    "source_paths_absent": true
+  },
+  "limits": [
+    "one HG002 interval; probes are not truth variants",
+    "same-source clean hosted replay, not outside-user adoption",
+    "single measured setup; three query rounds; no p99/cold-cache/general speed claim",
+    "native source-tested SHA precedes documentation-only findings commit",
+    "ordinary PR integration checks are separate from these scientific gates"
+  ],
+  "original_record_sha256": {
+    "archive-verification.json": "05fb37aa12d6a1ff6105700f2e15f1fe0356e0a416291d14663f6215ea675d2d",
+    "artifact.json": "9519364ce95df7837ae2048976ca19644bfebce8c5a92e407d6452a9184627f2",
+    "build-identity.json": "012bb0a8d7173acd8b3cf8530b6b951086b6ba993093394b842515a2a3f63c49",
+    "cost-audit.json": "a27a2222da0ea32ce7fbb2fb676725ac90f0396c6740d92b524f864880384c12",
+    "independent-artifact-audit.json": "d7398bc5cda7b5c11396094cf40e6ca2e9dfea9a624213e8d2c8d5684a15b87c",
+    "replay-report.json": "7f108e0828d553660568e74e94431fee0d6634ede78ae57980a15c84ecf5cc3f",
+    "report.json": "3abb853668105f8285d1025b042e23e3d219464db7b9b709c82bde70ca4925c8",
+    "trials.csv": "6fdc5423d7d3abb4d4b720319c7467dc8fd986a8a06b3f472d0c863e7f0d9f84"
+  },
+  "run_id": 40151881458,
+  "schema_version": 1,
+  "scientific_attempts": {
+    "additional_runs_authorized": false,
+    "correction_run": 40151881458,
+    "initial_run": 40151648804
+  },
+  "scope": "combined disposition after producer, separate hosted clean replay, and independent retained-artifact audits; original producer records are unchanged",
+  "source_revision": "401b06b12b875e13e4c101305f41d4bb0ed252fc",
+  "status": "passed"
+}
