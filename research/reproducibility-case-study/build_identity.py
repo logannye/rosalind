@@ -30,7 +30,7 @@ REQUIREMENTS = ROOT / "research/cohort-reanalysis/workloads/requirements.lock"
 SCHEMA = "rosalind-case-study-build-v1"
 NATIVE_KEYS = ("code_git_sha", "code_dirty", "rustc_version", "target_triple", "deps_lock_blake3")
 SOURCE_PATHS = (
-    "Cargo.toml", "Cargo.lock", "build.rs", "src", "crates", "python/rosalind",
+    "Cargo.toml", "Cargo.lock", "build.rs", "src", "crates", "tests", "xtask", "python/rosalind",
     "benchmarks/evidence", "benchmarks/giab/resources.tsv", "scripts/reproduce_demo.py",
     "scripts/reproduce_demo.sh", "examples/research-filter", "examples/cohort-reanalysis",
     "research/cohort-reanalysis/benchmark.py",

@@ -9,6 +9,8 @@ on:
       - '.github/workflows/reproducibility-case-study.yml'
       - 'src/**'
       - 'crates/**'
+      - 'tests/**'
+      - 'xtask/**'
       - 'python/**'
       - 'benchmarks/evidence/**'
       - 'benchmarks/giab/resources.tsv'
