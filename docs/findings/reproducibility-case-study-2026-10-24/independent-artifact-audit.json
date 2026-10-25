@@ -1,0 +1,561 @@
+{
+  "audited_at_utc": "2026-10-25T01:54:43.407675+00:00",
+  "bundle": {
+    "all_descriptor_owned_files_present": true,
+    "files_hashed": 160,
+    "frozen_requests_reconstructed": true,
+    "inventory_sha256": "2aaf4c42a4a916d5351d38647496dee4b89cdcc0e0c80ac0309e6e09babe5398",
+    "logical_bytes_including_inventory": 5840123,
+    "protocol_sha256": "ed402a799595c852266e0c0216550851a4f3724ffb4009aaadd7b073f4bd0afe"
+  },
+  "checks": {
+    "all_27_trial_outputs": true,
+    "all_inventory_hashes": true,
+    "all_native_and_canonical_rows": true,
+    "all_requests_rederived": true,
+    "corrupted_byte_recomputed": true,
+    "provider_source_build_binding": true,
+    "retained_command_logs_rehashed": 69
+  },
+  "clean_replay": {
+    "environment": {
+      "available_rustc_verbose": "rustc 1.99.0 (b940084d7 2026-09-28)\nbinary: rustc\ncommit-hash: b940084d7eb6a299eb4bfeb8e34901bc051e7ac4\ncommit-date: 2026-09-28\nhost: x86_64-unknown-linux-gnu\nrelease: 1.99.0\nLLVM version: 23.1.1",
+      "cpu": "AMD EPYC 7763 64-Core Processor",
+      "dependencies": {
+        "blake3": "1.0.5",
+        "numpy": "2.2.6",
+        "psutil": "6.1.1",
+        "pyarrow": "20.0.0",
+        "pysam": "0.23.3"
+      },
+      "github": {
+        "github_event_name": "push",
+        "github_repository": "logannye/rosalind",
+        "github_run_attempt": "1",
+        "github_run_id": "40151881458",
+        "github_sha": "401b06b12b875e13e4c101305f41d4bb0ed252fc",
+        "github_workflow_ref": "logannye/rosalind/.github/workflows/reproducibility-case-study.yml@refs/heads/codex/reproducibility-case-study",
+        "github_workflow_sha": "401b06b12b875e13e4c101305f41d4bb0ed252fc",
+        "imageos": "ubuntu24",
+        "imageversion": "20261023.334.3",
+        "runner_arch": "X64",
+        "runner_os": "Linux"
+      },
+      "logical_cpu_count": 4,
+      "machine": "x86_64",
+      "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+      "pull_request_head_sha": null,
+      "pull_request_merge_sha": null,
+      "python": "3.11.17 (main, Oct  1 2026, 14:32:31) [GCC 13.3.0]",
+      "recorded_at_utc": "2026-10-25T01:50:33.294749+00:00"
+    },
+    "matching_code": true,
+    "native_alignment_visits": [
+      0,
+      0,
+      0
+    ],
+    "native_inputs_resolved_by_hash": 35,
+    "native_original_sources_rehashed": [
+      false,
+      false,
+      false
+    ],
+    "native_verdict": "REPRODUCED",
+    "original_path_absence_checks": 39,
+    "parquet_full_schema_and_oracle": {
+      "columns": 34,
+      "full_schema_values_equal": true,
+      "inventory_sha256": "d9332589986ce5660cfb3fcbe4cbb2daaefe6016cf4a87a71aef24c6b7eaf50e",
+      "mismatches": 0,
+      "rows": 1000
+    }
+  },
+  "controls": {
+    "clean_replay": {
+      "after_sha256": "ea04fd2ccd918819add495ba626c34ecc573585fab6af1ca151e7c30405eb369",
+      "before_sha256": "2d61f871e8acd0d25959a2a2adc8aa9f4aad77a04a3fefffe0ef5a641acf6cc1",
+      "byte_offset": 19096,
+      "consumed_payload": "c00000019-p0009994240/evidence.arrow",
+      "dataset_tamper_exit": 5,
+      "missing_exit": 3,
+      "no_success_output_or_receipt": true,
+      "query_tamper_exit": 5,
+      "synthetic_missing_position": 41,
+      "synthetic_zero_position": 40,
+      "wrong_ref_exit": 2
+    },
+    "producer": {
+      "after_sha256": "ea04fd2ccd918819add495ba626c34ecc573585fab6af1ca151e7c30405eb369",
+      "before_sha256": "2d61f871e8acd0d25959a2a2adc8aa9f4aad77a04a3fefffe0ef5a641acf6cc1",
+      "byte_offset": 19096,
+      "consumed_payload": "c00000019-p0009994240/evidence.arrow",
+      "dataset_tamper_exit": 5,
+      "missing_exit": 3,
+      "no_success_output_or_receipt": true,
+      "query_tamper_exit": 5,
+      "synthetic_missing_position": 41,
+      "synthetic_zero_position": 40,
+      "wrong_ref_exit": 2
+    }
+  },
+  "costs": {
+    "common_acquisition_preparation_sampled_peak_rss_bytes": 297918464,
+    "common_acquisition_preparation_seconds": 33.93779477300001,
+    "paths": {
+      "A": {
+        "path_setup_query_sampled_peak_rss_bytes": 30724096,
+        "prefixes_seconds": {
+          "Q1": {
+            "max": 0.9565893399999936,
+            "median": 0.9385304429999906,
+            "min": 0.93360947299999,
+            "setup_inclusive_median": 0.9385304429999906
+          },
+          "Q2": {
+            "max": 1.9099465120000332,
+            "median": 1.9081732250000414,
+            "min": 1.9027050669999994,
+            "setup_inclusive_median": 1.9081732250000414
+          },
+          "Q3": {
+            "max": 2.89005576400001,
+            "median": 2.8804634210000017,
+            "min": 2.8559638809999797,
+            "setup_inclusive_median": 2.8804634210000017
+          }
+        }
+      },
+      "B": {
+        "path_setup_query_sampled_peak_rss_bytes": 81440768,
+        "prefixes_seconds": {
+          "Q1": {
+            "max": 0.07816331999998738,
+            "median": 0.0446962379999718,
+            "min": 0.04315959999996721,
+            "setup_inclusive_median": 1.3700238399999876
+          },
+          "Q2": {
+            "max": 0.10891411799997286,
+            "median": 0.07369069999998601,
+            "min": 0.06958396099997799,
+            "setup_inclusive_median": 1.3990183020000018
+          },
+          "Q3": {
+            "max": 0.1464277739999602,
+            "median": 0.11057971600001792,
+            "min": 0.10588141299996323,
+            "setup_inclusive_median": 1.4359073180000337
+          }
+        }
+      },
+      "D": {
+        "path_setup_query_sampled_peak_rss_bytes": 117485568,
+        "prefixes_seconds": {
+          "Q1": {
+            "max": 0.1423818289999872,
+            "median": 0.13170477500000288,
+            "min": 0.13107564399996363,
+            "setup_inclusive_median": 1.8624665629999981
+          },
+          "Q2": {
+            "max": 0.1540080830000079,
+            "median": 0.14341590799995174,
+            "min": 0.14311255900003061,
+            "setup_inclusive_median": 1.874177695999947
+          },
+          "Q3": {
+            "max": 0.17555116500000167,
+            "median": 0.1647326770000177,
+            "min": 0.16236757999996598,
+            "setup_inclusive_median": 1.895494465000013
+          }
+        }
+      }
+    },
+    "single_common_setup_seconds": 1.3253276020000158,
+    "single_conversion_seconds": 0.4054341859999795,
+    "storage_logical_bytes": {
+      "all_query_outputs_and_logs": 5190873,
+      "authenticated_downloads": 1980479678,
+      "materialization_exports_and_receipts": 3388782,
+      "native_minimum_replay": 3732895,
+      "parquet_minimum_replay": 197471,
+      "prepared_all_files": 3162748946
+    }
+  },
+  "identity": {
+    "binary_sha256": "9bf4ce1f897b3a299bf8c17bac500ff9df01227f6ec9ff900e732840e17a5705",
+    "binary_size_bytes": 13917792,
+    "compiled_metadata": {
+      "code_dirty": "false",
+      "code_git_sha": "401b06b12b875e13e4c101305f41d4bb0ed252fc",
+      "deps_lock_blake3": "ce245e0ef0d0076f1e27dcb5ca2a8d0f952ae5db7bec9d469382caf1b0f4457e",
+      "rustc_version": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+      "target_triple": "x86_64-unknown-linux-gnu"
+    },
+    "producer_environment": {
+      "available_rustc_verbose": "rustc 1.99.1 (58cf8f9c3 2026-10-13)\nbinary: rustc\ncommit-hash: 58cf8f9c35b355199727627d07ae34a4e2846d67\ncommit-date: 2026-10-13\nhost: x86_64-unknown-linux-gnu\nrelease: 1.99.1\nLLVM version: 23.1.1",
+      "cpu": "AMD EPYC 9V45 96-Core Processor",
+      "dependencies": {
+        "blake3": "1.0.5",
+        "numpy": "2.2.6",
+        "psutil": "6.1.1",
+        "pyarrow": "20.0.0",
+        "pysam": "0.23.3"
+      },
+      "github": {
+        "github_event_name": "push",
+        "github_repository": "logannye/rosalind",
+        "github_run_attempt": "1",
+        "github_run_id": "40151881458",
+        "github_sha": "401b06b12b875e13e4c101305f41d4bb0ed252fc",
+        "github_workflow_ref": "logannye/rosalind/.github/workflows/reproducibility-case-study.yml@refs/heads/codex/reproducibility-case-study",
+        "github_workflow_sha": "401b06b12b875e13e4c101305f41d4bb0ed252fc",
+        "imageos": "ubuntu24",
+        "imageversion": "20261023.334.3",
+        "runner_arch": "X64",
+        "runner_os": "Linux"
+      },
+      "logical_cpu_count": 4,
+      "machine": "x86_64",
+      "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+      "pull_request_head_sha": null,
+      "pull_request_merge_sha": null,
+      "python": "3.11.17 (main, Oct  1 2026, 14:32:31) [GCC 13.3.0]",
+      "recorded_at_utc": "2026-10-25T01:49:11.509032+00:00"
+    },
+    "source_files_checked_against_exact_git_commit": 231,
+    "source_tree": "aff270baa19eb80c863f5620279e22fcdfd76ee9"
+  },
+  "limits": [
+    "No local native execution, raw-alignment extraction, Arrow decoding or Parquet decoding was performed in this audit; those actual executions are evidenced by the successful clean hosted jobs and retained reports/logs.",
+    "All four original provider ZIP digests and every extracted member were recomputed and matched. The source/run records remain the trust anchor; this is not a signed third-party attestation.",
+    "The producer report intentionally precedes clean-job acceptance and still says awaiting_clean_replay; acceptance is established by combining it with the separately audited clean replay report and provider job completion.",
+    "A/B/D path RSS summaries exclude shared acquisition/preparation, whose sampled peak is reported separately. Sampled RSS is not a hard cap; 256 MiB is a cooperative native budget.",
+    "D shares native extraction and has lower retained cache size; this is not an independent raw-to-Parquet pipeline comparison.",
+    "One materialization and one conversion were measured; setup-inclusive totals add those single observations to three measured prefixes. Three rounds provide no p99 or statistical-significance claim.",
+    "Hashes establish consistency with retained source/run records, not authorship or immunity to a coordinated rewrite of all evidence. Two hosted jobs are not an outside-user adoption study."
+  ],
+  "method": "Independent read-only SHA256, Git-object and scientific TSV/JSON audit; no local native execution or compilation",
+  "provider": {
+    "artifacts": [
+      {
+        "digest": "sha256:6559e6f21c8942a4b38d9b99e8415f554e104a15274bb7d3fb5e40dd6996fbdf",
+        "expires_at": "2026-11-24T01:50:35Z",
+        "id": 12583390387,
+        "name": "independent-replay-40151881458-1",
+        "size_in_bytes": 457282
+      },
+      {
+        "digest": "sha256:d74428e39158b9e19ae78296b3c588fea5dd4ae1c80166e6c795158033c51676",
+        "expires_at": "2026-11-24T01:50:09Z",
+        "id": 12583106968,
+        "name": "replay-bundle-40151881458-1",
+        "size_in_bytes": 471542
+      },
+      {
+        "digest": "sha256:4229c7872a58358adaccf3ba773ef1612c3aecc47969134bd5048c51744fd921",
+        "expires_at": "2026-11-24T01:50:12Z",
+        "id": 12582732602,
+        "name": "producer-evidence-40151881458-1",
+        "size_in_bytes": 1029635
+      },
+      {
+        "digest": "sha256:00a988c6db1a6e1e1836fdf5a017caa7534ee4546ce316e083921136ffacf03f",
+        "expires_at": "2026-11-24T01:50:10Z",
+        "id": 12582692727,
+        "name": "exact-binary-40151881458-1",
+        "size_in_bytes": 4890912
+      }
+    ],
+    "event": "push",
+    "jobs": [
+      {
+        "id": 121044922932,
+        "name": "produce",
+        "runner_id": 1000020836,
+        "status": "success"
+      },
+      {
+        "id": 121045771503,
+        "name": "replay",
+        "runner_id": 1000020852,
+        "status": "success"
+      }
+    ],
+    "original_zip_archives_rehashed": [
+      {
+        "all_extracted_members_equal": true,
+        "bytes": 457282,
+        "files": 205,
+        "id": 12583390387,
+        "name": "independent-replay-40151881458-1.zip",
+        "provider_digest_matches": true,
+        "sha256": "6559e6f21c8942a4b38d9b99e8415f554e104a15274bb7d3fb5e40dd6996fbdf"
+      },
+      {
+        "all_extracted_members_equal": true,
+        "bytes": 471542,
+        "files": 161,
+        "id": 12583106968,
+        "name": "replay-bundle-40151881458-1.zip",
+        "provider_digest_matches": true,
+        "sha256": "d74428e39158b9e19ae78296b3c588fea5dd4ae1c80166e6c795158033c51676"
+      },
+      {
+        "all_extracted_members_equal": true,
+        "bytes": 1029635,
+        "files": 478,
+        "id": 12582732602,
+        "name": "producer-evidence-40151881458-1.zip",
+        "provider_digest_matches": true,
+        "sha256": "4229c7872a58358adaccf3ba773ef1612c3aecc47969134bd5048c51744fd921"
+      },
+      {
+        "all_extracted_members_equal": true,
+        "bytes": 4890912,
+        "files": 2,
+        "id": 12582692727,
+        "name": "exact-binary-40151881458-1.zip",
+        "provider_digest_matches": true,
+        "sha256": "00a988c6db1a6e1e1836fdf5a017caa7534ee4546ce316e083921136ffacf03f"
+      }
+    ],
+    "record_sha256": {
+      "provider-artifacts.json": "c6ecfbe0d1db9cb2137c144bbfb95acfab1781c8ccf846bf12e8aad03adde0fa",
+      "provider-jobs.json": "172471ef27636ddc7fb88d269a2882a93d5e65007fc102bce40573ffa4a62058",
+      "provider-run.json": "1213aee2843547d8af845d7d4734e965b8f62f1a00f31097df5c32736505632a"
+    },
+    "run_attempt": 1,
+    "run_url": "https://github.com/logannye/rosalind/actions/runs/40151881458"
+  },
+  "run_id": 40151881458,
+  "schema_version": 1,
+  "scientific": {
+    "full_producer_and_replay_tsv_identical_to_raw_oracle": true,
+    "legacy_columns": 34,
+    "loci": 1000,
+    "mask": 63,
+    "native_partitions": 62,
+    "oracle_histograms_counters_uint64_and_strands_checked": true,
+    "query_rows": {
+      "Q1": 250,
+      "Q2": 500,
+      "Q3": 1000
+    },
+    "sample": "HG002",
+    "zero_callable_real_loci": 0
+  },
+  "source_revision": "401b06b12b875e13e4c101305f41d4bb0ed252fc",
+  "status": "passed",
+  "tests": {
+    "native_passed_sum": 593,
+    "native_success_sections": 61,
+    "python_suites": {
+      "case-study": 38,
+      "demo": 3,
+      "oracle": 38,
+      "python": 29
+    },
+    "skips_or_failures": 0
+  },
+  "trials": {
+    "canonical_rows_compared": 15750,
+    "native_outputs_compared": 18,
+    "native_saved_receipts_with_zero_alignment_visits_and_false_rehashing": 9,
+    "observations": 27,
+    "observations_checked": [
+      {
+        "answer_sha256": "0ea415a76fb719d5c1b68196de08c497d3993defd18da0b222d1bca4add6f436",
+        "path": "A",
+        "query": "Q1",
+        "round": 1,
+        "rows": 250
+      },
+      {
+        "answer_sha256": "e7be7f757368e5a91ff9720a8848f5827e9c53f00543bf165985a68af03be544",
+        "path": "A",
+        "query": "Q2",
+        "round": 1,
+        "rows": 500
+      },
+      {
+        "answer_sha256": "28d7010dfec08fdc5baed9f782858420a715de4e6b194c3439c792e9a35dfe50",
+        "path": "A",
+        "query": "Q3",
+        "round": 1,
+        "rows": 1000
+      },
+      {
+        "answer_sha256": "0ea415a76fb719d5c1b68196de08c497d3993defd18da0b222d1bca4add6f436",
+        "path": "B",
+        "query": "Q1",
+        "round": 1,
+        "rows": 250
+      },
+      {
+        "answer_sha256": "e7be7f757368e5a91ff9720a8848f5827e9c53f00543bf165985a68af03be544",
+        "path": "B",
+        "query": "Q2",
+        "round": 1,
+        "rows": 500
+      },
+      {
+        "answer_sha256": "28d7010dfec08fdc5baed9f782858420a715de4e6b194c3439c792e9a35dfe50",
+        "path": "B",
+        "query": "Q3",
+        "round": 1,
+        "rows": 1000
+      },
+      {
+        "answer_sha256": "0ea415a76fb719d5c1b68196de08c497d3993defd18da0b222d1bca4add6f436",
+        "path": "D",
+        "query": "Q1",
+        "round": 1,
+        "rows": 250
+      },
+      {
+        "answer_sha256": "e7be7f757368e5a91ff9720a8848f5827e9c53f00543bf165985a68af03be544",
+        "path": "D",
+        "query": "Q2",
+        "round": 1,
+        "rows": 500
+      },
+      {
+        "answer_sha256": "28d7010dfec08fdc5baed9f782858420a715de4e6b194c3439c792e9a35dfe50",
+        "path": "D",
+        "query": "Q3",
+        "round": 1,
+        "rows": 1000
+      },
+      {
+        "answer_sha256": "0ea415a76fb719d5c1b68196de08c497d3993defd18da0b222d1bca4add6f436",
+        "path": "B",
+        "query": "Q1",
+        "round": 2,
+        "rows": 250
+      },
+      {
+        "answer_sha256": "e7be7f757368e5a91ff9720a8848f5827e9c53f00543bf165985a68af03be544",
+        "path": "B",
+        "query": "Q2",
+        "round": 2,
+        "rows": 500
+      },
+      {
+        "answer_sha256": "28d7010dfec08fdc5baed9f782858420a715de4e6b194c3439c792e9a35dfe50",
+        "path": "B",
+        "query": "Q3",
+        "round": 2,
+        "rows": 1000
+      },
+      {
+        "answer_sha256": "0ea415a76fb719d5c1b68196de08c497d3993defd18da0b222d1bca4add6f436",
+        "path": "D",
+        "query": "Q1",
+        "round": 2,
+        "rows": 250
+      },
+      {
+        "answer_sha256": "e7be7f757368e5a91ff9720a8848f5827e9c53f00543bf165985a68af03be544",
+        "path": "D",
+        "query": "Q2",
+        "round": 2,
+        "rows": 500
+      },
+      {
+        "answer_sha256": "28d7010dfec08fdc5baed9f782858420a715de4e6b194c3439c792e9a35dfe50",
+        "path": "D",
+        "query": "Q3",
+        "round": 2,
+        "rows": 1000
+      },
+      {
+        "answer_sha256": "0ea415a76fb719d5c1b68196de08c497d3993defd18da0b222d1bca4add6f436",
+        "path": "A",
+        "query": "Q1",
+        "round": 2,
+        "rows": 250
+      },
+      {
+        "answer_sha256": "e7be7f757368e5a91ff9720a8848f5827e9c53f00543bf165985a68af03be544",
+        "path": "A",
+        "query": "Q2",
+        "round": 2,
+        "rows": 500
+      },
+      {
+        "answer_sha256": "28d7010dfec08fdc5baed9f782858420a715de4e6b194c3439c792e9a35dfe50",
+        "path": "A",
+        "query": "Q3",
+        "round": 2,
+        "rows": 1000
+      },
+      {
+        "answer_sha256": "0ea415a76fb719d5c1b68196de08c497d3993defd18da0b222d1bca4add6f436",
+        "path": "D",
+        "query": "Q1",
+        "round": 3,
+        "rows": 250
+      },
+      {
+        "answer_sha256": "e7be7f757368e5a91ff9720a8848f5827e9c53f00543bf165985a68af03be544",
+        "path": "D",
+        "query": "Q2",
+        "round": 3,
+        "rows": 500
+      },
+      {
+        "answer_sha256": "28d7010dfec08fdc5baed9f782858420a715de4e6b194c3439c792e9a35dfe50",
+        "path": "D",
+        "query": "Q3",
+        "round": 3,
+        "rows": 1000
+      },
+      {
+        "answer_sha256": "0ea415a76fb719d5c1b68196de08c497d3993defd18da0b222d1bca4add6f436",
+        "path": "A",
+        "query": "Q1",
+        "round": 3,
+        "rows": 250
+      },
+      {
+        "answer_sha256": "e7be7f757368e5a91ff9720a8848f5827e9c53f00543bf165985a68af03be544",
+        "path": "A",
+        "query": "Q2",
+        "round": 3,
+        "rows": 500
+      },
+      {
+        "answer_sha256": "28d7010dfec08fdc5baed9f782858420a715de4e6b194c3439c792e9a35dfe50",
+        "path": "A",
+        "query": "Q3",
+        "round": 3,
+        "rows": 1000
+      },
+      {
+        "answer_sha256": "0ea415a76fb719d5c1b68196de08c497d3993defd18da0b222d1bca4add6f436",
+        "path": "B",
+        "query": "Q1",
+        "round": 3,
+        "rows": 250
+      },
+      {
+        "answer_sha256": "e7be7f757368e5a91ff9720a8848f5827e9c53f00543bf165985a68af03be544",
+        "path": "B",
+        "query": "Q2",
+        "round": 3,
+        "rows": 500
+      },
+      {
+        "answer_sha256": "28d7010dfec08fdc5baed9f782858420a715de4e6b194c3439c792e9a35dfe50",
+        "path": "B",
+        "query": "Q3",
+        "round": 3,
+        "rows": 1000
+      }
+    ],
+    "workers": 9
+  }
+}

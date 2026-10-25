@@ -41,8 +41,21 @@ fn generated_analyzer_passes_the_embedded_conformance_harness() {
             ),
         );
     std::fs::write(&manifest_path, local).unwrap();
+    // Reuse the acceptance job's target directory. Nested Cargo otherwise
+    // honors CARGO_TARGET_DIR while the binary lookup below assumes a private
+    // scaffold target, making configured hosted builds fail after compiling.
+    let target = std::env::var_os("CARGO_TARGET_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| workspace.join("target"));
+    let target = if target.is_absolute() {
+        target
+    } else {
+        std::env::current_dir().unwrap().join(target)
+    };
     let build = Command::new("cargo")
         .args(["build", "--offline"])
+        .arg("--target-dir")
+        .arg(&target)
         .current_dir(&project)
         .output()
         .unwrap();
@@ -52,7 +65,9 @@ fn generated_analyzer_passes_the_embedded_conformance_harness() {
         String::from_utf8_lossy(&build.stderr)
     );
 
-    let analyzer = project.join("target/debug/depth-check");
+    let analyzer = target
+        .join("debug")
+        .join(format!("depth-check{}", std::env::consts::EXE_SUFFIX));
     let conformance = Command::new(rosalind_bin())
         .args(["conformance", "analyzer", "--binary"])
         .arg(&analyzer)

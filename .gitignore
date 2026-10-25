@@ -39,6 +39,7 @@ Thumbs.db
 .venv/
 __pycache__/
 *.pyc
+/research/reproducibility-case-study/artifacts/
 
 # Bundled demo data: a small reference.fa + alignments.bam are COMMITTED (so the
 # README quickstart, the frontdoor test, and the release bundle work on a fresh

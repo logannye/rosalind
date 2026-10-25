@@ -1,0 +1,795 @@
+[1m[92m    Updating[0m crates.io index
+[1m[92m Downloading[0m crates ...
+[1m[92m  Downloaded[0m adler2 v2.0.1
+[1m[92m  Downloaded[0m cfg-if v1.0.4
+[1m[92m  Downloaded[0m is_terminal_polyfill v1.70.2
+[1m[92m  Downloaded[0m bit-set v0.8.0
+[1m[92m  Downloaded[0m fastrand v2.3.0
+[1m[92m  Downloaded[0m colorchoice v1.0.4
+[1m[92m  Downloaded[0m anstyle v1.0.13
+[1m[92m  Downloaded[0m aho-corasick v1.1.4
+[1m[92m  Downloaded[0m atoi v2.0.0
+[1m[92m  Downloaded[0m const-random-macro v0.1.16
+[1m[92m  Downloaded[0m derive-new v0.6.0
+[1m[92m  Downloaded[0m num-integer v0.1.46
+[1m[92m  Downloaded[0m equivalent v1.0.2
+[1m[92m  Downloaded[0m errno v0.3.14
+[1m[92m  Downloaded[0m constant_time_eq v0.3.1
+[1m[92m  Downloaded[0m integer-encoding v3.0.4
+[1m[92m  Downloaded[0m miniz_oxide v0.8.9
+[1m[92m  Downloaded[0m clap_lex v0.7.6
+[1m[92m  Downloaded[0m lazy_static v1.5.0
+[1m[92m  Downloaded[0m const-random v0.1.18
+[1m[92m  Downloaded[0m bit-vec v0.8.0
+[1m[92m  Downloaded[0m num-iter v0.1.46
+[1m[92m  Downloaded[0m custom_derive v0.1.7
+[1m[92m  Downloaded[0m anstream v0.6.21
+[1m[92m  Downloaded[0m fs-utils v1.1.4
+[1m[92m  Downloaded[0m anstyle-query v1.1.4
+[1m[92m  Downloaded[0m crunchy v0.2.4
+[1m[92m  Downloaded[0m matchers v0.2.0
+[1m[92m  Downloaded[0m rand_xorshift v0.4.0
+[1m[92m  Downloaded[0m rustc_version v0.4.1
+[1m[92m  Downloaded[0m derive-new v0.5.9
+[1m[92m  Downloaded[0m fnv v1.0.7
+[1m[92m  Downloaded[0m form_urlencoded v1.2.2
+[1m[92m  Downloaded[0m funty v2.0.0
+[1m[92m  Downloaded[0m itoa v1.0.18
+[1m[92m  Downloaded[0m radium v0.7.0
+[1m[92m  Downloaded[0m arrayref v0.3.9
+[1m[92m  Downloaded[0m idna_adapter v1.2.0
+[1m[92m  Downloaded[0m num-complex v0.4.6
+[1m[92m  Downloaded[0m wait-timeout v0.2.1
+[1m[92m  Downloaded[0m newtype_derive v0.1.6
+[1m[92m  Downloaded[0m bio-types v1.0.4
+[1m[92m  Downloaded[0m glob v0.3.3
+[1m[92m  Downloaded[0m jobserver v0.1.34
+[1m[92m  Downloaded[0m lexical-core v1.0.6
+[1m[92m  Downloaded[0m ahash v0.8.12
+[1m[92m  Downloaded[0m ieee754 v0.2.6
+[1m[92m  Downloaded[0m anyhow v1.0.103
+[1m[92m  Downloaded[0m icu_locid_transform v1.5.0
+[1m[92m  Downloaded[0m utf16_iter v1.0.5
+[1m[92m  Downloaded[0m num v0.4.3
+[1m[92m  Downloaded[0m serde_spanned v0.6.9
+[1m[92m  Downloaded[0m unarray v0.1.4
+[1m[92m  Downloaded[0m icu_provider_macros v1.5.0
+[1m[92m  Downloaded[0m strsim v0.11.1
+[1m[92m  Downloaded[0m utf8parse v0.2.2
+[1m[92m  Downloaded[0m toml_datetime v0.6.11
+[1m[92m  Downloaded[0m displaydoc v0.2.5
+[1m[92m  Downloaded[0m heck v0.5.0
+[1m[92m  Downloaded[0m linear-map v1.2.0
+[1m[92m  Downloaded[0m litemap v0.7.5
+[1m[92m  Downloaded[0m anstyle-parse v0.2.7
+[1m[92m  Downloaded[0m flatbuffers v25.12.19
+[1m[92m  Downloaded[0m autocfg v1.5.0
+[1m[92m  Downloaded[0m byteorder v1.5.0
+[1m[92m  Downloaded[0m cmake v0.1.54
+[1m[92m  Downloaded[0m iana-time-zone v0.1.65
+[1m[92m  Downloaded[0m icu_locid v1.5.0
+[1m[92m  Downloaded[0m icu_locid_transform_data v1.5.1
+[1m[92m  Downloaded[0m icu_normalizer v1.5.0
+[1m[92m  Downloaded[0m icu_properties v1.5.1
+[1m[92m  Downloaded[0m clap_derive v4.5.49
+[1m[92m  Downloaded[0m find-msvc-tools v0.1.4
+[1m[92m  Downloaded[0m bitflags v2.10.0
+[1m[92m  Downloaded[0m arrayvec v0.7.6
+[1m[92m  Downloaded[0m tap v1.0.1
+[1m[92m  Downloaded[0m num-rational v0.4.2
+[1m[92m  Downloaded[0m paste v1.0.15
+[1m[92m  Downloaded[0m pkg-config v0.3.32
+[1m[92m  Downloaded[0m rand_chacha v0.9.0
+[1m[92m  Downloaded[0m zerofrom v0.1.6
+[1m[92m  Downloaded[0m toml_write v0.1.2
+[1m[92m  Downloaded[0m utf8_iter v1.0.4
+[1m[92m  Downloaded[0m clap v4.5.51
+[1m[92m  Downloaded[0m half v2.7.1
+[1m[92m  Downloaded[0m lexical-write-integer v1.0.6
+[1m[92m  Downloaded[0m icu_normalizer_data v1.5.1
+[1m[92m  Downloaded[0m lexical-parse-integer v1.0.6
+[1m[92m  Downloaded[0m getrandom v0.3.4
+[1m[92m  Downloaded[0m log v0.4.28
+[1m[92m  Downloaded[0m arrow-data v55.2.0
+[1m[92m  Downloaded[0m crc32fast v1.5.0
+[1m[92m  Downloaded[0m getrandom v0.2.17
+[1m[92m  Downloaded[0m icu_provider v1.5.0
+[1m[92m  Downloaded[0m percent-encoding v2.3.2
+[1m[92m  Downloaded[0m arrow-buffer v55.2.0
+[1m[92m  Downloaded[0m arrow-select v55.2.0
+[1m[92m  Downloaded[0m cc v1.2.44
+[1m[92m  Downloaded[0m bytes v1.12.1
+[1m[92m  Downloaded[0m arrow-schema v55.2.0
+[1m[92m  Downloaded[0m flate2 v1.1.9
+[1m[92m  Downloaded[0m arrow-cast v55.2.0
+[1m[92m  Downloaded[0m base64 v0.22.1
+[1m[92m  Downloaded[0m zerofrom-derive v0.1.6
+[1m[92m  Downloaded[0m rustc_version v0.1.7
+[1m[92m  Downloaded[0m version_check v0.9.5
+[1m[92m  Downloaded[0m seq-macro v0.3.6
+[1m[92m  Downloaded[0m quick-error v1.2.3
+[1m[92m  Downloaded[0m memchr v2.7.6
+[1m[92m  Downloaded[0m icu_collections v1.5.0
+[1m[92m  Downloaded[0m indexmap v2.7.1
+[1m[92m  Downloaded[0m lexical-util v1.0.7
+[1m[92m  Downloaded[0m lexical-write-float v1.0.6
+[1m[92m  Downloaded[0m arrow-ipc v55.2.0
+[1m[92m  Downloaded[0m hashbrown v0.15.5
+[1m[92m  Downloaded[0m idna v1.1.0
+[1m[92m  Downloaded[0m libm v0.2.16
+[1m[92m  Downloaded[0m clap_builder v4.5.51
+[1m[92m  Downloaded[0m blake3 v1.8.2
+[1m[92m  Downloaded[0m lexical-parse-float v1.0.6
+[1m[92m  Downloaded[0m bitvec v1.0.1
+[1m[92m  Downloaded[0m arrow-array v55.2.0
+[1m[92m  Downloaded[0m chrono v0.4.45
+[1m[92m  Downloaded[0m icu_properties_data v1.5.1
+[1m[92m  Downloaded[0m ordered-float v2.10.1
+[1m[92m  Downloaded[0m rustversion v1.0.22
+[1m[92m  Downloaded[0m yoke-derive v0.7.5
+[1m[92m  Downloaded[0m simd-adler32 v0.3.9
+[1m[92m  Downloaded[0m quote v1.0.41
+[1m[92m  Downloaded[0m thiserror-impl v1.0.69
+[1m[92m  Downloaded[0m once_cell v1.21.3
+[1m[92m  Downloaded[0m rusty-fork v0.3.1
+[1m[92m  Downloaded[0m stable_deref_trait v1.2.1
+[1m[92m  Downloaded[0m strum_macros v0.26.4
+[1m[92m  Downloaded[0m yoke v0.7.5
+[1m[92m  Downloaded[0m pin-project-lite v0.2.16
+[1m[92m  Downloaded[0m write16 v1.0.0
+[1m[92m  Downloaded[0m zmij v1.0.21
+[1m[92m  Downloaded[0m thread_local v1.1.9
+[1m[92m  Downloaded[0m shlex v1.3.0
+[1m[92m  Downloaded[0m semver v0.1.20
+[1m[92m  Downloaded[0m writeable v0.5.5
+[1m[92m  Downloaded[0m bzip2-sys v0.1.13+1.0.8
+[1m[92m  Downloaded[0m tiny-keccak v2.0.2
+[1m[92m  Downloaded[0m nu-ansi-term v0.50.3
+[1m[92m  Downloaded[0m synstructure v0.13.2
+[1m[92m  Downloaded[0m thiserror v1.0.69
+[1m[92m  Downloaded[0m rand_core v0.9.3
+[1m[92m  Downloaded[0m tinystr v0.7.6
+[1m[92m  Downloaded[0m tempfile v3.23.0
+[1m[92m  Downloaded[0m tracing-log v0.2.0
+[1m[92m  Downloaded[0m semver v1.0.28
+[1m[92m  Downloaded[0m wyz v0.5.1
+[1m[92m  Downloaded[0m ppv-lite86 v0.2.21
+[1m[92m  Downloaded[0m smallvec v1.15.1
+[1m[92m  Downloaded[0m toml v0.8.23
+[1m[92m  Downloaded[0m thrift v0.17.0
+[1m[92m  Downloaded[0m lzma-sys v0.1.20
+[1m[92m  Downloaded[0m libc v0.2.177
+[1m[92m  Downloaded[0m libz-sys v1.1.23
+[1m[92m  Downloaded[0m tracing-attributes v0.1.30
+[1m[92m  Downloaded[0m twox-hash v2.1.4
+[1m[92m  Downloaded[0m zerovec-derive v0.10.4
+[1m[92m  Downloaded[0m proc-macro2 v1.0.103
+[1m[92m  Downloaded[0m ryu v1.0.23
+[1m[92m  Downloaded[0m serde_derive v1.0.228
+[1m[92m  Downloaded[0m num-traits v0.2.19
+[1m[92m  Downloaded[0m unicode-ident v1.0.22
+[1m[92m  Downloaded[0m toml_edit v0.22.27
+[1m[92m  Downloaded[0m serde_core v1.0.228
+[1m[92m  Downloaded[0m sharded-slab v0.1.7
+[1m[92m  Downloaded[0m tracing-core v0.1.34
+[1m[92m  Downloaded[0m serde v1.0.228
+[1m[92m  Downloaded[0m tracing v0.1.41
+[1m[92m  Downloaded[0m url v2.5.7
+[1m[92m  Downloaded[0m zerocopy-derive v0.8.27
+[1m[92m  Downloaded[0m linux-raw-sys v0.11.0
+[1m[92m  Downloaded[0m rand v0.9.2
+[1m[92m  Downloaded[0m hts-sys v2.2.0
+[1m[92m  Downloaded[0m num-bigint v0.4.8
+[1m[92m  Downloaded[0m rust-htslib v0.44.1
+[1m[92m  Downloaded[0m zerovec v0.10.4
+[1m[92m  Downloaded[0m regex v1.12.2
+[1m[92m  Downloaded[0m serde_json v1.0.150
+[1m[92m  Downloaded[0m winnow v0.7.15
+[1m[92m  Downloaded[0m tracing-subscriber v0.3.20
+[1m[92m  Downloaded[0m proptest v1.9.0
+[1m[92m  Downloaded[0m vcpkg v0.2.15
+[1m[92m  Downloaded[0m syn v1.0.109
+[1m[92m  Downloaded[0m zerocopy v0.8.27
+[1m[92m  Downloaded[0m syn v2.0.108
+[1m[92m  Downloaded[0m regex-syntax v0.8.8
+[1m[92m  Downloaded[0m rustix v1.1.2
+[1m[92m  Downloaded[0m parquet v55.2.0
+[1m[92m  Downloaded[0m regex-automata v0.4.13
+[1m[92m   Compiling[0m unicode-ident v1.0.22
+[1m[92m   Compiling[0m quote v1.0.41
+[1m[92m   Compiling[0m proc-macro2 v1.0.103
+[1m[92m   Compiling[0m libc v0.2.177
+[1m[92m   Compiling[0m cfg-if v1.0.4
+[1m[92m   Compiling[0m shlex v1.3.0
+[1m[92m   Compiling[0m find-msvc-tools v0.1.4
+[1m[92m   Compiling[0m autocfg v1.5.0
+[1m[92m   Compiling[0m libm v0.2.16
+[1m[92m   Compiling[0m num-traits v0.2.19
+[1m[92m   Compiling[0m syn v2.0.108
+[1m[92m   Compiling[0m arrayref v0.3.9
+[1m[92m   Compiling[0m getrandom v0.3.4
+[1m[92m   Compiling[0m jobserver v0.1.34
+[1m[92m   Compiling[0m constant_time_eq v0.3.1
+[1m[92m   Compiling[0m arrayvec v0.7.6
+[1m[92m   Compiling[0m cc v1.2.44
+[1m[92m   Compiling[0m once_cell v1.21.3
+[1m[92m   Compiling[0m serde_core v1.0.228
+[1m[92m   Compiling[0m zerocopy v0.8.27
+[1m[92m   Compiling[0m memchr v2.7.6
+[1m[92m   Compiling[0m hashbrown v0.15.5
+[1m[92m   Compiling[0m blake3 v1.8.2
+[1m[92m   Compiling[0m serde v1.0.228
+[1m[92m   Compiling[0m stable_deref_trait v1.2.1
+[1m[92m   Compiling[0m pkg-config v0.3.32
+[1m[92m   Compiling[0m semver v1.0.28
+[1m[92m   Compiling[0m num-integer v0.1.46
+[1m[92m   Compiling[0m heck v0.5.0
+[1m[92m   Compiling[0m bitflags v2.10.0
+[1m[92m   Compiling[0m utf8parse v0.2.2
+[1m[92m   Compiling[0m anstyle-parse v0.2.7
+[1m[92m   Compiling[0m synstructure v0.13.2
+[1m[92m   Compiling[0m num-bigint v0.4.8
+[1m[92m   Compiling[0m writeable v0.5.5
+[1m[92m   Compiling[0m colorchoice v1.0.4
+[1m[92m   Compiling[0m icu_locid_transform_data v1.5.1
+[1m[92m   Compiling[0m anstyle v1.0.13
+[1m[92m   Compiling[0m litemap v0.7.5
+[1m[92m   Compiling[0m zmij v1.0.21
+[1m[92m   Compiling[0m anstyle-query v1.1.4
+[1m[92m   Compiling[0m is_terminal_polyfill v1.70.2
+[1m[92m   Compiling[0m anstream v0.6.21
+[1m[92m   Compiling[0m num-rational v0.4.2
+[1m[92m   Compiling[0m num-iter v0.1.46
+[1m[92m   Compiling[0m num-complex v0.4.6
+[1m[92m   Compiling[0m clap_lex v0.7.6
+[1m[92m   Compiling[0m zerofrom-derive v0.1.6
+[1m[92m   Compiling[0m zerocopy-derive v0.8.27
+[1m[92m   Compiling[0m serde_derive v1.0.228
+[1m[92m   Compiling[0m yoke-derive v0.7.5
+[1m[92m   Compiling[0m zerofrom v0.1.6
+[1m[92m   Compiling[0m zerovec-derive v0.10.4
+[1m[92m   Compiling[0m yoke v0.7.5
+[1m[92m   Compiling[0m displaydoc v0.2.5
+[1m[92m   Compiling[0m icu_provider_macros v1.5.0
+[1m[92m   Compiling[0m zerovec v0.10.4
+[1m[92m   Compiling[0m serde_json v1.0.150
+[1m[92m   Compiling[0m version_check v0.9.5
+[1m[92m   Compiling[0m icu_properties_data v1.5.1
+[1m[92m   Compiling[0m strsim v0.11.1
+[1m[92m   Compiling[0m quick-error v1.2.3
+[1m[92m   Compiling[0m clap_builder v4.5.51
+[1m[92m   Compiling[0m tinystr v0.7.6
+[1m[92m   Compiling[0m half v2.7.1
+[1m[92m   Compiling[0m icu_locid v1.5.0
+[1m[92m   Compiling[0m ahash v0.8.12
+[1m[92m   Compiling[0m num v0.4.3
+[1m[92m   Compiling[0m clap_derive v4.5.49
+[1m[92m   Compiling[0m icu_provider v1.5.0
+[1m[92m   Compiling[0m cmake v0.1.54
+[1m[92m   Compiling[0m rustix v1.1.2
+[1m[92m   Compiling[0m regex-syntax v0.8.8
+[1m[92m   Compiling[0m itoa v1.0.18
+[1m[92m   Compiling[0m lexical-util v1.0.7
+[1m[92m   Compiling[0m icu_normalizer_data v1.5.1
+[1m[92m   Compiling[0m vcpkg v0.2.15
+[1m[92m   Compiling[0m bytes v1.12.1
+[1m[92m   Compiling[0m libz-sys v1.1.23
+[1m[92m   Compiling[0m arrow-buffer v55.2.0
+[1m[92m   Compiling[0m clap v4.5.51
+[1m[92m   Compiling[0m icu_locid_transform v1.5.0
+[1m[92m   Compiling[0m icu_collections v1.5.0
+[1m[92m   Compiling[0m lzma-sys v0.1.20
+[1m[92m   Compiling[0m bzip2-sys v0.1.13+1.0.8
+[1m[92m   Compiling[0m aho-corasick v1.1.4
+[1m[92m   Compiling[0m linux-raw-sys v0.11.0
+[1m[92m   Compiling[0m smallvec v1.15.1
+[1m[92m   Compiling[0m arrow-schema v55.2.0
+[1m[92m   Compiling[0m iana-time-zone v0.1.65
+[1m[92m   Compiling[0m chrono v0.4.45
+[1m[92m   Compiling[0m arrow-data v55.2.0
+[1m[92m   Compiling[0m regex-automata v0.4.13
+[1m[92m   Compiling[0m icu_properties v1.5.1
+[1m[92m   Compiling[0m fs-utils v1.1.4
+[1m[92m   Compiling[0m rosalind-receipt v0.3.0 (/home/runner/work/rosalind/rosalind/crates/receipt)
+[1m[92m   Compiling[0m rustc_version v0.4.1
+[1m[92m   Compiling[0m glob v0.3.3
+[1m[92m   Compiling[0m rustversion v1.0.22
+[1m[92m   Compiling[0m utf16_iter v1.0.5
+[1m[92m   Compiling[0m semver v0.1.20
+[1m[92m   Compiling[0m fastrand v2.3.0
+[1m[92m   Compiling[0m write16 v1.0.0
+[1m[92m   Compiling[0m utf8_iter v1.0.4
+[1m[92m   Compiling[0m tempfile v3.23.0
+[1m[92m   Compiling[0m icu_normalizer v1.5.0
+[1m[92m   Compiling[0m rustc_version v0.1.7
+[1m[92m   Compiling[0m hts-sys v2.2.0
+[1m[92m   Compiling[0m flatbuffers v25.12.19
+[1m[92m   Compiling[0m arrow-array v55.2.0
+[1m[92m   Compiling[0m lexical-write-integer v1.0.6
+[1m[92m   Compiling[0m lexical-parse-integer v1.0.6
+[1m[92m   Compiling[0m syn v1.0.109
+[1m[92m   Compiling[0m lazy_static v1.5.0
+[1m[92m   Compiling[0m thiserror v1.0.69
+[1m[92m   Compiling[0m lexical-parse-float v1.0.6
+[1m[92m   Compiling[0m lexical-write-float v1.0.6
+[1m[92m   Compiling[0m idna_adapter v1.2.0
+[1m[92m   Compiling[0m newtype_derive v0.1.6
+[1m[92m   Compiling[0m thiserror-impl v1.0.69
+[1m[92m   Compiling[0m rosalind-build-info v0.1.0 (/home/runner/work/rosalind/rosalind/crates/build-info)
+[1m[92m   Compiling[0m tracing-core v0.1.34
+[1m[92m   Compiling[0m crc32fast v1.5.0
+[1m[92m   Compiling[0m radium v0.7.0
+[1m[92m   Compiling[0m percent-encoding v2.3.2
+[1m[92m   Compiling[0m paste v1.0.15
+[1m[92m   Compiling[0m byteorder v1.5.0
+[1m[92m   Compiling[0m form_urlencoded v1.2.2
+[1m[92m   Compiling[0m arrow-select v55.2.0
+[1m[92m   Compiling[0m strum_macros v0.26.4
+[1m[92m   Compiling[0m idna v1.1.0
+[1m[92m   Compiling[0m lexical-core v1.0.6
+[1m[92m   Compiling[0m regex v1.12.2
+[1m[92m   Compiling[0m derive-new v0.6.0
+[1m[92m   Compiling[0m tracing-attributes v0.1.30
+[1m[92m   Compiling[0m atoi v2.0.0
+[1m[92m   Compiling[0m ordered-float v2.10.1
+[1m[92m   Compiling[0m rand_core v0.9.3
+[1m[92m   Compiling[0m adler2 v2.0.1
+[1m[92m   Compiling[0m tap v1.0.1
+[1m[92m   Compiling[0m ryu v1.0.23
+[1m[92m   Compiling[0m pin-project-lite v0.2.16
+[1m[92m   Compiling[0m integer-encoding v3.0.4
+[1m[92m   Compiling[0m base64 v0.22.1
+[1m[92m   Compiling[0m anyhow v1.0.103
+[1m[92m   Compiling[0m simd-adler32 v0.3.9
+[1m[92m   Compiling[0m log v0.4.28
+[1m[92m   Compiling[0m miniz_oxide v0.8.9
+[1m[92m   Compiling[0m tracing-log v0.2.0
+[1m[92m   Compiling[0m arrow-cast v55.2.0
+[1m[92m   Compiling[0m tracing v0.1.41
+[1m[92m   Compiling[0m thrift v0.17.0
+[1m[92m   Compiling[0m wyz v0.5.1
+[1m[92m   Compiling[0m derive-new v0.5.9
+[1m[92m   Compiling[0m bio-types v1.0.4
+[1m[92m   Compiling[0m arrow-ipc v55.2.0
+[1m[92m   Compiling[0m url v2.5.7
+[1m[92m   Compiling[0m rosalind-bio v0.5.0 (/home/runner/work/rosalind/rosalind)
+[1m[92m   Compiling[0m sharded-slab v0.1.7
+[1m[92m   Compiling[0m matchers v0.2.0
+[1m[92m   Compiling[0m thread_local v1.1.9
+[1m[92m   Compiling[0m seq-macro v0.3.6
+[1m[92m   Compiling[0m linear-map v1.2.0
+[1m[92m   Compiling[0m twox-hash v2.1.4
+[1m[92m   Compiling[0m ieee754 v0.2.6
+[1m[92m   Compiling[0m nu-ansi-term v0.50.3
+[1m[92m   Compiling[0m custom_derive v0.1.7
+[1m[92m   Compiling[0m funty v2.0.0
+[1m[92m   Compiling[0m tracing-subscriber v0.3.20
+[1m[92m   Compiling[0m bitvec v1.0.1
+[1m[92m   Compiling[0m parquet v55.2.0
+[1m[92m   Compiling[0m flate2 v1.1.9
+[1m[92m   Compiling[0m ppv-lite86 v0.2.21
+[1m[92m   Compiling[0m wait-timeout v0.2.1
+[1m[92m   Compiling[0m fnv v1.0.7
+[1m[92m   Compiling[0m bit-vec v0.8.0
+[1m[92m   Compiling[0m rand_chacha v0.9.0
+[1m[92m   Compiling[0m bit-set v0.8.0
+[1m[92m   Compiling[0m rusty-fork v0.3.1
+[1m[92m   Compiling[0m rand v0.9.2
+[1m[92m   Compiling[0m rand_xorshift v0.4.0
+[1m[92m   Compiling[0m unarray v0.1.4
+[1m[92m   Compiling[0m proptest v1.9.0
+[1m[92m   Compiling[0m equivalent v1.0.2
+[1m[92m   Compiling[0m indexmap v2.7.1
+[1m[92m   Compiling[0m toml_datetime v0.6.11
+[1m[92m   Compiling[0m serde_spanned v0.6.9
+[1m[92m   Compiling[0m winnow v0.7.15
+[1m[92m   Compiling[0m toml_write v0.1.2
+[1m[92m   Compiling[0m toml_edit v0.22.27
+[1m[92m   Compiling[0m toml v0.8.23
+[1m[92m   Compiling[0m xtask v0.1.0 (/home/runner/work/rosalind/rosalind/xtask)
+[1m[92m   Compiling[0m rust-htslib v0.44.1
+[1m[92m    Finished[0m `test` profile [unoptimized] target(s) in 42.55s
+[1m[92m     Running[0m unittests src/lib.rs (/home/runner/work/_temp/rosalind-native-target/debug/deps/rosalind-5d7c22330b02b5a7)
+
+running 264 tests
+test call::arrow::tests::schema_field_order_types_and_nullability_are_frozen ... ok
+test call::arrow::tests::empty_stream_has_schema_and_no_batches ... ok
+test call::columnkit::tests::coverage_track_header_and_params ... ok
+test call::features::tests::feature_row_has_the_expected_fields ... ok
+test call::columnkit::tests::feature_analyzer_via_driver_equals_the_direct_features_path ... ok
+test call::germline::tests::clear_het_passes ... ok
+test call::germline::tests::clear_hom_alt_passes ... ok
+test call::germline::tests::gvcf_genotype_classifies_every_column ... ok
+test call::germline::tests::hom_ref_site_abstains ... ok
+test call::germline::tests::likelihoods_rank_genotypes_correctly ... ok
+test call::germline::tests::mapping_quality_is_marginalized_and_255_preserves_the_legacy_model ... ok
+test call::germline::tests::no_alt_or_non_callable_ref_yields_none ... ok
+test call::germline::tests::qual_increases_with_evidence ... ok
+test call::germline::tests::shallow_variant_is_flagged_low_depth_not_dropped ... ok
+test call::germline::tests::thin_alt_evidence_abstains ... ok
+test call::pack::tests::empty_jobs_pack_to_zero_nodes ... ok
+test call::pack::tests::is_deterministic_regardless_of_input_order ... ok
+test call::pack::tests::packs_all_jobs_and_every_node_is_within_capacity ... ok
+test call::pack::tests::refuses_a_job_larger_than_a_node ... ok
+test call::pack::tests::refuses_when_jobs_exceed_the_node_budget ... ok
+test call::pipeline::tests::calls_a_het_snv_including_a_reverse_strand_read ... ok
+test call::columnkit::tests::a_custom_analyzer_inherits_the_bounded_working_set ... ok
+test call::pipeline::tests::calls_a_somatic_snv_from_tumor_normal_cowalk ... ok
+test call::pipeline::tests::pure_reference_yields_no_calls ... ok
+test call::pipeline::tests::streaming_emits_same_sites_as_tracked_and_returns_working_set ... ok
+test call::plan::tests::predicted_peak_is_baseline_plus_working_set_plus_io_margin ... ok
+test call::plan::tests::render_reports_fits_and_refuse ... ok
+test call::somatic::tests::calls_clean_somatic_snv ... ok
+test call::somatic::tests::filters_normal_contamination ... ok
+test call::somatic::tests::llr_math_matches_legacy_reference ... ok
+test call::somatic::tests::respects_min_depth ... ok
+test call::types::tests::defaults_match_spec ... ok
+test call::plan::tests::estimate_grows_with_inputs_and_does_not_overflow ... ok
+test call::whole_genome::tests::whole_genome_equals_per_contig_calls ... ok
+test core::budget::tests::budget_admits_within_and_rejects_beyond ... ok
+test core::budget::tests::unlimited_admits_everything_and_working_set_checks_fit ... ok
+
+running 1 test
+test core::cancellation::tests::delayed_old_signal_cannot_cancel_a_new_job_or_erase_its_cancellation ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 263 filtered out; finished in 0.00s
+
+test core::cancellation::tests::delayed_old_signal_cannot_cancel_a_new_job_or_erase_its_cancellation ... ok
+test core::error::tests::budget_exceeded_displays_both_numbers ... ok
+test core::error::tests::io_error_converts_via_from ... ok
+test core::governor::tests::checkpoint_ok_when_unarmed_and_governor_error_displays ... ok
+test core::locus::tests::by_id_out_of_range_is_none ... ok
+test core::locus::tests::contig_set_assigns_ids_and_global_offsets ... ok
+test core::locus::tests::empty_contig_set_is_empty_with_zero_total_length ... ok
+test core::locus::tests::loci_order_by_contig_then_position ... ok
+test core::locus::tests::resolve_maps_global_offset_to_locus ... ok
+test core::locus::tests::resolve_out_of_range_is_none ... ok
+test core::locus::tests::resolve_span_crossing_a_boundary_is_rejected ... ok
+test core::locus::tests::resolve_span_within_a_contig_returns_start ... ok
+test core::record::tests::empty_cigar_projects_nothing ... ok
+test core::record::tests::long_read_projects_every_match_base ... ok
+test core::record::tests::pad_consumes_neither_ref_nor_read ... ok
+test core::record::tests::projection_handles_softclip_insertion_deletion_refskip ... ok
+test core::record::tests::projection_offsets_follow_cigar_not_seq_len ... ok
+test core::record::tests::ref_span_and_end_are_cigar_derived_not_seq_len ... ok
+test core::record::tests::refskip_consumes_reference_only_like_a_long_intron ... ok
+test core::record::tests::sam_flags_decode_common_bits ... ok
+test core::sequence::tests::allele_index_is_some_for_acgt_and_none_for_n ... ok
+test core::sequence::tests::ambiguous_and_unknown_fold_to_n_and_are_not_exact ... ok
+test core::sequence::tests::exact_bases_map_directly_and_u_folds_to_t ... ok
+test call::whole_genome::tests::working_set_is_bounded_by_reference_and_local_pressure_not_read_count ... ok
+test dataset::descriptor::tests::compatibility_ignores_selection_projection_and_locations_but_binds_filters ... ok
+test dataset::descriptor::tests::discovered_index_cannot_hide_under_a_selection_role ... ok
+test dataset::descriptor::tests::publication_memory_reserves_read_group_and_sample_metadata ... ok
+test dataset::descriptor::tests::arbitrary_old_key_and_changed_input_session_cannot_promote_stale_partitions ... ok
+test dataset::descriptor::tests::verified_session_detects_symlink_retargeting ... ok
+test dataset::descriptor::tests::verified_publication_preserves_legacy_and_binds_relative_partition_inventory ... ok
+test dataset::lookup::tests::oversized_parent_receipt_refuses_before_parsing ... ok
+test dataset::lookup::tests::final_guard_checks_previously_loaded_partitions_and_parent_mutation ... ok
+test dataset::lookup::tests::parent_request_and_partition_hash_anchors_are_required ... ok
+test dataset::lookup::tests::unsorted_repeated_lookups_preserve_projected_allele_quality_and_zero_depth ... ok
+test dataset::parquet::tests::corruption_late_query_mutation_and_nested_destinations_never_publish_success ... ok
+test dataset::parquet::tests::empty_projection_export_is_schema_bearing_and_existing_destinations_are_preserved ... ok
+test dataset::lookup::tests::resealed_rows_cannot_change_selected_order_annotations_or_fields ... ok
+test dataset::parquet::tests::parquet_preserves_unsigned_values_above_signed_integer_range ... ok
+test dataset::parquet::tests::encoder_and_receipt_inventory_are_admitted_before_creating_directory ... ok
+test dataset::persisted::tests::corrupt_hash_unknown_versions_and_mutation_are_rejected ... ok
+test dataset::persisted::tests::coverage_split_preserves_query_annotations_and_never_synthesizes_holes ... ok
+test call::features::tests::feature_stream_is_deterministic_and_bounded ... ok
+test dataset::persisted::tests::metadata_open_refuses_before_parsing_when_budget_or_envelope_is_too_small ... ok
+test call::arrow::tests::fixed_batch_boundaries_and_repeat_bytes ... ok
+test dataset::persisted::tests::output_batches_are_canonical_and_planner_reserves_source_projection_and_analyzer ... ok
+test dataset::persisted::tests::projected_subset_and_new_alts_equal_fresh_after_relocation_without_sources ... ok
+test dataset::persisted::tests::source_alt_annotations_do_not_limit_new_queries_but_reference_must_match ... ok
+test dataset::reuse::tests::consumer_failure_restores_engine_selection_and_does_not_finish ... ok
+test dataset::persisted::tests::resealed_omitted_or_duplicate_source_rows_still_fail_exact_ownership ... ok
+test dataset::reuse::tests::missing_only_and_empty_selection_finish_once_and_match_fresh ... ok
+test dataset::reuse::tests::joint_plan_counts_source_decoder_and_inherits_source_budget ... ok
+test dataset::reuse::tests::scientific_mismatch_missing_fields_and_parallel_options_are_refused ... ok
+test dataset::reuse::tests::subset_changes_query_alt_and_reuses_zero_rows_without_alignment_visits ... ok
+test evidence::artifact::tests::in_place_measurement_reseal_preserves_claim_hash_and_allocation ... ok
+test evidence::artifact::tests::resource_failure_during_publication_seals_partials ... ok
+test evidence::batch::tests::every_mask_allocates_exactly_its_requested_groups ... ok
+test evidence::batch::tests::owned_full_adapter_and_projected_append_preserve_nonzero_values ... ok
+test evidence::cram::tests::fai_and_crai_refuse_unbounded_lines_and_bad_declared_coordinates ... ok
+test evidence::cram::tests::forged_huffman_counts_and_recursive_codec_metadata_fail_before_native_allocation ... ok
+test evidence::cram::tests::gzip_expansion_rans_internal_lengths_and_crc_are_checked ... ok
+test evidence::cram::tests::header_padding_and_all_container_blocks_are_reserved ... ok
+test evidence::cram::tests::repeated_decoder_bound_uses_global_verified_maxima_and_checked_arithmetic ... ok
+test evidence::encoding::tests::allele_sums_validate_against_each_independently_available_count_source ... ok
+test evidence::encoding::tests::expected_projection_is_checked_before_any_body_and_on_empty_streams ... ok
+test evidence::encoding::tests::final_buffered_flush_error_is_returned_after_arrow_end_of_stream ... ok
+test evidence::encoding::tests::malformed_buffer_ranges_are_refused_from_metadata_before_body_reads ... ok
+test evidence::engine::projection_tests::every_physical_projection_matches_full_selected_observations ... ok
+test evidence::engine::projection_tests::indexed_sparse_fetches_reduce_visits_and_preserve_full_output_bytes ... ok
+test evidence::engine::projection_tests::projected_memory_model_admits_larger_windows_without_changing_fields ... ok
+test evidence::engine::projection_tests::sparse_windows_obey_span_ownership_and_exact_selection ... ok
+test evidence_scaffold::tests::generates_separate_artifact_project_without_overwriting ... ok
+test evidence_scaffold::tests::rejects_invalid_names_before_creating_paths ... ok
+test genomics::block_alignment::tests::backward_search_produces_expected_interval ... ok
+test genomics::block_alignment::tests::merge_combines_metrics_and_intervals ... ok
+test genomics::block_alignment::tests::unsupported_base_records_mismatch ... ok
+test genomics::bwt_aligner::tests::aligner_returns_interval_for_read ... ok
+test genomics::compressed_dna::tests::compress_and_decode_roundtrip ... ok
+test genomics::compressed_dna::tests::iterator_yields_correct_bases ... ok
+test genomics::compressed_dna::tests::push_and_extend ... ok
+test genomics::compressed_dna::tests::unsupported_base_returns_error ... ok
+test genomics::eval::compare::gt_concordance_tests::het_called_as_hom_is_a_detection_tp_but_a_genotype_error ... ok
+test genomics::eval::compare::gt_concordance_tests::matching_genotype_is_concordant ... ok
+test genomics::eval::compare::gt_concordance_tests::unknown_genotype_is_counted_separately_not_as_error ... ok
+test genomics::eval::vcf::gt_tests::missing_sample_is_genotype_none_and_still_parses ... ok
+test genomics::eval::vcf::gt_tests::multiallelic_decomposes_per_alt_with_decomposed_genotype ... ok
+test genomics::eval::vcf::gt_tests::multiallelic_hom_second_allele_drops_the_absent_first ... ok
+test genomics::eval::vcf::gt_tests::multiallelic_without_gt_emits_all_alleles_unscored ... ok
+test genomics::eval::vcf::gt_tests::parses_gt_zygosity_from_format_sample ... ok
+test genomics::fm_index::tests::fm_index_builds_and_ranks ... ok
+test genomics::fm_index::tests::owned_backing_matches_generic_ops ... ok
+test genomics::fm_index::tests::sa_at_recovers_reference_position ... ok
+test genomics::fm_index::tests::sampled_sa_is_sparse_not_dense ... ok
+test genomics::fm_index::tests::sanitize_maps_iupac_ambiguity_codes_to_n ... ok
+test genomics::fm_index::tests::serialization_accessors_expose_backing ... ok
+test genomics::genome_index::tests::empty_pattern_returns_nothing ... ok
+test genomics::genome_index::tests::exact_match_matches_a_naive_scan ... ok
+test genomics::genome_index::tests::from_named_sequences_builds_a_multi_contig_index ... ok
+test genomics::genome_index::tests::from_named_sequences_rejects_an_empty_genome ... ok
+test genomics::genome_index::tests::locate_exact_is_deterministic ... ok
+test genomics::genome_index::tests::locates_a_pattern_unique_to_chr1 ... ok
+test genomics::genome_index::tests::locates_a_pattern_unique_to_chr2 ... ok
+test genomics::genome_index::tests::max_hits_caps_candidates ... ok
+test genomics::genome_index::tests::rejects_a_boundary_straddling_match ... ok
+test genomics::genome_index::tests::stores_contigs_and_reference ... ok
+test genomics::genome_index::tests::validate_concat_len_enforces_the_u32_ceiling ... ok
+test genomics::index::format::tests::section_kind_discriminants_round_trip ... ok
+test genomics::index::io::tests::open_parses_header_contigs_and_sections ... ok
+test genomics::index::io::tests::open_rejects_a_corrupt_block_directory ... ok
+test genomics::index::io::tests::open_rejects_a_misaligned_block_offset ... ok
+test genomics::index::io::tests::open_rejects_a_truncated_index ... ok
+test genomics::index::io::tests::open_rejects_bad_magic ... ok
+test genomics::index::io::tests::reference_view_decodes_bytes_identical_to_in_ram ... ok
+test genomics::index::io::tests::reference_view_is_a_small_borrow ... ok
+test genomics::index::io::tests::serialized_index_is_byte_identical_across_builds ... ok
+test genomics::index::io::tests::serialized_sections_are_present_aligned_and_in_bounds ... ok
+test genomics::index::io::tests::view_is_byte_identical_to_in_ram_index ... ok
+test genomics::index::report::tests::build_model_breaks_down_and_sums ... ok
+test genomics::index::report::tests::build_model_is_monotonic_and_overflow_safe ... ok
+test genomics::index::report::tests::model_envelopes_the_d0_measured_realized_peak ... ok
+test genomics::index::report::tests::plan_line_reports_ok_and_over ... ok
+test genomics::index::report::tests::receipt_render_is_deterministic_and_contains_fields ... ok
+test genomics::rank_select::tests::rank_all_returns_expected_counts ... ok
+test genomics::rank_select::tests::rank_queries_match_naive_counts ... ok
+test genomics::rank_select::tests::totals_match_full_sequence ... ok
+test genomics::reference_pack::tests::build_is_deterministic_and_round_trips_contigs_and_ambiguity ... ok
+test genomics::reference_pack::tests::corruption_and_truncation_are_rejected_at_open ... ok
+test genomics::reference_pack::tests::invalid_fasta_is_rejected_without_publishing_destination ... ok
+test genomics::sampled_sa::tests::empty_has_no_samples ... ok
+test genomics::sampled_sa::tests::handles_a_superblock_boundary ... ok
+test genomics::sampled_sa::tests::metadata_is_correct ... ok
+test genomics::sampled_sa::tests::rank_is_correct_for_unaligned_positions_in_a_higher_superblock ... ok
+test genomics::sampled_sa::tests::sample_at_returns_none_at_unsampled_positions ... ok
+test genomics::sampled_sa::tests::sample_at_returns_value_at_sampled_positions ... ok
+test genomics::sort::tests::merge_tie_break_pops_equal_key_records_in_source_index_order ... ok
+test genomics::suffix_array::tests::sais_handles_repeated_symbols ... ok
+test genomics::suffix_array::tests::sais_matches_naive_small ... ok
+test io::bam::tests::reads_bam_into_core_reads_with_flags_and_cigar ... ok
+test io::bam::tests::streaming_source_rejects_disjoint_contig_naming ... ok
+test io::bam::tests::streaming_source_rejects_out_of_order ... ok
+test io::bam::tests::streaming_source_rejects_sq_length_mismatch ... ok
+test io::bam::tests::streaming_source_yields_same_reads_as_materializing ... ok
+test io::bam::tests::unknown_contig_records_are_skipped ... ok
+test io::decompress::tests::empty_input_is_treated_as_plain_and_yields_nothing ... ok
+test io::decompress::tests::gzip_detected_even_when_source_yields_one_byte_at_a_time ... ok
+test io::decompress::tests::gzip_input_is_transparently_decompressed ... ok
+test io::decompress::tests::plain_input_passes_through ... ok
+test io::fasta::tests::empty_input_yields_no_records ... ok
+test io::fasta::tests::header_without_sequence_is_a_malformed_record_error ... ok
+test io::fasta::tests::missing_header_is_a_malformed_record_error ... ok
+test io::fasta::tests::reads_single_record_uppercased ... ok
+test io::fasta::tests::reads_three_records_and_builds_a_three_contig_set ... ok
+test io::fasta::tests::skips_blank_lines_between_records ... ok
+test io::fastq::tests::empty_input_yields_no_records ... ok
+test io::fastq::tests::missing_at_prefix_is_malformed ... ok
+test io::fastq::tests::missing_plus_separator_is_malformed ... ok
+test io::fastq::tests::quality_line_starting_with_at_is_not_a_header ... ok
+test io::fastq::tests::reads_two_records_and_trims_name_after_space ... ok
+test io::fastq::tests::seq_qual_length_mismatch_is_malformed ... ok
+test io::fastq::tests::truncated_record_at_eof_is_malformed ... ok
+test io::vcf::tests::filter_and_genotype_strings_render ... ok
+test io::vcf::tests::germline_record_is_exact ... ok
+test io::vcf::tests::header_has_required_tags ... ok
+test io::vcf::tests::header_then_streamed_rows_equals_batch_write ... ok
+test io::vcf::tests::records_are_sorted_deterministically ... ok
+test io::vcf::tests::somatic_header_has_two_samples ... ok
+test io::vcf::tests::somatic_record_is_exact ... ok
+test merge::tests::empty_shard_headers_are_checked_and_late_headers_are_rejected ... ok
+test merge::tests::gvcf_boundary_coalescing_retains_only_one_pending_record ... ok
+test merge::tests::historical_sampled_shards_are_refused_before_publication ... ok
+test merge::tests::outcome_counters_and_execution_capacity_do_not_change_compatibility ... ok
+test merge::tests::text_merge_emits_records_before_reading_the_complete_shard ... ok
+test pileup::column::tests::depth_allele_and_strand_counts ... ok
+test pileup::engine::tests::basic_ungapped_pileup_counts ... ok
+test pileup::engine::tests::capacity_applies_after_filters_and_expiration_and_zero_is_safe ... ok
+test pileup::engine::tests::capacity_exhaustion_does_not_evict_longer_read_or_emit_inexact_column ... ok
+test pileup::engine::tests::default_params_skip_noise_and_keep_quality_open ... ok
+test pileup::engine::tests::deletion_leaves_a_reference_gap_with_no_observation ... ok
+test pileup::engine::tests::emit_all_positions_preserves_the_working_set_bound ... ok
+test pileup::engine::tests::emit_all_positions_reports_gaps_at_depth_zero ... ok
+test pileup::engine::tests::engine_is_an_open_substrate_for_arbitrary_per_locus_analysis ... ok
+test pileup::engine::tests::filters_skip_low_mapq_reads ... ok
+test pileup::engine::tests::filters_skip_secondary_supplementary_and_duplicate_reads ... ok
+test pileup::engine::tests::insertion_bases_do_not_shift_downstream_reference_positions ... ok
+test pileup::engine::tests::later_capacity_failure_preserves_only_exact_prefix ... ok
+test pileup::engine::tests::long_read_piles_up_every_matched_base ... ok
+test pileup::engine::tests::low_base_quality_observations_are_dropped ... ok
+test pileup::engine::tests::obs_are_emitted_in_canonical_order ... ok
+test pileup::engine::tests::params_default_max_depth_is_none_and_skipcounts_total_includes_over_max_depth ... ok
+test pileup::engine::tests::raw_depth_counts_covering_reads_even_when_base_is_dropped ... ok
+test pileup::engine::tests::read_exceeding_declared_max_read_len_errors ... ok
+test pileup::engine::tests::reverse_strand_reads_are_not_complemented ... ok
+test pileup::engine::tests::shuffled_source_yields_identical_columns ... ok
+test pileup::engine::tests::skip_counts_accumulate_sums_fieldwise ... ok
+test pileup::engine::tests::skip_counts_total_sums_all_reasons ... ok
+test pileup::engine::tests::soft_clipped_bases_are_excluded ... ok
+test pileup::engine::tests::sparse_coverage_skips_empty_positions_without_recursion ... ok
+test pileup::engine::tests::sufficient_capacity_is_exact_and_partition_invariant ... ok
+test pileup::engine::tests::working_set_counts_reference_and_read_byte_buffers ... ok
+test dataset::parquet::tests::roundtrip_preserves_unsigned_scalars_fixed_lists_and_bounded_deterministic_files ... ok
+test pileup::source::tests::slice_source_yields_reads_sorted_by_contig_then_pos ... ok
+test reproduce::tests::classify_diverged_names_the_first_mismatch ... ok
+test reproduce::tests::classify_reproduced_when_all_outputs_match ... ok
+test reproduce::tests::exit_codes_are_stable ... ok
+test reproduce::tests::historical_pileup_requires_explicit_historical_binary_before_input_lookup ... ok
+test reproduce::tests::managed_external_artifact_replay_uses_physical_bytes_for_custom_formats ... ok
+test reproduce::tests::strict_recipe_accepts_tokenized_spaces_and_unicode ... ok
+test reproduce::tests::strict_recipe_rejects_manifest_paths_unsupported_builtins_and_legacy_externals ... ok
+test reproduce::tests::strict_recipe_rejects_prefix_duplicate_and_unrecorded_output_operands ... ok
+test scaffold::tests::creates_the_complete_analyzer_project_and_refuses_overwrite ... ok
+test scaffold::tests::rejects_names_that_are_not_cargo_kebab_case ... ok
+test selection::tests::bed_comments_unusual_names_ordering_and_empty_rows_normalize ... ok
+test selection::tests::normalization_merges_overlap_and_adjacency ... ok
+test selection::tests::randomized_shards_cover_every_base_once ... ok
+test selection::tests::region_is_one_based_inclusive ... ok
+test selection::tests::shard_union_is_complete_and_disjoint ... ok
+test studio::tests::complete_headers_at_the_capacity_boundary_are_accepted ... ok
+test studio::tests::incomplete_and_oversized_headers_are_rejected_with_bounded_reads ... ok
+test studio::tests::one_byte_reads_assemble_the_complete_javascript_request ... ok
+test studio::tests::preload_json_cannot_close_its_script_element ... ok
+test util::atomic::tests::commit_is_atomic_and_create_new_refuses_replacement ... ok
+test util::atomic::tests::dropping_uncommitted_file_cleans_the_temporary_path ... ok
+test util::atomic::tests::group_failure_restores_replaced_outputs_and_leaves_no_new_success ... ok
+test dataset::persisted::tests::local_budget_stops_after_first_breaching_callback_without_a_global_governor ... ok
+test util::rss::tests::linux_peak_parser_requires_a_complete_valid_kib_value ... ok
+test util::atomic_directory::tests::publish_is_complete_and_raced_empty_destination_is_preserved ... ok
+test util::rss::tests::peak_rss_reflects_a_real_allocation_in_bytes ... ok
+test pileup::engine::tests::working_set_is_bounded_by_coverage_not_input_size ... ok
+test dataset::reuse::tests::partial_overlap_and_projection_equal_fresh_across_microtiles ... ok
+
+test result: ok. 264 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.08s
+
+[1m[92m     Running[0m unittests src/main.rs (/home/runner/work/_temp/rosalind-native-target/debug/deps/rosalind-a2c7514490452aa2)
+
+running 11 tests
+test tests::align_reads_with_fm_index ... ok
+test tests::fastq_quals_to_phred_decodes_lowest_quality ... ok
+test tests::fasta_parser_extracts_primary_name ... ok
+test tests::fastq_parser_trims_after_space ... ok
+test tests::fastq_quals_to_phred_decodes_run ... ok
+test tests::fastq_quals_to_phred_decodes_single_byte ... ok
+test tests::fastq_quals_to_phred_empty_input_returns_empty ... ok
+test tests::fastq_quals_to_phred_saturating_does_not_underflow ... ok
+test tests::parse_cigar_handles_match_softclip_and_deletion ... ok
+test tests::parse_cigar_handles_multi_op_indels ... ok
+test tests::parse_cigar_rejects_length_mismatch_and_star ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/alignment_pipeline.rs (/home/runner/work/_temp/rosalind-native-target/debug/deps/alignment_pipeline-cde7573cb79cb367)
+
+running 2 tests
+test alignment_interval_is_within_bounds ... ok
+test align_batch_produces_results ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/analyze.rs (/home/runner/work/_temp/rosalind-native-target/debug/deps/analyze-75827fa308304ffd)
+
+running 1 test
+test analyze_coverage_writes_a_verifiable_receipt_with_analyzer_params ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+[1m[92m     Running[0m tests/atomic_outputs.rs (/home/runner/work/_temp/rosalind-native-target/debug/deps/atomic_outputs-94b40d249bd7d4a1)
+
+running 2 tests
+test ordinary_input_failure_leaves_no_output_or_temporary_file ... ok
+test index_align_sort_and_variants_refuse_collisions_and_force_replaces ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+[1m[92m     Running[0m tests/bam_quality_encoding.rs (/home/runner/work/_temp/rosalind-native-target/debug/deps/bam_quality_encoding-1b1d73d012d5bc0b)
+
+running 2 tests
+wrote reproducibility receipt: wrote reproducibility receipt: /tmp/rosalind-bam-qual-out2-1792892576039104526.bam.manifest.json/tmp/rosalind-bam-qual-out-1792892576039116789.bam.manifest.json
+
+test bam_qual_field_is_not_double_decoded ... ok
+test bam_qual_field_stores_raw_phred_not_ascii ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+[1m[92m     Running[0m tests/bam_sort.rs (/home/runner/work/_temp/rosalind-native-target/debug/deps/bam_sort-53bcde6d6ae12aa4)
+
+running 1 test
+test deterministic_bam_sort_orders_by_tid_pos_strand_qname ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/cancellation.rs (/home/runner/work/_temp/rosalind-native-target/debug/deps/cancellation-a1b598564fbb0888)
+
+running 3 tests
+
+running 1 test
+
+running 1 test
+
+running 1 test
+test opt_in_signals_cancel_the_active_scope_and_restore_existing_handlers ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+test pre_cancelled_tokens_are_observed_before_any_work_and_drop_disarms ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+test token_scope_cancels_workers_and_old_tokens_cannot_cancel_a_new_job ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+test opt_in_signals_cancel_the_active_scope_and_restore_existing_handlers ... ok
+test pre_cancelled_tokens_are_observed_before_any_work_and_drop_disarms ... ok
+test token_scope_cancels_workers_and_old_tokens_cannot_cancel_a_new_job ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/chain.rs (/home/runner/work/_temp/rosalind-native-target/debug/deps/chain-a148e159706d01dd)
+
+running 5 tests
+test index_output_hash_equals_variants_index_input_hash ... ok
+test chain_verify_resolves_the_bam_input_through_sort_and_align_receipts ... ok
+test chain_verify_breaks_when_the_index_receipt_is_tampered ... ok
+test chain_verify_is_intact_on_a_real_index_variants_chain ... ok
+test index_writes_a_self_verifying_receipt ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+[1m[92m     Running[0m tests/clinical_eval_gates.rs (/home/runner/work/_temp/rosalind-native-target/debug/deps/clinical_eval_gates-f873e94e5afe018c)
+
+running 1 test
+test eval_compare_smoke_and_thresholds ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+[1m[92m     Running[0m tests/conformance.rs (/home/runner/work/_temp/rosalind-native-target/debug/deps/conformance-b497fc1d9f3f4a05)
+
+running 1 test
+test generated_analyzer_passes_the_embedded_conformance_harness ... FAILED
+
+failures:
+
+---- generated_analyzer_passes_the_embedded_conformance_harness stdout ----
+
+thread 'generated_analyzer_passes_the_embedded_conformance_harness' (7726) panicked at tests/conformance.rs:63:5:
+conformance failed:
+stdout=
+stderr=Error: cannot resolve analyzer binary /tmp/rosalind-generated-conformance-7725-0/depth-check/target/debug/depth-check
+
+Caused by:
+    No such file or directory (os error 2)
+
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    generated_analyzer_passes_the_embedded_conformance_harness
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.12s
+
+[1m[91merror[0m: test failed, to rerun pass `-p rosalind-bio --test conformance`

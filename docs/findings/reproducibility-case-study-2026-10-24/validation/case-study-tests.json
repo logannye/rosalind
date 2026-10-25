@@ -1,0 +1,12 @@
+{
+  "elapsed_seconds": 1.091238388999983,
+  "errors": [],
+  "expected_failures": [],
+  "failures": [],
+  "passed": true,
+  "pattern": "test_*.py",
+  "skips": [],
+  "start": "research/reproducibility-case-study/tests",
+  "tests_run": 38,
+  "unexpected_successes": []
+}

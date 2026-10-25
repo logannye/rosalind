@@ -194,6 +194,7 @@ supported scope are documented in [scientific semantics](docs/SEMANTICS.md),
 | Check maturity or contribute | [Implementation status](docs/implementation-status.md) · [Roadmap](docs/ROADMAP.md) · [Contributor guide](CONTRIBUTING.md) |
 | Try your own task and report results | [Researcher and builder validation kit](docs/adoption-validation.md) |
 | Watch or rerun a complete workflow | [Evidence-reuse demonstration](docs/evidence-reuse-demo.md) |
+| Reproduce exact real-read measurements and inspect their costs | [HG002 case study](research/reproducibility-case-study/README.md) · [cohort performance stop](https://github.com/logannye/rosalind/blob/70af512ecb803baa61b79abcf68ccb6d42cb990f/docs/findings/bounded-cohort-reanalysis-2026-10-22/README.md) · [frozen HG001 practical-benefit failure](https://github.com/logannye/rosalind/blob/70af512ecb803baa61b79abcf68ccb6d42cb990f/research/threshold-transfer/CONTINUATION_RESULTS.md) |
 | Evaluate richer evidence against simple candidate filters | [HG002 pilot results and stop decision](research/evidence-sufficiency/RESULTS.md) |
 | Find everything else | [Documentation index](docs/index.md) · [Security](SECURITY.md) · [Citation](CITATION.cff) |
 

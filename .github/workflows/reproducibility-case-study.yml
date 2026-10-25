@@ -1,0 +1,276 @@
+name: Exact-source reproducibility case study
+
+on:
+  push:
+    branches: ['codex/reproducibility-case-study']
+    paths:
+      - 'research/reproducibility-case-study/**/*.py'
+      - 'research/reproducibility-case-study/protocol-v1.json'
+      - '.github/workflows/reproducibility-case-study.yml'
+      - 'src/**'
+      - 'crates/**'
+      - 'tests/**'
+      - 'xtask/**'
+      - 'python/**'
+      - 'benchmarks/evidence/**'
+      - 'benchmarks/giab/resources.tsv'
+      - 'research/cohort-reanalysis/workloads/requirements.lock'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'build.rs'
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact 40-character commit to build and test, with this workflow present
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+# Do not cancel an evidence-producing attempt when a later commit is pushed.
+concurrency:
+  group: reproducibility-case-study-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  produce:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    outputs:
+      source_sha: ${{ steps.source.outputs.sha }}
+      bundle_inventory_sha256: ${{ steps.bundle.outputs.inventory_sha256 }}
+    env:
+      CASE_SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
+      CARGO_BUILD_JOBS: '4'
+      CARGO_INCREMENTAL: '0'
+      CARGO_PROFILE_DEV_DEBUG: '0'
+      CARGO_PROFILE_TEST_DEBUG: '0'
+      PYTHONPATH: ${{ github.workspace }}/python
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.source_sha || github.sha }}
+          persist-credentials: false
+      - id: source
+        name: Record exact checkout and initialize retained diagnostics
+        run: |
+          mkdir -p "$RUNNER_TEMP/rosalind-validation"
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          {
+            echo "CARGO_TARGET_DIR=$RUNNER_TEMP/rosalind-native-target"
+            echo "ROSALIND_BINARY=$RUNNER_TEMP/rosalind-native-target/release/rosalind"
+            echo "ROSALIND_BENCH_BINARY=$RUNNER_TEMP/rosalind-native-target/release/rosalind"
+          } >> "$GITHUB_ENV"
+          date -u +%s > "$RUNNER_TEMP/rosalind-validation/setup-started.txt"
+      - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30
+        with:
+          # Same exact compiler recorded in the passed bounded-cohort identity.
+          toolchain: '1.99.1'
+          components: rustfmt
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11.17'
+      - name: Install pinned wheels; never install this repository or restore a target cache
+        run: |
+          python -m pip install --only-binary=:all: -r research/cohort-reanalysis/workloads/requirements.lock \
+            2>&1 | tee "$RUNNER_TEMP/rosalind-validation/wheel-install.log"
+      - name: Check exact clean source and hosted resource reserve before native work
+        run: |
+          python research/reproducibility-case-study/build_identity.py preflight \
+            --scratch "$RUNNER_TEMP" --expected-source "$CASE_SOURCE_SHA" \
+            --output "$RUNNER_TEMP/rosalind-validation/resource-preflight.json" \
+            2>&1 | tee "$RUNNER_TEMP/rosalind-validation/resource-preflight.log"
+      - name: Locked native conformance, replay, and CRAM gates; one reusable target
+        run: |
+          cargo fmt --all -- --check 2>&1 | tee "$RUNNER_TEMP/rosalind-validation/cargo-fmt.log"
+          cargo test --locked --workspace 2>&1 | tee "$RUNNER_TEMP/rosalind-validation/cargo-test.log"
+          cargo build --locked --release --bin rosalind 2>&1 | tee "$RUNNER_TEMP/rosalind-validation/cargo-build.log"
+      - name: Bind the exact executable to source, lockfiles, native metadata, and environment
+        run: |
+          python research/reproducibility-case-study/build_identity.py record \
+            --binary "$ROSALIND_BINARY" --expected-source "$CASE_SOURCE_SHA" \
+            --output "$RUNNER_TEMP/rosalind-validation/build-identity.json" \
+            2>&1 | tee "$RUNNER_TEMP/rosalind-validation/build-identity.log"
+          date -u +%s > "$RUNNER_TEMP/rosalind-validation/setup-completed.txt"
+          du -sb "$CARGO_TARGET_DIR" > "$RUNNER_TEMP/rosalind-validation/native-target-bytes.txt"
+      - name: Python/native/oracle/demo/case-study suites; refuse skipped integration gates
+        run: |
+          python research/reproducibility-case-study/build_identity.py test \
+            --start scripts --pattern test_reproduce_demo.py \
+            --output "$RUNNER_TEMP/rosalind-validation/demo-tests.json" \
+            2>&1 | tee "$RUNNER_TEMP/rosalind-validation/demo-tests.log"
+          python research/reproducibility-case-study/build_identity.py test \
+            --start python/tests --output "$RUNNER_TEMP/rosalind-validation/python-tests.json" \
+            2>&1 | tee "$RUNNER_TEMP/rosalind-validation/python-tests.log"
+          python research/reproducibility-case-study/build_identity.py test \
+            --start benchmarks/evidence --output "$RUNNER_TEMP/rosalind-validation/oracle-tests.json" \
+            2>&1 | tee "$RUNNER_TEMP/rosalind-validation/oracle-tests.log"
+          python research/reproducibility-case-study/build_identity.py test \
+            --start research/reproducibility-case-study/tests \
+            --output "$RUNNER_TEMP/rosalind-validation/case-study-tests.json" \
+            2>&1 | tee "$RUNNER_TEMP/rosalind-validation/case-study-tests.log"
+      - name: Fixed small preflight then one HG002 case study
+        run: |
+          python research/reproducibility-case-study/run.py \
+            --binary "$ROSALIND_BINARY" \
+            --build-identity "$RUNNER_TEMP/rosalind-validation/build-identity.json" \
+            --expected-source "$CASE_SOURCE_SHA" \
+            --protocol research/reproducibility-case-study/protocol-v1.json \
+            --download-cache "$RUNNER_TEMP/rosalind-public-downloads" \
+            --output "$RUNNER_TEMP/rosalind-case-study" \
+            2>&1 | tee "$RUNNER_TEMP/rosalind-validation/case-study.log"
+      - id: bundle
+        name: Enforce compact replay bundle ceiling and stage separately hashed executable
+        run: |
+          python - <<'PY'
+          import hashlib, json, os, shutil
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP'])
+          bundle = root / 'rosalind-case-study/replay-bundle'
+          if not bundle.is_dir():
+              raise RuntimeError('completed producer did not publish a replay bundle')
+          files = [p for p in bundle.rglob('*') if p.is_file()]
+          if any(p.is_symlink() for p in bundle.rglob('*')):
+              raise RuntimeError('replay bundle contains a symlink')
+          size = sum(p.stat().st_size for p in files)
+          result = {'logical_bytes': size, 'target_bytes': 64 * 1024**2,
+                    'refusal_bytes': 128 * 1024**2, 'file_count': len(files)}
+          (root / 'rosalind-validation/bundle-size.json').write_text(json.dumps(result, indent=2)+'\n')
+          if size >= 128 * 1024**2:
+              raise RuntimeError('replay bundle exceeds the fixed 128 MiB ceiling')
+          digest = hashlib.sha256((bundle / 'inventory.json').read_bytes()).hexdigest()
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as stream:
+              stream.write('inventory_sha256=' + digest + '\n')
+          binary = root / 'rosalind-binary-artifact'
+          binary.mkdir()
+          shutil.copy2(os.environ['ROSALIND_BINARY'], binary / 'rosalind')
+          shutil.copy2(root / 'rosalind-validation/build-identity.json', binary / 'build-identity.json')
+          PY
+      - name: Retain complete compact replay bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: replay-bundle-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rosalind-case-study/replay-bundle
+          if-no-files-found: error
+          retention-days: 30
+      - name: Retain exact executable and build identity separately
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: exact-binary-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rosalind-binary-artifact
+          if-no-files-found: error
+          retention-days: 30
+      - name: Collect bounded diagnostics, including failed and unstarted attempts
+        if: always()
+        env:
+          PRODUCER_STATUS: ${{ job.status }}
+        run: |
+          python - <<'PY'
+          import json, os, shutil
+          from pathlib import Path
+          root = Path(os.environ['RUNNER_TEMP'])
+          dest = root / 'rosalind-validation'
+          dest.mkdir(exist_ok=True)
+          source = root / 'rosalind-case-study'
+          excluded = {'prepared', 'cache', 'raw', 'replay-bundle', 'downloads', 'download-cache'}
+          suffixes = {'.json', '.log', '.txt', '.csv', '.md', '.tsv'}
+          retained, omitted = [], []
+          total = 0
+          priority = {'report.json', 'trials.csv', 'artifact.json', 'checks.json', 'identity.json'}
+          paths = sorted(source.rglob('*'), key=lambda p: (
+              0 if p.parent == source and p.name in priority else 1, str(p))) if source.exists() else []
+          for path in paths:
+              relative = path.relative_to(source)
+              if not path.is_file() or path.is_symlink() or excluded.intersection(relative.parts):
+                  continue
+              if path.suffix not in suffixes:
+                  continue
+              size = path.stat().st_size
+              if size > 16 * 1024**2 or total + size > 64 * 1024**2:
+                  omitted.append({'path': str(relative), 'bytes': size, 'reason': 'diagnostic bound'})
+                  continue
+              target = dest / 'case-study' / relative
+              target.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copy2(path, target)
+              total += size
+              retained.append(str(relative))
+          (dest / 'producer-disposition.json').write_text(json.dumps({
+              'job_status': os.environ['PRODUCER_STATUS'], 'scientific_report_exists': (source/'report.json').exists(),
+              'retained_diagnostics': retained, 'omitted_diagnostics': omitted,
+              'raw_data_and_native_target_retained': False}, indent=2)+'\n')
+          PY
+      - name: Always retain build logs, test results, identities, and failure evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: producer-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rosalind-validation
+          if-no-files-found: warn
+          retention-days: 30
+
+  replay:
+    needs: produce
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: bash
+    env:
+      PYTHONPATH: ${{ github.workspace }}/python
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ needs.produce.outputs.source_sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.11.17'
+      - name: Install the same pinned wheels without native compilation
+        run: |
+          python -m pip install --only-binary=:all: -r research/cohort-reanalysis/workloads/requirements.lock
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: replay-bundle-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/unrelated-saved-only/bundle
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: exact-binary-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/unrelated-saved-only/executable
+      - name: Authenticate exact source and executable in the independent environment
+        env:
+          EXPECTED_SOURCE: ${{ needs.produce.outputs.source_sha }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/replay-validation"
+          chmod u+x "$RUNNER_TEMP/unrelated-saved-only/executable/rosalind"
+          python research/reproducibility-case-study/build_identity.py authenticate \
+            --binary "$RUNNER_TEMP/unrelated-saved-only/executable/rosalind" \
+            --build-identity "$RUNNER_TEMP/unrelated-saved-only/executable/build-identity.json" \
+            --expected-source "$EXPECTED_SOURCE" \
+            --output "$RUNNER_TEMP/replay-validation/identity.json" \
+            2>&1 | tee "$RUNNER_TEMP/replay-validation/identity.log"
+      - name: Replay saved data and expected failures with no raw acquisition or restored caches
+        env:
+          EXPECTED_INVENTORY_SHA256: ${{ needs.produce.outputs.bundle_inventory_sha256 }}
+        run: |
+          cd "$RUNNER_TEMP/unrelated-saved-only"
+          python "$GITHUB_WORKSPACE/research/reproducibility-case-study/verify_bundle.py" \
+            --bundle "$RUNNER_TEMP/unrelated-saved-only/bundle" \
+            --binary "$RUNNER_TEMP/unrelated-saved-only/executable/rosalind" \
+            --build-identity "$RUNNER_TEMP/unrelated-saved-only/executable/build-identity.json" \
+            --expected-inventory-sha256 "$EXPECTED_INVENTORY_SHA256" \
+            --output "$RUNNER_TEMP/rosalind-independent-replay" \
+            2>&1 | tee "$RUNNER_TEMP/replay-validation/replay.log"
+      - name: Always retain independent verifier output and failures
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: independent-replay-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/replay-validation
+            ${{ runner.temp }}/rosalind-independent-replay
+          if-no-files-found: warn
+          retention-days: 30

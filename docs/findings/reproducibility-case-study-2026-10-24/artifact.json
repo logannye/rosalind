@@ -1,0 +1,9 @@
+{
+  "binary_sha256": "9bf4ce1f897b3a299bf8c17bac500ff9df01227f6ec9ff900e732840e17a5705",
+  "bundle_inventory_sha256": "2aaf4c42a4a916d5351d38647496dee4b89cdcc0e0c80ac0309e6e09babe5398",
+  "logical_bytes": 5840123,
+  "retention_days": 30,
+  "source_revision": "401b06b12b875e13e4c101305f41d4bb0ed252fc",
+  "target_under_64_mib": true,
+  "trust": "anchor this record to the exact hosted run; unsigned inventory alone does not authenticate authorship"
+}
